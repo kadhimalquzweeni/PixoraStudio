@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="PixoraStudio.App/PixoraStudio.App.csproj" />
+  <Project Path="PixoraStudio.Core/PixoraStudio.Core.csproj" />
+  <Project Path="PixoraStudio.Infrastructure/PixoraStudio.Infrastructure.csproj" />
+  <Project Path="PixoraStudio.Tests/PixoraStudio.Tests.csproj" />
+</Solution>

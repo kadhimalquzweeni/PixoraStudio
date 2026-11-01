@@ -1,0 +1,193 @@
+<UserControl x:Class="PixoraStudio.App.Views.PhotoEditorView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Background="#17191E">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="55"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="40"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Background="#22252D" Padding="10">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Undo"
+                            Command="{Binding UndoCommand}"
+                            IsEnabled="{Binding CanUndo}"
+                            Margin="0,0,5,0"/>
+
+                    <Button Content="Redo"
+                            Command="{Binding RedoCommand}"
+                            IsEnabled="{Binding CanRedo}"
+                            Margin="0,0,15,0"/>
+
+                    <Button Content="Reset"
+                            Command="{Binding ResetAdjustmentsCommand}"
+                            Margin="0,0,5,0"/>
+
+                    <ToggleButton Content="Original"
+                            IsChecked="{Binding ShowOriginal}"
+                            Foreground="White"
+                            Background="#343740"
+                            Padding="10,5"
+                            Margin="0,0,5,0"/>
+
+                    <Button Content="−"
+                            Command="{Binding ZoomOutCommand}"
+                            Margin="0,0,5,0"/>
+
+                    <Button Content="Fit"
+                            Command="{Binding FitToScreenCommand}"
+                            Margin="0,0,5,0"/>
+
+                    <Button Content="+"
+                            Command="{Binding ZoomInCommand}"/>
+                </StackPanel>
+
+                <Button Content="Export Image"
+                        Command="{Binding SaveImageCommand}"
+                        Background="#3478D4"
+                        Foreground="White"
+                        Padding="15,5"
+                        BorderThickness="0"
+                        HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Main editor -->
+        <Grid Grid.Row="1" Margin="15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="260"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Image canvas -->
+            <Border Background="#202127"
+                    CornerRadius="10"
+                    Margin="0,0,15,0"
+                    ClipToBounds="True">
+
+                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto">
+
+                    <Grid MinWidth="300" MinHeight="300">
+
+                        <Image Source="{Binding PreviewImage}"
+                               Stretch="Uniform"
+                               Width="{Binding PreviewImage.Width}"
+                               Height="{Binding PreviewImage.Height}"
+                               RenderTransformOrigin="0.5,0.5"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center">
+
+                            <Image.RenderTransform>
+                                <ScaleTransform ScaleX="{Binding Zoom}"
+                                               ScaleY="{Binding Zoom}"/>
+                            </Image.RenderTransform>
+
+                        </Image>
+
+                    </Grid>
+
+                </ScrollViewer>
+            </Border>
+
+            <!-- Adjustment panel -->
+            <Border Grid.Column="1"
+                    Background="#22252D"
+                    CornerRadius="10"
+                    Padding="18">
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+
+                    <StackPanel>
+
+                        <TextBlock Text="Adjustments"
+                                   Foreground="White"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,20"/>
+
+                        <!-- Brightness -->
+                        <DockPanel>
+                            <TextBlock Text="Brightness"
+                                       Foreground="#D4D6DE"/>
+                            <TextBlock Text="{Binding Brightness,
+                                StringFormat={}{0:F0}}"
+                                       Foreground="#8BC5FF"
+                                       DockPanel.Dock="Right"/>
+                        </DockPanel>
+
+                        <Slider Minimum="-100"
+                                Maximum="100"
+                                Value="{Binding Brightness}"
+                                Margin="0,8,0,20"/>
+
+                        <!-- Contrast -->
+                        <DockPanel>
+                            <TextBlock Text="Contrast"
+                                       Foreground="#D4D6DE"/>
+                            <TextBlock Text="{Binding Contrast,
+                                StringFormat={}{0:F2}}"
+                                       Foreground="#8BC5FF"
+                                       DockPanel.Dock="Right"/>
+                        </DockPanel>
+
+                        <Slider Minimum="0"
+                                Maximum="3"
+                                Value="{Binding Contrast}"
+                                Margin="0,8,0,20"/>
+
+                        <!-- Saturation -->
+                        <DockPanel>
+                            <TextBlock Text="Saturation"
+                                       Foreground="#D4D6DE"/>
+                            <TextBlock Text="{Binding Saturation,
+                                StringFormat={}{0:F2}}"
+                                       Foreground="#8BC5FF"
+                                       DockPanel.Dock="Right"/>
+                        </DockPanel>
+
+                        <Slider Minimum="0"
+                                Maximum="3"
+                                Value="{Binding Saturation}"
+                                Margin="0,8,0,25"/>
+
+                        <!-- Filters -->
+                        <TextBlock Text="Filters"
+                                   Foreground="White"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12"/>
+
+                        <Button Content="Original"
+                                Command="{Binding ResetAdjustmentsCommand}"
+                                Margin="0,0,0,6"/>
+
+                        <Button Content="Grayscale"
+                                Click="Grayscale_Click"
+                                Margin="0,0,0,6"/>
+
+                        <Button Content="Sepia"
+                                Click="Sepia_Click"
+                                Margin="0,0,0,6"/>
+
+                    </StackPanel>
+
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Background="#22252D">
+            <TextBlock Text="{Binding ImagePath}"
+                       Foreground="#8A8D97"
+                       FontSize="11"
+                       VerticalAlignment="Center"
+                       Margin="15,0"/>
+        </Border>
+
+    </Grid>
+</UserControl>
