@@ -1,23 +1,59 @@
 ﻿
 using LibVLCSharp.Shared;
+using PixoraStudio.App.ViewModels;
+using PixoraStudio.App.Windows;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
-using PixoraStudio.App.ViewModels;
+using VlcMediaPlayer = LibVLCSharp.Shared.MediaPlayer;
+using System.Runtime.InteropServices;
 
 namespace PixoraStudio.App.Views;
 
 public partial class VideoEditorView : UserControl
 {
-    private MediaPlayer? _mediaPlayer;
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out NativePoint point);
+    private VlcMediaPlayer? _mediaPlayer;
     private LibVLC? _libVLC;
+
+    private VideoOverlayWindow? _overlayWindow;
 
     private readonly DispatcherTimer _timer = new()
     {
         Interval = TimeSpan.FromMilliseconds(200)
     };
 
-    private bool _isSeeking;
+    // Keeps the separate overlay aligned with the video preview.
+    private readonly DispatcherTimer _overlayPositionTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(50)
+    };
+
+    private bool _wasPlayingBeforeScrubbing;
+    private bool _isDraggingTrimStart;
+    private bool _isDraggingTrimEnd;
+    private bool _isDraggingPlayhead;
+
+    private bool _isFullScreen;
+
+    private Window? _editorWindow;
+
+    private WindowStyle _previousWindowStyle;
+    private ResizeMode _previousResizeMode;
+    private WindowState _previousWindowState;
+
+    private Thickness _previousPreviewMargin;
+    private CornerRadius _previousPreviewCornerRadius;
 
     public VideoEditorView()
     {
@@ -27,28 +63,195 @@ public partial class VideoEditorView : UserControl
         Unloaded += VideoEditorView_Unloaded;
 
         _timer.Tick += Timer_Tick;
+        _overlayPositionTimer.Tick += OverlayPositionTimer_Tick;
+
+        DataContextChanged += VideoEditorView_DataContextChanged;
     }
 
     private void VideoEditorView_Loaded(
-        object sender, RoutedEventArgs e)
+        object sender,
+        RoutedEventArgs e)
     {
-        _libVLC = App.LibVLCInstance;
-        _mediaPlayer = new MediaPlayer(_libVLC);
+        _editorWindow = Window.GetWindow(this);
 
-        VideoPlayer.MediaPlayer = _mediaPlayer;
-
-        if (DataContext is VideoEditorViewModel vm)
+        if (_mediaPlayer == null)
         {
-            vm.VideoLoaded += OnVideoLoaded;
-            vm.PlayPauseRequested += OnPlayPause;
-            vm.SeekRequested += OnSeek;
-            vm.VolumeChanged += OnVolumeChanged;
+            _libVLC = App.LibVLCInstance;
 
-            _mediaPlayer.Volume = (int)vm.Volume;
+            _mediaPlayer = new VlcMediaPlayer(_libVLC);
+
+            VideoPlayer.MediaPlayer = _mediaPlayer;
         }
 
+        SubscribeToViewModel();
+
+        CreateOverlayWindow();
+
         _timer.Start();
+        _overlayPositionTimer.Start();
+
+        UpdateTrimTimeline();
+
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(UpdateOverlayPosition));
     }
+
+    private void VideoEditorView_DataContextChanged(
+        object sender,
+        DependencyPropertyChangedEventArgs e)
+    {
+        if (!IsLoaded)
+            return;
+
+        UnsubscribeFromViewModel();
+        SubscribeToViewModel();
+
+        if (_overlayWindow != null)
+            _overlayWindow.DataContext = DataContext;
+    }
+
+    private void SubscribeToViewModel()
+    {
+        if (DataContext is not VideoEditorViewModel vm)
+            return;
+
+        vm.VideoLoaded -= OnVideoLoaded;
+        vm.PlayPauseRequested -= OnPlayPause;
+        vm.SeekRequested -= OnSeek;
+        vm.VolumeChanged -= OnVolumeChanged;
+
+        vm.VideoLoaded += OnVideoLoaded;
+        vm.PlayPauseRequested += OnPlayPause;
+        vm.SeekRequested += OnSeek;
+        vm.VolumeChanged += OnVolumeChanged;
+
+        if (_mediaPlayer != null)
+            _mediaPlayer.Volume = (int)vm.Volume;
+    }
+
+    private void UnsubscribeFromViewModel()
+    {
+        if (DataContext is not VideoEditorViewModel vm)
+            return;
+
+        vm.VideoLoaded -= OnVideoLoaded;
+        vm.PlayPauseRequested -= OnPlayPause;
+        vm.SeekRequested -= OnSeek;
+        vm.VolumeChanged -= OnVolumeChanged;
+    }
+
+
+    private void CreateOverlayWindow()
+    {
+        if (_overlayWindow != null)
+            return;
+
+        _overlayWindow = new VideoOverlayWindow
+        {
+            Owner = _editorWindow,
+            DataContext = DataContext,
+            WindowStartupLocation = WindowStartupLocation.Manual
+        };
+
+        _overlayWindow.FullscreenRequested +=
+            OverlayWindow_FullscreenRequested;
+
+        _overlayWindow.PreviewMouseLeftButtonDown +=
+            OverlayWindow_PreviewMouseLeftButtonDown;
+
+        _overlayWindow.Show();
+
+        UpdateOverlayPosition();
+    }
+
+
+    private void OverlayWindow_FullscreenRequested(
+        object? sender,
+        EventArgs e)
+    {
+        ToggleFullScreen();
+    }
+
+    private void OverlayWindow_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (IsPlaybackControl(e.OriginalSource as DependencyObject))
+            return;
+
+        if (e.ClickCount == 2)
+        {
+            ToggleFullScreen();
+            e.Handled = true;
+        }
+    }
+
+    private bool IsPlaybackControl(DependencyObject? element)
+    {
+        while (element != null)
+        {
+            if (element is Button || element is Slider)
+                return true;
+
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return false;
+    }
+
+    private void OverlayPositionTimer_Tick(
+        object? sender,
+        EventArgs e)
+    {
+        UpdateOverlayPosition();
+        CheckVideoHover();
+    }
+
+    private void UpdateOverlayPosition()
+    {
+        if (_overlayWindow == null ||
+            !VideoHost.IsVisible ||
+            VideoHost.ActualWidth <= 0 ||
+            VideoHost.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var presentationSource = PresentationSource.FromVisual(VideoHost);
+
+        if (presentationSource?.CompositionTarget == null)
+            return;
+
+        // PointToScreen returns screen coordinates.
+        Point topLeft = VideoHost.PointToScreen(new Point(0, 0));
+
+        Point bottomRight = VideoHost.PointToScreen(
+            new Point(
+                VideoHost.ActualWidth,
+                VideoHost.ActualHeight));
+
+        // Convert screen coordinates into WPF device-independent units.
+        var transform = presentationSource.CompositionTarget.TransformFromDevice;
+
+        topLeft = transform.Transform(topLeft);
+        bottomRight = transform.Transform(bottomRight);
+
+        double width = bottomRight.X - topLeft.X;
+        double height = bottomRight.Y - topLeft.Y;
+
+        if (width <= 0 || height <= 0)
+            return;
+
+        _overlayWindow.Left = topLeft.X;
+        _overlayWindow.Top = topLeft.Y;
+        _overlayWindow.Width = width;
+        _overlayWindow.Height = height;
+    }
+
+    // ------------------------------------------------------------
+    // VIDEO PLAYBACK
+    // ------------------------------------------------------------
 
     private void OnVideoLoaded(string filePath)
     {
@@ -56,7 +259,9 @@ public partial class VideoEditorView : UserControl
             return;
 
         using var media = new Media(
-            _libVLC, filePath, FromType.FromPath);
+            _libVLC,
+            filePath,
+            FromType.FromPath);
 
         _mediaPlayer.Play(media);
     }
@@ -92,56 +297,506 @@ public partial class VideoEditorView : UserControl
     {
         if (_mediaPlayer == null ||
             DataContext is not VideoEditorViewModel vm)
+        {
             return;
+        }
 
         vm.IsPlaying = _mediaPlayer.IsPlaying;
 
-        if (!_isSeeking && _mediaPlayer.Length > 0)
+        if (!_isDraggingPlayhead && _mediaPlayer.Length > 0)
         {
             vm.PlaybackPosition = _mediaPlayer.Time;
-            vm.CurrentTime = TimeSpan
-                .FromMilliseconds(_mediaPlayer.Time)
-                .ToString(@"mm\:ss");
+
+            vm.CurrentTime = FormatPlaybackTime(
+                TimeSpan.FromMilliseconds(_mediaPlayer.Time));
         }
+
+        UpdateTrimTimeline();
     }
 
-    private void Timeline_MouseDown(
-        object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private static string FormatPlaybackTime(TimeSpan time)
     {
-        _isSeeking = true;
+        return time.TotalHours >= 1
+            ? time.ToString(@"hh\:mm\:ss")
+            : time.ToString(@"mm\:ss");
     }
 
-    private void Timeline_MouseUp(
-        object sender, System.Windows.Input.MouseButtonEventArgs e)
+    // ------------------------------------------------------------
+    // TRIM TIMELINE
+    // ------------------------------------------------------------
+
+    private void TrimTimeline_MouseDown(
+        object sender,
+        MouseButtonEventArgs e)
     {
-        _isSeeking = false;
-
-        if (DataContext is VideoEditorViewModel vm)
-            vm.SeekCommand.Execute(vm.PlaybackPosition);
-    }
-
-    private void VideoEditorView_Unloaded(
-        object sender, RoutedEventArgs e)
-    {
-        _timer.Stop();
-
-        if (DataContext is VideoEditorViewModel vm)
+        if (DataContext is not VideoEditorViewModel vm ||
+            vm.TotalMilliseconds <= 0)
         {
-            vm.VideoLoaded -= OnVideoLoaded;
-            vm.PlayPauseRequested -= OnPlayPause;
-            vm.SeekRequested -= OnSeek;
-            vm.VolumeChanged -= OnVolumeChanged;
+            return;
         }
 
-        _mediaPlayer?.Stop();
-        _mediaPlayer?.Dispose();
-        _mediaPlayer = null;
+        double x = e.GetPosition(TrimTimelineCanvas).X;
+        double width = TrimTimelineCanvas.ActualWidth;
+
+        if (width <= 0)
+            return;
+
+        double startX =
+            vm.TrimStart / vm.TotalMilliseconds * width;
+
+        double endX =
+            vm.TrimEnd / vm.TotalMilliseconds * width;
+
+        double startDistance = Math.Abs(x - startX);
+        double endDistance = Math.Abs(x - endX);
+
+        _isDraggingTrimStart = false;
+        _isDraggingTrimEnd = false;
+        _isDraggingPlayhead = false;
+
+        if (startDistance <= 16 || endDistance <= 16)
+        {
+            if (startDistance <= endDistance)
+                _isDraggingTrimStart = true;
+            else
+                _isDraggingTrimEnd = true;
+        }
+        else
+        {
+            _isDraggingPlayhead = true;
+
+            _wasPlayingBeforeScrubbing =
+                _mediaPlayer?.IsPlaying == true;
+
+            if (_wasPlayingBeforeScrubbing)
+                _mediaPlayer?.Pause();
+
+            UpdatePlayheadPosition(x, vm, width);
+
+            if (_mediaPlayer != null)
+                _mediaPlayer.Time = (long)vm.PlaybackPosition;
+        }
+
+        TrimTimelineCanvas.CaptureMouse();
+        e.Handled = true;
     }
+
+    private void TrimTimeline_MouseMove(
+        object sender,
+        MouseEventArgs e)
+    {
+        if (DataContext is not VideoEditorViewModel vm ||
+            vm.TotalMilliseconds <= 0)
+        {
+            return;
+        }
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        double width = TrimTimelineCanvas.ActualWidth;
+
+        if (width <= 0)
+            return;
+
+        double x = e.GetPosition(TrimTimelineCanvas).X;
+
+        double position = Math.Clamp(
+            x / width * vm.TotalMilliseconds,
+            0,
+            vm.TotalMilliseconds);
+
+        if (_isDraggingTrimStart)
+        {
+            vm.TrimStart = Math.Min(
+                position,
+                Math.Max(0, vm.TrimEnd - 1));
+        }
+        else if (_isDraggingTrimEnd)
+        {
+            vm.TrimEnd = Math.Max(
+                position,
+                Math.Min(vm.TotalMilliseconds, vm.TrimStart + 1));
+        }
+        else if (_isDraggingPlayhead)
+        {
+            UpdatePlayheadPosition(x, vm, width);
+
+            if (_mediaPlayer != null)
+                _mediaPlayer.Time = (long)vm.PlaybackPosition;
+        }
+
+        UpdateTrimTimeline();
+    }
+
+    private void TrimTimeline_MouseUp(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (_isDraggingPlayhead &&
+            DataContext is VideoEditorViewModel vm)
+        {
+            vm.SeekCommand.Execute(vm.PlaybackPosition);
+
+            if (_wasPlayingBeforeScrubbing)
+                _mediaPlayer?.Play();
+        }
+
+        _wasPlayingBeforeScrubbing = false;
+
+        _isDraggingTrimStart = false;
+        _isDraggingTrimEnd = false;
+        _isDraggingPlayhead = false;
+
+        TrimTimelineCanvas.ReleaseMouseCapture();
+
+        UpdateTrimTimeline();
+
+        e.Handled = true;
+    }
+
+    private void TrimTimeline_SizeChanged(
+        object sender,
+        SizeChangedEventArgs e)
+    {
+        UpdateTrimTimeline();
+    }
+
+    private void UpdatePlayheadPosition(
+        double x,
+        VideoEditorViewModel vm,
+        double width)
+    {
+        double position = Math.Clamp(
+            x / width * vm.TotalMilliseconds,
+            0,
+            vm.TotalMilliseconds);
+
+        vm.PlaybackPosition = position;
+
+        vm.CurrentTime = FormatPlaybackTime(
+            TimeSpan.FromMilliseconds(position));
+    }
+
+    private void UpdateTrimTimeline()
+    {
+        if (DataContext is not VideoEditorViewModel vm)
+            return;
+
+        double width = TrimTimelineCanvas.ActualWidth;
+
+        if (width <= 0 || vm.TotalMilliseconds <= 0)
+            return;
+
+        Filmstrip.Width = width;
+
+        double startX =
+            vm.TrimStart / vm.TotalMilliseconds * width;
+
+        double endX =
+            vm.TrimEnd / vm.TotalMilliseconds * width;
+
+        double playheadX =
+            vm.PlaybackPosition / vm.TotalMilliseconds * width;
+
+        // Selected trim section.
+        Canvas.SetLeft(SelectionRange, startX);
+        SelectionRange.Width = Math.Max(0, endX - startX);
+
+        // Trim start handle.
+        Canvas.SetLeft(
+            LeftTrimHandle,
+            Math.Clamp(startX - 6, 0, Math.Max(0, width - 12)));
+
+        // Trim end handle.
+        Canvas.SetLeft(
+            RightTrimHandle,
+            Math.Clamp(endX - 6, 0, Math.Max(0, width - 12)));
+
+        // Playback playhead.
+        Canvas.SetLeft(
+            Playhead,
+            Math.Clamp(playheadX - 1.5, 0, Math.Max(0, width - 3)));
+
+        // Update displayed times.
+        PlayheadTimeLabel.Text = vm.CurrentTime;
+        TrimStartTimeLabel.Text = vm.TrimStartTime;
+        TrimEndTimeLabel.Text = vm.TrimEndTime;
+
+        MeasureTimeLabel(PlayheadTimeLabel);
+        MeasureTimeLabel(TrimStartTimeLabel);
+        MeasureTimeLabel(TrimEndTimeLabel);
+
+        double startWidth = TrimStartTimeLabel.DesiredSize.Width;
+        double endWidth = TrimEndTimeLabel.DesiredSize.Width;
+        double playheadWidth = PlayheadTimeLabel.DesiredSize.Width;
+
+        bool playheadNearStart =
+            Math.Abs(playheadX - startX) <
+            (playheadWidth + startWidth) / 2 + 8;
+
+        bool playheadNearEnd =
+            Math.Abs(playheadX - endX) <
+            (playheadWidth + endWidth) / 2 + 8;
+
+        bool trimLabelsNear =
+            Math.Abs(endX - startX) <
+            (startWidth + endWidth) / 2 + 8;
+
+        PositionTimeLabel(
+            TrimStartTimeLabel,
+            startX,
+            width,
+            0);
+
+        PositionTimeLabel(
+            TrimEndTimeLabel,
+            endX,
+            width,
+            trimLabelsNear ? 48 : 0);
+
+        double playheadTop =
+            playheadNearStart || playheadNearEnd ? 48 : 0;
+
+        if (playheadTop == 48 && trimLabelsNear)
+            playheadTop = 24;
+
+        PositionTimeLabel(
+            PlayheadTimeLabel,
+            playheadX,
+            width,
+            playheadTop);
+    }
+
+    private void MeasureTimeLabel(TextBlock label)
+    {
+        label.Measure(new Size(
+            double.PositiveInfinity,
+            double.PositiveInfinity));
+    }
+
+    private void PositionTimeLabel(
+        TextBlock label,
+        double markerX,
+        double timelineWidth,
+        double top)
+    {
+        double labelWidth = label.DesiredSize.Width;
+
+        double left = markerX - labelWidth / 2;
+
+        left = Math.Clamp(
+            left,
+            0,
+            Math.Max(0, timelineWidth - labelWidth));
+
+        Canvas.SetLeft(label, left);
+        Canvas.SetTop(label, top);
+    }
+
+    // ------------------------------------------------------------
+    // VOLUME
+    // ------------------------------------------------------------
 
     private void VolumeSlider_ValueChanged(
-        object sender, RoutedPropertyChangedEventArgs<double> e)
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
     {
         if (DataContext is VideoEditorViewModel vm)
             vm.ChangeVolumeCommand.Execute(e.NewValue);
     }
+
+    // ------------------------------------------------------------
+    // FULLSCREEN
+    // ------------------------------------------------------------
+
+    private void ToggleFullScreen()
+    {
+        if (_isFullScreen)
+            ExitFullScreen();
+        else
+            EnterFullScreen();
+    }
+
+
+    private void EnterFullScreen()
+    {
+        if (_isFullScreen)
+            return;
+
+        _editorWindow = Window.GetWindow(this);
+
+        if (_editorWindow == null)
+            return;
+
+        _previousWindowStyle = _editorWindow.WindowStyle;
+        _previousResizeMode = _editorWindow.ResizeMode;
+        _previousWindowState = _editorWindow.WindowState;
+
+        _previousPreviewMargin = VideoPreviewBorder.Margin;
+        _previousPreviewCornerRadius = VideoPreviewBorder.CornerRadius;
+
+        _isFullScreen = true;
+
+        // Keep the overlay available in fullscreen.
+        _overlayWindow?.SetFullscreenButton(true);
+
+        // Hide the normal editing interface.
+        ToolbarBorder.Visibility = Visibility.Collapsed;
+        BottomEditingPanel.Visibility = Visibility.Collapsed;
+        PlaybackControlsBorder.Visibility = Visibility.Collapsed;
+
+        VideoPreviewBorder.Margin = new Thickness(0);
+        VideoPreviewBorder.CornerRadius = new CornerRadius(0);
+
+        // Remove window borders and maximise.
+        _editorWindow.WindowState = WindowState.Normal;
+        _editorWindow.WindowStyle = WindowStyle.None;
+        _editorWindow.ResizeMode = ResizeMode.NoResize;
+        _editorWindow.WindowState = WindowState.Maximized;
+
+        _editorWindow.PreviewKeyDown += FullScreenWindow_PreviewKeyDown;
+
+        // Continue positioning the overlay over the video.
+        _overlayPositionTimer.Start();
+
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(() =>
+            {
+                UpdateOverlayPosition();
+                CheckVideoHover();
+
+                _overlayWindow?.Show();
+            }));
+    }
+
+
+    private void ExitFullScreen()
+    {
+        if (!_isFullScreen || _editorWindow == null)
+            return;
+
+        _isFullScreen = false;
+
+        _editorWindow.PreviewKeyDown -=
+            FullScreenWindow_PreviewKeyDown;
+
+        // Restore the editor controls.
+        ToolbarBorder.Visibility = Visibility.Visible;
+        BottomEditingPanel.Visibility = Visibility.Visible;
+        PlaybackControlsBorder.Visibility = Visibility.Visible;
+
+        // Restore the preview's original appearance.
+        VideoPreviewBorder.Margin = _previousPreviewMargin;
+        VideoPreviewBorder.CornerRadius = _previousPreviewCornerRadius;
+
+        // Restore the original window settings.
+        _editorWindow.WindowState = WindowState.Normal;
+        _editorWindow.WindowStyle = _previousWindowStyle;
+        _editorWindow.ResizeMode = _previousResizeMode;
+        _editorWindow.WindowState = _previousWindowState;
+
+        _overlayWindow?.SetFullscreenButton(false);
+
+        _overlayPositionTimer.Start();
+
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(() =>
+            {
+                UpdateOverlayPosition();
+
+                if (_overlayWindow != null)
+                {
+                    _overlayWindow.Show();
+
+                    if (_overlayWindow.IsMouseOver)
+                        _overlayWindow.ShowControls();
+                    else
+                        _overlayWindow.HideControls();
+                }
+            }));
+    }
+
+    private void FullScreenWindow_PreviewKeyDown(
+        object sender,
+        KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            ExitFullScreen();
+            e.Handled = true;
+        }
+    }
+
+    private void VideoEditorView_Unloaded(
+        object sender,
+        RoutedEventArgs e)
+    {
+        _timer.Stop();
+        _overlayPositionTimer.Stop();
+
+        if (_isFullScreen)
+            ExitFullScreen();
+
+        UnsubscribeFromViewModel();
+
+        if (_overlayWindow != null)
+        {
+            _overlayWindow.FullscreenRequested -=
+                OverlayWindow_FullscreenRequested;
+
+
+            _overlayWindow.PreviewMouseLeftButtonDown -=
+                OverlayWindow_PreviewMouseLeftButtonDown;
+
+            _overlayWindow.Close();
+            _overlayWindow = null;
+        }
+
+        if (_editorWindow != null)
+        {
+            _editorWindow.PreviewKeyDown -=
+                FullScreenWindow_PreviewKeyDown;
+        }
+
+        _mediaPlayer?.Stop();
+        _mediaPlayer?.Dispose();
+
+        _mediaPlayer = null;
+
+        VideoPlayer.MediaPlayer = null;
+    }
+
+    private void CheckVideoHover()
+    {
+        if (_overlayWindow == null ||
+            !VideoHost.IsVisible)
+        {
+            return;
+        }
+
+        if (!GetCursorPos(out NativePoint cursor))
+            return;
+
+        Point topLeft = VideoHost.PointToScreen(new Point(0, 0));
+
+        Point bottomRight = VideoHost.PointToScreen(
+            new Point(
+                VideoHost.ActualWidth,
+                VideoHost.ActualHeight));
+
+        bool isOverVideo =
+            cursor.X >= topLeft.X &&
+            cursor.Y >= topLeft.Y &&
+            cursor.X <= bottomRight.X &&
+            cursor.Y <= bottomRight.Y;
+
+        if (isOverVideo)
+            _overlayWindow.ShowControls();
+        else
+            _overlayWindow.HideControls();
+    }
+
 }

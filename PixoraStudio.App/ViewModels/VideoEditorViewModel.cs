@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using PixoraStudio.Infrastructure.Services;
 using System.Threading;
+using System.Collections.ObjectModel;
 
 namespace PixoraStudio.App.ViewModels;
 
@@ -18,6 +19,7 @@ public partial class VideoEditorViewModel : ObservableObject
     private VideoInfo? _videoInfo;
     private readonly FFmpegService _ffmpegService;
     private CancellationTokenSource? _exportCancellationTokenSource;
+    public ObservableCollection<BitmapImage> VideoFrames { get; } = new();
 
     public VideoEditorViewModel(
         IVideoProcessingService videoService,
@@ -70,6 +72,7 @@ public partial class VideoEditorViewModel : ObservableObject
         }
     }
 
+
     public async Task LoadVideoAsync(string filePath)
     {
         if (!File.Exists(filePath))
@@ -86,12 +89,13 @@ public partial class VideoEditorViewModel : ObservableObject
 
             VideoPath = filePath;
             VideoName = Path.GetFileName(filePath);
+
             VideoLoaded?.Invoke(filePath);
 
             _videoInfo = await _videoService.GetVideoInfoAsync(filePath);
-            StatusMessage = "Generating video thumbnail...";
 
             VideoDuration = FormatDuration(_videoInfo.Duration);
+
             TotalMilliseconds = _videoInfo.Duration.TotalMilliseconds;
             PlaybackPosition = 0;
             CurrentTime = "00:00";
@@ -105,24 +109,13 @@ public partial class VideoEditorViewModel : ObservableObject
             VideoFrameRate =
                 $"{_videoInfo.FramesPerSecond:F2} FPS";
 
-            string thumbnailPath = Path.Combine(
-                Path.GetTempPath(),
-                $"Pixora_{Guid.NewGuid()}.png");
+            StatusMessage = "Generating video thumbnails...";
 
-            await _videoService.GenerateThumbnailAsync(
-                filePath,
-                TimeSpan.Zero,
-                thumbnailPath);
+            await GenerateVideoFramesAsync(filePath);
 
-            Thumbnail = new BitmapImage();
-
-            Thumbnail.BeginInit();
-            Thumbnail.UriSource = new Uri(thumbnailPath);
-            Thumbnail.CacheOption = BitmapCacheOption.OnLoad;
-            Thumbnail.EndInit();
-            Thumbnail.Freeze();
-
-            StatusMessage = "Video loaded successfully";
+            StatusMessage = VideoFrames.Count > 0
+                ? "Video loaded successfully"
+                : "Video loaded, but thumbnails could not be generated.";
         }
         catch (Exception ex)
         {
@@ -134,6 +127,7 @@ public partial class VideoEditorViewModel : ObservableObject
             IsLoading = false;
         }
     }
+
 
     private static string FormatDuration(TimeSpan duration)
     {
@@ -155,6 +149,7 @@ public partial class VideoEditorViewModel : ObservableObject
         _videoInfo = null;
         ErrorMessage = string.Empty;
         StatusMessage = "Open a video to get started";
+        VideoFrames.Clear();
     }
 
 
@@ -342,4 +337,83 @@ public partial class VideoEditorViewModel : ObservableObject
         _exportCancellationTokenSource?.Cancel();
     }
 
+    private async Task GenerateVideoFramesAsync(string filePath)
+    {
+        VideoFrames.Clear();
+
+        if (_videoInfo == null || _videoInfo.Duration <= TimeSpan.Zero)
+            return;
+
+        const int frameCount = 20;
+
+        for (int i = 0; i < frameCount; i++)
+        {
+            double fraction = (double)i / frameCount;
+
+            TimeSpan position = TimeSpan.FromMilliseconds(
+                _videoInfo.Duration.TotalMilliseconds * fraction);
+
+            string thumbnailPath = Path.Combine(
+                Path.GetTempPath(),
+                $"Pixora_Frame_{Guid.NewGuid()}.png");
+
+            try
+            {
+                string generatedPath =
+                    await _videoService.GenerateThumbnailAsync(
+                        filePath,
+                        position,
+                        thumbnailPath);
+
+                if (string.IsNullOrWhiteSpace(generatedPath) ||
+                    !File.Exists(generatedPath))
+                {
+                    continue;
+                }
+
+                BitmapImage frame;
+
+                // Read the image into memory and close the file.
+                using (FileStream stream = new FileStream(
+                    generatedPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite))
+                {
+                    frame = new BitmapImage();
+
+                    frame.BeginInit();
+                    frame.CacheOption = BitmapCacheOption.OnLoad;
+                    frame.DecodePixelWidth = 240;
+                    frame.StreamSource = stream;
+                    frame.EndInit();
+
+                    frame.Freeze();
+                }
+
+                VideoFrames.Add(frame);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Thumbnail {i} failed: {ex.Message}");
+            }
+            finally
+            {
+                // Give the process a moment to release any remaining file handle.
+                if (File.Exists(thumbnailPath))
+                {
+                    try
+                    {
+                        File.Delete(thumbnailPath);
+                    }
+                    catch (IOException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"Could not delete thumbnail: {ex.Message}");
+                    }
+                }
+            }
+        }
+    }
 }
