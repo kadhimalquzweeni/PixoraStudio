@@ -29,14 +29,15 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220"/>
+            <ColumnDefinition x:Name="SidebarColumn" Width="220"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar -->
-        <Border Background="#1E2026"
-                BorderBrush="#30323A"
-                BorderThickness="0,0,1,0">
+        <Border x:Name="SidebarBorder"
+            Background="#1E2026"
+            BorderBrush="#30323A"
+            BorderThickness="0,0,1,0">
 
             <DockPanel Margin="15">
 
@@ -86,16 +87,17 @@
         <Grid Grid.Column="1">
 
             <Grid.RowDefinitions>
-                <RowDefinition Height="65"/>
+                <RowDefinition x:Name="HeaderRow" Height="65"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <!-- Top Header -->
-            <Border Grid.Row="0"
-            Background="#1E2026"
-            BorderBrush="#30323A"
-            BorderThickness="0,0,0,1"
-            Padding="20,10">
+            <Border x:Name="TopHeaderBorder"
+                Grid.Row="0"
+                Background="#1E2026"
+                BorderBrush="#30323A"
+                BorderThickness="0,0,0,1"
+                Padding="20,10">
 
                 <Grid>
 

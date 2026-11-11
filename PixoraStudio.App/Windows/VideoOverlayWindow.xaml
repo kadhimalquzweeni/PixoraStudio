@@ -77,6 +77,108 @@
                 Click="FullscreenButton_Click"
                 Visibility="Collapsed"/>
 
+        <!-- Fullscreen Playback Control Bar -->
+        <Border x:Name="FullscreenControls"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Stretch"
+                Background="#E617191E"
+                Padding="24,16"
+                Visibility="Collapsed">
+
+            <StackPanel>
+
+                <!-- Playback Position -->
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding CurrentTime}"
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               Margin="0,0,12,0"/>
+
+                    <Slider x:Name="PlaybackSlider"
+                            Grid.Column="1"
+                            Minimum="0"
+                            Maximum="{Binding TotalMilliseconds}"
+                            Value="{Binding PlaybackPosition, Mode=TwoWay}"
+                            IsMoveToPointEnabled="True"
+                            VerticalAlignment="Center"
+                            ValueChanged="PlaybackSlider_ValueChanged"/>
+
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding VideoDuration}"
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               Margin="12,0,0,0"/>
+                </Grid>
+
+                <!-- Volume -->
+                <Grid Margin="0,8,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0"
+                               Text="Volume"
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               Margin="0,0,12,0"/>
+
+                    <TextBlock Grid.Column="1"
+                               Text="🔊"
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+
+                    <Slider x:Name="VolumeSlider"
+                            Grid.Column="2"
+                            Minimum="0"
+                            Maximum="100"
+                            Value="{Binding Volume, Mode=TwoWay}"
+                            VerticalAlignment="Center"
+                            ValueChanged="FullscreenVolumeSlider_ValueChanged"/>
+
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding Volume, StringFormat={}{0:0}%}"
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               Margin="10,0,0,0"/>
+                </Grid>
+
+                <!-- Trim Buttons -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+
+                    <Button Content="✂  Start Trim Here"
+                            Click="StartTrimHere_Click"
+                            Padding="16,9"
+                            Margin="0,0,10,0"
+                            Background="#303640"
+                            Foreground="White"
+                            BorderBrush="#555B66"
+                            Cursor="Hand"/>
+
+                    <Button Content="✂  End Trim Here"
+                            Click="EndTrimHere_Click"
+                            Padding="16,9"
+                            Background="#303640"
+                            Foreground="White"
+                            BorderBrush="#555B66"
+                            Cursor="Hand"/>
+
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
+
     </Grid>
 
 </Window>

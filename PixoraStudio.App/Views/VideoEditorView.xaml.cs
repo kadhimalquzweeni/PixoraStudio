@@ -27,7 +27,10 @@ public partial class VideoEditorView : UserControl
     private LibVLC? _libVLC;
 
     private VideoOverlayWindow? _overlayWindow;
-
+    private Visibility _previousSidebarVisibility;
+    private Visibility _previousHeaderVisibility;
+    private GridLength _previousSidebarColumnWidth;
+    private GridLength _previousHeaderRowHeight;
     private readonly DispatcherTimer _timer = new()
     {
         Interval = TimeSpan.FromMilliseconds(200)
@@ -227,31 +230,18 @@ public partial class VideoEditorView : UserControl
         Point topLeft = VideoHost.PointToScreen(new Point(0, 0));
 
         Point bottomRight = VideoHost.PointToScreen(
-            new Point(
-                VideoHost.ActualWidth,
-                VideoHost.ActualHeight));
+            new Point(VideoHost.ActualWidth, VideoHost.ActualHeight));
 
-        // Convert screen coordinates into WPF device-independent units.
         var transform = presentationSource.CompositionTarget.TransformFromDevice;
 
         topLeft = transform.Transform(topLeft);
         bottomRight = transform.Transform(bottomRight);
 
-        double width = bottomRight.X - topLeft.X;
-        double height = bottomRight.Y - topLeft.Y;
-
-        if (width <= 0 || height <= 0)
-            return;
-
         _overlayWindow.Left = topLeft.X;
         _overlayWindow.Top = topLeft.Y;
-        _overlayWindow.Width = width;
-        _overlayWindow.Height = height;
+        _overlayWindow.Width = bottomRight.X - topLeft.X;
+        _overlayWindow.Height = bottomRight.Y - topLeft.Y;
     }
-
-    // ------------------------------------------------------------
-    // VIDEO PLAYBACK
-    // ------------------------------------------------------------
 
     private void OnVideoLoaded(string filePath)
     {
@@ -320,10 +310,6 @@ public partial class VideoEditorView : UserControl
             ? time.ToString(@"hh\:mm\:ss")
             : time.ToString(@"mm\:ss");
     }
-
-    // ------------------------------------------------------------
-    // TRIM TIMELINE
-    // ------------------------------------------------------------
 
     private void TrimTimeline_MouseDown(
         object sender,
@@ -594,10 +580,6 @@ public partial class VideoEditorView : UserControl
         Canvas.SetTop(label, top);
     }
 
-    // ------------------------------------------------------------
-    // VOLUME
-    // ------------------------------------------------------------
-
     private void VolumeSlider_ValueChanged(
         object sender,
         RoutedPropertyChangedEventArgs<double> e)
@@ -606,10 +588,6 @@ public partial class VideoEditorView : UserControl
             vm.ChangeVolumeCommand.Execute(e.NewValue);
     }
 
-    // ------------------------------------------------------------
-    // FULLSCREEN
-    // ------------------------------------------------------------
-
     private void ToggleFullScreen()
     {
         if (_isFullScreen)
@@ -617,7 +595,6 @@ public partial class VideoEditorView : UserControl
         else
             EnterFullScreen();
     }
-
 
     private void EnterFullScreen()
     {
@@ -636,12 +613,29 @@ public partial class VideoEditorView : UserControl
         _previousPreviewMargin = VideoPreviewBorder.Margin;
         _previousPreviewCornerRadius = VideoPreviewBorder.CornerRadius;
 
+        // Save the main application layout visibility.
+        if (_editorWindow is MainWindow mainWindow)
+        {
+            // Save the original layout dimensions.
+            _previousSidebarVisibility = mainWindow.SidebarBorder.Visibility;
+            _previousHeaderVisibility = mainWindow.TopHeaderBorder.Visibility;
+
+            _previousSidebarColumnWidth = mainWindow.SidebarColumn.Width;
+            _previousHeaderRowHeight = mainWindow.HeaderRow.Height;
+
+            // Hide sidebar and header.
+            mainWindow.SidebarBorder.Visibility = Visibility.Collapsed;
+            mainWindow.TopHeaderBorder.Visibility = Visibility.Collapsed;
+
+            // Remove the space reserved for them.
+            mainWindow.SidebarColumn.Width = new GridLength(0);
+            mainWindow.HeaderRow.Height = new GridLength(0);
+        }
+
         _isFullScreen = true;
 
-        // Keep the overlay available in fullscreen.
         _overlayWindow?.SetFullscreenButton(true);
 
-        // Hide the normal editing interface.
         ToolbarBorder.Visibility = Visibility.Collapsed;
         BottomEditingPanel.Visibility = Visibility.Collapsed;
         PlaybackControlsBorder.Visibility = Visibility.Collapsed;
@@ -649,7 +643,6 @@ public partial class VideoEditorView : UserControl
         VideoPreviewBorder.Margin = new Thickness(0);
         VideoPreviewBorder.CornerRadius = new CornerRadius(0);
 
-        // Remove window borders and maximise.
         _editorWindow.WindowState = WindowState.Normal;
         _editorWindow.WindowStyle = WindowStyle.None;
         _editorWindow.ResizeMode = ResizeMode.NoResize;
@@ -657,20 +650,19 @@ public partial class VideoEditorView : UserControl
 
         _editorWindow.PreviewKeyDown += FullScreenWindow_PreviewKeyDown;
 
-        // Continue positioning the overlay over the video.
         _overlayPositionTimer.Start();
 
+        // Wait for WPF to finish resizing the video preview.
         Dispatcher.BeginInvoke(
-            DispatcherPriority.Loaded,
+            DispatcherPriority.ApplicationIdle,
             new Action(() =>
             {
                 UpdateOverlayPosition();
-                CheckVideoHover();
 
                 _overlayWindow?.Show();
+                _overlayWindow?.ShowControls();
             }));
     }
-
 
     private void ExitFullScreen()
     {
@@ -697,6 +689,17 @@ public partial class VideoEditorView : UserControl
         _editorWindow.ResizeMode = _previousResizeMode;
         _editorWindow.WindowState = _previousWindowState;
 
+        // Restore the main application sidebar and header.
+        if (_editorWindow is MainWindow mainWindow)
+        {
+            // Restore sidebar and header.
+            mainWindow.SidebarBorder.Visibility = _previousSidebarVisibility;
+            mainWindow.TopHeaderBorder.Visibility = _previousHeaderVisibility;
+
+            // Restore original layout dimensions.
+            mainWindow.SidebarColumn.Width = _previousSidebarColumnWidth;
+            mainWindow.HeaderRow.Height = _previousHeaderRowHeight;
+        }
         _overlayWindow?.SetFullscreenButton(false);
 
         _overlayPositionTimer.Start();
@@ -717,6 +720,7 @@ public partial class VideoEditorView : UserControl
                         _overlayWindow.HideControls();
                 }
             }));
+
     }
 
     private void FullScreenWindow_PreviewKeyDown(
