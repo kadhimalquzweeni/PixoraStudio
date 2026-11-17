@@ -62,6 +62,18 @@ public sealed class Mp4AudioSeekPlanner
                 "The audio track has no presentation samples.");
         }
 
+        foreach (Mp4PresentationSample sample in samples)
+        {
+            if (sample.SampleNumber == 0 ||
+                sample.SampleNumber > track.SampleCount ||
+                sample.Location.DurationTicks == 0 ||
+                !double.IsFinite(sample.PresentationTimeSeconds))
+            {
+                throw new Mp4ParsingException(
+                    "The audio presentation timeline contains invalid sample timing.");
+            }
+        }
+
         Mp4PresentationSample? selected = null;
         bool isAtEnd = false;
 
