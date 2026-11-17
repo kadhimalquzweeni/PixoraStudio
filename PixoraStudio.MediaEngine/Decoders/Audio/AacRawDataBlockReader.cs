@@ -9,7 +9,6 @@ namespace PixoraStudio.MediaEngine.Decoders.Audio;
 public sealed class AacRawDataBlockReader
 {
     private const int SingleChannelElementId = 0;
-    private const int ChannelPairElementId = 1;
     private const int EndElementId = 7;
 
     private readonly AacIndividualChannelStreamDataReader _channelStreamReader = new();
