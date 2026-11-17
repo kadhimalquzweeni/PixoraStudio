@@ -110,6 +110,28 @@ public sealed class AacSpectralTupleDecoderTests
         Assert.Equal([first, second], result);
     }
 
+    [Theory]
+    [InlineData(5, 9, -4)]
+    [InlineData(6, 9, -4)]
+    [InlineData(7, 8, 0)]
+    [InlineData(8, 8, 0)]
+    [InlineData(9, 13, 0)]
+    [InlineData(10, 13, 0)]
+    [InlineData(11, 17, 0)]
+    public void DecodeTupleFromIndex_ShouldExhaustivelyFollowNormativePairOrdering(
+        int codebook,
+        int radix,
+        int offset)
+    {
+        for (int index = 0; index < radix * radix; index++)
+        {
+            int[] result = _decoder.DecodeTupleFromIndex(codebook, index);
+
+            Assert.Equal(index % radix + offset, result[0]);
+            Assert.Equal(index / radix + offset, result[1]);
+        }
+    }
+
     [Fact]
     public void DecodeTupleFromIndex_ShouldRejectZeroCodebook()
     {
