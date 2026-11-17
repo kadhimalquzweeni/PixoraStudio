@@ -11,20 +11,29 @@ public static class AacWindowFunction
     public const int LongWindowLength = 2048;
     public const int ShortWindowLength = 256;
 
+    private static readonly Lazy<float[]> LongSine =
+        new(() => CreateSine(LongWindowLength));
+    private static readonly Lazy<float[]> ShortSine =
+        new(() => CreateSine(ShortWindowLength));
+    private static readonly Lazy<float[]> LongKbd =
+        new(() => CreateKaiserBesselDerived(LongWindowLength, 4.0));
+    private static readonly Lazy<float[]> ShortKbd =
+        new(() => CreateKaiserBesselDerived(ShortWindowLength, 6.0));
+
     public static float[] Create(
         AacWindowShape shape,
         bool shortWindow = false)
     {
-        int length = shortWindow ? ShortWindowLength : LongWindowLength;
-        int half = length / 2;
-
-        return shape switch
+        float[] cached = (shape, shortWindow) switch
         {
-            AacWindowShape.Sine => CreateSine(length),
-            AacWindowShape.KaiserBesselDerived =>
-                CreateKaiserBesselDerived(length, shortWindow ? 6.0 : 4.0),
+            (AacWindowShape.Sine, false) => LongSine.Value,
+            (AacWindowShape.Sine, true) => ShortSine.Value,
+            (AacWindowShape.KaiserBesselDerived, false) => LongKbd.Value,
+            (AacWindowShape.KaiserBesselDerived, true) => ShortKbd.Value,
             _ => throw new ArgumentOutOfRangeException(nameof(shape))
         };
+
+        return cached.ToArray();
     }
 
     private static float[] CreateSine(int length)
@@ -32,10 +41,7 @@ public static class AacWindowFunction
         float[] window = new float[length];
 
         for (int i = 0; i < length; i++)
-        {
-            window[i] = (float)Math.Sin(
-                Math.PI * (i + 0.5) / length);
-        }
+            window[i] = (float)Math.Sin(Math.PI * (i + 0.5) / length);
 
         return window;
     }
@@ -69,9 +75,7 @@ public static class AacWindowFunction
             window[length - 1 - i] = value;
         }
 
-        // The centre pair is shared by the two halves.
-        float centre = (float)Math.Sqrt(
-            (total - kaiser[half]) / total);
+        float centre = (float)Math.Sqrt((total - kaiser[half]) / total);
         window[half - 1] = centre;
         window[half] = centre;
 
