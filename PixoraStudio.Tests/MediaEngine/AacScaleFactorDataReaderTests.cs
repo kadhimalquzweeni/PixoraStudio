@@ -71,7 +71,7 @@ public sealed class AacScaleFactorDataReaderTests
     }
 
     [Fact]
-    public void Read_ShouldClampNoiseAndIntensityValues()
+    public void Read_ShouldClampNoiseEnergyAndAccumulateIntensityPositions()
     {
         // noise starts at 10, pcm=511 => +255 => clamp 155.
         var noiseBits = new BitWriter();
@@ -82,8 +82,7 @@ public sealed class AacScaleFactorDataReaderTests
             globalGain: 100);
         Assert.Equal(155, Assert.Single(noise.Bands).Value);
 
-        // 60 repeated +60 deltas would exceed intensity range; test boundary
-        // directly with a valid starting accumulator sequence in a later stream.
+        // Intensity positions are accumulated independently from spectral and noise values.
         var intensityBits = new BitWriter();
         for (int i = 0; i < 3; i++)
             intensityBits.Write(0b1010, 4);
