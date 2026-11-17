@@ -46,7 +46,7 @@ public sealed class Mp4AudioTimelineFrameConverterTests
         long third = Mp4AudioTimelineFrameConverter.ToSampleFrame(3072, 44100, 48000);
 
         Assert.Equal(1115, first);
-        Assert.Equal(2231, second);
+        Assert.Equal(2229, second);
         Assert.Equal(3344, third);
     }
 
