@@ -1,4 +1,5 @@
 using PixoraStudio.MediaEngine.Decoders.Audio;
+using PixoraStudio.MediaEngine.Models.Audio;
 using Xunit;
 
 namespace PixoraStudio.Tests.MediaEngine;
