@@ -358,7 +358,7 @@ public partial class VideoEditorView : UserControl
         {
             try
             {
-                _aacAudioPlaybackService.Play();
+                await _aacAudioPlaybackService.PlayAsync();
             }
             catch (Exception ex)
             {
@@ -389,7 +389,7 @@ public partial class VideoEditorView : UserControl
         }
     }
 
-    private void OnPlayPause()
+    private async void OnPlayPause()
     {
         if (_isPreparingVideo || _mediaPlayer == null)
             return;
@@ -402,9 +402,20 @@ public partial class VideoEditorView : UserControl
         }
         else
         {
-            _mediaPlayer.Play();
             if (_usesCustomAacAudio)
-                _aacAudioPlaybackService.Play();
+            {
+                try
+                {
+                    await _aacAudioPlaybackService.PlayAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Custom AAC playback restart failed: {ex.Message}");
+                }
+            }
+
+            _mediaPlayer.Play();
         }
     }
 
