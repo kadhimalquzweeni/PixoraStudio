@@ -43,7 +43,7 @@ public sealed class AacMp4AudioSeekDecoder
             ?? throw new NotSupportedException(
                 "The selected audio track does not contain an AAC sample description.");
 
-        int sampleRate = firstAacDescription.Audio!.AudioSpecificConfig!.SampleRate;
+        int sampleRate = checked((int)firstAacDescription.Audio!.AudioSpecificConfig!.SamplingFrequency);
 
         Mp4AudioSeekPlan plan = _seekPlanner.Plan(
             track,
