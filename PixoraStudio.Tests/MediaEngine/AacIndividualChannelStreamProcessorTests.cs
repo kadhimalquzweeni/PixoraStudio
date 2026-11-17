@@ -80,8 +80,12 @@ public sealed class AacIndividualChannelStreamProcessorTests
         float[] spectrum = new AacIndividualChannelStreamProcessor(
             new SequenceNoiseSource()).Process(data, 0);
 
-        Assert.Equal(new[] { 1f, 2f, 3f, 4f }, spectrum.Take(4));
-        Assert.Equal(new[] { 5f, 6f, 7f, 8f }, spectrum.Skip(128).Take(4));
+        Assert.Equal(
+            new[] { 1f, 2f, 3f, 4f }.Select(value => MathF.Pow(value, 4f / 3f)),
+            spectrum.Take(4));
+        Assert.Equal(
+            new[] { 5f, 6f, 7f, 8f }.Select(value => MathF.Pow(value, 4f / 3f)),
+            spectrum.Skip(128).Take(4));
         Assert.All(spectrum.Skip(4).Take(124), value => Assert.Equal(0f, value));
         Assert.All(spectrum.Skip(132), value => Assert.Equal(0f, value));
     }
