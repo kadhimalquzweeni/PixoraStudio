@@ -173,6 +173,85 @@ public sealed class AacMp4AudioTrackDecoder
         }
     }
 
+    /// <summary>
+    /// Decodes an audio track from an AAC-aware seek plan. The decoder is reset,
+    /// one preceding access unit is decoded as overlap-add preroll, and leading
+    /// PCM frames in the target access unit are discarded.
+    /// </summary>
+    public IEnumerable<PcmAudioBuffer> DecodeSamplesFrom(
+        Stream stream,
+        Mp4MediaTrack track,
+        IReadOnlyList<Mp4MediaData> mediaDataRegions,
+        Mp4AudioSeekPlan seekPlan,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(mediaDataRegions);
+        ArgumentNullException.ThrowIfNull(seekPlan);
+
+        if (track.HandlerType != Mp4HandlerType.Audio)
+            throw new ArgumentException("The selected MP4 track is not an audio track.", nameof(track));
+
+        if (seekPlan.FirstSampleToDecode == 0 ||
+            seekPlan.TargetSampleNumber < seekPlan.FirstSampleToDecode ||
+            seekPlan.TargetSampleNumber > track.SampleCount ||
+            seekPlan.FramesToSkipInTargetSample < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(seekPlan),
+                "The seek plan contains sample positions outside the selected track.");
+        }
+
+        Reset();
+
+        uint samplesToDecode =
+            track.SampleCount - seekPlan.FirstSampleToDecode + 1;
+
+        foreach (Mp4EncodedSample sample in track.ReadSamples(
+                     stream,
+                     seekPlan.FirstSampleToDecode,
+                     samplesToDecode,
+                     mediaDataRegions,
+                     cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            uint descriptionIndex = sample.Location.SampleDescriptionIndex;
+            if (descriptionIndex == 0 || descriptionIndex > track.Track.SampleDescriptions.Count)
+                throw new InvalidDataException(
+                    $"Sample {sample.Location.SampleNumber} references an invalid sample description.");
+
+            Mp4SampleDescription description =
+                track.Track.SampleDescriptions[checked((int)descriptionIndex - 1)];
+
+            PcmAudioBuffer decoded = DecodeSample(sample, description);
+
+            // The preceding sample rebuilds AAC overlap-add state but its PCM
+            // is before the requested presentation position.
+            if (sample.Location.SampleNumber < seekPlan.TargetSampleNumber)
+                continue;
+
+            if (sample.Location.SampleNumber == seekPlan.TargetSampleNumber &&
+                seekPlan.FramesToSkipInTargetSample > 0)
+            {
+                int framesToSkip = Math.Min(
+                    seekPlan.FramesToSkipInTargetSample,
+                    decoded.FrameCount);
+
+                if (framesToSkip == decoded.FrameCount)
+                    continue;
+
+                int firstSample = checked(framesToSkip * decoded.Format.ChannelCount);
+                decoded = new PcmAudioBuffer(
+                    decoded.Format,
+                    decoded.Samples.Span[firstSample..]);
+            }
+
+            yield return decoded;
+        }
+    }
+
     public void Reset()
     {
         _monoSynthesis.Reset();
