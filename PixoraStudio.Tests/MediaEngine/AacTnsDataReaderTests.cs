@@ -9,7 +9,7 @@ public sealed class AacTnsDataReaderTests
     private readonly AacTnsDataReader _reader = new();
 
     [Fact]
-    public void Read_ShouldParseLongWindowFilterAndSignedCoefficients()
+    public void Read_ShouldParseLongWindowFilterAndUnsignedCoefficientIndices()
     {
         var bits = new BitWriter();
         bits.Write(1, 2); // one filter
@@ -18,9 +18,9 @@ public sealed class AacTnsDataReaderTests
         bits.Write(3, 5);
         bits.Write(1, 1); // direction
         bits.Write(0, 1); // not compressed
-        bits.Write(0b1110, 4); // -2
-        bits.Write(0b0011, 4); // +3
-        bits.Write(0b1000, 4); // -8
+        bits.Write(0b1110, 4); // coefficient index 14
+        bits.Write(0b0011, 4); // coefficient index 3
+        bits.Write(0b1000, 4); // coefficient index 8
 
         var result = _reader.Read(
             new AacBitReader(bits.ToArray(), bits.Length), LongWindowInfo());
@@ -32,7 +32,7 @@ public sealed class AacTnsDataReaderTests
         Assert.Equal(3, filter.Order);
         Assert.True(filter.IsDirectionReversed);
         Assert.False(filter.CoefficientsAreCompressed);
-        Assert.Equal(new[] { -2, 3, -8 }, filter.Coefficients);
+        Assert.Equal(new[] { 14, 3, 8 }, filter.Coefficients);
     }
 
     [Fact]
@@ -49,8 +49,8 @@ public sealed class AacTnsDataReaderTests
                 bits.Write(2, 3);
                 bits.Write(0, 1);
                 bits.Write(0, 1);
-                bits.Write(0b1101, 4); // -3 in four-bit two's complement
-                bits.Write(0b0011, 4); // +3 in four-bit two's complement
+                bits.Write(0b1101, 4); // coefficient index 13
+                bits.Write(0b0011, 4); // coefficient index 3
             }
         }
 
@@ -61,7 +61,7 @@ public sealed class AacTnsDataReaderTests
         Assert.Equal(8, result.Windows.Count);
         Assert.Empty(result.Windows[0].Filters);
         Assert.Single(result.Windows[2].Filters);
-        Assert.Equal(new[] { -3, 3 }, result.Windows[2].Filters[0].Coefficients);
+        Assert.Equal(new[] { 13, 3 }, result.Windows[2].Filters[0].Coefficients);
     }
 
     [Fact]
