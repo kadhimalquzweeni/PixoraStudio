@@ -57,7 +57,10 @@ public sealed class PcmAudioBufferReader
         {
             for (int channel = 0; channel < Format.ChannelCount; channel++)
             {
-                float sample = Math.Clamp(samples[sampleIndex++], -1f, 1f);
+                float sample = samples[sampleIndex++];
+                if (float.IsNaN(sample))
+                    sample = 0f;
+                sample = Math.Clamp(sample, -1f, 1f);
                 int scaled = (int)MathF.Round(sample * (sample < 0 ? 32768f : 32767f));
                 short pcmSample = (short)Math.Clamp(scaled, short.MinValue, short.MaxValue);
 
