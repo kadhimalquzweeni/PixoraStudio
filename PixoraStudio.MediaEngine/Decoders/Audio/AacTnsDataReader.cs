@@ -28,7 +28,7 @@ public sealed class AacTnsDataReader
                 int length = (int)reader.ReadBits(lengthBits);
                 int order = (int)reader.ReadBits(orderBits);
 
-                if (order > (shortWindows ? 7 : 20))
+                if (order > (shortWindows ? 7 : 12))
                     throw new InvalidDataException("AAC TNS filter order exceeds the permitted limit.");
 
                 if (order == 0)
