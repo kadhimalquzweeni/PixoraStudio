@@ -88,6 +88,7 @@ public partial class VideoEditorView : UserControl
             _libVLC = App.LibVLCInstance;
 
             _mediaPlayer = new VlcMediaPlayer(_libVLC);
+            _mediaPlayer.EndReached += MediaPlayer_EndReached;
 
             VideoPlayer.MediaPlayer = _mediaPlayer;
         }
@@ -250,6 +251,35 @@ public partial class VideoEditorView : UserControl
         _overlayWindow.Top = topLeft.Y;
         _overlayWindow.Width = bottomRight.X - topLeft.X;
         _overlayWindow.Height = bottomRight.Y - topLeft.Y;
+    }
+
+    private void MediaPlayer_EndReached(object? sender, EventArgs e)
+    {
+        // LibVLC raises EndReached on its playback thread. Marshal UI state
+        // and the custom output shutdown back to the WPF dispatcher.
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (_isPreparingVideo ||
+                !_usesCustomAacAudio ||
+                _mediaPlayer?.IsPlaying == true)
+            {
+                return;
+            }
+
+            _aacAudioPlaybackService.Stop();
+
+            if (DataContext is VideoEditorViewModel vm)
+            {
+                vm.IsPlaying = false;
+
+                if (_mediaPlayer is { Length: > 0 } player)
+                {
+                    vm.PlaybackPosition = player.Length;
+                    vm.CurrentTime = FormatPlaybackTime(
+                        TimeSpan.FromMilliseconds(player.Length));
+                }
+            }
+        });
     }
 
     private async void OnVideoLoaded(string filePath)
@@ -898,8 +928,12 @@ public partial class VideoEditorView : UserControl
                 FullScreenWindow_PreviewKeyDown;
         }
 
-        _mediaPlayer?.Stop();
-        _mediaPlayer?.Dispose();
+        if (_mediaPlayer is not null)
+        {
+            _mediaPlayer.EndReached -= MediaPlayer_EndReached;
+            _mediaPlayer.Stop();
+            _mediaPlayer.Dispose();
+        }
 
         _mediaPlayer = null;
 
