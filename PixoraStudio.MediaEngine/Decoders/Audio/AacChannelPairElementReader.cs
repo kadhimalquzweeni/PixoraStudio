@@ -35,6 +35,10 @@ public sealed class AacChannelPairElementReader
                 ? AacScaleFactorBandTable.GetShortWindowOffsets(samplingFrequencyIndex)
                 : AacScaleFactorBandTable.GetLongWindowOffsets(samplingFrequencyIndex);
 
+            if (sharedInfo.MaxScaleFactorBands > offsets.Count - 1)
+                throw new InvalidDataException(
+                    "AAC common-window max_sfb exceeds the scalefactor-band table.");
+
             int maskPresent = (int)reader.ReadBits(2);
             if (maskPresent == 3)
                 throw new InvalidDataException("AAC ms_mask_present value 3 is reserved.");
