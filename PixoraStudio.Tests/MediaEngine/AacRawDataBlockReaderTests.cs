@@ -253,7 +253,7 @@ public sealed class AacRawDataBlockReaderTests
         }
 
         while ((fields.Sum(field => field.Count) & 7) != 0)
-            fields.Add((0, 1)); // alignment_zero_bit
+            fields.Add((1, 1)); // Alignment bits are skipped without constraining their values.
 
         fields.Add((2, 8)); // comment_field_bytes
         fields.Add((0xA5, 8));
