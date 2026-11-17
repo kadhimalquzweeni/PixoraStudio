@@ -287,6 +287,7 @@ public partial class VideoEditorView : UserControl
             _mediaPlayer == null ||
             _libVLC == null)
         {
+            _aacAudioPlaybackService.Unload();
             return;
         }
 
