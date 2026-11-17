@@ -12,9 +12,14 @@ public sealed class AacStereoSpectralProcessorTests
         AacIndividualChannelStreamInfo info = LongInfo(maxSfb: 1);
         AacIndividualChannelStreamData right = CreateChannelData(
             new AacScaleFactorData([]));
-        float[] leftSpectrum = [3f, 4f, 5f, 6f];
-        float[] rightSpectrum = [1f, 2f, 3f, 4f];
-        bool[] mask = [true, true, false, false];
+        float[] leftSpectrum = new float[1024];
+        float[] rightSpectrum = new float[1024];
+        leftSpectrum[0] = 3f; leftSpectrum[1] = 4f;
+        leftSpectrum[2] = 5f; leftSpectrum[3] = 6f;
+        rightSpectrum[0] = 1f; rightSpectrum[1] = 2f;
+        rightSpectrum[2] = 3f; rightSpectrum[3] = 4f;
+        bool[] mask = new bool[1024];
+        mask[0] = true; mask[1] = true;
 
         new AacStereoSpectralProcessor().Apply(
             leftSpectrum,
