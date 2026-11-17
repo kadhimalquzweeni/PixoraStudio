@@ -86,11 +86,7 @@ public sealed class AacMp4AudioSeekDecoder
             if (encoded.Location.SampleNumber < plan.TargetSampleNumber)
                 continue;
 
-            if (assembler is null)
-                assembler = new PcmAudioTimelineAssembler(decoded.Format);
-            else if (decoded.Format != GetAssemblerFormat(assembler, decoded.Format))
-                throw new InvalidDataException(
-                    "The AAC track changed PCM format while it was being decoded.");
+            assembler ??= new PcmAudioTimelineAssembler(decoded.Format);
 
             if (encoded.Location.SampleNumber == plan.TargetSampleNumber &&
                 plan.FramesToSkipInTargetSample > 0)
@@ -160,12 +156,4 @@ public sealed class AacMp4AudioSeekDecoder
         return description;
     }
 
-    private static PcmAudioFormat GetAssemblerFormat(
-        PcmAudioTimelineAssembler assembler,
-        PcmAudioFormat decodedFormat)
-    {
-        // PcmAudioTimelineAssembler validates the format on Append. Returning
-        // the incoming format here keeps this check explicit at the call site.
-        return decodedFormat;
-    }
 }
