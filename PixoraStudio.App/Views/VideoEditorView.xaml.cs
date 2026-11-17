@@ -28,6 +28,7 @@ public partial class VideoEditorView : UserControl
     private readonly AacAudioPlaybackService _aacAudioPlaybackService = new();
     private CancellationTokenSource? _audioLoadCancellation;
     private bool _usesCustomAacAudio;
+    private int _videoLoadVersion;
     private LibVLC? _libVLC;
 
     private VideoOverlayWindow? _overlayWindow;
@@ -255,6 +256,7 @@ public partial class VideoEditorView : UserControl
         if (_mediaPlayer == null || _libVLC == null)
             return;
 
+        int loadVersion = ++_videoLoadVersion;
         _audioLoadCancellation?.Cancel();
         _audioLoadCancellation?.Dispose();
         _audioLoadCancellation = new CancellationTokenSource();
@@ -278,16 +280,19 @@ public partial class VideoEditorView : UserControl
         }
         catch (Exception ex)
         {
+            if (loadVersion != _videoLoadVersion)
+                return;
+
             _aacAudioPlaybackService.Unload();
             System.Diagnostics.Debug.WriteLine(
                 $"Custom AAC playback unavailable; using LibVLC audio: {ex.Message}");
         }
 
-        if (cancellationToken.IsCancellationRequested ||
+        if (loadVersion != _videoLoadVersion ||
+            cancellationToken.IsCancellationRequested ||
             _mediaPlayer == null ||
             _libVLC == null)
         {
-            _aacAudioPlaybackService.Unload();
             return;
         }
 
@@ -310,7 +315,10 @@ public partial class VideoEditorView : UserControl
 
     private void OnVideoClosed()
     {
+        _videoLoadVersion++;
         _audioLoadCancellation?.Cancel();
+        _audioLoadCancellation?.Dispose();
+        _audioLoadCancellation = null;
         _aacAudioPlaybackService.Unload();
         _usesCustomAacAudio = false;
 
@@ -839,6 +847,7 @@ public partial class VideoEditorView : UserControl
         _timer.Stop();
         _overlayPositionTimer.Stop();
 
+        _videoLoadVersion++;
         _audioLoadCancellation?.Cancel();
         _audioLoadCancellation?.Dispose();
         _audioLoadCancellation = null;
