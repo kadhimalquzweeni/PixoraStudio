@@ -48,8 +48,8 @@ public sealed class AacSpectralTupleDecoderTests
 
     [Theory]
     [InlineData(5, 0, -4, -4)]
-    [InlineData(5, 44, 0, 4)]
-    [InlineData(5, 45, 1, -4)]
+    [InlineData(5, 44, 4, 0)]
+    [InlineData(5, 45, -4, 1)]
     [InlineData(5, 40, 0, 0)]
     [InlineData(5, 80, 4, 4)]
     [InlineData(6, 40, 0, 0)]
@@ -68,8 +68,8 @@ public sealed class AacSpectralTupleDecoderTests
 
     [Theory]
     [InlineData(7, 0, 0, 0)]
-    [InlineData(7, 1, 0, 1)]
-    [InlineData(7, 8, 1, 0)]
+    [InlineData(7, 1, 1, 0)]
+    [InlineData(7, 8, 0, 1)]
     [InlineData(7, 63, 7, 7)]
     [InlineData(8, 63, 7, 7)]
     [InlineData(9, 168, 12, 12)]
@@ -86,6 +86,28 @@ public sealed class AacSpectralTupleDecoderTests
             index);
 
         Assert.Equal([a, b], result);
+    }
+
+
+    [Theory]
+    [InlineData(5, 0, -4, -4)]
+    [InlineData(5, 8, 4, -4)]
+    [InlineData(5, 9, -4, -3)]
+    [InlineData(6, 80, 4, 4)]
+    [InlineData(7, 1, 1, 0)]
+    [InlineData(8, 8, 0, 1)]
+    [InlineData(9, 13, 0, 1)]
+    [InlineData(10, 168, 12, 12)]
+    [InlineData(11, 17, 0, 1)]
+    public void DecodeTupleFromIndex_ShouldFollowNormativePairIndexOrdering(
+        int codebook,
+        int index,
+        int first,
+        int second)
+    {
+        int[] result = _decoder.DecodeTupleFromIndex(codebook, index);
+
+        Assert.Equal([first, second], result);
     }
 
     [Fact]
@@ -113,7 +135,7 @@ public sealed class AacSpectralTupleDecoderTests
     [Fact]
     public void DecodeTuple_ShouldApplyUnsignedSignBits()
     {
-        // Codebook 7, index 1 produces (0, 1).
+        // Codebook 7, index 1 produces (1, 0).
         // The first coefficient's sign bit is negative.
         AacBitReader reader = CreateReader("1");
 
@@ -122,7 +144,7 @@ public sealed class AacSpectralTupleDecoderTests
             7,
             1);
 
-        Assert.Equal([0, -1], result);
+        Assert.Equal([-1, 0], result);
         Assert.Equal(1, reader.PositionBits);
     }
 
@@ -144,7 +166,7 @@ public sealed class AacSpectralTupleDecoderTests
     [Fact]
     public void DecodeTuple_ShouldDecodeEscapeMagnitude()
     {
-        // Codebook 11, index 16 produces (0, 16).
+        // Codebook 11, index 16 produces (16, 0).
         // Sign = negative.
         // Escape: terminating zero followed by 0011.
         // Magnitude = 2^4 + 3 = 19.
@@ -155,7 +177,7 @@ public sealed class AacSpectralTupleDecoderTests
             11,
             16);
 
-        Assert.Equal([0, -19], result);
+        Assert.Equal([-19, 0], result);
         Assert.Equal(6, reader.PositionBits);
     }
 
