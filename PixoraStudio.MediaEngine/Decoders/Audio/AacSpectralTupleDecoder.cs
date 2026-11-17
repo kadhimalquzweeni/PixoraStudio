@@ -114,23 +114,30 @@ public sealed class AacSpectralTupleDecoder
             return tuple;
         }
 
+        // AAC writes every sign bit for the tuple before any codebook-11
+        // escape sequence. Read these in two passes; interleaving a sign
+        // bit and its escape payload misaligns tuples containing two escapes.
         for (int i = 0; i < tuple.Length; i++)
         {
-            int magnitude = tuple[i];
-
-            if (magnitude == 0)
-            {
+            if (tuple[i] == 0)
                 continue;
-            }
 
             bool isNegative = bitReader.ReadBits(1) != 0;
+            if (isNegative)
+                tuple[i] = -tuple[i];
+        }
 
-            if (info.UsesEscapeValues && magnitude == 16)
+        if (info.UsesEscapeValues)
+        {
+            for (int i = 0; i < tuple.Length; i++)
             {
-                magnitude = DecodeEscapeValue(bitReader);
-            }
+                if (Math.Abs(tuple[i]) != 16)
+                    continue;
 
-            tuple[i] = isNegative ? -magnitude : magnitude;
+                int sign = Math.Sign(tuple[i]);
+                int magnitude = DecodeEscapeValue(bitReader);
+                tuple[i] = sign * magnitude;
+            }
         }
 
         return tuple;
