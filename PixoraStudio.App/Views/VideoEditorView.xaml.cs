@@ -364,7 +364,8 @@ public partial class VideoEditorView : UserControl
             {
                 _aacAudioPlaybackService.Unload();
                 _usesCustomAacAudio = false;
-                _mediaPlayer.Mute = false;
+                _mediaPlayer.Mute = DataContext is VideoEditorViewModel fallbackVm &&
+                    fallbackVm.IsMuted;
                 System.Diagnostics.Debug.WriteLine(
                     $"Custom AAC output could not start; using LibVLC audio: {ex.Message}");
             }
