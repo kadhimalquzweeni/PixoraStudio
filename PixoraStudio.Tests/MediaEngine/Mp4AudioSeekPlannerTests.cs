@@ -132,7 +132,6 @@ public sealed class Mp4AudioSeekPlannerTests
 
     [Theory]
     [InlineData(0, 1024)]
-    [InlineData(48000, 1024)]
     [InlineData(48000, 0)]
     public void Plan_ShouldRejectInvalidAudioFormat(int sampleRate, int frameCount)
     {
@@ -140,6 +139,22 @@ public sealed class Mp4AudioSeekPlannerTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             _planner.Plan(track, CreateSamples(track), 0.1, sampleRate, frameCount));
+    }
+
+    [Fact]
+    public void Plan_ShouldAcceptValidAudioFormat()
+    {
+        Mp4MediaTrack track = CreateTrack();
+
+        Mp4AudioSeekPlan result = _planner.Plan(
+            track,
+            CreateSamples(track),
+            0.1,
+            48000,
+            1024);
+
+        Assert.Equal(1u, result.TargetSampleNumber);
+        Assert.Equal(1u, result.FirstSampleToDecode);
     }
 
     [Fact]
