@@ -107,7 +107,7 @@ public sealed class AacRawDataBlockReader
     {
         // data_stream_element(): element_instance_tag, align flag, byte count,
         // optional escaped byte count, optional byte alignment, then payload.
-        int instanceTag = (int)reader.ReadBits(4);
+        _ = reader.ReadBits(4); // element_instance_tag
         bool byteAlign = reader.ReadBits(1) != 0;
         int count = (int)reader.ReadBits(8);
 
