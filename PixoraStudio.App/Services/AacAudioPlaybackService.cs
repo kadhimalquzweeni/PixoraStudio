@@ -1,3 +1,4 @@
+using System.IO;
 using NAudio.Wave;
 using PixoraStudio.MediaEngine.Decoders.Audio;
 using PixoraStudio.MediaEngine.Models.Audio;
@@ -394,7 +395,8 @@ public sealed class AacAudioPlaybackService : IDisposable
                 // but only write samples that appear on the presentation timeline.
                 if (!presentationBySampleNumber.TryGetValue(
                         location.SampleNumber,
-                        out Mp4PresentationSample presentationSample))
+                        out Mp4PresentationSample? presentationSample) ||
+                    presentationSample is null)
                 {
                     continue;
                 }
