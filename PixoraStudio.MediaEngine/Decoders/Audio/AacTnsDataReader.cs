@@ -43,7 +43,7 @@ public sealed class AacTnsDataReader
                 List<int> coefficients = new(order);
 
                 for (int i = 0; i < order; i++)
-                    coefficients.Add(reader.ReadSignedBits(coefficientBits));
+                    coefficients.Add((int)reader.ReadBits(coefficientBits));
 
                 filters.Add(new AacTnsFilter(
                     length, order, directionReversed, compressed,
