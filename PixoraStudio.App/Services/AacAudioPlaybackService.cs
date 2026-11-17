@@ -198,59 +198,123 @@ public sealed class AacAudioPlaybackService : IDisposable
             return null;
 
         AacMp4AudioTrackDecoder decoder = new();
-
-        using IEnumerator<PcmAudioBuffer> samples = decoder
-            .DecodeSamples(
-                stream,
-                audioTrack,
-                mediaInfo.MediaDataRegions,
-                cancellationToken)
-            .GetEnumerator();
-
-        if (!samples.MoveNext())
-            return null;
-
-        PcmAudioBuffer firstBuffer = samples.Current;
-        PcmAudioFormat format = firstBuffer.Format;
-
-        if (format.ChannelCount is < 1 or > 2)
-            throw new NotSupportedException(
-                "Custom AAC playback currently supports mono and stereo audio.");
-
         string wavePath = Path.Combine(
             Path.GetTempPath(),
             $"PixoraStudio_AAC_{Guid.NewGuid():N}.wav");
 
+        WaveFileWriter? writer = null;
+        PcmAudioFormat? format = null;
+        long writtenFrames = 0;
+
         try
         {
-            WaveFormat waveFormat = new(
-                format.SampleRate,
-                16,
-                format.ChannelCount);
-
-            using (WaveFileWriter writer = new(wavePath, waveFormat))
+            foreach (Mp4PresentationSample presentationSample
+                     in mediaInfo.PresentationSamples.Where(
+                         sample => sample.TrackId == audioTrack.TrackId))
             {
-                WriteBuffer(writer, firstBuffer, format);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                while (samples.MoveNext())
+                Mp4SampleLocation location = presentationSample.Location;
+
+                if (location.SampleDescriptionIndex == 0 ||
+                    location.SampleDescriptionIndex > audioTrack.Track.SampleDescriptions.Count)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    WriteBuffer(writer, samples.Current, format);
+                    throw new InvalidDataException(
+                        $"AAC sample {location.SampleNumber} references an invalid sample description.");
+                }
+
+                Mp4SampleDescription description =
+                    audioTrack.Track.SampleDescriptions[
+                        checked((int)location.SampleDescriptionIndex - 1)];
+
+                if (description.Audio?.Codec != Mp4AudioCodec.Aac)
+                    throw new NotSupportedException(
+                        "The selected MP4 audio track changes to a non-AAC sample description.");
+
+                Mp4EncodedSample encodedSample = ReadEncodedSample(
+                    stream,
+                    location,
+                    mediaInfo.MediaDataRegions);
+
+                PcmAudioBuffer decoded = decoder.DecodeSample(
+                    encodedSample,
+                    description);
+
+                format ??= decoded.Format;
+
+                if (decoded.Format != format)
+                    throw new InvalidDataException(
+                        "The AAC track changed PCM format while it was being decoded.");
+
+                if (writer is null)
+                {
+                    if (format.ChannelCount is < 1 or > 2)
+                        throw new NotSupportedException(
+                            "Custom AAC playback currently supports mono and stereo audio.");
+
+                    writer = new WaveFileWriter(
+                        wavePath,
+                        new WaveFormat(format.SampleRate, 16, format.ChannelCount));
+                }
+
+                long sampleStartFrame = checked((long)Math.Round(
+                    presentationSample.PresentationTimeSeconds * format.SampleRate,
+                    MidpointRounding.AwayFromZero));
+
+                int framesToSkip = 0;
+
+                if (sampleStartFrame < 0)
+                {
+                    framesToSkip = (int)Math.Min(
+                        decoded.FrameCount,
+                        -sampleStartFrame);
+                    sampleStartFrame = 0;
+                }
+
+                if (sampleStartFrame > writtenFrames)
+                {
+                    WriteSilence(
+                        writer,
+                        sampleStartFrame - writtenFrames,
+                        format.ChannelCount);
+
+                    writtenFrames = sampleStartFrame;
+                }
+
+                if (sampleStartFrame < writtenFrames)
+                {
+                    long overlap = writtenFrames - sampleStartFrame;
+                    framesToSkip += (int)Math.Min(
+                        decoded.FrameCount - framesToSkip,
+                        overlap);
+                }
+
+                if (framesToSkip < decoded.FrameCount)
+                {
+                    WriteBuffer(writer, decoded, format, framesToSkip);
+                    writtenFrames += decoded.FrameCount - framesToSkip;
                 }
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
+            writer?.Dispose();
+            writer = null;
 
-            if (new FileInfo(wavePath).Length <= 44)
+            if (format is null || !File.Exists(wavePath) ||
+                new FileInfo(wavePath).Length <= 44)
             {
-                File.Delete(wavePath);
+                if (File.Exists(wavePath))
+                    File.Delete(wavePath);
+
                 return null;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             return wavePath;
         }
         catch
         {
+            writer?.Dispose();
+
             if (File.Exists(wavePath))
                 File.Delete(wavePath);
 
@@ -258,16 +322,74 @@ public sealed class AacAudioPlaybackService : IDisposable
         }
     }
 
+    private static Mp4EncodedSample ReadEncodedSample(
+        Stream stream,
+        Mp4SampleLocation location,
+        IReadOnlyList<Mp4MediaData> mediaDataRegions)
+    {
+        if (location.Size > int.MaxValue)
+            throw new InvalidDataException("The AAC sample is too large to decode.");
+
+        if (!mediaDataRegions.Any(region =>
+                region.Contains(location.Offset, location.Size)))
+        {
+            throw new InvalidDataException(
+                $"AAC sample {location.SampleNumber} is outside every mdat region.");
+        }
+
+        if (location.Offset > long.MaxValue ||
+            location.Offset > (ulong)stream.Length ||
+            location.Size > (ulong)stream.Length - location.Offset)
+        {
+            throw new InvalidDataException(
+                $"AAC sample {location.SampleNumber} extends beyond the MP4 stream.");
+        }
+
+        byte[] data = new byte[checked((int)location.Size)];
+        stream.Position = checked((long)location.Offset);
+        stream.ReadExactly(data);
+
+        return new Mp4EncodedSample(location, data);
+    }
+
+    private static void WriteSilence(
+        WaveFileWriter writer,
+        long frameCount,
+        int channelCount)
+    {
+        int bytesPerFrame = checked(channelCount * sizeof(short));
+        byte[] silence = new byte[16 * 1024];
+        int chunkSize = silence.Length - (silence.Length % bytesPerFrame);
+
+        while (frameCount > 0)
+        {
+            int frames = (int)Math.Min(
+                frameCount,
+                chunkSize / bytesPerFrame);
+
+            int bytes = frames * bytesPerFrame;
+            writer.Write(silence, 0, bytes);
+            frameCount -= frames;
+        }
+    }
+
     private static void WriteBuffer(
         WaveFileWriter writer,
         PcmAudioBuffer buffer,
-        PcmAudioFormat expectedFormat)
+        PcmAudioFormat expectedFormat,
+        int framesToSkip)
     {
         if (buffer.Format != expectedFormat)
             throw new InvalidDataException(
                 "The AAC track changed PCM format while it was being decoded.");
 
         PcmAudioBufferReader reader = new(buffer);
+        if (framesToSkip > 0)
+        {
+            reader.Seek(TimeSpan.FromSeconds(
+                (double)framesToSkip / expectedFormat.SampleRate));
+        }
+
         byte[] bytes = new byte[16 * 1024];
 
         while (true)
