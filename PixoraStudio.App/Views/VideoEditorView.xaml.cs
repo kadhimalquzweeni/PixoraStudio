@@ -2,6 +2,7 @@
 using LibVLCSharp.Shared;
 using PixoraStudio.App.ViewModels;
 using PixoraStudio.App.Windows;
+using PixoraStudio.App.Services;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -24,6 +25,9 @@ public partial class VideoEditorView : UserControl
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out NativePoint point);
     private VlcMediaPlayer? _mediaPlayer;
+    private readonly AacAudioPlaybackService _aacAudioPlaybackService = new();
+    private CancellationTokenSource? _audioLoadCancellation;
+    private bool _usesCustomAacAudio;
     private LibVLC? _libVLC;
 
     private VideoOverlayWindow? _overlayWindow;
@@ -120,11 +124,13 @@ public partial class VideoEditorView : UserControl
             return;
 
         vm.VideoLoaded -= OnVideoLoaded;
+        vm.VideoClosed -= OnVideoClosed;
         vm.PlayPauseRequested -= OnPlayPause;
         vm.SeekRequested -= OnSeek;
         vm.VolumeChanged -= OnVolumeChanged;
 
         vm.VideoLoaded += OnVideoLoaded;
+        vm.VideoClosed += OnVideoClosed;
         vm.PlayPauseRequested += OnPlayPause;
         vm.SeekRequested += OnSeek;
         vm.VolumeChanged += OnVolumeChanged;
@@ -243,17 +249,74 @@ public partial class VideoEditorView : UserControl
         _overlayWindow.Height = bottomRight.Y - topLeft.Y;
     }
 
-    private void OnVideoLoaded(string filePath)
+    private async void OnVideoLoaded(string filePath)
     {
         if (_mediaPlayer == null || _libVLC == null)
             return;
+
+        _audioLoadCancellation?.Cancel();
+        _audioLoadCancellation?.Dispose();
+        _audioLoadCancellation = new CancellationTokenSource();
+        CancellationToken cancellationToken = _audioLoadCancellation.Token;
+
+        _mediaPlayer.Stop();
+        _mediaPlayer.Mute = false;
+        _usesCustomAacAudio = false;
+
+        try
+        {
+            // Decode AAC before starting video so both playback clocks begin together.
+            // Unsupported/non-MP4 audio falls back to LibVLC's built-in audio.
+            _usesCustomAacAudio = await _aacAudioPlaybackService.LoadAsync(
+                filePath,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            _aacAudioPlaybackService.Unload();
+            System.Diagnostics.Debug.WriteLine(
+                $"Custom AAC playback unavailable; using LibVLC audio: {ex.Message}");
+        }
+
+        if (cancellationToken.IsCancellationRequested ||
+            _mediaPlayer == null ||
+            _libVLC == null)
+        {
+            return;
+        }
 
         using var media = new Media(
             _libVLC,
             filePath,
             FromType.FromPath);
 
+        _mediaPlayer.Mute = _usesCustomAacAudio;
         _mediaPlayer.Play(media);
+
+        if (_usesCustomAacAudio)
+        {
+            _aacAudioPlaybackService.Volume = (float)(DataContext is VideoEditorViewModel vm
+                ? vm.Volume / 100d
+                : 1d);
+            _aacAudioPlaybackService.Play();
+        }
+    }
+
+    private void OnVideoClosed()
+    {
+        _audioLoadCancellation?.Cancel();
+        _aacAudioPlaybackService.Unload();
+        _usesCustomAacAudio = false;
+
+        if (_mediaPlayer is not null)
+        {
+            _mediaPlayer.Stop();
+            _mediaPlayer.Mute = false;
+        }
     }
 
     private void OnPlayPause()
@@ -262,9 +325,17 @@ public partial class VideoEditorView : UserControl
             return;
 
         if (_mediaPlayer.IsPlaying)
+        {
             _mediaPlayer.Pause();
+            if (_usesCustomAacAudio)
+                _aacAudioPlaybackService.Pause();
+        }
         else
+        {
             _mediaPlayer.Play();
+            if (_usesCustomAacAudio)
+                _aacAudioPlaybackService.Play();
+        }
     }
 
     private void OnSeek(double position)
@@ -272,7 +343,15 @@ public partial class VideoEditorView : UserControl
         if (_mediaPlayer == null)
             return;
 
+        bool resumeAudio = _mediaPlayer.IsPlaying;
         _mediaPlayer.Time = (long)position;
+
+        if (_usesCustomAacAudio)
+        {
+            _aacAudioPlaybackService.Seek(
+                TimeSpan.FromMilliseconds(position),
+                resumeAudio);
+        }
     }
 
     private void OnVolumeChanged(double value)
@@ -280,7 +359,10 @@ public partial class VideoEditorView : UserControl
         if (_mediaPlayer == null)
             return;
 
-        _mediaPlayer.Volume = (int)value;
+        if (_usesCustomAacAudio)
+            _aacAudioPlaybackService.Volume = (float)(value / 100d);
+        else
+            _mediaPlayer.Volume = (int)value;
     }
 
     private void Timer_Tick(object? sender, EventArgs e)
@@ -298,6 +380,12 @@ public partial class VideoEditorView : UserControl
             vm.PlaybackPosition = _mediaPlayer.Time;
 
             vm.CurrentTime = FormatPlaybackTime(
+                TimeSpan.FromMilliseconds(_mediaPlayer.Time));
+        }
+
+        if (_usesCustomAacAudio && _mediaPlayer.IsPlaying)
+        {
+            _aacAudioPlaybackService.Synchronise(
                 TimeSpan.FromMilliseconds(_mediaPlayer.Time));
         }
 
@@ -355,7 +443,11 @@ public partial class VideoEditorView : UserControl
                 _mediaPlayer?.IsPlaying == true;
 
             if (_wasPlayingBeforeScrubbing)
+            {
                 _mediaPlayer?.Pause();
+                if (_usesCustomAacAudio)
+                    _aacAudioPlaybackService.Pause();
+            }
 
             UpdatePlayheadPosition(x, vm, width);
 
@@ -425,7 +517,11 @@ public partial class VideoEditorView : UserControl
             vm.SeekCommand.Execute(vm.PlaybackPosition);
 
             if (_wasPlayingBeforeScrubbing)
+            {
                 _mediaPlayer?.Play();
+                if (_usesCustomAacAudio)
+                    _aacAudioPlaybackService.Play();
+            }
         }
 
         _wasPlayingBeforeScrubbing = false;
@@ -740,6 +836,13 @@ public partial class VideoEditorView : UserControl
     {
         _timer.Stop();
         _overlayPositionTimer.Stop();
+
+        _audioLoadCancellation?.Cancel();
+        _audioLoadCancellation?.Dispose();
+        _audioLoadCancellation = null;
+
+        _aacAudioPlaybackService.Dispose();
+        _usesCustomAacAudio = false;
 
         if (_isFullScreen)
             ExitFullScreen();
