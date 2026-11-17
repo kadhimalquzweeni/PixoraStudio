@@ -27,6 +27,9 @@ public sealed class AacTnsSpectralProcessor
                 nameof(spectrum));
 
         int windowLength = streamInfo.UsesShortWindows ? 128 : 1024;
+        if (tnsData.Windows.Count == 0)
+            return spectrum.ToArray();
+
         int expectedWindows = streamInfo.UsesShortWindows ? 8 : 1;
         if (tnsData.Windows.Count != expectedWindows)
             throw new InvalidDataException(
