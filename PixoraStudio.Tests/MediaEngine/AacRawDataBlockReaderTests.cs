@@ -107,6 +107,32 @@ public sealed class AacRawDataBlockReaderTests
     }
 
     [Fact]
+    public void ReadSingleChannelElement_ShouldSkipProgramConfigElementBeforeAudioElement()
+    {
+        byte[] accessUnit = BuildMonoWithProgramConfigElement(
+            programConfigBeforeAudio: true,
+            includeOptionalFields: false);
+
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4);
+
+        Assert.Equal(2, result.ElementInstanceTag);
+    }
+
+    [Fact]
+    public void ReadSingleChannelElement_ShouldSkipProgramConfigElementAfterAudioElement()
+    {
+        byte[] accessUnit = BuildMonoWithProgramConfigElement(
+            programConfigBeforeAudio: false,
+            includeOptionalFields: true);
+
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4);
+
+        Assert.Equal(2, result.ElementInstanceTag);
+    }
+
+    [Fact]
     public void ReadChannelPairElement_ShouldReadCommonWindowStereoIcs()
     {
         AacChannelPairElement pair = new AacRawDataBlockReader()
@@ -159,6 +185,80 @@ public sealed class AacRawDataBlockReaderTests
             (0, 8), (0, 1), (0, 1), (0, 1),
             (0, 8), (0, 1), (0, 1), (0, 1),
             (7, 3));
+
+    private static byte[] BuildMonoWithProgramConfigElement(
+        bool programConfigBeforeAudio,
+        bool includeOptionalFields)
+    {
+        List<(int Value, int Count)> fields = [];
+
+        if (programConfigBeforeAudio)
+            AddProgramConfigElement(fields, includeOptionalFields);
+
+        fields.AddRange(
+        [
+            (0, 3), (2, 4), (0, 8),
+            (0, 1), (0, 2), (0, 1), (0, 6), (0, 1),
+            (0, 1), (0, 1), (0, 1)
+        ]);
+
+        if (!programConfigBeforeAudio)
+            AddProgramConfigElement(fields, includeOptionalFields);
+
+        fields.Add((7, 3));
+        return BuildBits(fields.ToArray());
+    }
+
+    private static void AddProgramConfigElement(
+        List<(int Value, int Count)> fields,
+        bool includeOptionalFields)
+    {
+        fields.AddRange(
+        [
+            (5, 3), // ID_PCE
+            (1, 4), // element_instance_tag
+            (1, 2), // object_type
+            (4, 4), // sampling_frequency_index
+            (includeOptionalFields ? 1 : 0, 4), // front elements
+            (includeOptionalFields ? 1 : 0, 4), // side elements
+            (includeOptionalFields ? 1 : 0, 4), // back elements
+            (includeOptionalFields ? 1 : 0, 2), // LFE elements
+            (includeOptionalFields ? 1 : 0, 3), // associated data elements
+            (includeOptionalFields ? 1 : 0, 4), // valid CC elements
+            (includeOptionalFields ? 1 : 0, 1), // mono mixdown present
+        ]);
+
+        if (includeOptionalFields)
+            fields.Add((2, 4));
+
+        fields.Add((includeOptionalFields ? 1 : 0, 1)); // stereo mixdown present
+        if (includeOptionalFields)
+            fields.Add((3, 4));
+
+        fields.Add((includeOptionalFields ? 1 : 0, 1)); // matrix mixdown present
+        if (includeOptionalFields)
+            fields.Add((5, 3));
+
+        if (includeOptionalFields)
+        {
+            fields.AddRange(
+            [
+                (1, 1), (4, 4), // front: CPE, tag
+                (0, 1), (5, 4), // side: SCE, tag
+                (1, 1), (6, 4), // back: CPE, tag
+                (7, 4), // LFE tag
+                (8, 4), // associated-data tag
+                (1, 1), (9, 4) // valid-CC: independent switch, tag
+            ]);
+        }
+
+        while ((fields.Sum(field => field.Count) & 7) != 0)
+            fields.Add((0, 1)); // alignment_zero_bit
+
+        fields.Add((2, 8)); // comment_field_bytes
+        fields.Add((0xA5, 8));
+        fields.Add((0x5A, 8));
+    }
 
     private static byte[] BuildMonoWithDataStreamElement(
         bool byteAlign,
