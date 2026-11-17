@@ -18,6 +18,9 @@ public sealed class AacAudioDecoderConfiguration
 
     public byte SamplingFrequencyIndex { get; }
 
+    /// <summary>Sampling-frequency table row used for AAC scalefactor-band boundaries.</summary>
+    public int ScalefactorBandSamplingFrequencyIndex { get; }
+
     public byte ChannelConfiguration { get; }
 
     public int ChannelCount { get; }
@@ -32,6 +35,9 @@ public sealed class AacAudioDecoderConfiguration
         AudioObjectType = audioSpecificConfig.AudioObjectType;
         SamplingFrequency = audioSpecificConfig.SamplingFrequency;
         SamplingFrequencyIndex = audioSpecificConfig.SamplingFrequencyIndex;
+        ScalefactorBandSamplingFrequencyIndex = ResolveScalefactorBandIndex(
+            audioSpecificConfig.SamplingFrequency,
+            audioSpecificConfig.SamplingFrequencyIndex);
         ChannelConfiguration = audioSpecificConfig.ChannelConfiguration;
         ChannelCount = channelCount;
     }
@@ -64,10 +70,6 @@ public sealed class AacAudioDecoderConfiguration
                 "The AAC sampling frequency is invalid.");
         }
 
-        if (audioSpecificConfig.SamplingFrequencyIndex > 12)
-            throw new NotSupportedException(
-                "AAC explicit or reserved sampling frequencies are not supported by the scalefactor-band tables.");
-
         int channelCount = GetChannelCount(
             audioSpecificConfig.ChannelConfiguration);
 
@@ -80,6 +82,33 @@ public sealed class AacAudioDecoderConfiguration
         return new AacAudioDecoderConfiguration(
             audioSpecificConfig,
             channelCount);
+    }
+
+    private static int ResolveScalefactorBandIndex(uint samplingFrequency, byte samplingFrequencyIndex)
+    {
+        if (samplingFrequencyIndex <= 12)
+            return samplingFrequencyIndex;
+
+        // Preserve the explicit output rate while selecting the nearest
+        // standard SWB table row supported by this decoder.
+        ReadOnlySpan<uint> standardFrequencies =
+        [96000, 88200, 64000, 48000, 44100, 32000, 24000,
+         22050, 16000, 12000, 11025, 8000, 7350];
+
+        int nearestIndex = 0;
+        ulong smallestDifference = ulong.MaxValue;
+        for (int i = 0; i < standardFrequencies.Length; i++)
+        {
+            ulong difference = samplingFrequency >= standardFrequencies[i]
+                ? samplingFrequency - standardFrequencies[i]
+                : standardFrequencies[i] - samplingFrequency;
+            if (difference < smallestDifference)
+            {
+                smallestDifference = difference;
+                nearestIndex = i;
+            }
+        }
+        return nearestIndex;
     }
 
     private static int GetChannelCount(byte channelConfiguration)
