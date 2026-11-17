@@ -60,7 +60,9 @@ public sealed class AacTnsSpectralProcessor
         for (int windowIndex = 0; windowIndex < expectedWindows; windowIndex++)
         {
             AacTnsWindow window = tnsData.Windows[windowIndex];
-            int topBand = scaleFactorBandOffsets.Count - 1;
+            // TNS filter lengths count down from max_sfb, not from the end
+            // of the complete sampling-frequency scalefactor-band table.
+            int topBand = maximumTnsBand;
 
             foreach (AacTnsFilter filter in window.Filters)
             {
