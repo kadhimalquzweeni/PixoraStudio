@@ -106,8 +106,8 @@ public sealed class AacRawDataBlockReader
 
         while (reader.RemainingBits > 0)
         {
-            if (reader.ReadBits(1) != 0)
-                throw new InvalidDataException("AAC raw_data_block alignment padding must be zero.");
+            if (reader.ReadBits(1) != 1)
+                throw new InvalidDataException("AAC raw_data_block byte-alignment bits must be one.");
         }
     }
 }
