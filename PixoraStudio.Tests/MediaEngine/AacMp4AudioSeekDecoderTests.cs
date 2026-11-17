@@ -65,13 +65,25 @@ public sealed class AacMp4AudioSeekDecoderTests
             presentation);
 
         double targetTime = (1024d + 128d) / 44100d;
-        using MemoryStream stream = new(fileData);
+        AacMp4AudioSeekDecoder decoder = new();
 
-        var result = new AacMp4AudioSeekDecoder().Decode(
-            stream,
+        using MemoryStream sampleStream = new(fileData);
+        Mp4DecodedAudioSample[] decodedSamples = decoder.DecodeSamples(
+            sampleStream,
             mediaInfo,
             1,
-            targetTime);
+            targetTime).ToArray();
+
+        Assert.Equal(2, decodedSamples.Length);
+        Assert.Equal(2u, decodedSamples[0].SampleNumber);
+        Assert.Equal(0, decodedSamples[0].PresentationStartFrame);
+        Assert.Equal(896, decodedSamples[0].Buffer.FrameCount);
+        Assert.Equal(3u, decodedSamples[1].SampleNumber);
+        Assert.Equal(896, decodedSamples[1].PresentationStartFrame);
+        Assert.Equal(1024, decodedSamples[1].Buffer.FrameCount);
+
+        using MemoryStream stream = new(fileData);
+        var result = decoder.Decode(stream, mediaInfo, 1, targetTime);
 
         Assert.Equal(1920, result.FrameCount);
         Assert.Equal(channels, result.Format.ChannelCount);
