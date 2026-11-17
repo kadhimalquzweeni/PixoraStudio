@@ -126,7 +126,7 @@ public sealed class AacRawDataBlockReaderTests
                 bits.Add((value >> bit) & 1);
 
         while ((bits.Count & 7) != 0)
-            bits.Add(0);
+            bits.Add(1);
 
         byte[] result = new byte[bits.Count / 8];
         for (int i = 0; i < bits.Count; i++)
