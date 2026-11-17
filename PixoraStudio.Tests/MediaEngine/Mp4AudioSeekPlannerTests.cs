@@ -142,6 +142,20 @@ public sealed class Mp4AudioSeekPlannerTests
     }
 
     [Fact]
+    public void Plan_ShouldRejectMalformedSampleTiming()
+    {
+        Mp4MediaTrack track = CreateTrack();
+        Mp4PresentationSample invalid = new(
+            track.TrackId,
+            1,
+            new Mp4SampleLocation(1, 1, 0, 1, 0, 0, true),
+            0);
+
+        Assert.Throws<Mp4ParsingException>(() =>
+            _planner.Plan(track, [invalid], 0, 48000));
+    }
+
+    [Fact]
     public void Plan_ShouldRejectNonAudioTrack()
     {
         Mp4MediaTrack track = CreateTrack(Mp4HandlerType.Video);
@@ -176,7 +190,12 @@ public sealed class Mp4AudioSeekPlannerTests
             track,
             new Mp4Box(8, "trak", 0, 8),
             table,
-            new Mp4SampleLocationTable([]));
+            new Mp4SampleLocationTable(
+            [
+                new Mp4SampleLocation(1, 1, 0, 1, 0, 1000, true),
+                new Mp4SampleLocation(2, 1, 1, 1, 1000, 1000, false),
+                new Mp4SampleLocation(3, 1, 2, 1, 2000, 1000, false)
+            ]));
     }
 
     private static Mp4PresentationSample[] CreateSamples(Mp4MediaTrack track) =>
