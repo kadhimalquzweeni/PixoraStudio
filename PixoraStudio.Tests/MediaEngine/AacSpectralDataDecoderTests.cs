@@ -29,11 +29,11 @@ public sealed class AacSpectralDataDecoderTests
     [Fact]
     public void DecodeBand_ShouldDecodeUnsignedSignsInCoefficientOrder()
     {
-        // Book 7 symbol 1 -> (0,1), followed by a negative sign bit.
-        var reader = new AacBitReader(new byte[] { 0b0010_0000 }, 2);
+        // Book 7 symbol 1 uses codeword 101, followed by a negative sign bit.
+        var reader = new AacBitReader(new byte[] { 0b1011_0000 }, 4);
         int[] result = _decoder.DecodeBand(reader, 7, 2);
         Assert.Equal(new[] { 0, -1 }, result);
-        Assert.Equal(2, reader.PositionBits);
+        Assert.Equal(4, reader.PositionBits);
     }
 
     [Theory]
