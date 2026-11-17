@@ -162,8 +162,30 @@ public sealed class AacRawDataBlockReader
         // The alignment bit values are not constrained, so skip them without validation.
         reader.AlignToByte();
 
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC PCE fields: front={frontElementCount}, side={sideElementCount}, " +
+            $"back={backElementCount}, lfe={lfeElementCount}, associatedData={associatedDataElementCount}, " +
+            $"cc={validCcElementCount}, commentLengthPosition={reader.PositionBits}, " +
+            $"remainingBeforeCommentLength={reader.RemainingBits}");
+
         int commentFieldBytes = (int)reader.ReadBits(8);
-        reader.SkipBits(checked(commentFieldBytes * 8));
+        int commentBits = checked(commentFieldBytes * 8);
+
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC PCE comment: bytes={commentFieldBytes}, payloadPosition={reader.PositionBits}, " +
+            $"requiredBits={commentBits}, remainingBits={reader.RemainingBits}");
+
+        if (commentBits > reader.RemainingBits)
+        {
+            throw new InvalidDataException(
+                $"AAC PCE comment declares {commentFieldBytes} bytes, but only " +
+                $"{reader.RemainingBits / 8} complete bytes remain " +
+                $"(position={reader.PositionBits}, length={reader.LengthBits}, " +
+                $"front={frontElementCount}, side={sideElementCount}, back={backElementCount}, " +
+                $"lfe={lfeElementCount}, associatedData={associatedDataElementCount}, cc={validCcElementCount}).");
+        }
+
+        reader.SkipBits(commentBits);
     }
 
     private static void SkipChannelElementDescriptions(
