@@ -18,10 +18,10 @@ public sealed class PcmAudioBufferReaderTests
         int bytesRead = reader.Read(output, 0, output.Length);
 
         Assert.Equal(8, bytesRead);
-        Assert.Equal(0, BinaryPrimitives.ReadInt16LittleEndian(output.AsSpan(0, 2)));
+        Assert.Equal((short)0, BinaryPrimitives.ReadInt16LittleEndian(output.AsSpan(0, 2)));
         Assert.Equal(short.MaxValue, BinaryPrimitives.ReadInt16LittleEndian(output.AsSpan(2, 2)));
         Assert.Equal(short.MinValue, BinaryPrimitives.ReadInt16LittleEndian(output.AsSpan(4, 2)));
-        Assert.Equal(16384, BinaryPrimitives.ReadInt16LittleEndian(output.AsSpan(6, 2)));
+        Assert.Equal((short)16384, BinaryPrimitives.ReadInt16LittleEndian(output.AsSpan(6, 2)));
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class PcmAudioBufferReaderTests
         byte[] output = new byte[2];
 
         Assert.Equal(2, reader.Read(output, 0, output.Length));
-        Assert.Equal(0, BinaryPrimitives.ReadInt16LittleEndian(output));
+        Assert.Equal((short)0, BinaryPrimitives.ReadInt16LittleEndian(output));
     }
 
     [Fact]
@@ -67,10 +67,10 @@ public sealed class PcmAudioBufferReaderTests
         int bytesRead = reader.Read(output, 1, 2);
 
         Assert.Equal(2, bytesRead);
-        Assert.Equal(0xAA, output[0]);
+        Assert.Equal((byte)0xAA, output[0]);
         Assert.Equal(0xFF, output[1]);
         Assert.Equal(0x7F, output[2]);
-        Assert.Equal(0xAA, output[3]);
+        Assert.Equal((byte)0xAA, output[3]);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class PcmAudioBufferReaderTests
 
         Assert.Equal(2, reader.Read(output, 0, output.Length));
         Assert.Equal(0, reader.Read(output, 0, output.Length));
-        Assert.Equal(2, reader.PositionBytes);
+        Assert.Equal(2L, reader.PositionBytes);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class PcmAudioBufferReaderTests
         reader.Seek(TimeSpan.FromMilliseconds(200));
 
         Assert.Equal(TimeSpan.FromMilliseconds(200), reader.Position);
-        Assert.Equal(4, reader.PositionBytes);
+        Assert.Equal(4L, reader.PositionBytes);
 
         byte[] output = new byte[2];
         Assert.Equal(2, reader.Read(output, 0, output.Length));
@@ -133,11 +133,11 @@ public sealed class PcmAudioBufferReaderTests
 
         reader.SeekToFrame(1);
 
-        Assert.Equal(1, reader.PositionBytes / reader.BytesPerFrame);
+        Assert.Equal(1L, reader.PositionBytes / reader.BytesPerFrame);
 
         byte[] output = new byte[2];
         Assert.Equal(2, reader.Read(output, 0, output.Length));
-        Assert.Equal(3277, BinaryPrimitives.ReadInt16LittleEndian(output));
+        Assert.Equal((short)3277, BinaryPrimitives.ReadInt16LittleEndian(output));
     }
 
     [Fact]
