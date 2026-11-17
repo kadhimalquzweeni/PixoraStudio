@@ -129,7 +129,8 @@ public sealed class AacMp4AudioSeekDecoder
             // synthesis state, but are not emitted on the presentation timeline.
             if (!presentationBySample.TryGetValue(
                     encoded.Location.SampleNumber,
-                    out Mp4PresentationSample presentation))
+                    out Mp4PresentationSample? presentation) ||
+                presentation is null)
             {
                 continue;
             }
