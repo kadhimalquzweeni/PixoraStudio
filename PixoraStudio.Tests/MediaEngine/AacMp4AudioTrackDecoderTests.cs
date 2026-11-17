@@ -50,6 +50,39 @@ public sealed class AacMp4AudioTrackDecoderTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DecodeSample_ShouldRemainUsableAfterTruncatedAccessUnit(bool stereo)
+    {
+        int channelCount = stereo ? 2 : 1;
+        byte channelConfiguration = checked((byte)channelCount);
+        Mp4AudioSpecificConfig config = new(
+            Mp4AudioCodec.Aac, 2, 44100, 4,
+            channelConfiguration, channelCount,
+            stereo ? [0x12, 0x10] : [0x12, 0x08]);
+        Mp4AudioSampleEntry entry = new(
+            "mp4a", 1, 0, checked((ushort)channelCount), 16,
+            44100, Mp4AudioCodec.Aac, config);
+        Mp4SampleDescription description = new(1, "mp4a", audio: entry);
+        byte[] validAccessUnit = stereo
+            ? AacRawDataBlockReaderTests.BuildEmptyStereoAccessUnit()
+            : AacRawDataBlockReaderTests.BuildEmptyMonoAccessUnit();
+        byte[] truncatedAccessUnit = validAccessUnit[..^1];
+        AacMp4AudioTrackDecoder decoder = new();
+
+        Assert.Throws<EndOfStreamException>(() =>
+            decoder.DecodeSample(CreateSample(truncatedAccessUnit), description));
+
+        PcmAudioBuffer decoded = decoder.DecodeSample(
+            CreateSample(validAccessUnit),
+            description);
+
+        Assert.Equal(44100, decoded.Format.SampleRate);
+        Assert.Equal(channelCount, decoded.Format.ChannelCount);
+        Assert.Equal(1024, decoded.FrameCount);
+    }
+
+    [Theory]
     [InlineData(96000, 0, 1)]
     [InlineData(96000, 0, 2)]
     [InlineData(88200, 1, 1)]
