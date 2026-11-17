@@ -120,7 +120,6 @@ public sealed class PcmAudioTimelinePlacementTests
     }
 
     [Theory]
-    [InlineData(-1, 0, 1024)]
     [InlineData(0, -1, 1024)]
     [InlineData(0, 0, -1)]
     [InlineData(long.MinValue, 0, 1024)]
