@@ -274,39 +274,30 @@ public sealed class AacAudioPlaybackService : IDisposable
                     presentationSample.PresentationTimeSeconds * format.SampleRate,
                     MidpointRounding.AwayFromZero));
 
-                int framesToSkip = 0;
+                PcmAudioTimelinePlacementResult placement =
+                    PcmAudioTimelinePlacement.Calculate(
+                        sampleStartFrame,
+                        writtenFrames,
+                        decoded.FrameCount);
 
-                if (sampleStartFrame < 0)
-                {
-                    framesToSkip = (int)Math.Min(
-                        decoded.FrameCount,
-                        -sampleStartFrame);
-                    sampleStartFrame = 0;
-                }
-
-                if (sampleStartFrame > writtenFrames)
+                if (placement.SilenceFrames > 0)
                 {
                     WriteSilence(
                         writer,
-                        sampleStartFrame - writtenFrames,
+                        placement.SilenceFrames,
                         format.ChannelCount);
-
-                    writtenFrames = sampleStartFrame;
                 }
 
-                if (sampleStartFrame < writtenFrames)
+                if (placement.FramesToWrite > 0)
                 {
-                    long overlap = writtenFrames - sampleStartFrame;
-                    framesToSkip += (int)Math.Min(
-                        decoded.FrameCount - framesToSkip,
-                        overlap);
+                    WriteBuffer(
+                        writer,
+                        decoded,
+                        format,
+                        placement.FramesToSkip);
                 }
 
-                if (framesToSkip < decoded.FrameCount)
-                {
-                    WriteBuffer(writer, decoded, format, framesToSkip);
-                    writtenFrames += decoded.FrameCount - framesToSkip;
-                }
+                writtenFrames = placement.ResultingWrittenFrames;
             }
 
             writer?.Dispose();
