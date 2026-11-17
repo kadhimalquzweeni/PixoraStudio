@@ -110,7 +110,7 @@
 
                         <Button Grid.Column="6"
                                 Content="{Binding MuteButtonText}"
-                                Command="{Binding ToggleMuteCommand}"
+                                Click="MuteButton_Click"
                                 Margin="10,0,0,0"
                                 Padding="10,4"
                                 VerticalAlignment="Center"/>
