@@ -206,6 +206,8 @@ public sealed class AacSpectralTupleDecoderTests
     [Fact]
     public void DecodeTuple_ShouldDecodeMaximumEscapeMagnitude()
     {
+        // Codebook 11, index 16 decodes to (16, 0), so the
+        // sign and escape sequence apply to the first coefficient.
         // Escape length 12:
         // eight unary ones, terminator zero, twelve value bits.
         string bits = "1" + "111111110" + "111111111111";
@@ -217,7 +219,7 @@ public sealed class AacSpectralTupleDecoderTests
             11,
             16);
 
-        Assert.Equal([0, -8191], result);
+        Assert.Equal([-8191, 0], result);
     }
 
     [Fact]
