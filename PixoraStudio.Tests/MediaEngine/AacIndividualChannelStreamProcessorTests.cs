@@ -55,12 +55,12 @@ public sealed class AacIndividualChannelStreamProcessorTests
             tnsData: tns);
 
         float[] spectrum = new AacIndividualChannelStreamProcessor(
-            new SequenceNoiseSource(1, 0, 0, 1)).Process(data, 0);
+            new SequenceNoiseSource(1, 0, 0, 0)).Process(data, 0);
 
         Assert.Equal(1f, spectrum[0], 5);
         Assert.Equal(0.20791170f, spectrum[1], 5);
-        Assert.Equal(0f, spectrum[2], 5);
-        Assert.Equal(0.70710678f, spectrum[3], 5);
+        Assert.Equal(0.043228f, spectrum[2], 5);
+        Assert.Equal(0.008986f, spectrum[3], 5);
     }
 
     [Fact]
