@@ -89,6 +89,10 @@ public sealed class AacAudioDecoderConfiguration
         if (samplingFrequencyIndex <= 12)
             return samplingFrequencyIndex;
 
+        if (samplingFrequencyIndex != 15)
+            throw new InvalidDataException(
+                $"AAC sampling-frequency index {samplingFrequencyIndex} is reserved.");
+
         // Preserve the explicit output rate while selecting the nearest
         // standard SWB table row supported by this decoder.
         ReadOnlySpan<uint> standardFrequencies =
