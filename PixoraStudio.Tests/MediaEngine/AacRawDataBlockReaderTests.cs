@@ -39,6 +39,26 @@ public sealed class AacRawDataBlockReaderTests
     }
 
     [Fact]
+    public void ReadSingleChannelElement_ShouldRejectNonZeroAccessUnitPadding()
+    {
+        byte[] accessUnit = BuildBitsWithTrailingPadding(
+            1,
+            (6, 3), (1, 4), (0xA5, 8),
+            (0, 3), (5, 4), (0, 8),
+            (0, 1), (0, 2), (0, 1), (0, 6), (0, 1),
+            (0, 1), (0, 1), (0, 1),
+            (7, 3));
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new AacRawDataBlockReader()
+                .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4));
+
+        Assert.Equal(
+            "AAC raw_data_block access-unit padding bits must be zero.",
+            exception.Message);
+    }
+
+    [Fact]
     public void ReadSingleChannelElement_ShouldSkipEscapedFillElementAndTrailingFillElement()
     {
         var fields = new List<(int Value, int Count)>
@@ -318,7 +338,12 @@ public sealed class AacRawDataBlockReaderTests
         return BuildBits(fields.ToArray());
     }
 
-    private static byte[] BuildBits(params (int Value, int Count)[] fields)
+    private static byte[] BuildBits(params (int Value, int Count)[] fields) =>
+        BuildBitsWithTrailingPadding(0, fields);
+
+    private static byte[] BuildBitsWithTrailingPadding(
+        int paddingBit,
+        params (int Value, int Count)[] fields)
     {
         List<int> bits = [];
         foreach ((int value, int count) in fields)
@@ -326,7 +351,7 @@ public sealed class AacRawDataBlockReaderTests
                 bits.Add((value >> bit) & 1);
 
         while ((bits.Count & 7) != 0)
-            bits.Add(1);
+            bits.Add(paddingBit);
 
         byte[] result = new byte[bits.Count / 8];
         for (int i = 0; i < bits.Count; i++)
