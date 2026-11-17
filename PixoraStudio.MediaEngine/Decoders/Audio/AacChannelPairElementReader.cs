@@ -22,6 +22,19 @@ public sealed class AacChannelPairElementReader
         if ((int)reader.ReadBits(3) != ChannelPairElementId)
             throw new InvalidDataException("The AAC element is not a channel_pair_element.");
 
+        return ReadAfterElementId(reader, samplingFrequencyIndex);
+    }
+
+    /// <summary>
+    /// Reads a CPE payload when its three-bit element identifier has already
+    /// been consumed by an enclosing raw_data_block reader.
+    /// </summary>
+    public AacChannelPairElement ReadAfterElementId(
+        AacBitReader reader,
+        int samplingFrequencyIndex)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+
         byte tag = (byte)reader.ReadBits(4);
         bool commonWindow = reader.ReadBits(1) != 0;
 
