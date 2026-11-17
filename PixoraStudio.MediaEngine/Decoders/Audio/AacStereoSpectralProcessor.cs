@@ -51,7 +51,8 @@ public sealed class AacStereoSpectralProcessor
                         if (isIntensity)
                         {
                             double gain = Math.Pow(2.0, -position!.Value / 4.0);
-                            bool negative = position.CodebookIndex == 15;
+                            // Codebook 15 is in-phase; codebook 14 is out-of-phase.
+                            bool negative = position!.CodebookIndex == 14;
                             if (msMask[index])
                                 negative = !negative;
 
