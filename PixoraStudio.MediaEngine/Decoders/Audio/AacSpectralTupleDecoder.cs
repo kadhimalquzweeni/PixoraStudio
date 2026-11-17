@@ -194,8 +194,10 @@ public sealed class AacSpectralTupleDecoder
         int index,
         int[] tuple)
     {
-        tuple[0] = index / 9 - 4;
-        tuple[1] = index % 9 - 4;
+        // AAC pair indices are encoded as 9 * (y + 4) + (x + 4).
+        // The spectral tuple is ordered (x, y), so the remainder is first.
+        tuple[0] = index % 9 - 4;
+        tuple[1] = index / 9 - 4;
     }
 
     private static void DecodeUnsignedPair(
@@ -203,7 +205,9 @@ public sealed class AacSpectralTupleDecoder
         int radix,
         int[] tuple)
     {
-        tuple[0] = index / radix;
-        tuple[1] = index % radix;
+        // AAC pair indices are encoded as radix * y + x.
+        // The spectral tuple is ordered (x, y), so the remainder is first.
+        tuple[0] = index % radix;
+        tuple[1] = index / radix;
     }
 }
