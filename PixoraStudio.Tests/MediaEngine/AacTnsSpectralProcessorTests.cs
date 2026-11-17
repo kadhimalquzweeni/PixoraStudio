@@ -10,10 +10,10 @@ public sealed class AacTnsSpectralProcessorTests
     private readonly AacTnsSpectralProcessor _processor = new();
 
     [Theory]
-    [InlineData(false, false, 1, -0.20791170f)]
-    [InlineData(false, true, 1, -0.43388373f)]
-    [InlineData(true, false, 1, -0.20791170f)]
-    [InlineData(true, true, 1, -0.43388373f)]
+    [InlineData(false, false, 1, -0.43388373f)]
+    [InlineData(false, true, 1, -0.20791170f)]
+    [InlineData(true, false, 1, -0.43388373f)]
+    [InlineData(true, true, 1, -0.20791170f)]
     public void Decode_ShouldReconstructReflectionCoefficient(
         bool compressed, bool resolution, int index, float expected)
     {
@@ -107,6 +107,20 @@ public sealed class AacTnsSpectralProcessorTests
             Assert.Equal(1f, result[(window * 128) + 127]);
             Assert.Equal(0.20791170f, result[(window * 128) + 126], 6);
         }
+    }
+
+    [Fact]
+    public void Apply_ShouldReturnUnchangedCopyWhenTnsIsAbsent()
+    {
+        float[] spectrum = Enumerable.Range(0, 1024).Select(value => (float)value).ToArray();
+        float[] result = _processor.Apply(
+            spectrum,
+            new AacTnsData([]),
+            [0, 1024],
+            LongInfo());
+
+        Assert.Equal(spectrum, result);
+        Assert.NotSame(spectrum, result);
     }
 
     [Fact]
