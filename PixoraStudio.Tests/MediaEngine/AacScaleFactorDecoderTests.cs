@@ -7,7 +7,7 @@ public sealed class AacScaleFactorDecoderTests
 {
     [Theory]
     [InlineData("0", 0)]
-    [InlineData("0001", -1)]
+    [InlineData("100", -1)]
     [InlineData("1010", 1)]
     public void DecodeDelta_ShouldDecodeNormativeCodewords(string bits, int expected)
     {
