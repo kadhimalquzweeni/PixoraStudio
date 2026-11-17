@@ -6,16 +6,16 @@ namespace PixoraStudio.Tests.MediaEngine;
 
 public sealed class AacPcmSynthesisProcessorTests
 {
-    [Fact]
-    public void Process_ShouldReturnMonoPcmFrameForLongWindow()
+    [Theory]
+    [InlineData(AacWindowSequence.OnlyLongSequence)]
+    [InlineData(AacWindowSequence.LongStartSequence)]
+    [InlineData(AacWindowSequence.EightShortSequence)]
+    [InlineData(AacWindowSequence.LongStopSequence)]
+    public void Process_ShouldReturnMonoPcmFrameForEveryWindowSequence(
+        AacWindowSequence sequence)
     {
         AacPcmSynthesisProcessor processor = new();
-        AacIndividualChannelStreamInfo info = new(
-            AacWindowSequence.OnlyLongSequence,
-            AacWindowShape.Sine,
-            0,
-            0,
-            false);
+        AacIndividualChannelStreamInfo info = CreateInfo(sequence);
 
         PcmAudioBuffer result = processor.Process(
             new float[1024],
@@ -29,50 +29,76 @@ public sealed class AacPcmSynthesisProcessorTests
     }
 
     [Theory]
+    [InlineData(AacWindowSequence.OnlyLongSequence)]
     [InlineData(AacWindowSequence.LongStartSequence)]
     [InlineData(AacWindowSequence.EightShortSequence)]
     [InlineData(AacWindowSequence.LongStopSequence)]
-    public void Process_ShouldRejectUnsupportedWindowTransitions(AacWindowSequence sequence)
+    public void Process_ShouldProduceFiniteSamplesForEveryWindowSequence(
+        AacWindowSequence sequence)
     {
         AacPcmSynthesisProcessor processor = new();
-        AacIndividualChannelStreamInfo info = new(
-            sequence,
-            AacWindowShape.Sine,
-            0,
-            0,
-            false);
+        float[] spectrum = new float[1024];
+        spectrum[0] = 1f;
+        spectrum[17] = -0.25f;
 
-        Assert.Throws<NotSupportedException>(() =>
-            processor.Process(new float[1024], info, 44100));
+        PcmAudioBuffer result = processor.Process(
+            spectrum,
+            CreateInfo(sequence),
+            48000);
+
+        Assert.Equal(1024, result.FrameCount);
+        Assert.All(result.Samples.ToArray(),
+            sample => Assert.True(float.IsFinite(sample)));
     }
 
     [Fact]
     public void Process_ShouldRejectInvalidSampleRate()
     {
         AacPcmSynthesisProcessor processor = new();
-        AacIndividualChannelStreamInfo info = new(
-            AacWindowSequence.OnlyLongSequence,
-            AacWindowShape.Sine,
-            0,
-            0,
-            false);
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            processor.Process(new float[1024], info, 0));
+            processor.Process(
+                new float[1024],
+                CreateInfo(AacWindowSequence.OnlyLongSequence),
+                0));
     }
 
     [Fact]
     public void Process_ShouldRejectInvalidSpectrumLength()
     {
         AacPcmSynthesisProcessor processor = new();
-        AacIndividualChannelStreamInfo info = new(
-            AacWindowSequence.OnlyLongSequence,
-            AacWindowShape.Sine,
-            0,
-            0,
-            false);
 
         Assert.Throws<ArgumentException>(() =>
-            processor.Process(new float[128], info, 44100));
+            processor.Process(
+                new float[128],
+                CreateInfo(AacWindowSequence.OnlyLongSequence),
+                44100));
     }
+
+    [Fact]
+    public void Reset_ShouldClearOverlapAndPreviousWindowState()
+    {
+        AacPcmSynthesisProcessor processor = new();
+        float[] spectrum = new float[1024];
+        spectrum[0] = 1f;
+
+        processor.Process(
+            spectrum,
+            CreateInfo(AacWindowSequence.OnlyLongSequence, AacWindowShape.KaiserBesselDerived),
+            44100);
+        processor.Reset();
+
+        PcmAudioBuffer afterReset = processor.Process(
+            new float[1024],
+            CreateInfo(AacWindowSequence.OnlyLongSequence),
+            44100);
+
+        Assert.All(afterReset.Samples.ToArray(),
+            sample => Assert.Equal(0f, sample));
+    }
+
+    private static AacIndividualChannelStreamInfo CreateInfo(
+        AacWindowSequence sequence,
+        AacWindowShape shape = AacWindowShape.Sine) =>
+        new(sequence, shape, 0, 0, false);
 }
