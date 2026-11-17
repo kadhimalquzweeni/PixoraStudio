@@ -94,6 +94,31 @@ public sealed class PcmAudioTimelinePlacementTests
         Assert.Equal(0, result.ResultingWrittenFrames);
     }
 
+    [Fact]
+    public void Calculate_ShouldHandleLargeExistingTimelineWithoutOverlapOverflow()
+    {
+        PcmAudioTimelinePlacementResult result =
+            PcmAudioTimelinePlacement.Calculate(
+                presentationStartFrame: -1,
+                writtenFrames: long.MaxValue,
+                decodedFrameCount: 1024);
+
+        Assert.Equal(0, result.SilenceFrames);
+        Assert.Equal(1024, result.FramesToSkip);
+        Assert.Equal(0, result.FramesToWrite);
+        Assert.Equal(long.MaxValue, result.ResultingWrittenFrames);
+    }
+
+    [Fact]
+    public void Calculate_ShouldRejectTimelineLengthOverflow()
+    {
+        Assert.Throws<OverflowException>(
+            () => PcmAudioTimelinePlacement.Calculate(
+                presentationStartFrame: long.MaxValue,
+                writtenFrames: 0,
+                decodedFrameCount: 1));
+    }
+
     [Theory]
     [InlineData(-1, 0, 1024)]
     [InlineData(0, -1, 1024)]
