@@ -140,6 +140,7 @@ public partial class VideoEditorViewModel : ObservableObject
     private void CloseVideo()
     {
         _exportCancellationTokenSource?.Cancel();
+        VideoClosed?.Invoke();
         VideoPath = null;
         VideoName = "No video loaded";
         VideoDuration = "00:00";
@@ -154,6 +155,7 @@ public partial class VideoEditorViewModel : ObservableObject
 
 
     public event Action<string>? VideoLoaded;
+    public event Action? VideoClosed;
 
     [ObservableProperty]
     private bool isPlaying;
