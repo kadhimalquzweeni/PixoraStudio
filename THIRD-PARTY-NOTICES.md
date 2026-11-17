@@ -2,7 +2,7 @@
 
 ## aac-go
 
-The AAC Huffman numeric code tables in
+The AAC Huffman and scalefactor-band boundary tables numeric code tables in
 `PixoraStudio.MediaEngine/Decoders/Audio/AacHuffmanCodebookFactory.cs`
 are derived from the corresponding tables in
 [arabian9ts/aac-go](https://github.com/arabian9ts/aac-go),
