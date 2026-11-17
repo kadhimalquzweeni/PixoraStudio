@@ -84,6 +84,14 @@ public sealed class PcmAudioBufferReader
             : (int)requestedFrame;
     }
 
+    public void SeekToFrame(int frameIndex)
+    {
+        if (frameIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(frameIndex));
+
+        _framePosition = Math.Min(frameIndex, _buffer.FrameCount);
+    }
+
     public void Rewind()
     {
         _framePosition = 0;
