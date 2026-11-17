@@ -312,10 +312,21 @@ public partial class VideoEditorView : UserControl
 
         if (_usesCustomAacAudio)
         {
-            _aacAudioPlaybackService.Volume = (float)(DataContext is VideoEditorViewModel vm
-                ? vm.Volume / 100d
-                : 1d);
-            _aacAudioPlaybackService.Play();
+            try
+            {
+                _aacAudioPlaybackService.Volume = (float)(DataContext is VideoEditorViewModel vm
+                    ? vm.Volume / 100d
+                    : 1d);
+                _aacAudioPlaybackService.Play();
+            }
+            catch (Exception ex)
+            {
+                _aacAudioPlaybackService.Unload();
+                _usesCustomAacAudio = false;
+                _mediaPlayer.Mute = false;
+                System.Diagnostics.Debug.WriteLine(
+                    $"Custom AAC output could not start; using LibVLC audio: {ex.Message}");
+            }
         }
     }
 
