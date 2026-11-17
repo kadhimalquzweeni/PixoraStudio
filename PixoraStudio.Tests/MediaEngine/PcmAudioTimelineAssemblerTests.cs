@@ -29,9 +29,9 @@ public sealed class PcmAudioTimelineAssemblerTests
 
         PcmAudioBuffer result = assembler.Build();
 
-        Assert.Equal(5, result.FrameCount);
+        Assert.Equal(4, result.FrameCount);
         Assert.Equal(
-            new float[] { 1, 2, 0, 0, 3, 4, 0, 0, 0, 0 },
+            new float[] { 1, 2, 0, 0, 0, 0, 3, 4 },
             result.ToArray());
     }
 
@@ -40,12 +40,12 @@ public sealed class PcmAudioTimelineAssemblerTests
     {
         PcmAudioTimelineAssembler assembler = new(Format);
         assembler.Append(CreateBuffer(1, 2, 3, 4), 0);
-        assembler.Append(CreateBuffer(30, 40, 50, 60), 2);
+        assembler.Append(CreateBuffer(30, 40, 50, 60), 1);
 
         PcmAudioBuffer result = assembler.Build();
 
-        Assert.Equal(4, result.FrameCount);
-        Assert.Equal(new float[] { 1, 2, 3, 4, 50, 60, 0, 0 }, result.ToArray());
+        Assert.Equal(3, result.FrameCount);
+        Assert.Equal(new float[] { 1, 2, 3, 4, 50, 60 }, result.ToArray());
     }
 
     [Fact]
