@@ -511,12 +511,6 @@ public partial class VideoEditorView : UserControl
         }
     }
 
-    private void MuteButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is VideoEditorViewModel vm)
-            vm.IsMuted = !vm.IsMuted;
-    }
-
     private void OnMuteChanged(bool isMuted)
     {
         AudioOutputSettings settings = AudioOutputSettings.Create(
