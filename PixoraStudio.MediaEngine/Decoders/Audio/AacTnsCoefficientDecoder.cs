@@ -43,9 +43,9 @@ public sealed class AacTnsCoefficientDecoder
         int tableSize = 1 << coefficientBits;
 
         float[] lpc = new float[filter.Order];
-        for (int order = 0; order < filter.Order; order++)
+        for (int order = 1; order <= filter.Order; order++)
         {
-            int index = filter.Coefficients[order];
+            int index = filter.Coefficients[order - 1];
             if ((uint)index >= (uint)tableSize || index >= table.Length)
                 throw new InvalidDataException(
                     "AAC TNS coefficient index exceeds its quantiser table.");
@@ -53,10 +53,10 @@ public sealed class AacTnsCoefficientDecoder
             float reflection = table[index];
             float[] previous = (float[])lpc.Clone();
 
-            for (int i = 0; i < order; i++)
-                lpc[i] = previous[i] + reflection * previous[order - 1 - i];
+            for (int i = 0; i < order - 1; i++)
+                lpc[i] = previous[i] + reflection * previous[order - 2 - i];
 
-            lpc[order] = reflection;
+            lpc[order - 1] = reflection;
         }
 
         return lpc;
