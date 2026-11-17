@@ -110,6 +110,44 @@ public sealed class PcmAudioBufferReaderTests
     }
 
     [Fact]
+    public void SeekToFrame_ShouldPositionExactlyAtRequestedFrame()
+    {
+        PcmAudioBufferReader reader = new(
+            new PcmAudioBuffer(
+                new PcmAudioFormat(44100, 1),
+                [0f, 0.1f, 0.2f]));
+
+        reader.SeekToFrame(1);
+
+        Assert.Equal(1, reader.PositionBytes / reader.BytesPerFrame);
+
+        byte[] output = new byte[2];
+        Assert.Equal(2, reader.Read(output, 0, output.Length));
+        Assert.Equal(3277, BinaryPrimitives.ReadInt16LittleEndian(output));
+    }
+
+    [Fact]
+    public void SeekToFrame_ShouldRejectNegativeFrame()
+    {
+        PcmAudioBufferReader reader = new(
+            new PcmAudioBuffer(new PcmAudioFormat(44100, 1), [0f]));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => reader.SeekToFrame(-1));
+    }
+
+    [Fact]
+    public void SeekToFrame_ShouldClampPastEnd()
+    {
+        PcmAudioBufferReader reader = new(
+            new PcmAudioBuffer(new PcmAudioFormat(44100, 1), [0f]));
+
+        reader.SeekToFrame(10);
+
+        Assert.Equal(reader.LengthBytes, reader.PositionBytes);
+    }
+
+    [Fact]
     public void Seek_ShouldClampPastEndToEndOfBuffer()
     {
         PcmAudioBuffer buffer = new(
