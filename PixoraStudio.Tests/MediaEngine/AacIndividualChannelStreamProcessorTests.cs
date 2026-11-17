@@ -81,9 +81,9 @@ public sealed class AacIndividualChannelStreamProcessorTests
             new SequenceNoiseSource()).Process(data, 0);
 
         float[] firstWindowExpected =
-            [1f, 2f, 3f, 4f].Select(value => MathF.Pow(value, 4f / 3f)).ToArray();
+            new[] { 1f, 2f, 3f, 4f }.Select(value => MathF.Pow(value, 4f / 3f)).ToArray();
         float[] secondWindowExpected =
-            [5f, 6f, 7f, 8f].Select(value => MathF.Pow(value, 4f / 3f)).ToArray();
+            new[] { 5f, 6f, 7f, 8f }.Select(value => MathF.Pow(value, 4f / 3f)).ToArray();
 
         for (int i = 0; i < firstWindowExpected.Length; i++)
         {
