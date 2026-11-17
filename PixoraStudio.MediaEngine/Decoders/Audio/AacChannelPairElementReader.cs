@@ -80,6 +80,13 @@ public sealed class AacChannelPairElementReader
         AacIndividualChannelStreamData right =
             _channelReader.Read(reader, samplingFrequencyIndex, commonWindow, sharedInfo);
 
+        if (left.ScaleFactors.Bands.Any(
+                value => value.CodebookIndex is 14 or 15))
+        {
+            throw new InvalidDataException(
+                "AAC intensity stereo codebooks are only valid in the right channel.");
+        }
+
         if (!commonWindow && right.ScaleFactors.Bands.Any(
                 value => value.CodebookIndex is 14 or 15))
         {
