@@ -21,6 +21,50 @@ public sealed class AacRawDataBlockReaderTests
     }
 
     [Fact]
+    public void ReadSingleChannelElement_ShouldSkipFillElementBeforeAudioElement()
+    {
+        byte[] accessUnit = BuildBits(
+            (6, 3), (1, 4), (0xA5, 8),
+            (0, 3), (5, 4), (0, 8),
+            (0, 1), (0, 2), (0, 1), (0, 6), (0, 1),
+            (0, 1), (0, 1), (0, 1),
+            (7, 3));
+
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4);
+
+        Assert.Equal(5, result.ElementInstanceTag);
+        Assert.Equal(AacWindowSequence.OnlyLongSequence,
+            result.ChannelStream.StreamInfo.WindowSequence);
+    }
+
+    [Fact]
+    public void ReadSingleChannelElement_ShouldSkipEscapedFillElementAndTrailingFillElement()
+    {
+        var fields = new List<(int Value, int Count)>
+        {
+            (6, 3), (15, 4), (2, 8)
+        };
+
+        for (int i = 0; i < 16; i++)
+            fields.Add((i, 8));
+
+        fields.AddRange(
+        [
+            (0, 3), (3, 4), (0, 8),
+            (0, 1), (0, 2), (0, 1), (0, 6), (0, 1),
+            (0, 1), (0, 1), (0, 1),
+            (6, 3), (1, 4), (0x5A, 8),
+            (7, 3)
+        ]);
+
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(BuildBits(fields.ToArray()), samplingFrequencyIndex: 4);
+
+        Assert.Equal(3, result.ElementInstanceTag);
+    }
+
+    [Fact]
     public void ReadChannelPairElement_ShouldReadCommonWindowStereoIcs()
     {
         AacChannelPairElement pair = new AacRawDataBlockReader()
