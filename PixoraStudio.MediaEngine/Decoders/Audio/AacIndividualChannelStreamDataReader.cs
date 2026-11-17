@@ -37,8 +37,13 @@ public sealed class AacIndividualChannelStreamDataReader
                 "Shared ICS information is required when common_window is true.");
 
         int globalGain = (int)reader.ReadBits(8);
+        System.Diagnostics.Debug.WriteLine($"AAC after global_gain: {reader.PositionBits}");
+
         AacIndividualChannelStreamInfo streamInfo =
             commonWindow ? sharedStreamInfo! : _infoReader.Read(reader);
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC after ICS info: {reader.PositionBits}, " +
+            $"short={streamInfo.UsesShortWindows}, maxSfb={streamInfo.MaxScaleFactorBands}");
 
         IReadOnlyList<int> offsets = streamInfo.UsesShortWindows
             ? AacScaleFactorBandTable.GetShortWindowOffsets(samplingFrequencyIndex)
@@ -49,8 +54,13 @@ public sealed class AacIndividualChannelStreamDataReader
                 "AAC max_sfb exceeds the scalefactor-band table for this sampling frequency.");
 
         IReadOnlyList<AacSectionInfo> sections = _sectionReader.Read(reader, streamInfo);
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC after sections: {reader.PositionBits}, sections={sections.Count}");
+
         AacScaleFactorData scaleFactors =
             _scaleFactorReader.Read(reader, sections, globalGain);
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC after scalefactors: {reader.PositionBits}");
 
         AacPulseData? pulseData = null;
         if (reader.ReadBits(1) != 0)
@@ -65,6 +75,10 @@ public sealed class AacIndividualChannelStreamDataReader
             throw new NotSupportedException(
                 "AAC gain_control_data() is not supported by the AAC-LC decoder.");
 
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC after pulse/TNS: {reader.PositionBits}, " +
+            $"pulse={pulseData is not null}, tns={tnsData.Windows.Count}");
+
         IReadOnlyList<int> activeOffsets = offsets;
         IReadOnlyList<AacSpectralBandData> spectralBands =
             _spectralDecoder.Decode(
@@ -72,6 +86,10 @@ public sealed class AacIndividualChannelStreamDataReader
                 sections,
                 activeOffsets,
                 streamInfo.WindowGroupLengths);
+
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC after spectral: {reader.PositionBits}, " +
+            $"remaining={reader.RemainingBits}, bands={spectralBands.Count}");
 
         return new AacIndividualChannelStreamData(
             globalGain,
