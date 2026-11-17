@@ -3,9 +3,8 @@ using PixoraStudio.MediaEngine.Models.Audio;
 namespace PixoraStudio.MediaEngine.Decoders.Audio;
 
 /// <summary>
-/// Runs the AAC-LC spectral reconstruction stages for one parsed ICS and
-/// returns its 1024-line frequency-domain frame. Stereo tools and IMDCT
-/// synthesis are intentionally handled by later stages.
+/// Runs AAC spectral reconstruction for one parsed individual_channel_stream.
+/// Stereo processing can be inserted between ProcessBeforeTns and ApplyTns.
 /// </summary>
 public sealed class AacIndividualChannelStreamProcessor
 {
@@ -20,6 +19,18 @@ public sealed class AacIndividualChannelStreamProcessor
     }
 
     public float[] Process(
+        AacIndividualChannelStreamData streamData,
+        int samplingFrequencyIndex)
+    {
+        float[] spectrum = ProcessBeforeTns(streamData, samplingFrequencyIndex);
+        return ApplyTns(spectrum, streamData, samplingFrequencyIndex);
+    }
+
+    /// <summary>
+    /// Applies pulse decoding, inverse quantisation, PNS and spectral
+    /// reassembly, leaving TNS pending for stereo-aware ordering.
+    /// </summary>
+    public float[] ProcessBeforeTns(
         AacIndividualChannelStreamData streamData,
         int samplingFrequencyIndex)
     {
@@ -48,10 +59,25 @@ public sealed class AacIndividualChannelStreamProcessor
             offsets,
             streamData.StreamInfo);
 
-        float[] spectrum = ReassembleSpectrum(
+        return ReassembleSpectrum(
             dequantized,
             offsets,
             streamData.StreamInfo);
+    }
+
+    /// <summary>
+    /// Applies TNS after any channel-pair stereo reconstruction.
+    /// </summary>
+    public float[] ApplyTns(
+        ReadOnlySpan<float> spectrum,
+        AacIndividualChannelStreamData streamData,
+        int samplingFrequencyIndex)
+    {
+        ArgumentNullException.ThrowIfNull(streamData);
+
+        IReadOnlyList<int> offsets = streamData.StreamInfo.UsesShortWindows
+            ? AacScaleFactorBandTable.GetShortWindowOffsets(samplingFrequencyIndex)
+            : AacScaleFactorBandTable.GetLongWindowOffsets(samplingFrequencyIndex);
 
         return _tnsProcessor.Apply(
             spectrum,
