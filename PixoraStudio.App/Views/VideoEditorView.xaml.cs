@@ -648,9 +648,6 @@ public partial class VideoEditorView : UserControl
             DataContext is VideoEditorViewModel vm)
         {
             vm.SeekCommand.Execute(vm.PlaybackPosition);
-
-            if (_wasPlayingBeforeScrubbing)
-                _mediaPlayer?.Play();
         }
 
         _wasPlayingBeforeScrubbing = false;
