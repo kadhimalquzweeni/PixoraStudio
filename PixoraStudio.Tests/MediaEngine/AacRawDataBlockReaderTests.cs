@@ -46,7 +46,16 @@ public sealed class AacRawDataBlockReaderTests
             (0, 3), (tag, 4), (0, 8),
             (0, 1), (0, 2), (0, 1), (0, 6), (0, 1),
             (0, 1), (0, 1), (0, 1),
-            (7, 3), (0, 1));
+            (7, 3));
+
+    internal static byte[] BuildEmptyStereoAccessUnit() =>
+        BuildBits(
+            (1, 3), (0, 4), (1, 1),
+            (0, 1), (0, 2), (0, 1), (0, 6), (0, 1),
+            (0, 2),
+            (0, 8), (0, 1), (0, 1), (0, 1),
+            (0, 8), (0, 1), (0, 1), (0, 1),
+            (7, 3));
 
     private static byte[] BuildBits(params (int Value, int Count)[] fields)
     {
