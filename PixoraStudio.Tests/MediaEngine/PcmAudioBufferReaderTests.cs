@@ -71,8 +71,8 @@ public sealed class PcmAudioBufferReaderTests
 
         int bytesRead = reader.Read(output, 0, output.Length);
 
-        Assert.Equal(0, bytesRead);
-        Assert.Equal(TimeSpan.Zero, reader.Position);
+        Assert.Equal(4, bytesRead);
+        Assert.Equal(TimeSpan.FromSeconds(1d / 44100), reader.Position);
     }
 
     [Fact]
