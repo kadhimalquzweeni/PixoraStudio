@@ -4,14 +4,16 @@ using PixoraStudio.MediaEngine.Models.General;
 namespace PixoraStudio.MediaEngine.Decoders.Audio;
 
 /// <summary>
-/// Decodes AAC-LC mono access units from an already parsed MP4 audio track.
-/// MP4 AAC samples contain raw_data_block payloads, not ADTS headers.
+/// Decodes AAC-LC mono or stereo access units from an already parsed MP4
+/// audio track. MP4 AAC samples contain raw_data_block payloads, not ADTS.
 /// </summary>
 public sealed class AacMp4AudioTrackDecoder
 {
     private readonly AacRawDataBlockReader _rawDataBlockReader = new();
     private readonly AacIndividualChannelStreamProcessor _channelProcessor;
-    private readonly AacPcmSynthesisProcessor _synthesisProcessor = new();
+    private readonly AacPcmSynthesisProcessor _monoSynthesis = new();
+    private readonly AacStereoPcmSynthesisProcessor _stereoSynthesis = new();
+    private readonly AacStereoSpectralProcessor _stereoSpectralProcessor = new();
 
     public AacMp4AudioTrackDecoder(IAacNoiseSource? noiseSource = null)
     {
@@ -36,25 +38,63 @@ public sealed class AacMp4AudioTrackDecoder
         AacAudioDecoderConfiguration configuration =
             AacAudioDecoderConfiguration.Create(audioConfig);
 
-        if (configuration.ChannelCount != 1)
+        if (configuration.ChannelCount == 1)
         {
-            throw new NotSupportedException(
-                "The MP4 AAC decoder currently supports mono channel configuration only.");
-        }
+            AacSingleChannelElement element =
+                _rawDataBlockReader.ReadSingleChannelElement(
+                    sample.Data,
+                    configuration.SamplingFrequencyIndex);
 
-        AacSingleChannelElement element =
-            _rawDataBlockReader.ReadSingleChannelElement(
-                sample.Data,
+            float[] spectrum = _channelProcessor.Process(
+                element.ChannelStream,
                 configuration.SamplingFrequencyIndex);
 
-        float[] spectrum = _channelProcessor.Process(
-            element.ChannelStream,
-            configuration.SamplingFrequencyIndex);
+            return _monoSynthesis.Process(
+                spectrum,
+                element.ChannelStream.StreamInfo,
+                configuration.SampleRate);
+        }
 
-        return _synthesisProcessor.Process(
-            spectrum,
-            element.ChannelStream.StreamInfo,
-            configuration.SampleRate);
+        if (configuration.ChannelCount == 2)
+        {
+            AacChannelPairElement pair =
+                _rawDataBlockReader.ReadChannelPairElement(
+                    sample.Data,
+                    configuration.SamplingFrequencyIndex);
+
+            float[] leftSpectrum = _channelProcessor.Process(
+                pair.LeftChannel,
+                configuration.SamplingFrequencyIndex);
+            float[] rightSpectrum = _channelProcessor.Process(
+                pair.RightChannel,
+                configuration.SamplingFrequencyIndex);
+
+            if (pair.CommonWindow)
+            {
+                IReadOnlyList<int> offsets = pair.LeftChannel.StreamInfo.UsesShortWindows
+                    ? AacScaleFactorBandTable.GetShortWindowOffsets(configuration.SamplingFrequencyIndex)
+                    : AacScaleFactorBandTable.GetLongWindowOffsets(configuration.SamplingFrequencyIndex);
+
+                _stereoSpectralProcessor.Apply(
+                    leftSpectrum,
+                    rightSpectrum,
+                    pair.RightChannel,
+                    offsets,
+                    pair.LeftChannel.StreamInfo,
+                    pair.MidSideMask);
+            }
+
+            return _stereoSynthesis.Process(
+                leftSpectrum,
+                pair.LeftChannel.StreamInfo,
+                rightSpectrum,
+                pair.RightChannel.StreamInfo,
+                configuration.SampleRate);
+        }
+
+        throw new NotSupportedException(
+            $"The MP4 AAC decoder currently supports one or two channels; " +
+            $"the configured stream contains {configuration.ChannelCount}.");
     }
 
     /// <summary>
@@ -97,6 +137,7 @@ public sealed class AacMp4AudioTrackDecoder
 
     public void Reset()
     {
-        _synthesisProcessor.Reset();
+        _monoSynthesis.Reset();
+        _stereoSynthesis.Reset();
     }
 }
