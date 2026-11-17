@@ -493,41 +493,91 @@ public sealed class AacAudioPlaybackService : IDisposable
         if (audioTrack is null)
             return null;
 
-        PcmAudioBuffer decoded = new AacMp4AudioSeekDecoder().Decode(
-            stream,
-            mediaInfo,
-            audioTrack.TrackId,
-            targetPresentationTimeSeconds,
-            cancellationToken);
-
-        if (decoded.FrameCount == 0)
-            return null;
-
-        if (decoded.Format.ChannelCount is < 1 or > 2)
-            throw new NotSupportedException(
-                "Custom AAC playback currently supports mono and stereo audio.");
-
         string wavePath = Path.Combine(
             Path.GetTempPath(),
             $"PixoraStudio_AAC_Seek_{Guid.NewGuid():N}.wav");
 
+        WaveFileWriter? writer = null;
+        PcmAudioFormat? format = null;
+        long writtenFrames = 0;
+
         try
         {
-            using WaveFileWriter writer = new(
-                wavePath,
-                new WaveFormat(
-                    decoded.Format.SampleRate,
-                    16,
-                    decoded.Format.ChannelCount));
+            AacMp4AudioSeekDecoder decoder = new();
 
-            WriteBuffer(writer, decoded, decoded.Format, 0);
+            foreach (Mp4DecodedAudioSample sample in decoder.DecodeSamples(
+                         stream,
+                         mediaInfo,
+                         audioTrack.TrackId,
+                         targetPresentationTimeSeconds,
+                         cancellationToken))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                PcmAudioBuffer buffer = sample.Buffer;
+                format ??= buffer.Format;
+
+                if (buffer.Format != format)
+                    throw new InvalidDataException(
+                        "The AAC track changed PCM format while it was being decoded.");
+
+                if (format.ChannelCount is < 1 or > 2)
+                    throw new NotSupportedException(
+                        "Custom AAC playback currently supports mono and stereo audio.");
+
+                writer ??= new WaveFileWriter(
+                    wavePath,
+                    new WaveFormat(format.SampleRate, 16, format.ChannelCount));
+
+                PcmAudioTimelinePlacementResult placement =
+                    PcmAudioTimelinePlacement.Calculate(
+                        sample.PresentationStartFrame,
+                        writtenFrames,
+                        buffer.FrameCount);
+
+                if (placement.SilenceFrames > 0)
+                {
+                    WriteSilence(
+                        writer,
+                        placement.SilenceFrames,
+                        format.ChannelCount);
+                }
+
+                if (placement.FramesToWrite > 0)
+                {
+                    WriteBuffer(
+                        writer,
+                        buffer,
+                        format,
+                        placement.FramesToSkip);
+                }
+
+                writtenFrames = placement.ResultingWrittenFrames;
+            }
+
+            writer?.Dispose();
+            writer = null;
+
+            if (writtenFrames == 0 ||
+                !File.Exists(wavePath) ||
+                new FileInfo(wavePath).Length <= 44)
+            {
+                if (File.Exists(wavePath))
+                    File.Delete(wavePath);
+
+                return null;
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
             return wavePath;
         }
         catch
         {
+            writer?.Dispose();
+
             if (File.Exists(wavePath))
                 File.Delete(wavePath);
+
             throw;
         }
     }
