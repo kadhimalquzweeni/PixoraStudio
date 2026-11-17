@@ -4,12 +4,13 @@ namespace PixoraStudio.MediaEngine.Decoders.Audio;
 
 /// <summary>
 /// Reads supported AAC SCE and CPE elements from a raw_data_block.
-/// Optional fill elements may appear before or after the audio element.
+/// Optional fill and data-stream elements may surround the audio element.
 /// </summary>
 public sealed class AacRawDataBlockReader
 {
     private const int SingleChannelElementId = 0;
     private const int ChannelPairElementId = 1;
+    private const int DataStreamElementId = 4;
     private const int FillElementId = 6;
     private const int EndElementId = 7;
 
@@ -90,14 +91,50 @@ public sealed class AacRawDataBlockReader
         reader.SkipBits(checked(count * 8));
     }
 
+    private static void SkipDataStreamElementPayload(AacBitReader reader)
+    {
+        // data_stream_element(): element_instance_tag, align flag, byte count,
+        // optional escaped byte count, optional byte alignment, then payload.
+        _ = reader.ReadBits(4); // element_instance_tag
+        bool byteAlign = reader.ReadBits(1) != 0;
+        int count = (int)reader.ReadBits(8);
+
+        if (count == 255)
+            count = checked(count + (int)reader.ReadBits(8));
+
+        if (byteAlign)
+        {
+            while (!reader.IsByteAligned)
+            {
+                if (reader.ReadBits(1) != 1)
+                    throw new InvalidDataException(
+                        "AAC data-stream element byte-alignment bits must be one.");
+            }
+        }
+
+        reader.SkipBits(checked(count * 8));
+    }
+
     private static void ReadEndMarkerAndValidatePadding(AacBitReader reader)
     {
-        int nextElementId = ReadNextNonFillElementId(reader);
-        if (nextElementId != EndElementId)
+        while (true)
         {
-            throw new NotSupportedException(
-                $"AAC raw_data_block contains additional element {nextElementId}; " +
-                "only one SCE or CPE, optional fill elements, and ID_END are currently supported.");
+            int nextElementId = ReadNextNonFillElementId(reader);
+
+            if (nextElementId == DataStreamElementId)
+            {
+                SkipDataStreamElementPayload(reader);
+                continue;
+            }
+
+            if (nextElementId != EndElementId)
+            {
+                throw new NotSupportedException(
+                    $"AAC raw_data_block contains additional element {nextElementId}; " +
+                    "only one SCE or CPE, optional FIL/DSE elements, and ID_END are currently supported.");
+            }
+
+            break;
         }
 
         if (reader.RemainingBits > 7)
