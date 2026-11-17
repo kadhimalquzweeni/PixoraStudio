@@ -207,6 +207,48 @@ public sealed class Mp4PresentationTimelineBuilderTests
     }
 
     [Fact]
+    public void Build_ShouldRejectUnsupportedEditPlaybackRate()
+    {
+        Mp4MediaTrack track = CreateTrack(
+            trackId: 1,
+            timescale: 1000,
+            locations:
+            [
+                CreateLocation(1, 0, 500)
+            ],
+            editList:
+            [
+                new Mp4EditListEntry(500, 0, 2, 0)
+            ]);
+
+        Assert.Throws<Mp4ParsingException>(
+            () => _builder.Build(
+                new Mp4MovieHeader(1000, 500),
+                [track]));
+    }
+
+    [Fact]
+    public void Build_ShouldRejectInvalidNegativeEditMediaTime()
+    {
+        Mp4MediaTrack track = CreateTrack(
+            trackId: 1,
+            timescale: 1000,
+            locations:
+            [
+                CreateLocation(1, 0, 500)
+            ],
+            editList:
+            [
+                new Mp4EditListEntry(500, -2, 1, 0)
+            ]);
+
+        Assert.Throws<Mp4ParsingException>(
+            () => _builder.Build(
+                new Mp4MovieHeader(1000, 500),
+                [track]));
+    }
+
+    [Fact]
     public void Build_ShouldRejectZeroMovieTimescale()
     {
         Mp4MediaTrack track = CreateTrack(
