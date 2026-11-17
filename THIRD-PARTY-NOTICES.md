@@ -16,3 +16,12 @@ https://www.apache.org/licenses/LICENSE-2.0
 
 Only numeric table data was adapted for the PixoraStudio C# implementation.
 No Go decoder implementation code was copied into PixoraStudio.
+
+## NAudio
+
+PixoraStudio uses [NAudio](https://github.com/naudio/NAudio) version 2.2.1
+for Windows PCM audio output.
+
+NAudio is licensed under the MIT License.
+A copy of the license is available at:
+`THIRD-PARTY-LICENSES/MIT-NAudio.txt`.
