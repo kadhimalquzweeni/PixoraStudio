@@ -3,6 +3,7 @@ using LibVLCSharp.Shared;
 using PixoraStudio.App.ViewModels;
 using PixoraStudio.App.Windows;
 using PixoraStudio.App.Services;
+using PixoraStudio.Core.Models;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -493,40 +494,62 @@ public partial class VideoEditorView : UserControl
 
     private void ApplyAudioOutputSettings(VideoEditorViewModel vm)
     {
+        AudioOutputSettings settings = AudioOutputSettings.Create(
+            vm.Volume,
+            vm.IsMuted,
+            _usesCustomAacAudio);
+
         // Apply the settings to both outputs. LibVLC must remain silent while
         // custom AAC is active, and neither output should retain an old level.
-        float volume = (float)Math.Clamp(vm.Volume / 100d, 0d, 1d);
-
-        _aacAudioPlaybackService.Volume = volume;
-        _aacAudioPlaybackService.IsMuted = vm.IsMuted;
+        _aacAudioPlaybackService.Volume = settings.PcmVolume;
+        _aacAudioPlaybackService.IsMuted = settings.IsMuted;
 
         if (_mediaPlayer is not null)
         {
-            _mediaPlayer.Volume = (int)Math.Round(vm.Volume);
-            _mediaPlayer.Mute = _usesCustomAacAudio || vm.IsMuted;
+            _mediaPlayer.Volume = settings.LibVlcVolume;
+            _mediaPlayer.Mute = settings.LibVlcMuted;
         }
+    }
+
+    private void MuteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is VideoEditorViewModel vm)
+            vm.IsMuted = !vm.IsMuted;
     }
 
     private void OnMuteChanged(bool isMuted)
     {
-        // Mute both engines so a fallback, transition, or overlapping output
-        // cannot leave audible audio behind.
-        _aacAudioPlaybackService.IsMuted = isMuted;
+        AudioOutputSettings settings = AudioOutputSettings.Create(
+            DataContext is VideoEditorViewModel vm ? vm.Volume : 100d,
+            isMuted,
+            _usesCustomAacAudio);
+
+        _aacAudioPlaybackService.IsMuted = settings.IsMuted;
 
         if (_mediaPlayer is not null)
-            _mediaPlayer.Mute = _usesCustomAacAudio || isMuted;
+        {
+            _mediaPlayer.Volume = settings.LibVlcVolume;
+            _mediaPlayer.Mute = settings.LibVlcMuted;
+        }
     }
 
     private void OnVolumeChanged(double value)
     {
-        float volume = (float)Math.Clamp(value / 100d, 0d, 1d);
+        AudioOutputSettings settings = AudioOutputSettings.Create(
+            value,
+            DataContext is VideoEditorViewModel vm && vm.IsMuted,
+            _usesCustomAacAudio);
 
         // Keep both engines at the same level, even though only one should
-        // currently be audible.
-        _aacAudioPlaybackService.Volume = volume;
+        // currently be audible. A zero slider value is a true zero on both.
+        _aacAudioPlaybackService.Volume = settings.PcmVolume;
+        _aacAudioPlaybackService.IsMuted = settings.IsMuted;
 
         if (_mediaPlayer is not null)
-            _mediaPlayer.Volume = (int)Math.Round(value);
+        {
+            _mediaPlayer.Volume = settings.LibVlcVolume;
+            _mediaPlayer.Mute = settings.LibVlcMuted;
+        }
     }
 
     private void Timer_Tick(object? sender, EventArgs e)
