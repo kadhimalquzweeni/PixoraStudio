@@ -6,15 +6,54 @@ using PixoraStudio.MediaEngine.Processing.Timeline;
 namespace PixoraStudio.MediaEngine.Decoders.Audio;
 
 /// <summary>
-/// Decodes an AAC MP4 track from a requested presentation time, rebuilding
-/// overlap state with decode-order preroll and assembling output on the
+/// Decodes AAC MP4 samples from a requested presentation time. Decode-order
+/// preroll restores overlap state while yielded PCM is positioned on the
 /// presentation timeline.
 /// </summary>
 public sealed class AacMp4AudioSeekDecoder
 {
     private readonly Mp4AudioSeekPlanner _seekPlanner = new();
 
+    /// <summary>
+    /// Decodes the remaining presentation audio into one PCM buffer. This
+    /// convenience API is intended for tests and bounded in-memory workloads.
+    /// Playback code should consume <see cref="DecodeSamples"/> incrementally.
+    /// </summary>
     public PcmAudioBuffer Decode(
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        double targetPresentationTimeSeconds,
+        CancellationToken cancellationToken = default)
+    {
+        Mp4MediaTrack track = GetAudioTrack(mediaInfo, trackId);
+        Mp4SampleDescription firstDescription = GetFirstAacDescription(track);
+        int sampleRate = checked((int)firstDescription.Audio!.AudioSpecificConfig!.SamplingFrequency);
+        PcmAudioTimelineAssembler? assembler = null;
+
+        foreach (Mp4DecodedAudioSample sample in DecodeSamples(
+                     stream,
+                     mediaInfo,
+                     trackId,
+                     targetPresentationTimeSeconds,
+                     cancellationToken))
+        {
+            assembler ??= new PcmAudioTimelineAssembler(sample.Buffer.Format);
+            assembler.Append(sample.Buffer, sample.PresentationStartFrame);
+        }
+
+        return assembler?.Build() ?? new PcmAudioBuffer(
+            new PcmAudioFormat(sampleRate, firstDescription.Audio.ChannelCount),
+            ReadOnlySpan<float>.Empty);
+    }
+
+    /// <summary>
+    /// Decodes samples in decode order and yields only samples on or after the
+    /// requested presentation time. Each yielded buffer is already trimmed at
+    /// the seek point and carries its presentation start frame relative to it.
+    /// The stream must remain open while the sequence is enumerated.
+    /// </summary>
+    public IEnumerable<Mp4DecodedAudioSample> DecodeSamples(
         Stream stream,
         Mp4MediaInfo mediaInfo,
         uint trackId,
@@ -24,26 +63,9 @@ public sealed class AacMp4AudioSeekDecoder
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(mediaInfo);
 
-        Mp4MediaTrack track = mediaInfo.GetTrack(trackId)
-            ?? throw new ArgumentOutOfRangeException(
-                nameof(trackId), trackId, "The MP4 track does not exist.");
-
-        if (track.HandlerType != Mp4HandlerType.Audio)
-            throw new ArgumentException(
-                "The selected MP4 track is not an audio track.",
-                nameof(trackId));
-
-        Mp4SampleDescription firstAacDescription = track.Track.SampleDescriptions
-            .FirstOrDefault(description =>
-                description.Audio is
-                {
-                    Codec: Mp4AudioCodec.Aac,
-                    AudioSpecificConfig: not null
-                })
-            ?? throw new NotSupportedException(
-                "The selected audio track does not contain an AAC sample description.");
-
-        int sampleRate = checked((int)firstAacDescription.Audio!.AudioSpecificConfig!.SamplingFrequency);
+        Mp4MediaTrack track = GetAudioTrack(mediaInfo, trackId);
+        Mp4SampleDescription firstDescription = GetFirstAacDescription(track);
+        int sampleRate = checked((int)firstDescription.Audio!.AudioSpecificConfig!.SamplingFrequency);
 
         Mp4AudioSeekPlan plan = _seekPlanner.Plan(
             track,
@@ -62,8 +84,6 @@ public sealed class AacMp4AudioSeekDecoder
             MidpointRounding.AwayFromZero));
 
         AacMp4AudioTrackDecoder decoder = new();
-        PcmAudioTimelineAssembler? assembler = null;
-
         uint samplesToDecode = track.SampleCount - plan.FirstSampleToDecode + 1;
 
         foreach (Mp4EncodedSample encoded in track.ReadSamples(
@@ -87,8 +107,6 @@ public sealed class AacMp4AudioSeekDecoder
             if (encoded.Location.SampleNumber < plan.TargetSampleNumber)
                 continue;
 
-            assembler ??= new PcmAudioTimelineAssembler(decoded.Format);
-
             if (encoded.Location.SampleNumber == plan.TargetSampleNumber &&
                 plan.FramesToSkipInTargetSample > 0)
             {
@@ -107,8 +125,8 @@ public sealed class AacMp4AudioSeekDecoder
                     decoded.Samples.Span[firstSample..]);
             }
 
-            // Edit-list-excluded samples still get decoded above so they can
-            // maintain synthesis state, but are not placed on the output timeline.
+            // Edit-list-excluded samples are still decoded to maintain AAC
+            // synthesis state, but are not emitted on the presentation timeline.
             if (!presentationBySample.TryGetValue(
                     encoded.Location.SampleNumber,
                     out Mp4PresentationSample presentation))
@@ -124,15 +142,43 @@ public sealed class AacMp4AudioSeekDecoder
                 sampleStartFrame = checked(
                     sampleStartFrame + plan.FramesToSkipInTargetSample);
 
-            assembler.Append(decoded, sampleStartFrame);
+            yield return new Mp4DecodedAudioSample(
+                encoded.Location.SampleNumber,
+                sampleStartFrame,
+                decoded);
         }
+    }
 
-        if (assembler is null || assembler.WrittenFrames == 0)
-            return new PcmAudioBuffer(
-                new PcmAudioFormat(sampleRate, firstAacDescription.Audio.ChannelCount),
-                ReadOnlySpan<float>.Empty);
+    private static Mp4MediaTrack GetAudioTrack(
+        Mp4MediaInfo mediaInfo,
+        uint trackId)
+    {
+        ArgumentNullException.ThrowIfNull(mediaInfo);
 
-        return assembler.Build();
+        Mp4MediaTrack track = mediaInfo.GetTrack(trackId)
+            ?? throw new ArgumentOutOfRangeException(
+                nameof(trackId), trackId, "The MP4 track does not exist.");
+
+        if (track.HandlerType != Mp4HandlerType.Audio)
+            throw new ArgumentException(
+                "The selected MP4 track is not an audio track.",
+                nameof(trackId));
+
+        return track;
+    }
+
+    private static Mp4SampleDescription GetFirstAacDescription(
+        Mp4MediaTrack track)
+    {
+        return track.Track.SampleDescriptions
+            .FirstOrDefault(description =>
+                description.Audio is
+                {
+                    Codec: Mp4AudioCodec.Aac,
+                    AudioSpecificConfig: not null
+                })
+            ?? throw new NotSupportedException(
+                "The selected audio track does not contain an AAC sample description.");
     }
 
     private static Mp4SampleDescription GetSampleDescription(
@@ -156,5 +202,4 @@ public sealed class AacMp4AudioSeekDecoder
 
         return description;
     }
-
 }
