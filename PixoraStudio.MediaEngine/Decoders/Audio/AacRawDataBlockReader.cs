@@ -236,10 +236,14 @@ public sealed class AacRawDataBlockReader
             throw new InvalidDataException(
                 "AAC raw_data_block contains data after its end marker.");
 
+        // MPEG-4 access units are octet-aligned by appending zero-valued
+        // padding bits after raw_data_block(). These bits are outside the
+        // raw_data_block syntax and must not be confused with PCE/DSE alignment.
         while (reader.RemainingBits > 0)
         {
-            if (reader.ReadBits(1) != 1)
-                throw new InvalidDataException("AAC raw_data_block byte-alignment bits must be one.");
+            if (reader.ReadBits(1) != 0)
+                throw new InvalidDataException(
+                    "AAC raw_data_block access-unit padding bits must be zero.");
         }
     }
 }
