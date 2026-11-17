@@ -140,10 +140,16 @@ public partial class VideoEditorView : UserControl
         vm.VolumeChanged += OnVolumeChanged;
         vm.MuteChanged += OnMuteChanged;
 
+        if (_usesCustomAacAudio)
+        {
+            _aacAudioPlaybackService.Volume = (float)(vm.Volume / 100d);
+            _aacAudioPlaybackService.IsMuted = vm.IsMuted;
+        }
+
         if (_mediaPlayer != null)
         {
             _mediaPlayer.Volume = (int)vm.Volume;
-            _mediaPlayer.Mute = vm.IsMuted;
+            _mediaPlayer.Mute = _usesCustomAacAudio || vm.IsMuted;
         }
     }
 
