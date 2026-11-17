@@ -412,17 +412,29 @@ public partial class VideoEditorView : UserControl
         if (_isPreparingVideo || _mediaPlayer == null)
             return;
 
-        bool resumeAudio = _mediaPlayer.IsPlaying || _wasPlayingBeforeScrubbing;
+        bool resumePlayback = _mediaPlayer.IsPlaying || _wasPlayingBeforeScrubbing;
+
+        if (resumePlayback)
+            _mediaPlayer.Pause();
+
         _mediaPlayer.Time = (long)position;
 
         if (!_usesCustomAacAudio)
+        {
+            if (resumePlayback)
+                _mediaPlayer.Play();
+
             return;
+        }
 
         try
         {
             await _aacAudioPlaybackService.SeekAsync(
                 TimeSpan.FromMilliseconds(position),
-                resumeAudio);
+                resumePlayback);
+
+            if (resumePlayback && _mediaPlayer is not null)
+                _mediaPlayer.Play();
         }
         catch (OperationCanceledException)
         {
@@ -432,6 +444,9 @@ public partial class VideoEditorView : UserControl
         {
             System.Diagnostics.Debug.WriteLine(
                 $"Custom AAC seek failed: {ex.Message}");
+
+            if (resumePlayback && _mediaPlayer is not null)
+                _mediaPlayer.Play();
         }
     }
 
@@ -485,6 +500,11 @@ public partial class VideoEditorView : UserControl
 
     private async Task SynchroniseAudioAsync(TimeSpan videoPosition)
     {
+        bool resumeVideo = _mediaPlayer?.IsPlaying == true;
+
+        if (resumeVideo)
+            _mediaPlayer?.Pause();
+
         try
         {
             await _aacAudioPlaybackService.SynchroniseAsync(videoPosition);
@@ -497,6 +517,11 @@ public partial class VideoEditorView : UserControl
         {
             System.Diagnostics.Debug.WriteLine(
                 $"AAC audio synchronisation failed: {ex.Message}");
+        }
+        finally
+        {
+            if (resumeVideo && _mediaPlayer is not null)
+                _mediaPlayer.Play();
         }
     }
 
