@@ -223,6 +223,22 @@ public sealed class AacSpectralTupleDecoderTests
     }
 
     [Fact]
+    public void DecodeTuple_ShouldReadAllSignBitsBeforeCodebook11EscapeSequences()
+    {
+        // Codebook 11, index 288 produces (16, 16).
+        // Both sign bits precede both escape sequences:
+        //   sign bits:       1, 0       => negative, positive
+        //   first escape:    0 0011    => magnitude 19
+        //   second escape:   1 0 00001 => magnitude 33
+        AacBitReader reader = CreateReader("10000111000001");
+
+        int[] result = _decoder.DecodeTuple(reader, 11, 288);
+
+        Assert.Equal([-19, 33], result);
+        Assert.Equal(14, reader.PositionBits);
+    }
+
+    [Fact]
     public void DecodeTuple_ShouldRejectEscapeLengthAboveLimit()
     {
         // Sign bit followed by nine unary ones.
