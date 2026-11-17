@@ -175,6 +175,10 @@ public sealed class AacAudioPlaybackService : IDisposable
         Interlocked.Exchange(ref _isSeeking, 0);
         if (!_disposed)
             StopAndRelease();
+
+        _sourcePath = null;
+        _duration = TimeSpan.Zero;
+        _timelineOffset = TimeSpan.Zero;
     }
 
     public void Stop()
@@ -642,6 +646,9 @@ public sealed class AacAudioPlaybackService : IDisposable
         _seekCancellation?.Dispose();
         _seekCancellation = null;
         StopAndRelease();
+        _sourcePath = null;
+        _duration = TimeSpan.Zero;
+        _timelineOffset = TimeSpan.Zero;
         _disposed = true;
         GC.SuppressFinalize(this);
     }
