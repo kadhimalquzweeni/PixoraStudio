@@ -20,6 +20,22 @@ public sealed class AacRawDataBlockReaderTests
     }
 
     [Fact]
+    public void ReadChannelPairElement_ShouldReadCommonWindowStereoIcs()
+    {
+        AacChannelPairElement pair = new AacRawDataBlockReader()
+            .ReadChannelPairElement(
+                BuildEmptyStereoAccessUnit(),
+                samplingFrequencyIndex: 4);
+
+        Assert.True(pair.CommonWindow);
+        Assert.Equal(AacWindowSequence.OnlyLongSequence,
+            pair.LeftChannel.StreamInfo.WindowSequence);
+        Assert.Equal(pair.LeftChannel.StreamInfo, pair.RightChannel.StreamInfo);
+        Assert.Equal(1024, pair.MidSideMask.Length);
+        Assert.DoesNotContain(true, pair.MidSideMask);
+    }
+
+    [Fact]
     public void ReadSingleChannelElement_ShouldRejectNonSceElement()
     {
         byte[] data = BuildBits((1, 3), (0, 5));
