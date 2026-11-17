@@ -38,6 +38,10 @@ public sealed class AacMp4AudioTrackDecoder
         AacAudioDecoderConfiguration configuration =
             AacAudioDecoderConfiguration.Create(audioConfig);
 
+        if (audioEntry.ChannelCount != configuration.ChannelCount)
+            throw new InvalidDataException(
+                "The MP4 audio sample-entry channel count does not match AudioSpecificConfig.");
+
         if (configuration.ChannelCount == 1)
         {
             AacSingleChannelElement element =
