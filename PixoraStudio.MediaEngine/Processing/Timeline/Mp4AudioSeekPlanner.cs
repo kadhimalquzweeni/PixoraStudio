@@ -96,11 +96,11 @@ public sealed class Mp4AudioSeekPlanner
             0,
             targetPresentationTimeSeconds - selected.PresentationTimeSeconds);
 
-        long requestedSkip = (long)Math.Floor(offsetSeconds * sampleRate);
+        double requestedSkip = Math.Floor(offsetSeconds * sampleRate);
         int framesToSkip = (int)Math.Clamp(
             requestedSkip,
-            0,
-            framesPerAccessUnit);
+            0d,
+            (double)framesPerAccessUnit);
 
         uint firstSampleToDecode = selected.SampleNumber > 1
             ? selected.SampleNumber - 1
