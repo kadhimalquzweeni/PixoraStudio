@@ -131,15 +131,20 @@ public partial class VideoEditorView : UserControl
         vm.PlayPauseRequested -= OnPlayPause;
         vm.SeekRequested -= OnSeek;
         vm.VolumeChanged -= OnVolumeChanged;
+        vm.MuteChanged -= OnMuteChanged;
 
         vm.VideoLoaded += OnVideoLoaded;
         vm.VideoClosed += OnVideoClosed;
         vm.PlayPauseRequested += OnPlayPause;
         vm.SeekRequested += OnSeek;
         vm.VolumeChanged += OnVolumeChanged;
+        vm.MuteChanged += OnMuteChanged;
 
         if (_mediaPlayer != null)
+        {
             _mediaPlayer.Volume = (int)vm.Volume;
+            _mediaPlayer.Mute = vm.IsMuted;
+        }
     }
 
     private void UnsubscribeFromViewModel()
@@ -152,6 +157,7 @@ public partial class VideoEditorView : UserControl
         vm.PlayPauseRequested -= OnPlayPause;
         vm.SeekRequested -= OnSeek;
         vm.VolumeChanged -= OnVolumeChanged;
+        vm.MuteChanged -= OnMuteChanged;
     }
 
 
@@ -339,16 +345,19 @@ public partial class VideoEditorView : UserControl
             filePath,
             FromType.FromPath);
 
-        _mediaPlayer.Mute = _usesCustomAacAudio;
+        if (_usesCustomAacAudio && DataContext is VideoEditorViewModel audioVm)
+        {
+            _aacAudioPlaybackService.Volume = (float)(audioVm.Volume / 100d);
+            _aacAudioPlaybackService.IsMuted = audioVm.IsMuted;
+        }
+
+        _mediaPlayer.Mute = _usesCustomAacAudio || (DataContext is VideoEditorViewModel vm && vm.IsMuted);
         _mediaPlayer.Play(media);
 
         if (_usesCustomAacAudio)
         {
             try
             {
-                _aacAudioPlaybackService.Volume = (float)(DataContext is VideoEditorViewModel vm
-                    ? vm.Volume / 100d
-                    : 1d);
                 _aacAudioPlaybackService.Play();
             }
             catch (Exception ex)
@@ -424,6 +433,14 @@ public partial class VideoEditorView : UserControl
             System.Diagnostics.Debug.WriteLine(
                 $"Custom AAC seek failed: {ex.Message}");
         }
+    }
+
+    private void OnMuteChanged(bool isMuted)
+    {
+        if (_usesCustomAacAudio)
+            _aacAudioPlaybackService.IsMuted = isMuted;
+        else if (_mediaPlayer is not null)
+            _mediaPlayer.Mute = isMuted;
     }
 
     private void OnVolumeChanged(double value)
