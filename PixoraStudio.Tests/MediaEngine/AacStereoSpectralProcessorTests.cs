@@ -58,7 +58,7 @@ public sealed class AacStereoSpectralProcessorTests
             info,
             new bool[1024]);
 
-        Assert.Equal(expectedSign, Math.Sign(rightSpectrum[0]));
+        Assert.Equal(expectedSign, (float)Math.Sign(rightSpectrum[0]));
         Assert.Equal(1f, MathF.Abs(rightSpectrum[0]), 5);
         Assert.Equal(2f, MathF.Abs(rightSpectrum[1]), 5);
     }
