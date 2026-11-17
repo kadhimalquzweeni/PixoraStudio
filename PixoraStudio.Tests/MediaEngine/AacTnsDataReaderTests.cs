@@ -60,7 +60,7 @@ public sealed class AacTnsDataReaderTests
 
         Assert.Equal(8, result.Windows.Count);
         Assert.Empty(result.Windows[0].Filters);
-        Assert.Equal(1, result.Windows[2].Filters.Count);
+        Assert.Single(result.Windows[2].Filters);
         Assert.Equal(new[] { -3, 3 }, result.Windows[2].Filters[0].Coefficients);
     }
 
