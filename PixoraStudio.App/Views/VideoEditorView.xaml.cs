@@ -142,17 +142,7 @@ public partial class VideoEditorView : UserControl
         vm.VolumeChanged += OnVolumeChanged;
         vm.MuteChanged += OnMuteChanged;
 
-        if (_usesCustomAacAudio)
-        {
-            _aacAudioPlaybackService.Volume = (float)(vm.Volume / 100d);
-            _aacAudioPlaybackService.IsMuted = vm.IsMuted;
-        }
-
-        if (_mediaPlayer != null)
-        {
-            _mediaPlayer.Volume = (int)vm.Volume;
-            _mediaPlayer.Mute = _usesCustomAacAudio || vm.IsMuted;
-        }
+        ApplyAudioOutputSettings(vm);
     }
 
     private void UnsubscribeFromViewModel()
@@ -355,13 +345,8 @@ public partial class VideoEditorView : UserControl
             filePath,
             FromType.FromPath);
 
-        if (_usesCustomAacAudio && DataContext is VideoEditorViewModel audioVm)
-        {
-            _aacAudioPlaybackService.Volume = (float)(audioVm.Volume / 100d);
-            _aacAudioPlaybackService.IsMuted = audioVm.IsMuted;
-        }
-
-        _mediaPlayer.Mute = _usesCustomAacAudio || (DataContext is VideoEditorViewModel vm && vm.IsMuted);
+        if (DataContext is VideoEditorViewModel audioVm)
+            ApplyAudioOutputSettings(audioVm);
         _mediaPlayer.Play(media);
 
         if (_usesCustomAacAudio)
@@ -500,23 +485,48 @@ public partial class VideoEditorView : UserControl
         }
     }
 
+    private void MuteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is VideoEditorViewModel vm)
+            vm.IsMuted = !vm.IsMuted;
+    }
+
+    private void ApplyAudioOutputSettings(VideoEditorViewModel vm)
+    {
+        // Apply the settings to both outputs. LibVLC must remain silent while
+        // custom AAC is active, and neither output should retain an old level.
+        float volume = (float)Math.Clamp(vm.Volume / 100d, 0d, 1d);
+
+        _aacAudioPlaybackService.Volume = volume;
+        _aacAudioPlaybackService.IsMuted = vm.IsMuted;
+
+        if (_mediaPlayer is not null)
+        {
+            _mediaPlayer.Volume = (int)Math.Round(vm.Volume);
+            _mediaPlayer.Mute = _usesCustomAacAudio || vm.IsMuted;
+        }
+    }
+
     private void OnMuteChanged(bool isMuted)
     {
-        if (_usesCustomAacAudio)
-            _aacAudioPlaybackService.IsMuted = isMuted;
-        else if (_mediaPlayer is not null)
-            _mediaPlayer.Mute = isMuted;
+        // Mute both engines so a fallback, transition, or overlapping output
+        // cannot leave audible audio behind.
+        _aacAudioPlaybackService.IsMuted = isMuted;
+
+        if (_mediaPlayer is not null)
+            _mediaPlayer.Mute = _usesCustomAacAudio || isMuted;
     }
 
     private void OnVolumeChanged(double value)
     {
-        if (_mediaPlayer == null)
-            return;
+        float volume = (float)Math.Clamp(value / 100d, 0d, 1d);
 
-        if (_usesCustomAacAudio)
-            _aacAudioPlaybackService.Volume = (float)(value / 100d);
-        else
-            _mediaPlayer.Volume = (int)value;
+        // Keep both engines at the same level, even though only one should
+        // currently be audible.
+        _aacAudioPlaybackService.Volume = volume;
+
+        if (_mediaPlayer is not null)
+            _mediaPlayer.Volume = (int)Math.Round(value);
     }
 
     private void Timer_Tick(object? sender, EventArgs e)
