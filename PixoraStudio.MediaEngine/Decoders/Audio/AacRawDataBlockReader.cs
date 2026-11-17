@@ -162,18 +162,8 @@ public sealed class AacRawDataBlockReader
         // The alignment bit values are not constrained, so skip them without validation.
         reader.AlignToByte();
 
-        System.Diagnostics.Debug.WriteLine(
-            $"AAC PCE fields: front={frontElementCount}, side={sideElementCount}, " +
-            $"back={backElementCount}, lfe={lfeElementCount}, associatedData={associatedDataElementCount}, " +
-            $"cc={validCcElementCount}, commentLengthPosition={reader.PositionBits}, " +
-            $"remainingBeforeCommentLength={reader.RemainingBits}");
-
         int commentFieldBytes = (int)reader.ReadBits(8);
         int commentBits = checked(commentFieldBytes * 8);
-
-        System.Diagnostics.Debug.WriteLine(
-            $"AAC PCE comment: bytes={commentFieldBytes}, payloadPosition={reader.PositionBits}, " +
-            $"requiredBits={commentBits}, remainingBits={reader.RemainingBits}");
 
         if (commentBits > reader.RemainingBits)
         {
@@ -203,12 +193,7 @@ public sealed class AacRawDataBlockReader
     {
         while (true)
         {
-            int elementStart = reader.PositionBits;
             int nextElementId = (int)reader.ReadBits(3);
-            System.Diagnostics.Debug.WriteLine(
-                $"AAC raw_data_block element: id={nextElementId}, " +
-                $"start={elementStart}, end={reader.PositionBits}, " +
-                $"remaining={reader.RemainingBits}");
 
             switch (nextElementId)
             {
