@@ -217,6 +217,13 @@ public sealed class AacAudioPlaybackService : IDisposable
 
         if (target >= _duration)
         {
+            Interlocked.Increment(ref _loadGeneration);
+            _seekCancellation?.Cancel();
+            _seekCancellation?.Dispose();
+            _seekCancellation = null;
+            Interlocked.Exchange(ref _isSeeking, 0);
+            _resumeAfterSeek = false;
+
             _output.Stop();
             _reader.Position = _reader.Length;
             _timelineOffset = _duration - _reader.TotalTime;
