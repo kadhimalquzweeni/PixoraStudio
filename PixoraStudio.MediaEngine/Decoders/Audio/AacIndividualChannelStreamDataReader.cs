@@ -29,20 +29,18 @@ public sealed class AacIndividualChannelStreamDataReader
     {
         ArgumentNullException.ThrowIfNull(reader);
 
-        // Resolve the table up-front so invalid indices fail before consuming bits.
-        IReadOnlyList<int> offsets = commonWindow
-            ? AacScaleFactorBandTable.GetLongWindowOffsets(samplingFrequencyIndex)
-            : Array.Empty<int>();
+        // Validate configuration and shared metadata before consuming the bitstream.
+        _ = AacScaleFactorBandTable.GetLongWindowOffsets(samplingFrequencyIndex);
+        if (commonWindow && sharedStreamInfo is null)
+            throw new ArgumentNullException(
+                nameof(sharedStreamInfo),
+                "Shared ICS information is required when common_window is true.");
 
         int globalGain = (int)reader.ReadBits(8);
         AacIndividualChannelStreamInfo streamInfo =
-            commonWindow
-                ? sharedStreamInfo ?? throw new ArgumentNullException(
-                    nameof(sharedStreamInfo),
-                    "Shared ICS information is required when common_window is true.")
-                : _infoReader.Read(reader);
+            commonWindow ? sharedStreamInfo! : _infoReader.Read(reader);
 
-        offsets = streamInfo.UsesShortWindows
+        IReadOnlyList<int> offsets = streamInfo.UsesShortWindows
             ? AacScaleFactorBandTable.GetShortWindowOffsets(samplingFrequencyIndex)
             : AacScaleFactorBandTable.GetLongWindowOffsets(samplingFrequencyIndex);
 
