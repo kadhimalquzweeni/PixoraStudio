@@ -110,6 +110,27 @@ public sealed class AacTnsSpectralProcessorTests
     }
 
     [Fact]
+    public void Apply_ShouldStartTnsFiltersAtMaxSfbRatherThanEndOfFullBandTable()
+    {
+        IReadOnlyList<int> offsets = AacScaleFactorBandTable.GetLongWindowOffsets(4);
+        float[] spectrum = new float[1024];
+        spectrum[0] = 1f;
+        var filter = new AacTnsFilter(1, 1, false, false, [1]);
+        var tns = new AacTnsData([new AacTnsWindow(true, [filter])]);
+        var info = new AacIndividualChannelStreamInfo(
+            AacWindowSequence.OnlyLongSequence,
+            AacWindowShape.Sine,
+            1,
+            0,
+            false);
+
+        float[] result = _processor.Apply(spectrum, tns, offsets, info);
+
+        Assert.Equal(1f, result[0]);
+        Assert.Equal(0.20791170f, result[1], 6);
+    }
+
+    [Fact]
     public void Apply_ShouldReturnUnchangedCopyWhenTnsIsAbsent()
     {
         float[] spectrum = Enumerable.Range(0, 1024).Select(value => (float)value).ToArray();
