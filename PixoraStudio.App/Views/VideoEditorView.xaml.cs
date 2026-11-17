@@ -28,6 +28,7 @@ public partial class VideoEditorView : UserControl
     private readonly AacAudioPlaybackService _aacAudioPlaybackService = new();
     private CancellationTokenSource? _audioLoadCancellation;
     private bool _usesCustomAacAudio;
+    private bool _isPreparingVideo;
     private int _videoLoadVersion;
     private LibVLC? _libVLC;
 
@@ -257,6 +258,7 @@ public partial class VideoEditorView : UserControl
             return;
 
         int loadVersion = ++_videoLoadVersion;
+        _isPreparingVideo = true;
         _audioLoadCancellation?.Cancel();
         _audioLoadCancellation?.Dispose();
         _audioLoadCancellation = new CancellationTokenSource();
@@ -276,6 +278,8 @@ public partial class VideoEditorView : UserControl
         }
         catch (OperationCanceledException)
         {
+            if (loadVersion == _videoLoadVersion)
+                _isPreparingVideo = false;
             return;
         }
         catch (Exception ex)
@@ -295,6 +299,8 @@ public partial class VideoEditorView : UserControl
         {
             return;
         }
+
+        _isPreparingVideo = false;
 
         using var media = new Media(
             _libVLC,
@@ -316,6 +322,7 @@ public partial class VideoEditorView : UserControl
     private void OnVideoClosed()
     {
         _videoLoadVersion++;
+        _isPreparingVideo = false;
         _audioLoadCancellation?.Cancel();
         _audioLoadCancellation?.Dispose();
         _audioLoadCancellation = null;
@@ -331,7 +338,7 @@ public partial class VideoEditorView : UserControl
 
     private void OnPlayPause()
     {
-        if (_mediaPlayer == null)
+        if (_isPreparingVideo || _mediaPlayer == null)
             return;
 
         if (_mediaPlayer.IsPlaying)
@@ -350,7 +357,7 @@ public partial class VideoEditorView : UserControl
 
     private void OnSeek(double position)
     {
-        if (_mediaPlayer == null)
+        if (_isPreparingVideo || _mediaPlayer == null)
             return;
 
         bool resumeAudio = _mediaPlayer.IsPlaying;
@@ -848,6 +855,7 @@ public partial class VideoEditorView : UserControl
         _overlayPositionTimer.Stop();
 
         _videoLoadVersion++;
+        _isPreparingVideo = false;
         _audioLoadCancellation?.Cancel();
         _audioLoadCancellation?.Dispose();
         _audioLoadCancellation = null;
