@@ -38,6 +38,8 @@ public sealed class AacSpectralSectionDecoder
         {
             ArgumentNullException.ThrowIfNull(section);
 
+            int sectionStartPosition = reader.PositionBits;
+
             if ((uint)section.WindowGroup >= (uint)windowGroupLengths.Count)
                 throw new InvalidDataException("AAC section references a missing window group.");
             if (section.StartScaleFactorBand < 0 ||
@@ -69,6 +71,14 @@ public sealed class AacSpectralSectionDecoder
                 result.Add(new AacSpectralBandData(
                     section.WindowGroup, band, section.CodebookIndex, coefficients));
             }
+
+            System.Diagnostics.Debug.WriteLine(
+                $"AAC spectral section: group={section.WindowGroup}, " +
+                $"bands={section.StartScaleFactorBand}-{section.EndScaleFactorBandExclusive - 1}, " +
+                $"codebook={section.CodebookIndex}, " +
+                $"coefficients={section.ScaleFactorBandCount}, " +
+                $"start={sectionStartPosition}, end={reader.PositionBits}, " +
+                $"bits={reader.PositionBits - sectionStartPosition}");
         }
 
         return result.AsReadOnly();
