@@ -64,6 +64,10 @@ public sealed class AacAudioDecoderConfiguration
                 "The AAC sampling frequency is invalid.");
         }
 
+        if (audioSpecificConfig.SamplingFrequencyIndex > 12)
+            throw new NotSupportedException(
+                "AAC explicit or reserved sampling frequencies are not supported by the scalefactor-band tables.");
+
         int channelCount = GetChannelCount(
             audioSpecificConfig.ChannelConfiguration);
 
