@@ -82,6 +82,7 @@ public sealed class AacMp4AudioTrackDecoder
                 _stereoSpectralProcessor.Apply(
                     leftSpectrum,
                     rightSpectrum,
+                    pair.LeftChannel,
                     pair.RightChannel,
                     offsets,
                     pair.LeftChannel.StreamInfo,
