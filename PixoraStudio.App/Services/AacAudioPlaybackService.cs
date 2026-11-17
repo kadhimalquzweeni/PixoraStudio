@@ -386,8 +386,7 @@ public sealed class AacAudioPlaybackService : IDisposable
         PcmAudioBufferReader reader = new(buffer);
         if (framesToSkip > 0)
         {
-            reader.Seek(TimeSpan.FromSeconds(
-                (double)framesToSkip / expectedFormat.SampleRate));
+            reader.SeekToFrame(framesToSkip);
         }
 
         byte[] bytes = new byte[16 * 1024];
