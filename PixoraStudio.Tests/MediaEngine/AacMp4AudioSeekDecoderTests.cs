@@ -76,10 +76,10 @@ public sealed class AacMp4AudioSeekDecoderTests
 
         Assert.Equal(2, decodedSamples.Length);
         Assert.Equal(2u, decodedSamples[0].SampleNumber);
-        Assert.Equal(0, decodedSamples[0].PresentationStartFrame);
+        Assert.Equal(0L, decodedSamples[0].PresentationStartFrame);
         Assert.Equal(896, decodedSamples[0].Buffer.FrameCount);
         Assert.Equal(3u, decodedSamples[1].SampleNumber);
-        Assert.Equal(896, decodedSamples[1].PresentationStartFrame);
+        Assert.Equal(896L, decodedSamples[1].PresentationStartFrame);
         Assert.Equal(1024, decodedSamples[1].Buffer.FrameCount);
 
         using MemoryStream stream = new(fileData);
