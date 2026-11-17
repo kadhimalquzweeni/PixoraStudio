@@ -62,10 +62,10 @@ public sealed class AacMp4AudioTrackDecoder
                     sample.Data,
                     configuration.SamplingFrequencyIndex);
 
-            float[] leftSpectrum = _channelProcessor.Process(
+            float[] leftSpectrum = _channelProcessor.ProcessBeforeTns(
                 pair.LeftChannel,
                 configuration.SamplingFrequencyIndex);
-            float[] rightSpectrum = _channelProcessor.Process(
+            float[] rightSpectrum = _channelProcessor.ProcessBeforeTns(
                 pair.RightChannel,
                 configuration.SamplingFrequencyIndex);
 
@@ -83,6 +83,16 @@ public sealed class AacMp4AudioTrackDecoder
                     pair.LeftChannel.StreamInfo,
                     pair.MidSideMask);
             }
+
+            // AAC stereo reconstruction precedes TNS in the spectral tool chain.
+            leftSpectrum = _channelProcessor.ApplyTns(
+                leftSpectrum,
+                pair.LeftChannel,
+                configuration.SamplingFrequencyIndex);
+            rightSpectrum = _channelProcessor.ApplyTns(
+                rightSpectrum,
+                pair.RightChannel,
+                configuration.SamplingFrequencyIndex);
 
             return _stereoSynthesis.Process(
                 leftSpectrum,
