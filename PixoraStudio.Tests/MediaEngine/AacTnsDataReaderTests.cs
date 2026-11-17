@@ -88,7 +88,7 @@ public sealed class AacTnsDataReaderTests
         bits.Write(1, 2);
         bits.Write(0, 1);
         bits.Write(0, 6);
-        bits.Write(21, 5);
+        bits.Write(13, 5);
 
         Assert.Throws<InvalidDataException>(() =>
             _reader.Read(new AacBitReader(bits.ToArray(), bits.Length), LongWindowInfo()));
