@@ -398,19 +398,31 @@ public partial class VideoEditorView : UserControl
         }
     }
 
-    private void OnSeek(double position)
+    private async void OnSeek(double position)
     {
         if (_isPreparingVideo || _mediaPlayer == null)
             return;
 
-        bool resumeAudio = _mediaPlayer.IsPlaying;
+        bool resumeAudio = _mediaPlayer.IsPlaying || _wasPlayingBeforeScrubbing;
         _mediaPlayer.Time = (long)position;
 
-        if (_usesCustomAacAudio)
+        if (!_usesCustomAacAudio)
+            return;
+
+        try
         {
-            _aacAudioPlaybackService.Seek(
+            await _aacAudioPlaybackService.SeekAsync(
                 TimeSpan.FromMilliseconds(position),
                 resumeAudio);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer seek or video close superseded this request.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Custom AAC seek failed: {ex.Message}");
         }
     }
 
@@ -443,13 +455,32 @@ public partial class VideoEditorView : UserControl
                 TimeSpan.FromMilliseconds(_mediaPlayer.Time));
         }
 
-        if (_usesCustomAacAudio && _mediaPlayer.IsPlaying)
+        if (_usesCustomAacAudio &&
+            _mediaPlayer.IsPlaying &&
+            !_aacAudioPlaybackService.IsSeeking)
         {
-            _aacAudioPlaybackService.Synchronise(
+            _ = SynchroniseAudioAsync(
                 TimeSpan.FromMilliseconds(_mediaPlayer.Time));
         }
 
         UpdateTrimTimeline();
+    }
+
+    private async Task SynchroniseAudioAsync(TimeSpan videoPosition)
+    {
+        try
+        {
+            await _aacAudioPlaybackService.SynchroniseAsync(videoPosition);
+        }
+        catch (OperationCanceledException)
+        {
+            // A manual seek or unload superseded clock correction.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"AAC audio synchronisation failed: {ex.Message}");
+        }
     }
 
     private static string FormatPlaybackTime(TimeSpan time)
@@ -577,11 +608,7 @@ public partial class VideoEditorView : UserControl
             vm.SeekCommand.Execute(vm.PlaybackPosition);
 
             if (_wasPlayingBeforeScrubbing)
-            {
                 _mediaPlayer?.Play();
-                if (_usesCustomAacAudio)
-                    _aacAudioPlaybackService.Play();
-            }
         }
 
         _wasPlayingBeforeScrubbing = false;
