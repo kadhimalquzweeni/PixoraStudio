@@ -4,6 +4,12 @@
 
 MP4 audio samples carry decode timestamps, durations, and optional composition offsets. The resolved presentation timeline converts those values into seconds using the track timescale. PCM placement uses sample frames rather than floating-point sample positions so gaps, overlaps, and negative preroll can be handled without accumulating rounding drift.
 
+## Continuous PCM timeline
+
+`Mp4AudioTimelineFrameConverter` converts each absolute MP4 presentation timestamp directly into a PCM frame index using the track timescale and output sample rate. It uses decimal arithmetic and explicit midpoint rounding, avoiding cumulative drift from repeatedly adding floating-point sample durations.
+
+Feed decoded blocks into `PcmAudioTimelineAssembler` at those absolute frame positions. The assembler preserves contiguous blocks, inserts silence for gaps, trims negative decoder preroll, and discards overlapping frames. It also enforces a consistent PCM sample rate and channel layout.
+
 ## Seeking
 
 `Mp4AudioSeekPlanner` maps a requested presentation time to the sample covering that time. If the requested time falls into a gap, it selects the next sample. Times beyond the end of the track are clamped to the final sample.
