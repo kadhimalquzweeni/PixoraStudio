@@ -54,15 +54,32 @@ public sealed class AacPulseDataApplier
             if ((uint)spectralPosition >= 1024u)
                 throw new InvalidDataException("AAC pulse position exceeds the long-window spectrum.");
 
-            int bandIndex = FindBand(result, spectralPosition);
+            int bandIndex = -1;
+            int coefficientIndex = -1;
+
+            for (int i = 0; i < result.Length; i++)
+            {
+                int scaleFactorBand = result[i].ScaleFactorBand;
+                if (scaleFactorBand < 0 || scaleFactorBand + 1 >= longWindowOffsets.Count)
+                    throw new InvalidDataException("Spectral band references an invalid scalefactor band.");
+
+                int bandStart = longWindowOffsets[scaleFactorBand];
+                int bandEnd = longWindowOffsets[scaleFactorBand + 1];
+                if (result[i].Coefficients.Length != bandEnd - bandStart)
+                    throw new InvalidDataException("Decoded long-window band width does not match its scalefactor offsets.");
+
+                if (spectralPosition >= bandStart && spectralPosition < bandEnd)
+                {
+                    bandIndex = i;
+                    coefficientIndex = spectralPosition - bandStart;
+                    break;
+                }
+            }
+
             if (bandIndex < 0)
                 throw new InvalidDataException("AAC pulse position does not belong to a decoded spectral band.");
 
-            int coefficientIndex = spectralPosition - longWindowOffsets[result[bandIndex].ScaleFactorBand];
             int[] coefficients = result[bandIndex].Coefficients;
-            if ((uint)coefficientIndex >= (uint)coefficients.Length)
-                throw new InvalidDataException("AAC pulse position exceeds its decoded spectral band.");
-
             int value = coefficients[coefficientIndex];
             coefficients[coefficientIndex] = value > 0
                 ? checked(value - pulse.Amplitude)
@@ -72,40 +89,4 @@ public sealed class AacPulseDataApplier
         return Array.AsReadOnly(result);
     }
 
-    private static int FindBand(IReadOnlyList<AacSpectralBandData> bands, int spectralPosition)
-    {
-        for (int i = 0; i < bands.Count; i++)
-        {
-            AacSpectralBandData band = bands[i];
-            if (band.ScaleFactorBand < 0)
-                continue;
-
-            int width = band.Coefficients.Length;
-            int start = -1;
-
-            // Band arrays are supplied in scalefactor-band order. Their
-            // absolute starts are validated by the caller's offset table below.
-            // The start can be inferred from the cumulative widths only when
-            // every preceding band is present, so use the band's own index
-            // mapping in the overload's canonical order.
-            if (spectralPosition >= 0 && width > 0)
-                start = band.ScaleFactorBand;
-
-            _ = start;
-        }
-
-        // The caller's spectral bands are indexed by SFB, but the exact
-        // absolute offsets are not available here. Resolve the target using
-        // the ordered list and contiguous coefficient widths.
-        int position = 0;
-        for (int i = 0; i < bands.Count; i++)
-        {
-            int end = position + bands[i].Coefficients.Length;
-            if (spectralPosition >= position && spectralPosition < end)
-                return i;
-            position = end;
-        }
-
-        return -1;
-    }
 }
