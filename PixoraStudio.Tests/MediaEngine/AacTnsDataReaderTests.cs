@@ -49,8 +49,8 @@ public sealed class AacTnsDataReaderTests
                 bits.Write(2, 3);
                 bits.Write(0, 1);
                 bits.Write(0, 1);
-                bits.Write(0b101, 3);
-                bits.Write(0b011, 3);
+                bits.Write(0b1101, 4); // -3 in four-bit two's complement
+                bits.Write(0b0011, 4); // +3 in four-bit two's complement
             }
         }
 
