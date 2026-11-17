@@ -48,7 +48,7 @@ public sealed class AacSpectralTupleDecoderTests
 
     [Theory]
     [InlineData(5, 0, -4, -4)]
-    [InlineData(5, 44, 0, 0)]
+    [InlineData(5, 44, 0, 4)]
     [InlineData(5, 45, 1, -4)]
     [InlineData(5, 40, 0, 0)]
     [InlineData(5, 80, 4, 4)]
