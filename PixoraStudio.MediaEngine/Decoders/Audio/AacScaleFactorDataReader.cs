@@ -40,7 +40,7 @@ public sealed class AacScaleFactorDataReader
             }
 
             int codebook = section.CodebookIndex;
-            if (codebook is 12 or < 0)
+            if (codebook is < 0 or > 15 || codebook == 12)
                 throw new InvalidDataException("AAC section uses a reserved codebook.");
 
             if (codebook is >= 1 and <= 11)
