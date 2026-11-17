@@ -53,4 +53,45 @@ public sealed class AacHuffmanCodebookFactoryTests
         Assert.Equal(40, symbol);
         Assert.Equal(1, reader.PositionBits);
     }
+    [Fact]
+    public void SpectralCodebooks_ShouldDecodeEveryNormativeSymbol()
+    {
+        var decoder = new AacHuffmanDecoder();
+        for (int index = 1; index <= 11; index++)
+        {
+            var book = AacHuffmanCodebookFactory.CreateSpectralCodebook(index);
+            foreach (var codeword in book.Codewords)
+            {
+                var reader = CreateReader(codeword.Codeword, codeword.BitLength);
+                Assert.Equal(codeword.Symbol, decoder.DecodeSymbol(reader, book));
+                Assert.Equal(codeword.BitLength, reader.PositionBits);
+            }
+        }
+    }
+
+    [Fact]
+    public void ScaleFactorCodebook_ShouldDecodeEveryNormativeDelta()
+    {
+        var decoder = new AacHuffmanDecoder();
+        var book = AacHuffmanCodebookFactory.CreateScaleFactorCodebook();
+        foreach (var codeword in book.Codewords)
+        {
+            var reader = CreateReader(codeword.Codeword, codeword.BitLength);
+            Assert.Equal(codeword.Symbol, decoder.DecodeSymbol(reader, book));
+            Assert.Equal(codeword.BitLength, reader.PositionBits);
+        }
+    }
+
+    private static AacBitReader CreateReader(uint codeword, int bitLength)
+    {
+        byte[] data = new byte[(bitLength + 7) / 8];
+        for (int bit = 0; bit < bitLength; bit++)
+        {
+            int sourceBit = bitLength - 1 - bit;
+            if (((codeword >> sourceBit) & 1u) != 0)
+                data[bit / 8] |= (byte)(1 << (7 - bit % 8));
+        }
+        return new AacBitReader(data, bitLength);
+    }
+
 }
