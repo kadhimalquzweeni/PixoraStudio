@@ -383,6 +383,8 @@ public partial class VideoEditorView : UserControl
     private void OnVideoClosed()
     {
         _videoLoadVersion++;
+        Interlocked.Increment(ref _seekOperationVersion);
+        _resumePlaybackAfterSeek = false;
         _isPreparingVideo = false;
         _audioLoadCancellation?.Cancel();
         _audioLoadCancellation?.Dispose();
@@ -402,11 +404,16 @@ public partial class VideoEditorView : UserControl
         if (_isPreparingVideo || _mediaPlayer == null)
             return;
 
-        if (_mediaPlayer.IsPlaying)
+        if (_mediaPlayer.IsPlaying ||
+            (_usesCustomAacAudio &&
+             _aacAudioPlaybackService.IsSeeking &&
+             _resumePlaybackAfterSeek))
         {
             _mediaPlayer.Pause();
             if (_usesCustomAacAudio)
                 _aacAudioPlaybackService.Pause();
+
+            _resumePlaybackAfterSeek = false;
         }
         else
         {
@@ -459,6 +466,7 @@ public partial class VideoEditorView : UserControl
                 resumePlayback);
 
             if (resumePlayback &&
+                _resumePlaybackAfterSeek &&
                 seekVersion == Volatile.Read(ref _seekOperationVersion) &&
                 _mediaPlayer is not null)
             {
@@ -478,6 +486,7 @@ public partial class VideoEditorView : UserControl
                 $"Custom AAC seek failed: {ex.Message}");
 
             if (resumePlayback &&
+                _resumePlaybackAfterSeek &&
                 seekVersion == Volatile.Read(ref _seekOperationVersion) &&
                 _mediaPlayer is not null)
             {
@@ -1004,6 +1013,8 @@ public partial class VideoEditorView : UserControl
         object sender,
         RoutedEventArgs e)
     {
+        Interlocked.Increment(ref _seekOperationVersion);
+        _resumePlaybackAfterSeek = false;
         _timer.Stop();
         _overlayPositionTimer.Stop();
 
