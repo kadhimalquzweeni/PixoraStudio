@@ -16,12 +16,12 @@ public sealed class Mp4AudioSeekPlannerTests
         Mp4AudioSeekPlan result = _planner.Plan(
             track,
             CreateSamples(track),
-            1.25,
+            1.01,
             48000);
 
         Assert.Equal(2u, result.TargetSampleNumber);
         Assert.Equal(1u, result.FirstSampleToDecode);
-        Assert.Equal(12000, result.FramesToSkipInTargetSample);
+        Assert.Equal(480, result.FramesToSkipInTargetSample);
         Assert.False(result.IsAtEndOfTrack);
     }
 
