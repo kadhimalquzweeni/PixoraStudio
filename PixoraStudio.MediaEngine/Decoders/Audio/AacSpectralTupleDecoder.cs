@@ -194,8 +194,8 @@ public sealed class AacSpectralTupleDecoder
         int index,
         int[] tuple)
     {
-        tuple[0] = index % 9 - 4;
-        tuple[1] = index / 9 - 4;
+        tuple[0] = index / 9 - 4;
+        tuple[1] = index % 9 - 4;
     }
 
     private static void DecodeUnsignedPair(
@@ -203,7 +203,7 @@ public sealed class AacSpectralTupleDecoder
         int radix,
         int[] tuple)
     {
-        tuple[0] = index % radix;
-        tuple[1] = index / radix;
+        tuple[0] = index / radix;
+        tuple[1] = index % radix;
     }
 }
