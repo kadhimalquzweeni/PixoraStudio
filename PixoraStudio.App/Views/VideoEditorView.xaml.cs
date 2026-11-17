@@ -304,6 +304,8 @@ public partial class VideoEditorView : UserControl
             return;
 
         int loadVersion = ++_videoLoadVersion;
+        Interlocked.Increment(ref _seekOperationVersion);
+        _resumePlaybackAfterSeek = false;
         _isPreparingVideo = true;
         _audioLoadCancellation?.Cancel();
         _audioLoadCancellation?.Dispose();
