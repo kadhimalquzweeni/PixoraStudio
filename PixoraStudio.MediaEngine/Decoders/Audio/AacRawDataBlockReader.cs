@@ -65,6 +65,10 @@ public sealed class AacRawDataBlockReader
                 "only one SCE or CPE followed by ID_END is currently supported.");
         }
 
+        if (reader.RemainingBits > 7)
+            throw new InvalidDataException(
+                "AAC raw_data_block contains data after its end marker.");
+
         while (reader.RemainingBits > 0)
         {
             if (reader.ReadBits(1) != 0)
