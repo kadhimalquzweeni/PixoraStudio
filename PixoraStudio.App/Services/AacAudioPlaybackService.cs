@@ -22,6 +22,8 @@ public sealed class AacAudioPlaybackService : IDisposable
     private bool _disposed;
     private int _loadGeneration;
     private int _isSeeking;
+    private float _volume = 1f;
+    private bool _isMuted;
 
     public bool IsLoaded => _reader is not null && _output is not null;
 
@@ -37,11 +39,23 @@ public sealed class AacAudioPlaybackService : IDisposable
 
     public float Volume
     {
-        get => _output?.Volume ?? 1f;
+        get => _volume;
         set
         {
+            _volume = Math.Clamp(value, 0f, 1f);
             if (_output is not null)
-                _output.Volume = Math.Clamp(value, 0f, 1f);
+                _output.Volume = _isMuted ? 0f : _volume;
+        }
+    }
+
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set
+        {
+            _isMuted = value;
+            if (_output is not null)
+                _output.Volume = _isMuted ? 0f : _volume;
         }
     }
 
@@ -98,7 +112,7 @@ public sealed class AacAudioPlaybackService : IDisposable
             };
 
             _output.Init(_reader);
-            _output.Volume = 1f;
+            _output.Volume = _isMuted ? 0f : _volume;
             _duration = _reader.TotalTime;
             return true;
         }
@@ -232,7 +246,8 @@ public sealed class AacAudioPlaybackService : IDisposable
             _reader = new WaveFileReader(wavePath);
             _output = new WaveOutEvent { DesiredLatency = 100 };
             _output.Init(_reader);
-            _output.Volume = volume;
+            _volume = volume;
+            _output.Volume = _isMuted ? 0f : _volume;
             _timelineOffset = target;
 
             if (resumePlayback && target < _duration)
