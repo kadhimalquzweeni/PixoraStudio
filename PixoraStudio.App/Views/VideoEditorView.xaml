@@ -74,6 +74,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Column="1"
@@ -106,6 +107,13 @@
                                 Width="110"
                                 VerticalAlignment="Center"
                                 ValueChanged="VolumeSlider_ValueChanged"/>
+
+                        <Button Grid.Column="6"
+                                Content="{Binding MuteButtonText}"
+                                Command="{Binding ToggleMuteCommand}"
+                                Margin="10,0,0,0"
+                                Padding="10,4"
+                                VerticalAlignment="Center"/>
 
                     </Grid>
                 </Border>
