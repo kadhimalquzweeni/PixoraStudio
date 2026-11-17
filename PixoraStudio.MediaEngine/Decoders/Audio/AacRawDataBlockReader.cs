@@ -95,12 +95,20 @@ public sealed class AacRawDataBlockReader
     {
         // data_stream_element(): element_instance_tag, align flag, byte count,
         // optional escaped byte count, optional byte alignment, then payload.
-        _ = reader.ReadBits(4); // element_instance_tag
+        int headerStart = reader.PositionBits;
+        int instanceTag = (int)reader.ReadBits(4);
         bool byteAlign = reader.ReadBits(1) != 0;
         int count = (int)reader.ReadBits(8);
+        int countAfterBaseField = reader.PositionBits;
 
         if (count == 255)
             count = checked(count + (int)reader.ReadBits(8));
+
+        System.Diagnostics.Debug.WriteLine(
+            $"AAC DSE header: start={headerStart}, tag={instanceTag}, " +
+            $"byteAlign={byteAlign}, count={count}, " +
+            $"countFieldEnd={countAfterBaseField}, headerEnd={reader.PositionBits}, " +
+            $"remaining={reader.RemainingBits}");
 
         if (byteAlign)
         {
@@ -119,7 +127,12 @@ public sealed class AacRawDataBlockReader
     {
         while (true)
         {
+            int elementStart = reader.PositionBits;
             int nextElementId = ReadNextNonFillElementId(reader);
+            System.Diagnostics.Debug.WriteLine(
+                $"AAC raw_data_block element: id={nextElementId}, " +
+                $"start={elementStart}, end={reader.PositionBits}, " +
+                $"remaining={reader.RemainingBits}");
 
             if (nextElementId == DataStreamElementId)
             {
