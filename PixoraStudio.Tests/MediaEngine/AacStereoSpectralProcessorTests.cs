@@ -29,8 +29,8 @@ public sealed class AacStereoSpectralProcessorTests
             info,
             mask);
 
-        Assert.Equal(new[] { 4f, 6f, 5f, 6f }, leftSpectrum);
-        Assert.Equal(new[] { 2f, 2f, 3f, 4f }, rightSpectrum);
+        Assert.Equal(new[] { 4f, 6f, 5f, 6f }, leftSpectrum.Take(4));
+        Assert.Equal(new[] { 2f, 2f, 3f, 4f }, rightSpectrum.Take(4));
     }
 
     [Theory]
@@ -45,7 +45,9 @@ public sealed class AacStereoSpectralProcessorTests
             new AacScaleFactorData([
                 new AacScaleFactorBandValue(0, 0, codebook, 4)
             ]));
-        float[] leftSpectrum = [2f, 4f, 6f, 8f];
+        float[] leftSpectrum = new float[1024];
+        leftSpectrum[0] = 2f; leftSpectrum[1] = 4f;
+        leftSpectrum[2] = 6f; leftSpectrum[3] = 8f;
         float[] rightSpectrum = new float[1024];
 
         new AacStereoSpectralProcessor().Apply(
@@ -69,7 +71,8 @@ public sealed class AacStereoSpectralProcessorTests
             new AacScaleFactorData([
                 new AacScaleFactorBandValue(0, 0, 14, 4)
             ]));
-        float[] leftSpectrum = [2f, 0f, 0f, 0f];
+        float[] leftSpectrum = new float[1024];
+        leftSpectrum[0] = 2f;
         float[] rightSpectrum = new float[1024];
         bool[] mask = new bool[1024];
         mask[0] = true;
