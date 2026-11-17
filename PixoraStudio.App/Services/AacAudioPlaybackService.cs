@@ -206,15 +206,19 @@ public sealed class AacAudioPlaybackService : IDisposable
         PcmAudioFormat? format = null;
         long writtenFrames = 0;
 
+        Dictionary<uint, Mp4PresentationSample> presentationBySampleNumber =
+            mediaInfo.PresentationSamples
+                .Where(sample => sample.TrackId == audioTrack.TrackId)
+                .GroupBy(sample => sample.SampleNumber)
+                .ToDictionary(group => group.Key, group => group.First());
+
         try
         {
-            foreach (Mp4PresentationSample presentationSample
-                     in mediaInfo.PresentationSamples.Where(
-                         sample => sample.TrackId == audioTrack.TrackId))
+            // Decode every audio sample in decode order. Samples excluded by
+            // an edit list still need to warm the AAC overlap-add state.
+            foreach (Mp4SampleLocation location in audioTrack.SampleLocations.Samples)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                Mp4SampleLocation location = presentationSample.Location;
 
                 if (location.SampleDescriptionIndex == 0 ||
                     location.SampleDescriptionIndex > audioTrack.Track.SampleDescriptions.Count)
@@ -239,6 +243,15 @@ public sealed class AacAudioPlaybackService : IDisposable
                 PcmAudioBuffer decoded = decoder.DecodeSample(
                     encodedSample,
                     description);
+
+                // Keep decoding preroll samples to preserve synthesis state,
+                // but only write samples that appear on the presentation timeline.
+                if (!presentationBySampleNumber.TryGetValue(
+                        location.SampleNumber,
+                        out Mp4PresentationSample? presentationSample))
+                {
+                    continue;
+                }
 
                 format ??= decoded.Format;
 
