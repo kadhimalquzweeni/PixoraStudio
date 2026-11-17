@@ -248,7 +248,7 @@ public sealed class AacAudioPlaybackService : IDisposable
                 // but only write samples that appear on the presentation timeline.
                 if (!presentationBySampleNumber.TryGetValue(
                         location.SampleNumber,
-                        out Mp4PresentationSample? presentationSample))
+                        out Mp4PresentationSample presentationSample))
                 {
                     continue;
                 }
