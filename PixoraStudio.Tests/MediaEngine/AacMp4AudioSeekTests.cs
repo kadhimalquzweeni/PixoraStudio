@@ -40,8 +40,8 @@ public sealed class AacMp4AudioSeekTests
         Mp4SampleLocation[] locations =
         [
             CreateLocation(1, 0, accessUnit.Length),
-            CreateLocation(2, accessUnit.Length, accessUnit.Length),
-            CreateLocation(3, accessUnit.Length * 2, accessUnit.Length)
+            CreateLocation(2, checked((ulong)accessUnit.Length), accessUnit.Length),
+            CreateLocation(3, checked((ulong)accessUnit.Length * 2), accessUnit.Length)
         ];
 
         Mp4SampleTable sampleTable = new(
