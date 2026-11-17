@@ -257,7 +257,9 @@ public partial class VideoEditorView : UserControl
     {
         // LibVLC raises EndReached on its playback thread. Marshal UI state
         // and the custom output shutdown back to the WPF dispatcher.
-        Dispatcher.BeginInvoke(() =>
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Normal,
+            new Action(() =>
         {
             if (_isPreparingVideo ||
                 !_usesCustomAacAudio ||
@@ -279,7 +281,7 @@ public partial class VideoEditorView : UserControl
                         TimeSpan.FromMilliseconds(player.Length));
                 }
             }
-        });
+        }));
     }
 
     private async void OnVideoLoaded(string filePath)
