@@ -2,5 +2,6 @@
   <Project Path="PixoraStudio.App/PixoraStudio.App.csproj" />
   <Project Path="PixoraStudio.Core/PixoraStudio.Core.csproj" />
   <Project Path="PixoraStudio.Infrastructure/PixoraStudio.Infrastructure.csproj" />
+  <Project Path="PixoraStudio.MediaEngine/PixoraStudio.MediaEngine.csproj" Id="5c857324-39e9-4d27-99eb-73876acdc28c" />
   <Project Path="PixoraStudio.Tests/PixoraStudio.Tests.csproj" />
 </Solution>

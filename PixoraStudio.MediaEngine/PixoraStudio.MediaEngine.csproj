@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Encoders\Video\" />
+    <Folder Include="Encoders\Audio\" />
+    <Folder Include="Encoders\" />
+    <Folder Include="Decoders\Video\" />
+  </ItemGroup>
+
+</Project>

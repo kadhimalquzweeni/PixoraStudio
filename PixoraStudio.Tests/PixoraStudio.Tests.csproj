@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PixoraStudio.Core\PixoraStudio.Core.csproj" />
     <ProjectReference Include="..\PixoraStudio.Infrastructure\PixoraStudio.Infrastructure.csproj" />
+    <ProjectReference Include="..\PixoraStudio.MediaEngine\PixoraStudio.MediaEngine.csproj" />
   </ItemGroup>
 
   <ItemGroup>
