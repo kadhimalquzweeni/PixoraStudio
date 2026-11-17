@@ -25,6 +25,20 @@ public sealed class PcmAudioBufferReaderTests
     }
 
     [Fact]
+    public void Read_ShouldConvertNaNSamplesToSilence()
+    {
+        PcmAudioBufferReader reader = new(
+            new PcmAudioBuffer(
+                new PcmAudioFormat(44100, 1),
+                [float.NaN]));
+
+        byte[] output = new byte[2];
+
+        Assert.Equal(2, reader.Read(output, 0, output.Length));
+        Assert.Equal(0, BinaryPrimitives.ReadInt16LittleEndian(output));
+    }
+
+    [Fact]
     public void Read_ShouldClampSamplesOutsideNormalizedRange()
     {
         PcmAudioBuffer buffer = new(
