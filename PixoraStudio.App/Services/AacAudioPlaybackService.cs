@@ -16,6 +16,7 @@ public sealed class AacAudioPlaybackService : IDisposable
     private WaveOutEvent? _output;
     private string? _temporaryWavePath;
     private bool _disposed;
+    private int _loadGeneration;
 
     public bool IsLoaded => _reader is not null && _output is not null;
 
@@ -45,6 +46,7 @@ public sealed class AacAudioPlaybackService : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
+        int generation = Interlocked.Increment(ref _loadGeneration);
         StopAndRelease();
 
         if (!File.Exists(filePath) ||
@@ -56,6 +58,13 @@ public sealed class AacAudioPlaybackService : IDisposable
         string? wavePath = await Task.Run(
             () => DecodeToWaveFile(filePath, cancellationToken),
             cancellationToken).ConfigureAwait(false);
+
+        if (generation != Volatile.Read(ref _loadGeneration))
+        {
+            if (wavePath is not null && File.Exists(wavePath))
+                File.Delete(wavePath);
+            return false;
+        }
 
         if (cancellationToken.IsCancellationRequested)
         {
@@ -108,6 +117,7 @@ public sealed class AacAudioPlaybackService : IDisposable
 
     public void Unload()
     {
+        Interlocked.Increment(ref _loadGeneration);
         if (!_disposed)
             StopAndRelease();
     }
@@ -178,8 +188,11 @@ public sealed class AacAudioPlaybackService : IDisposable
             return null;
 
         bool hasAacDescription = audioTrack.Track.SampleDescriptions.Any(
-            description => description.Audio?.Codec == Mp4AudioCodec.Aac &&
-                           description.Audio.AudioSpecificConfig is not null);
+            description => description.Audio is
+            {
+                Codec: Mp4AudioCodec.Aac,
+                AudioSpecificConfig: not null
+            });
 
         if (!hasAacDescription)
             return null;
@@ -304,6 +317,7 @@ public sealed class AacAudioPlaybackService : IDisposable
         if (_disposed)
             return;
 
+        Interlocked.Increment(ref _loadGeneration);
         StopAndRelease();
         _disposed = true;
         GC.SuppressFinalize(this);
