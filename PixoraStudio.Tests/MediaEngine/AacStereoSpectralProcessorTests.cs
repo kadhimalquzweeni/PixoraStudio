@@ -10,6 +10,8 @@ public sealed class AacStereoSpectralProcessorTests
     public void Apply_ShouldReconstructMidSideForSelectedSpectralBands()
     {
         AacIndividualChannelStreamInfo info = LongInfo(maxSfb: 1);
+        AacIndividualChannelStreamData left = CreateChannelData(
+            new AacScaleFactorData([]));
         AacIndividualChannelStreamData right = CreateChannelData(
             new AacScaleFactorData([]));
         float[] leftSpectrum = new float[1024];
@@ -24,6 +26,9 @@ public sealed class AacStereoSpectralProcessorTests
         new AacStereoSpectralProcessor().Apply(
             leftSpectrum,
             rightSpectrum,
+            left,
+            left,
+            left,
             right,
             AacScaleFactorBandTable.GetLongWindowOffsets(4),
             info,
@@ -41,6 +46,8 @@ public sealed class AacStereoSpectralProcessorTests
         float expectedSign)
     {
         AacIndividualChannelStreamInfo info = LongInfo(maxSfb: 1);
+        AacIndividualChannelStreamData left = CreateChannelData(
+            new AacScaleFactorData([]));
         AacIndividualChannelStreamData right = CreateChannelData(
             new AacScaleFactorData([
                 new AacScaleFactorBandValue(0, 0, codebook, 4)
@@ -67,6 +74,8 @@ public sealed class AacStereoSpectralProcessorTests
     public void Apply_ShouldInvertIntensitySignWhenMsMaskIsSet()
     {
         AacIndividualChannelStreamInfo info = LongInfo(maxSfb: 1);
+        AacIndividualChannelStreamData left = CreateChannelData(
+            new AacScaleFactorData([]));
         AacIndividualChannelStreamData right = CreateChannelData(
             new AacScaleFactorData([
                 new AacScaleFactorBandValue(0, 0, 14, 4)
@@ -86,6 +95,42 @@ public sealed class AacStereoSpectralProcessorTests
             mask);
 
         Assert.Equal(-1f, rightSpectrum[0], 5);
+    }
+
+    [Fact]
+    public void Apply_ShouldCorrelatePnsBandsWhenMsMaskIsSet()
+    {
+        AacIndividualChannelStreamInfo info = LongInfo(maxSfb: 1);
+        AacIndividualChannelStreamData left = CreateChannelData(
+            new AacScaleFactorData([
+                new AacScaleFactorBandValue(0, 0, 13, 100)
+            ]));
+        AacIndividualChannelStreamData right = CreateChannelData(
+            new AacScaleFactorData([
+                new AacScaleFactorBandValue(0, 0, 13, 104)
+            ]));
+        float[] leftSpectrum = new float[1024];
+        float[] rightSpectrum = new float[1024];
+        leftSpectrum[0] = 1f;
+        leftSpectrum[1] = -0.5f;
+        rightSpectrum[0] = 0.1f;
+        rightSpectrum[1] = 0.2f;
+        bool[] mask = new bool[1024];
+        Array.Fill(mask, true, 0, 4);
+
+        new AacStereoSpectralProcessor().Apply(
+            leftSpectrum,
+            rightSpectrum,
+            left,
+            right,
+            AacScaleFactorBandTable.GetLongWindowOffsets(4),
+            info,
+            mask);
+
+        Assert.Equal(1f, leftSpectrum[0]);
+        Assert.Equal(-0.5f, leftSpectrum[1]);
+        Assert.Equal(2f, rightSpectrum[0]);
+        Assert.Equal(-1f, rightSpectrum[1]);
     }
 
     private static AacIndividualChannelStreamInfo LongInfo(byte maxSfb) =>
