@@ -145,6 +145,7 @@ public partial class VideoEditorView : UserControl
             return;
 
         vm.VideoLoaded -= OnVideoLoaded;
+        vm.VideoClosed -= OnVideoClosed;
         vm.PlayPauseRequested -= OnPlayPause;
         vm.SeekRequested -= OnSeek;
         vm.VolumeChanged -= OnVolumeChanged;
@@ -841,7 +842,7 @@ public partial class VideoEditorView : UserControl
         _audioLoadCancellation?.Dispose();
         _audioLoadCancellation = null;
 
-        _aacAudioPlaybackService.Dispose();
+        _aacAudioPlaybackService.Unload();
         _usesCustomAacAudio = false;
 
         if (_isFullScreen)
