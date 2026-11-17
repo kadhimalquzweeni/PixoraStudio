@@ -24,6 +24,7 @@ public sealed class AacAudioPlaybackService : IDisposable
     private int _isSeeking;
     private float _volume = 1f;
     private bool _isMuted;
+    private bool _resumeAfterSeek;
 
     public bool IsLoaded => _reader is not null && _output is not null;
 
@@ -127,6 +128,12 @@ public sealed class AacAudioPlaybackService : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        if (IsSeeking)
+        {
+            _resumeAfterSeek = true;
+            return;
+        }
+
         if (_output is null || _reader is null)
             return;
 
@@ -138,8 +145,16 @@ public sealed class AacAudioPlaybackService : IDisposable
 
     public void Pause()
     {
-        if (!_disposed)
-            _output?.Pause();
+        if (_disposed)
+            return;
+
+        if (IsSeeking)
+        {
+            _resumeAfterSeek = false;
+            return;
+        }
+
+        _output?.Pause();
     }
 
     public void Unload()
@@ -211,6 +226,7 @@ public sealed class AacAudioPlaybackService : IDisposable
             cancellationToken);
         CancellationToken token = _seekCancellation.Token;
         float volume = Volume;
+        _resumeAfterSeek = resumePlayback;
 
         Interlocked.Exchange(ref _isSeeking, 1);
         _output.Stop();
@@ -236,7 +252,7 @@ public sealed class AacAudioPlaybackService : IDisposable
             {
                 _reader.CurrentTime = target;
                 _timelineOffset = TimeSpan.Zero;
-                if (resumePlayback)
+                if (_resumeAfterSeek)
                     _output.Play();
                 return;
             }
@@ -250,7 +266,7 @@ public sealed class AacAudioPlaybackService : IDisposable
             _output.Volume = _isMuted ? 0f : _volume;
             _timelineOffset = target;
 
-            if (resumePlayback && target < _duration)
+            if (_resumeAfterSeek && target < _duration)
                 _output.Play();
         }
         finally
