@@ -57,7 +57,12 @@ public sealed class AacAudioPlaybackService : IDisposable
             () => DecodeToWaveFile(filePath, cancellationToken),
             cancellationToken).ConfigureAwait(false);
 
-        cancellationToken.ThrowIfCancellationRequested();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            if (wavePath is not null && File.Exists(wavePath))
+                File.Delete(wavePath);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
 
         if (wavePath is null)
             return false;
@@ -99,6 +104,12 @@ public sealed class AacAudioPlaybackService : IDisposable
     {
         if (!_disposed)
             _output?.Pause();
+    }
+
+    public void Unload()
+    {
+        if (!_disposed)
+            StopAndRelease();
     }
 
     public void Stop()
