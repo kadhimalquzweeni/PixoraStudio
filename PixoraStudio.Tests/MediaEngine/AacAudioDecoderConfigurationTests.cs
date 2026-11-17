@@ -74,6 +74,8 @@ public sealed class AacAudioDecoderConfigurationTests
             AacAudioDecoderConfiguration.Create(audioSpecificConfig);
 
         Assert.Equal(12345, result.SampleRate);
+        Assert.Equal(15, result.SamplingFrequencyIndex);
+        Assert.Equal(9, result.ScalefactorBandSamplingFrequencyIndex);
     }
 
     [Theory]
