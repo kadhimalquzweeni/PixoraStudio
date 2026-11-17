@@ -29,6 +29,8 @@ public partial class VideoEditorView : UserControl
     private CancellationTokenSource? _audioLoadCancellation;
     private bool _usesCustomAacAudio;
     private bool _isPreparingVideo;
+    private bool _resumePlaybackAfterSeek;
+    private int _seekOperationVersion;
     private int _videoLoadVersion;
     private LibVLC? _libVLC;
 
@@ -430,7 +432,11 @@ public partial class VideoEditorView : UserControl
         if (_isPreparingVideo || _mediaPlayer == null)
             return;
 
-        bool resumePlayback = _mediaPlayer.IsPlaying || _wasPlayingBeforeScrubbing;
+        int seekVersion = Interlocked.Increment(ref _seekOperationVersion);
+        bool resumePlayback = _mediaPlayer.IsPlaying ||
+            _wasPlayingBeforeScrubbing ||
+            _resumePlaybackAfterSeek;
+        _resumePlaybackAfterSeek = resumePlayback;
 
         if (resumePlayback)
             _mediaPlayer.Pause();
@@ -439,9 +445,10 @@ public partial class VideoEditorView : UserControl
 
         if (!_usesCustomAacAudio)
         {
-            if (resumePlayback)
+            if (resumePlayback && seekVersion == Volatile.Read(ref _seekOperationVersion))
                 _mediaPlayer.Play();
 
+            _resumePlaybackAfterSeek = false;
             return;
         }
 
@@ -451,8 +458,15 @@ public partial class VideoEditorView : UserControl
                 TimeSpan.FromMilliseconds(position),
                 resumePlayback);
 
-            if (resumePlayback && _mediaPlayer is not null)
+            if (resumePlayback &&
+                seekVersion == Volatile.Read(ref _seekOperationVersion) &&
+                _mediaPlayer is not null)
+            {
                 _mediaPlayer.Play();
+            }
+
+            if (seekVersion == Volatile.Read(ref _seekOperationVersion))
+                _resumePlaybackAfterSeek = false;
         }
         catch (OperationCanceledException)
         {
@@ -463,8 +477,15 @@ public partial class VideoEditorView : UserControl
             System.Diagnostics.Debug.WriteLine(
                 $"Custom AAC seek failed: {ex.Message}");
 
-            if (resumePlayback && _mediaPlayer is not null)
+            if (resumePlayback &&
+                seekVersion == Volatile.Read(ref _seekOperationVersion) &&
+                _mediaPlayer is not null)
+            {
                 _mediaPlayer.Play();
+            }
+
+            if (seekVersion == Volatile.Read(ref _seekOperationVersion))
+                _resumePlaybackAfterSeek = false;
         }
     }
 
@@ -518,6 +539,7 @@ public partial class VideoEditorView : UserControl
 
     private async Task SynchroniseAudioAsync(TimeSpan videoPosition)
     {
+        int seekVersion = Volatile.Read(ref _seekOperationVersion);
         bool resumeVideo = _mediaPlayer?.IsPlaying == true;
 
         if (resumeVideo)
@@ -538,8 +560,12 @@ public partial class VideoEditorView : UserControl
         }
         finally
         {
-            if (resumeVideo && _mediaPlayer is not null)
+            if (resumeVideo &&
+                seekVersion == Volatile.Read(ref _seekOperationVersion) &&
+                _mediaPlayer is not null)
+            {
                 _mediaPlayer.Play();
+            }
         }
     }
 
