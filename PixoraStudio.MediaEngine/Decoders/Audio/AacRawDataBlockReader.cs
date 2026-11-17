@@ -41,12 +41,6 @@ public sealed class AacRawDataBlockReader
         int samplingFrequencyIndex)
     {
         AacBitReader reader = CreateReader(accessUnit);
-
-        if ((int)reader.ReadBits(3) != ChannelPairElementId)
-            throw new InvalidDataException("The AAC raw_data_block does not begin with a CPE.");
-
-        // The pair reader expects to consume the ID_CPE field itself.
-        reader = CreateReader(accessUnit);
         AacChannelPairElement pair =
             _channelPairReader.Read(reader, samplingFrequencyIndex);
 
