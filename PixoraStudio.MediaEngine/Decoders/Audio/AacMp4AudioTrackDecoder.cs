@@ -113,6 +113,28 @@ public sealed class AacMp4AudioTrackDecoder
     }
 
     /// <summary>
+    /// Decodes an audio track selected from parsed MP4 media information.
+    /// </summary>
+    public IEnumerable<PcmAudioBuffer> DecodeSamples(
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(mediaInfo);
+
+        Mp4MediaTrack track = mediaInfo.GetTrack(trackId)
+            ?? throw new ArgumentOutOfRangeException(
+                nameof(trackId), trackId, "The MP4 track does not exist.");
+
+        return DecodeSamples(
+            stream,
+            track,
+            mediaInfo.MediaDataRegions,
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Decodes samples in MP4 decode order. The supplied stream must remain
     /// open while the returned sequence is being enumerated.
     /// </summary>
