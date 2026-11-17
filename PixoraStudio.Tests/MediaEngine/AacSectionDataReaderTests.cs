@@ -38,19 +38,19 @@ public sealed class AacSectionDataReaderTests
     [Fact]
     public void Read_ShouldAccumulateEscapedLongSectionLengths()
     {
-        // 31 + 31 + 2 = 64 bands.
+        // 31 + 31 + 1 = 63 bands.
         var bits = new BitWriter();
         bits.Write(1, 4);
         bits.Write(31, 5);
         bits.Write(31, 5);
-        bits.Write(2, 5);
+        bits.Write(1, 5);
 
         var result = _reader.Read(
             new AacBitReader(bits.ToArray(), bits.Length),
-            LongWindow(maxSfb: 64));
+            LongWindow(maxSfb: 63));
 
         var section = Assert.Single(result);
-        Assert.Equal(64, section.ScaleFactorBandCount);
+        Assert.Equal(63, section.ScaleFactorBandCount);
     }
 
     [Fact]
