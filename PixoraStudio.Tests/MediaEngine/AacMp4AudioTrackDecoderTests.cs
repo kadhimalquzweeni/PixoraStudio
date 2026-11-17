@@ -52,14 +52,26 @@ public sealed class AacMp4AudioTrackDecoderTests
     [Theory]
     [InlineData(96000, 0, 1)]
     [InlineData(96000, 0, 2)]
+    [InlineData(88200, 1, 1)]
+    [InlineData(88200, 1, 2)]
+    [InlineData(64000, 2, 1)]
+    [InlineData(64000, 2, 2)]
     [InlineData(48000, 3, 1)]
     [InlineData(48000, 3, 2)]
+    [InlineData(44100, 4, 1)]
+    [InlineData(44100, 4, 2)]
     [InlineData(32000, 5, 1)]
     [InlineData(32000, 5, 2)]
     [InlineData(24000, 6, 1)]
     [InlineData(24000, 6, 2)]
+    [InlineData(22050, 7, 1)]
+    [InlineData(22050, 7, 2)]
     [InlineData(16000, 8, 1)]
     [InlineData(16000, 8, 2)]
+    [InlineData(12000, 9, 1)]
+    [InlineData(12000, 9, 2)]
+    [InlineData(11025, 10, 1)]
+    [InlineData(11025, 10, 2)]
     [InlineData(8000, 11, 1)]
     [InlineData(8000, 11, 2)]
     [InlineData(7350, 12, 1)]
@@ -94,6 +106,30 @@ public sealed class AacMp4AudioTrackDecoderTests
         Assert.Equal(1024, result.FrameCount);
         Assert.Equal(1024 * channelCount, result.SampleCount);
         Assert.All(result.Samples.ToArray(), value => Assert.Equal(0f, value));
+    }
+
+    [Theory]
+    [InlineData(3, 3)]
+    [InlineData(4, 4)]
+    [InlineData(5, 5)]
+    [InlineData(6, 6)]
+    [InlineData(7, 8)]
+    public void DecodeSample_ShouldRejectUnsupportedMultichannelLayouts(
+        byte channelConfiguration,
+        int channelCount)
+    {
+        Mp4AudioSpecificConfig config = new(
+            Mp4AudioCodec.Aac, 2, 44100, 4,
+            channelConfiguration, channelCount, [0x12, 0x10]);
+        Mp4AudioSampleEntry entry = new(
+            "mp4a", 1, 0, checked((ushort)channelCount), 16,
+            44100, Mp4AudioCodec.Aac, config);
+        Mp4SampleDescription description = new(1, "mp4a", audio: entry);
+        Mp4EncodedSample sample = CreateSample(
+            AacRawDataBlockReaderTests.BuildEmptyMonoAccessUnit());
+
+        Assert.Throws<NotSupportedException>(
+            () => new AacMp4AudioTrackDecoder().DecodeSample(sample, description));
     }
 
     private static Mp4EncodedSample CreateSample(byte[] payload)
