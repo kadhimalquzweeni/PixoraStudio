@@ -48,11 +48,11 @@ public sealed class AacMp4AudioTrackDecoder
             AacSingleChannelElement element =
                 _rawDataBlockReader.ReadSingleChannelElement(
                     sample.Data,
-                    configuration.SamplingFrequencyIndex);
+                    configuration.ScalefactorBandSamplingFrequencyIndex);
 
             float[] spectrum = _channelProcessor.Process(
                 element.ChannelStream,
-                configuration.SamplingFrequencyIndex);
+                configuration.ScalefactorBandSamplingFrequencyIndex);
 
             return _monoSynthesis.Process(
                 spectrum,
@@ -65,20 +65,20 @@ public sealed class AacMp4AudioTrackDecoder
             AacChannelPairElement pair =
                 _rawDataBlockReader.ReadChannelPairElement(
                     sample.Data,
-                    configuration.SamplingFrequencyIndex);
+                    configuration.ScalefactorBandSamplingFrequencyIndex);
 
             float[] leftSpectrum = _channelProcessor.ProcessBeforeTns(
                 pair.LeftChannel,
-                configuration.SamplingFrequencyIndex);
+                configuration.ScalefactorBandSamplingFrequencyIndex);
             float[] rightSpectrum = _channelProcessor.ProcessBeforeTns(
                 pair.RightChannel,
-                configuration.SamplingFrequencyIndex);
+                configuration.ScalefactorBandSamplingFrequencyIndex);
 
             if (pair.CommonWindow)
             {
                 IReadOnlyList<int> offsets = pair.LeftChannel.StreamInfo.UsesShortWindows
-                    ? AacScaleFactorBandTable.GetShortWindowOffsets(configuration.SamplingFrequencyIndex)
-                    : AacScaleFactorBandTable.GetLongWindowOffsets(configuration.SamplingFrequencyIndex);
+                    ? AacScaleFactorBandTable.GetShortWindowOffsets(configuration.ScalefactorBandSamplingFrequencyIndex)
+                    : AacScaleFactorBandTable.GetLongWindowOffsets(configuration.ScalefactorBandSamplingFrequencyIndex);
 
                 _stereoSpectralProcessor.Apply(
                     leftSpectrum,
@@ -94,11 +94,11 @@ public sealed class AacMp4AudioTrackDecoder
             leftSpectrum = _channelProcessor.ApplyTns(
                 leftSpectrum,
                 pair.LeftChannel,
-                configuration.SamplingFrequencyIndex);
+                configuration.ScalefactorBandSamplingFrequencyIndex);
             rightSpectrum = _channelProcessor.ApplyTns(
                 rightSpectrum,
                 pair.RightChannel,
-                configuration.SamplingFrequencyIndex);
+                configuration.ScalefactorBandSamplingFrequencyIndex);
 
             return _stereoSynthesis.Process(
                 leftSpectrum,
