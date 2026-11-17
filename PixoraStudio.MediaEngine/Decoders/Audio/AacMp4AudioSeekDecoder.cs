@@ -43,7 +43,7 @@ public sealed class AacMp4AudioSeekDecoder
         }
 
         return assembler?.Build() ?? new PcmAudioBuffer(
-            new PcmAudioFormat(sampleRate, firstDescription.Audio.ChannelCount),
+            new PcmAudioFormat(sampleRate, firstDescription.Audio!.ChannelCount),
             ReadOnlySpan<float>.Empty);
     }
 
