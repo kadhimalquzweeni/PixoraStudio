@@ -65,6 +65,48 @@ public sealed class AacRawDataBlockReaderTests
     }
 
     [Fact]
+    public void ReadSingleChannelElement_ShouldSkipDataStreamElement()
+    {
+        byte[] accessUnit = BuildMonoWithDataStreamElement(
+            byteAlign: false,
+            count: 3,
+            escapedCount: null);
+
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4);
+
+        Assert.Equal(2, result.ElementInstanceTag);
+    }
+
+    [Fact]
+    public void ReadSingleChannelElement_ShouldSkipEscapedDataStreamElement()
+    {
+        byte[] accessUnit = BuildMonoWithDataStreamElement(
+            byteAlign: false,
+            count: 255,
+            escapedCount: 2);
+
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4);
+
+        Assert.Equal(2, result.ElementInstanceTag);
+    }
+
+    [Fact]
+    public void ReadSingleChannelElement_ShouldHonorDataStreamElementByteAlignment()
+    {
+        byte[] accessUnit = BuildMonoWithDataStreamElement(
+            byteAlign: true,
+            count: 2,
+            escapedCount: null);
+
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4);
+
+        Assert.Equal(2, result.ElementInstanceTag);
+    }
+
+    [Fact]
     public void ReadChannelPairElement_ShouldReadCommonWindowStereoIcs()
     {
         AacChannelPairElement pair = new AacRawDataBlockReader()
@@ -117,6 +159,42 @@ public sealed class AacRawDataBlockReaderTests
             (0, 8), (0, 1), (0, 1), (0, 1),
             (0, 8), (0, 1), (0, 1), (0, 1),
             (7, 3));
+
+    private static byte[] BuildMonoWithDataStreamElement(
+        bool byteAlign,
+        int count,
+        int? escapedCount)
+    {
+        List<(int Value, int Count)> fields =
+        [
+            (0, 3), (2, 4), (0, 8),
+            (0, 1), (0, 2), (0, 1), (0, 6), (0, 1),
+            (0, 1), (0, 1), (0, 1),
+            (4, 3), (7, 4), (byteAlign ? 1 : 0, 1),
+            (count, 8)
+        ];
+
+        if (escapedCount.HasValue)
+            fields.Add((escapedCount.Value, 8));
+
+        if (byteAlign)
+        {
+            int bitLength = fields.Sum(field => field.Count);
+            int padding = (8 - (bitLength & 7)) & 7;
+            for (int i = 0; i < padding; i++)
+                fields.Add((1, 1));
+        }
+
+        int payloadLength = escapedCount.HasValue
+            ? count + escapedCount.Value
+            : count;
+
+        for (int i = 0; i < payloadLength; i++)
+            fields.Add((i & 0xFF, 8));
+
+        fields.Add((7, 3));
+        return BuildBits(fields.ToArray());
+    }
 
     private static byte[] BuildBits(params (int Value, int Count)[] fields)
     {
