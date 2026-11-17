@@ -133,6 +133,23 @@ public sealed class AacRawDataBlockReaderTests
     }
 
     [Fact]
+    public void ReadSingleChannelElement_ShouldRejectProgramConfigElementWithTruncatedComment()
+    {
+        byte[] accessUnit = BuildMonoWithProgramConfigElement(
+            programConfigBeforeAudio: false,
+            includeOptionalFields: true,
+            commentFieldBytes: 255,
+            commentBytesToWrite: 0);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new AacRawDataBlockReader()
+                .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4));
+
+        Assert.Contains("PCE comment declares 255 bytes", exception.Message);
+        Assert.Contains("only", exception.Message);
+    }
+
+    [Fact]
     public void ReadChannelPairElement_ShouldReadCommonWindowStereoIcs()
     {
         AacChannelPairElement pair = new AacRawDataBlockReader()
@@ -188,12 +205,14 @@ public sealed class AacRawDataBlockReaderTests
 
     private static byte[] BuildMonoWithProgramConfigElement(
         bool programConfigBeforeAudio,
-        bool includeOptionalFields)
+        bool includeOptionalFields,
+        int commentFieldBytes = 2,
+        int commentBytesToWrite = 2)
     {
         List<(int Value, int Count)> fields = [];
 
         if (programConfigBeforeAudio)
-            AddProgramConfigElement(fields, includeOptionalFields);
+            AddProgramConfigElement(fields, includeOptionalFields, commentFieldBytes, commentBytesToWrite);
 
         fields.AddRange(
         [
@@ -203,7 +222,7 @@ public sealed class AacRawDataBlockReaderTests
         ]);
 
         if (!programConfigBeforeAudio)
-            AddProgramConfigElement(fields, includeOptionalFields);
+            AddProgramConfigElement(fields, includeOptionalFields, commentFieldBytes, commentBytesToWrite);
 
         fields.Add((7, 3));
         return BuildBits(fields.ToArray());
@@ -211,7 +230,9 @@ public sealed class AacRawDataBlockReaderTests
 
     private static void AddProgramConfigElement(
         List<(int Value, int Count)> fields,
-        bool includeOptionalFields)
+        bool includeOptionalFields,
+        int commentFieldBytes,
+        int commentBytesToWrite)
     {
         fields.AddRange(
         [
@@ -255,9 +276,10 @@ public sealed class AacRawDataBlockReaderTests
         while ((fields.Sum(field => field.Count) & 7) != 0)
             fields.Add((1, 1)); // Alignment bits are skipped without constraining their values.
 
-        fields.Add((2, 8)); // comment_field_bytes
-        fields.Add((0xA5, 8));
-        fields.Add((0x5A, 8));
+        fields.Add((commentFieldBytes, 8)); // comment_field_bytes
+
+        for (int i = 0; i < commentBytesToWrite; i++)
+            fields.Add((i == 0 ? 0xA5 : 0x5A, 8));
     }
 
     private static byte[] BuildMonoWithDataStreamElement(
