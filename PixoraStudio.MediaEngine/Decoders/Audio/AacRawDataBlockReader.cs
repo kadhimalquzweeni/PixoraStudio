@@ -158,13 +158,9 @@ public sealed class AacRawDataBlockReader
         reader.SkipBits(checked(associatedDataElementCount * 4));
         reader.SkipBits(checked(validCcElementCount * 5));
 
-        // byte_alignment() consists of zero-valued alignment_zero_bit fields.
-        while (!reader.IsByteAligned)
-        {
-            if (reader.ReadBits(1) != 0)
-                throw new InvalidDataException(
-                    "AAC program-config element alignment bits must be zero.");
-        }
+        // byte_alignment() is relative to the beginning of the raw_data_block.
+        // The alignment bit values are not constrained, so skip them without validation.
+        reader.AlignToByte();
 
         int commentFieldBytes = (int)reader.ReadBits(8);
         reader.SkipBits(checked(commentFieldBytes * 8));
