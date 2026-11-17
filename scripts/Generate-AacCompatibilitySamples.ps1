@@ -86,13 +86,13 @@ foreach ($encoder in $encoders) {
                 foreach ($profile in @("tone", "multitone", "pink-noise")) {
                     switch ($profile) {
                         "tone" {
-                            $input = "sine=frequency=997:sample_rate=$rate:duration=$StressDurationSeconds"
+                            $input = "sine=frequency=997:sample_rate=${rate}:duration=${StressDurationSeconds}"
                         }
                         "multitone" {
-                            $input = "aevalsrc=0.25*sin(2*PI*440*t)+0.2*sin(2*PI*997*t)+0.15*sin(2*PI*6000*t):s=$rate:d=$StressDurationSeconds"
+                            $input = "aevalsrc=0.25*sin(2*PI*440*t)+0.2*sin(2*PI*997*t)+0.15*sin(2*PI*6000*t):s=${rate}:d=${StressDurationSeconds}"
                         }
                         "pink-noise" {
-                            $input = "anoisesrc=color=pink:amplitude=0.2:sample_rate=$rate:duration=$StressDurationSeconds"
+                            $input = "anoisesrc=color=pink:amplitude=0.2:sample_rate=${rate}:duration=${StressDurationSeconds}"
                         }
                     }
 
