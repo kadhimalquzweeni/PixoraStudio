@@ -6,6 +6,36 @@ namespace PixoraStudio.Tests.MediaEngine;
 
 public sealed class AacRawDataBlockReaderTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadAudioElement_ShouldRejectEveryTruncatedPrefix(bool stereo)
+    {
+        byte[] completeAccessUnit = stereo
+            ? BuildEmptyStereoAccessUnit()
+            : BuildEmptyMonoAccessUnit();
+
+        for (int length = 0; length < completeAccessUnit.Length; length++)
+        {
+            byte[] truncated = completeAccessUnit[..length];
+
+            Exception exception = Record.Exception(() =>
+            {
+                AacRawDataBlockReader reader = new();
+                if (stereo)
+                    reader.ReadChannelPairElement(truncated, samplingFrequencyIndex: 4);
+                else
+                    reader.ReadSingleChannelElement(truncated, samplingFrequencyIndex: 4);
+            })!;
+
+            Assert.NotNull(exception);
+            Assert.True(
+                exception is EndOfStreamException,
+                $"A {length}-byte {(stereo ? "stereo" : "mono")} prefix should fail with " +
+                $"EndOfStreamException, but threw {exception.GetType().Name}.");
+        }
+    }
+
     [Fact]
     public void ReadSingleChannelElement_ShouldReadEmptyLongWindowIcsAndEndMarker()
     {
