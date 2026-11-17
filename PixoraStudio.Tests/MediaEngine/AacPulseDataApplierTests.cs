@@ -16,7 +16,7 @@ public sealed class AacPulseDataApplierTests
         AacPulseData pulse = new(0, [new AacPulse(0, 2), new AacPulse(1, 3), new AacPulse(1, 1)]);
         AacIndividualChannelStreamInfo info = LongInfo();
 
-        var result = _applier.Apply([band], pulse, [0, 4, 8], info);
+        var result = _applier.Apply([band], pulse, LongOffsets(), info);
 
         Assert.Equal(new[] { 3, -1, 1, 2 }, Assert.Single(result).Coefficients);
         Assert.Equal(new[] { 5, -4, 0, 2 }, original);
@@ -30,7 +30,7 @@ public sealed class AacPulseDataApplierTests
         var band = new AacSpectralBandData(0, 0, 1, [1, 2, 3, 4]);
 
         Assert.Throws<InvalidDataException>(() =>
-            _applier.Apply([band], pulse, [0, 4, 8], LongInfo()));
+            _applier.Apply([band], pulse, LongOffsets(), LongInfo()));
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class AacPulseDataApplierTests
             _applier.Apply(
                 [new AacSpectralBandData(0, 0, 1, [1, 2, 3, 4])],
                 new AacPulseData(0, [new AacPulse(0, 1)]),
-                [0, 4, 8], info));
+                LongOffsets(), info));
     }
 
     [Fact]
@@ -52,6 +52,9 @@ public sealed class AacPulseDataApplierTests
         Assert.Throws<ArgumentNullException>(() =>
             _applier.Apply(null!, new AacPulseData(0, [new AacPulse(0, 1)]), [0, 4], LongInfo()));
     }
+
+    private static IReadOnlyList<int> LongOffsets() =>
+        AacScaleFactorBandTable.GetLongWindowOffsets(4);
 
     private static AacIndividualChannelStreamInfo LongInfo() =>
         new(AacWindowSequence.OnlyLongSequence, AacWindowShape.Sine, 2, 0, false);
