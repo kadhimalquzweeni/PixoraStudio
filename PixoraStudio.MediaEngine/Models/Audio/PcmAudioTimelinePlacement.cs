@@ -39,14 +39,25 @@ public static class PcmAudioTimelinePlacement
             startFrame = 0;
         }
 
-        long silenceFrames = Math.Max(0, startFrame - writtenFrames);
+        long silenceFrames = startFrame > writtenFrames
+            ? startFrame - writtenFrames
+            : 0;
 
         if (startFrame < writtenFrames)
         {
-            long overlapFrames = writtenFrames - startFrame;
-            framesToSkip += (int)Math.Min(
-                decodedFrameCount - framesToSkip,
-                overlapFrames);
+            int remainingFrames = decodedFrameCount - framesToSkip;
+            long fullOverlapThreshold = writtenFrames - remainingFrames;
+
+            if (startFrame <= fullOverlapThreshold)
+            {
+                framesToSkip = decodedFrameCount;
+            }
+            else
+            {
+                // This subtraction is now bounded by remainingFrames and
+                // therefore cannot overflow even for extreme timeline values.
+                framesToSkip += checked((int)(writtenFrames - startFrame));
+            }
         }
 
         int framesToWrite = decodedFrameCount - framesToSkip;
