@@ -260,10 +260,11 @@ public sealed class AacAudioPlaybackService : IDisposable
 
             if (wavePath is null)
             {
-                _reader.CurrentTime = target;
-                _timelineOffset = TimeSpan.Zero;
-                if (_resumeAfterSeek)
-                    _output.Play();
+                // The audio track has no remaining PCM at this point. Keep the
+                // audio clock at its end instead of replaying an earlier segment.
+                _output.Stop();
+                _reader.Position = _reader.Length;
+                _timelineOffset = _duration - _reader.TotalTime;
                 return;
             }
 
