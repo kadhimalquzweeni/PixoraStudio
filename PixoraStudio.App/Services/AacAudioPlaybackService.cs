@@ -15,8 +15,13 @@ public sealed class AacAudioPlaybackService : IDisposable
     private WaveFileReader? _reader;
     private WaveOutEvent? _output;
     private string? _temporaryWavePath;
+    private string? _sourcePath;
+    private TimeSpan _duration;
+    private TimeSpan _timelineOffset;
+    private CancellationTokenSource? _seekCancellation;
     private bool _disposed;
     private int _loadGeneration;
+    private int _isSeeking;
 
     public bool IsLoaded => _reader is not null && _output is not null;
 
@@ -24,10 +29,11 @@ public sealed class AacAudioPlaybackService : IDisposable
         _output?.PlaybackState == PlaybackState.Playing;
 
     public TimeSpan Position =>
-        _reader?.CurrentTime ?? TimeSpan.Zero;
+        _reader is null ? TimeSpan.Zero : _timelineOffset + _reader.CurrentTime;
 
-    public TimeSpan Duration =>
-        _reader?.TotalTime ?? TimeSpan.Zero;
+    public TimeSpan Duration => _duration;
+
+    public bool IsSeeking => Volatile.Read(ref _isSeeking) != 0;
 
     public float Volume
     {
@@ -47,7 +53,13 @@ public sealed class AacAudioPlaybackService : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         int generation = Interlocked.Increment(ref _loadGeneration);
+        _seekCancellation?.Cancel();
+        _seekCancellation?.Dispose();
+        _seekCancellation = null;
         StopAndRelease();
+        _sourcePath = filePath;
+        _timelineOffset = TimeSpan.Zero;
+        _duration = TimeSpan.Zero;
 
         if (!File.Exists(filePath) ||
             !string.Equals(Path.GetExtension(filePath), ".mp4", StringComparison.OrdinalIgnoreCase))
@@ -87,6 +99,7 @@ public sealed class AacAudioPlaybackService : IDisposable
 
             _output.Init(_reader);
             _output.Volume = 1f;
+            _duration = _reader.TotalTime;
             return true;
         }
         catch
@@ -118,6 +131,10 @@ public sealed class AacAudioPlaybackService : IDisposable
     public void Unload()
     {
         Interlocked.Increment(ref _loadGeneration);
+        _seekCancellation?.Cancel();
+        _seekCancellation?.Dispose();
+        _seekCancellation = null;
+        Interlocked.Exchange(ref _isSeeking, 0);
         if (!_disposed)
             StopAndRelease();
     }
@@ -131,9 +148,18 @@ public sealed class AacAudioPlaybackService : IDisposable
 
         if (_reader is not null)
             _reader.Position = 0;
+
+        _timelineOffset = TimeSpan.Zero;
     }
 
-    public void Seek(TimeSpan position, bool resumePlayback)
+    /// <summary>
+    /// Rebuilds AAC decoder state from the nearest preceding access unit and
+    /// replaces the active PCM segment at the requested presentation time.
+    /// </summary>
+    public async Task SeekAsync(
+        TimeSpan position,
+        bool resumePlayback,
+        CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -142,28 +168,95 @@ public sealed class AacAudioPlaybackService : IDisposable
 
         TimeSpan target = position < TimeSpan.Zero
             ? TimeSpan.Zero
-            : position > _reader.TotalTime
-                ? _reader.TotalTime
+            : position > _duration
+                ? _duration
                 : position;
 
-        _output.Stop();
-        _reader.CurrentTime = target;
+        if (target >= _duration)
+        {
+            _output.Stop();
+            _reader.Position = _reader.Length;
+            _timelineOffset = TimeSpan.Zero;
+            return;
+        }
 
-        if (resumePlayback && target < _reader.TotalTime)
-            _output.Play();
+        if (string.IsNullOrWhiteSpace(_sourcePath))
+        {
+            _output.Stop();
+            _reader.CurrentTime = target;
+            _timelineOffset = TimeSpan.Zero;
+            if (resumePlayback)
+                _output.Play();
+            return;
+        }
+
+        int generation = Interlocked.Increment(ref _loadGeneration);
+        _seekCancellation?.Cancel();
+        _seekCancellation?.Dispose();
+        _seekCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        CancellationToken token = _seekCancellation.Token;
+        float volume = Volume;
+
+        Interlocked.Exchange(ref _isSeeking, 1);
+        _output.Stop();
+
+        try
+        {
+            string? wavePath = await Task.Run(
+                () => DecodeSeekToWaveFile(
+                    _sourcePath,
+                    target.TotalSeconds,
+                    token),
+                token).ConfigureAwait(false);
+
+            if (generation != Volatile.Read(ref _loadGeneration) ||
+                token.IsCancellationRequested)
+            {
+                if (wavePath is not null && File.Exists(wavePath))
+                    File.Delete(wavePath);
+                return;
+            }
+
+            if (wavePath is null)
+            {
+                _reader.CurrentTime = target;
+                _timelineOffset = TimeSpan.Zero;
+                if (resumePlayback)
+                    _output.Play();
+                return;
+            }
+
+            StopAndRelease();
+            _temporaryWavePath = wavePath;
+            _reader = new WaveFileReader(wavePath);
+            _output = new WaveOutEvent { DesiredLatency = 100 };
+            _output.Init(_reader);
+            _output.Volume = volume;
+            _timelineOffset = target;
+
+            if (resumePlayback && target < _duration)
+                _output.Play();
+        }
+        finally
+        {
+            if (generation == Volatile.Read(ref _loadGeneration))
+                Interlocked.Exchange(ref _isSeeking, 0);
+        }
     }
 
     /// <summary>
     /// Keeps the independently-clocked audio output close to LibVLC's video
-    /// clock. Small differences are left alone to avoid unnecessary restarts.
+    /// clock. A drift correction rebuilds the AAC decoder from the video time.
     /// </summary>
-    public void Synchronise(TimeSpan videoPosition)
+    public async Task SynchroniseAsync(TimeSpan videoPosition)
     {
-        if (!IsPlaying || _reader is null)
+        if (!IsPlaying || _reader is null || IsSeeking)
             return;
 
         if (Math.Abs((Position - videoPosition).TotalMilliseconds) > 500)
-            Seek(videoPosition, resumePlayback: true);
+            await SeekAsync(videoPosition, resumePlayback: true)
+                .ConfigureAwait(false);
     }
 
     private static string? DecodeToWaveFile(
@@ -326,6 +419,66 @@ public sealed class AacAudioPlaybackService : IDisposable
         }
     }
 
+    private static string? DecodeSeekToWaveFile(
+        string filePath,
+        double targetPresentationTimeSeconds,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using FileStream stream = new(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+
+        Mp4MediaInfo mediaInfo = new Mp4FileReader().Read(stream);
+        Mp4MediaTrack? audioTrack = mediaInfo
+            .GetTracks(Mp4HandlerType.Audio)
+            .FirstOrDefault();
+
+        if (audioTrack is null)
+            return null;
+
+        PcmAudioBuffer decoded = new AacMp4AudioSeekDecoder().Decode(
+            stream,
+            mediaInfo,
+            audioTrack.TrackId,
+            targetPresentationTimeSeconds,
+            cancellationToken);
+
+        if (decoded.FrameCount == 0)
+            return null;
+
+        if (decoded.Format.ChannelCount is < 1 or > 2)
+            throw new NotSupportedException(
+                "Custom AAC playback currently supports mono and stereo audio.");
+
+        string wavePath = Path.Combine(
+            Path.GetTempPath(),
+            $"PixoraStudio_AAC_Seek_{Guid.NewGuid():N}.wav");
+
+        try
+        {
+            using WaveFileWriter writer = new(
+                wavePath,
+                new WaveFormat(
+                    decoded.Format.SampleRate,
+                    16,
+                    decoded.Format.ChannelCount));
+
+            WriteBuffer(writer, decoded, decoded.Format, 0);
+            cancellationToken.ThrowIfCancellationRequested();
+            return wavePath;
+        }
+        catch
+        {
+            if (File.Exists(wavePath))
+                File.Delete(wavePath);
+            throw;
+        }
+    }
+
     private static Mp4EncodedSample ReadEncodedSample(
         Stream stream,
         Mp4SampleLocation location,
@@ -443,6 +596,9 @@ public sealed class AacAudioPlaybackService : IDisposable
             return;
 
         Interlocked.Increment(ref _loadGeneration);
+        _seekCancellation?.Cancel();
+        _seekCancellation?.Dispose();
+        _seekCancellation = null;
         StopAndRelease();
         _disposed = true;
         GC.SuppressFinalize(this);
