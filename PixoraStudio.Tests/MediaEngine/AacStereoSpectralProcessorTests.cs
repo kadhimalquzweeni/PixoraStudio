@@ -34,8 +34,8 @@ public sealed class AacStereoSpectralProcessorTests
     }
 
     [Theory]
-    [InlineData(14, 1f)]
-    [InlineData(15, -1f)]
+    [InlineData(14, -1f)]
+    [InlineData(15, 1f)]
     public void Apply_ShouldReconstructIntensityStereo(
         int codebook,
         float expectedSign)
