@@ -124,7 +124,7 @@ public sealed class AacAudioPlaybackService : IDisposable
         }
     }
 
-    public void Play()
+    public async Task PlayAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -138,7 +138,16 @@ public sealed class AacAudioPlaybackService : IDisposable
             return;
 
         if (_reader.Position >= _reader.Length)
+        {
+            if (_timelineOffset > TimeSpan.Zero)
+            {
+                await SeekAsync(TimeSpan.Zero, resumePlayback: true)
+                    .ConfigureAwait(false);
+                return;
+            }
+
             _reader.Position = 0;
+        }
 
         _output.Play();
     }
@@ -176,9 +185,10 @@ public sealed class AacAudioPlaybackService : IDisposable
         _output?.Stop();
 
         if (_reader is not null)
-            _reader.Position = 0;
-
-        _timelineOffset = TimeSpan.Zero;
+        {
+            _reader.Position = _reader.Length;
+            _timelineOffset = _duration - _reader.TotalTime;
+        }
     }
 
     /// <summary>
@@ -205,7 +215,7 @@ public sealed class AacAudioPlaybackService : IDisposable
         {
             _output.Stop();
             _reader.Position = _reader.Length;
-            _timelineOffset = TimeSpan.Zero;
+            _timelineOffset = _duration - _reader.TotalTime;
             return;
         }
 
