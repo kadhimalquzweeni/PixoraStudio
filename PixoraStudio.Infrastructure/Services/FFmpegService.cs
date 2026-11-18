@@ -13,15 +13,18 @@ public class FFmpegService
     private readonly string _ffmpegPath;
     private readonly string _ffprobePath;
 
-    public FFmpegService()
+    public FFmpegService(
+        string? applicationDirectory = null,
+        string? pathEnvironment = null)
     {
-        string baseDirectory = AppContext.BaseDirectory;
+        string baseDirectory = applicationDirectory ?? AppContext.BaseDirectory;
+        string? searchPath = pathEnvironment ?? Environment.GetEnvironmentVariable("PATH");
 
-        _ffmpegPath = Path.Combine(
-            baseDirectory, "FFmpeg", "ffmpeg.exe");
+        _ffmpegPath = FFmpegExecutableResolver.Resolve(
+            "ffmpeg.exe", baseDirectory, searchPath) ?? string.Empty;
 
-        _ffprobePath = Path.Combine(
-            baseDirectory, "FFmpeg", "ffprobe.exe");
+        _ffprobePath = FFmpegExecutableResolver.Resolve(
+            "ffprobe.exe", baseDirectory, searchPath) ?? string.Empty;
     }
 
     public string FFmpegPath => _ffmpegPath;
@@ -31,14 +34,31 @@ public class FFmpegService
         File.Exists(_ffmpegPath) &&
         File.Exists(_ffprobePath);
 
+    public void EnsureFFmpegAvailable()
+    {
+        if (!File.Exists(_ffmpegPath))
+        {
+            throw new FileNotFoundException(
+                "Pixora Studio could not find ffmpeg.exe. Place ffmpeg.exe and ffprobe.exe in the application's FFmpeg folder, or install FFmpeg and add its bin folder to the Windows PATH environment variable.",
+                _ffmpegPath);
+        }
+    }
+
+    public void EnsureFFprobeAvailable()
+    {
+        if (!File.Exists(_ffprobePath))
+        {
+            throw new FileNotFoundException(
+                "Pixora Studio could not find ffprobe.exe. Place ffmpeg.exe and ffprobe.exe in the application's FFmpeg folder, or install FFmpeg and add its bin folder to the Windows PATH environment variable.",
+                _ffprobePath);
+        }
+    }
+
     public async Task<string> ExecuteAsync(
         string arguments,
         CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(_ffmpegPath))
-            throw new FileNotFoundException(
-                "FFmpeg executable was not found.",
-                _ffmpegPath);
+        EnsureFFmpegAvailable();
 
         var startInfo = new ProcessStartInfo
         {
