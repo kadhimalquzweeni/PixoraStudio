@@ -68,6 +68,23 @@ public sealed class H264PictureOrderCountCalculator
         bool hasBottom = !slice.FieldPicFlag || slice.BottomFieldFlag;
         int pictureOrder = hasTop && hasBottom ? Math.Min(top, bottom) : hasTop ? top : bottom;
 
+        // MMCO 5 starts a new POC epoch. Normalize the current picture itself
+        // after deriving its raw field order counts, before storing reference state.
+        if (mmco5)
+        {
+            int pocOffset = pictureOrder;
+            if (hasTop)
+                top = checked(top - pocOffset);
+            if (hasBottom)
+                bottom = checked(bottom - pocOffset);
+            pictureOrder = 0;
+            if (sps.PicOrderCntType == 0 && reference)
+            {
+                _previousPicOrderCntMsb = 0;
+                _previousPicOrderCntLsb = hasTop ? top : 0;
+            }
+        }
+
         if (reference)
         {
             if (mmco5)
