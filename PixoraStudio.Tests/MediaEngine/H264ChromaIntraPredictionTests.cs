@@ -91,8 +91,18 @@ public sealed class H264ChromaIntraPredictionTests
         byte[] result = H264ChromaIntraPrediction.Predict(
             0, 2, top, left, 0, hasTop, hasLeft, false);
 
-        Assert.All(result.Take(4 * 8), sample => Assert.Equal(expectedTopLeft, sample));
-        Assert.All(result.Skip(4 * 8), sample => Assert.Equal(expectedInterior, sample));
+        for (int blockY = 0; blockY < 4; blockY++)
+        {
+            for (int blockX = 0; blockX < 2; blockX++)
+            {
+                byte expected = hasTop
+                    ? (blockY == 0 ? expectedTopLeft : expectedInterior)
+                    : (blockX == 0 ? expectedTopLeft : expectedInterior);
+                for (int y = blockY * 4; y < blockY * 4 + 4; y++)
+                    Assert.All(result.Skip(y * 8 + blockX * 4).Take(4),
+                        sample => Assert.Equal(expected, sample));
+            }
+        }
     }
 
     [Theory]
