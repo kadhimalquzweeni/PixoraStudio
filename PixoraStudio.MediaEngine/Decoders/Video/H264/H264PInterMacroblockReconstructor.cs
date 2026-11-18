@@ -61,6 +61,9 @@ public sealed class H264PInterMacroblockReconstructor
             sliceId, previousQpY, sps, pps);
         if (header.IsSkipped || header.IsIntra || header.IsPcm)
             throw new ArgumentException("The header must describe a coded inter P macroblock.", nameof(header));
+        if (referencePictureList0 is not null &&
+            referencePictureList0.Count != referenceList0.Count)
+            throw new ArgumentException("Reference-picture metadata must match RefPicList0.", nameof(referencePictureList0));
         if (destination.IsMacroblockDecoded(macroblockX, macroblockY))
             throw new InvalidOperationException("The destination macroblock has already been decoded.");
 
@@ -132,6 +135,9 @@ public sealed class H264PInterMacroblockReconstructor
 
         if (!header.IsSkipped || header.SkippedMacroblockCount != 1)
             throw new ArgumentException("A single P_Skip macroblock header is required.", nameof(header));
+        if (referencePictureList0 is not null &&
+            referencePictureList0.Count != referenceList0.Count)
+            throw new ArgumentException("Reference-picture metadata must match RefPicList0.", nameof(referencePictureList0));
         if (currentQpY is < 0 or > 51)
             throw new ArgumentOutOfRangeException(nameof(currentQpY));
         ValidateSurface(destination, macroblockX, macroblockY, sliceId, sps);
