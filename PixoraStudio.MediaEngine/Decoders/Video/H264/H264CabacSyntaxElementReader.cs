@@ -11,6 +11,63 @@ public sealed class H264CabacSyntaxElementReader
         _reader = reader;
     }
 
+    /// <summary>Decodes prev_intra4x4_pred_mode_flag or prev_intra8x8_pred_mode_flag (ctxIdx 68).</summary>
+    public bool ReadPreviousIntraPredictionModeFlag() =>
+        ReadFlagAtContext(68);
+
+    /// <summary>
+    /// Decodes rem_intra4x4_pred_mode or rem_intra8x8_pred_mode as three
+    /// context-coded bins, all using ctxIdx 69.
+    /// </summary>
+    public int ReadRemainingIntraPredictionMode()
+    {
+        int value = 0;
+        for (int i = 0; i < 3; i++)
+            value = (value << 1) | ReadFlagAtContext(69) switch
+            {
+                true => 1,
+                false => 0
+            };
+        return value;
+    }
+
+    /// <summary>Decodes transform_size_8x8_flag (ctxIdx 399).</summary>
+    public bool ReadTransformSize8x8Flag() =>
+        ReadFlagAtContext(399);
+
+    /// <summary>
+    /// Decodes intra_chroma_pred_mode as truncated unary (ctxIdx offset 64).
+    /// The caller supplies the neighbouring-mode context increment.
+    /// </summary>
+    public int ReadIntraChromaPredictionMode(int contextIndexIncrement)
+    {
+        if (contextIndexIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
+
+        for (int binIndex = 0; binIndex < 3; binIndex++)
+        {
+            int contextIndex = 64 + contextIndexIncrement + Math.Min(binIndex, 1);
+            int bin = _reader.DecodeBin(contextIndex);
+            if (bin == 0)
+                return binIndex;
+            if (bin != 1)
+                throw new FormatException("CABAC decision bins must be zero or one.");
+        }
+
+        return 3;
+    }
+
+    private bool ReadFlagAtContext(int contextIndex)
+    {
+        int bin = _reader.DecodeBin(contextIndex);
+        return bin switch
+        {
+            0 => false,
+            1 => true,
+            _ => throw new FormatException("CABAC decision bins must be zero or one.")
+        };
+    }
+
     /// <summary>
     /// Decodes mb_qp_delta (H.264 9.3.3.1.7). The caller supplies
     /// ctxIdxInc = condTermFlagA + condTermFlagB from neighbouring macroblocks.
