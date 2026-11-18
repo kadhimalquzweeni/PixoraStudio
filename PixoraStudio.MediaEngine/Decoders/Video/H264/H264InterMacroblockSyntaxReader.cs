@@ -105,8 +105,9 @@ public sealed class H264InterMacroblockSyntaxReader
         H264InterSubPartition[] result = new H264InterSubPartition[count];
         for (int i = 0; i < count; i++)
         {
-            int x = originX + (horizontalSplit ? 0 : i * width);
-            int y = originY + (horizontalSplit ? i * height : 0);
+            int subPartitionsPerRow = 8 / width;
+            int x = originX + (i % subPartitionsPerRow) * width;
+            int y = originY + (i / subPartitionsPerRow) * height;
             result[i] = new H264InterSubPartition(x, y, width, height, [ReadMvd(reader)]);
         }
         return result;
