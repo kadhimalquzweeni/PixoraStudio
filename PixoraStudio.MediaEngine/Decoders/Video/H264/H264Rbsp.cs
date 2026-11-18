@@ -14,12 +14,19 @@ public static class H264Rbsp
         for (int i = 0; i < ebsp.Length; i++)
         {
             byte value = ebsp[i];
-            if (zeroCount >= 2 && value == 0x03)
+            if (zeroCount >= 2)
             {
-                if (i + 1 >= ebsp.Length || ebsp[i + 1] > 0x03)
-                    throw new FormatException("Invalid H.264 emulation-prevention byte.");
-                zeroCount = 0;
-                continue;
+                if (value == 0x03)
+                {
+                    if (i + 1 >= ebsp.Length || ebsp[i + 1] > 0x03)
+                        throw new FormatException("Invalid H.264 emulation-prevention byte.");
+                    zeroCount = 0;
+                    continue;
+                }
+
+                if (value <= 0x02)
+                    throw new FormatException(
+                        "The EBSP contains an unescaped start-code emulation sequence.");
             }
 
             result[written++] = value;
