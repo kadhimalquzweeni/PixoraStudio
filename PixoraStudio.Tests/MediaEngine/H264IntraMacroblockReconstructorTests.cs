@@ -39,7 +39,7 @@ public sealed class H264IntraMacroblockReconstructorTests
         // Decode top-left first, then the macroblock above and to the left of
         // the target so its external top and left references are available.
         reconstructor.ReconstructIntra16x16(0, 0, 0, CreateHeader(0, 2),
-            CreateSyntax(0), CreateResidualMacroblock(0, 1), 24, sps, CreatePps());
+            CreateSyntax(0, 1), CreateResidualMacroblock(0, 1), 24, sps, CreatePps());
         reconstructor.ReconstructIntra16x16(1, 0, 0, CreateHeader(1, 2),
             CreateSyntax(0, 1), CreateResidualMacroblock(1, 1), 24, sps, CreatePps());
         reconstructor.ReconstructIntra16x16(0, 1, 0, CreateHeader(2, 2),
@@ -108,7 +108,7 @@ public sealed class H264IntraMacroblockReconstructorTests
             CreateSyntax(0, 1), residual, 24, sps, CreatePps()));
         Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
             0, 0, 0, CreateHeader(0, 2) with { IsPcm = true },
-            CreateSyntax(0), residual, 24, sps, CreatePps()));
+            CreateSyntax(0, 1), residual, 24, sps, CreatePps()));
         Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
             0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1), residual, 24,
             sps, CreatePps() with { EntropyCodingModeFlag = true }));
@@ -122,10 +122,10 @@ public sealed class H264IntraMacroblockReconstructorTests
         var reconstructor = new H264IntraMacroblockReconstructor(surface);
 
         Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
-            0, 0, 0, CreateHeader(1, 2), CreateSyntax(0),
+            0, 0, 0, CreateHeader(1, 2), CreateSyntax(0, 1),
             CreateResidualMacroblock(0, 1), 24, sps, CreatePps()));
         Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
-            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0),
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1),
             CreateResidualMacroblock(0, 1) with { Blocks = [] },
             24, sps, CreatePps()));
     }
