@@ -34,9 +34,9 @@ public sealed class H264BInterSliceDataDecoderTests
         Assert.All(destination.GetDeblockingMetadata(0, 0)!.LumaBlocks, block =>
         {
             Assert.Equal(new H264ReferencePicture(0, 0), block.ReferencePictureL0);
-            Assert.Equal(new H264ReferencePicture(2, 4), block.ReferencePictureL1);
+            Assert.Null(block.ReferencePictureL1);
             Assert.Equal(new H264MotionVector(1, -1), block.MotionVectorL0);
-            Assert.Equal(new H264MotionVector(-1, 1), block.MotionVectorL1);
+            Assert.Null(block.MotionVectorL1);
         });
         Assert.Equal((byte)63, destination.GetLumaSample(0, 0));
     }
@@ -245,7 +245,7 @@ public sealed class H264BInterSliceDataDecoderTests
         H264SequenceParameterSet sps = Sps();
         H264DecodedPictureSurface reference = Reference(sps, 1);
         H264DecodedPictureBuffer dpb = Dpb(reference);
-        BitWriter p = WriteBSliceHeader(sliceType: 0);
+        BitWriter p = WritePSliceHeader();
         p.TrailingBits();
         Assert.Throws<NotSupportedException>(() => Decoder(new H264DecodedPictureSurface(sps)).Decode(
             new H264NalUnit(0x41, p.ToArray()), sps, Pps(), dpb, 0, 0));
@@ -295,6 +295,21 @@ public sealed class H264BInterSliceDataDecoderTests
             true, 4, 0, 16,
             new H264DecodedReferenceMarking(false, false, false, []));
         return dpb;
+    }
+
+    private static BitWriter WritePSliceHeader()
+    {
+        BitWriter bits = new();
+        bits.Ue(0); // first_mb_in_slice
+        bits.Ue(0); // P slice
+        bits.Ue(0); // pic_parameter_set_id
+        bits.Bits(1, 4); // frame_num
+        bits.Bits(0, 4); // pic_order_cnt_lsb
+        bits.Flag(false); // num_ref_idx_active_override_flag
+        bits.Flag(false); // ref_pic_list_modification_flag_l0
+        bits.Flag(false); // adaptive_ref_pic_marking_mode_flag
+        bits.Se(0); // slice_qp_delta
+        return bits;
     }
 
     private static BitWriter WriteBSliceHeader(
