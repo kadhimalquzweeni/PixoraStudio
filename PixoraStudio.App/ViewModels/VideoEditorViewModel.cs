@@ -62,8 +62,7 @@ public partial class VideoEditorViewModel : ObservableObject
         var dialog = new OpenFileDialog
         {
             Title = "Open Video",
-            Filter = "Video Files|*.mp4;*.mov;*.avi;*.mkv;*.wmv;*.webm|" +
-                     "All Files|*.*"
+            Filter = "MP4 Video Files|*.mp4|All Files|*.*"
         };
 
         if (dialog.ShowDialog() == true)
@@ -91,9 +90,9 @@ public partial class VideoEditorViewModel : ObservableObject
             VideoName = Path.GetFileName(filePath);
 
             // Start LibVLC immediately rather than making video startup wait
-            // for FFprobe. The timeline can render its duration as soon as
-            // metadata arrives; Timer_Tick already tracks the player clock
-            // while TotalMilliseconds is temporarily zero.
+            // for managed MP4 metadata parsing. The timeline can render its
+            // duration as soon as metadata arrives; Timer_Tick already tracks
+            // the player clock while TotalMilliseconds is temporarily zero.
             TotalMilliseconds = 0;
             PlaybackPosition = 0;
             CurrentTime = "00:00";
@@ -111,7 +110,7 @@ public partial class VideoEditorViewModel : ObservableObject
 
             TotalMilliseconds = Math.Max(0, _videoInfo.Duration.TotalMilliseconds);
             // Do not reset PlaybackPosition or CurrentTime here: playback may
-            // already have advanced while FFprobe was reading the metadata.
+            // already have advanced while the MP4 metadata was being read.
             TrimStart = 0;
             TrimEnd = TotalMilliseconds;
 
