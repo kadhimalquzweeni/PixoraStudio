@@ -137,6 +137,7 @@ public sealed class H264BInterSliceDataDecoder
                         _destination, x, y, sliceId, qpY,
                         currentPictureOrderCount, slice.DirectSpatialMvPredFlag, sps, pps,
                         slice.PredictionWeights));
+                    RecordZeroResidualContexts(x, y, sliceId, sps);
                 }
                 decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
                 address = checked(address + header.SkippedMacroblockCount);
@@ -218,6 +219,21 @@ public sealed class H264BInterSliceDataDecoder
     {
         return pictures.Select(picture =>
             dpb.Entries.Single(entry => entry.Picture == picture).Surface).ToArray();
+    }
+
+    private void RecordZeroResidualContexts(
+        int macroblockX, int macroblockY, int sliceId, H264SequenceParameterSet sps)
+    {
+        for (int y = 0; y < 4; y++)
+        for (int x = 0; x < 4; x++)
+            _lumaNeighbours.RecordBlock(macroblockX * 4 + x, macroblockY * 4 + y, sliceId, 0);
+        int chromaHeight = sps.ChromaFormatIdc == 1 ? 2 : 4;
+        for (int y = 0; y < chromaHeight; y++)
+        for (int x = 0; x < 2; x++)
+        {
+            _cbNeighbours.RecordBlock(macroblockX * 2 + x, macroblockY * chromaHeight + y, sliceId, 0);
+            _crNeighbours.RecordBlock(macroblockX * 2 + x, macroblockY * chromaHeight + y, sliceId, 0);
+        }
     }
 
     private void RecordPcmResidualContexts(
