@@ -25,6 +25,10 @@ public sealed class H264Mp4AccessUnitDecoder
         int? maxNumReorderFramesFallback = null)
     {
         ArgumentNullException.ThrowIfNull(parameterSets);
+        if (parameterSets.SequenceParameterSets.Count == 0 ||
+            parameterSets.PictureParameterSets.Count == 0)
+            throw new NotSupportedException(
+                "The MP4 access-unit decoder requires SPS and PPS entries in avcC; in-band parameter-set updates are not supported.");
         if (maxNumReorderFramesFallback is < 0 or > 16)
             throw new ArgumentOutOfRangeException(nameof(maxNumReorderFramesFallback));
         _parameterSets = parameterSets;
