@@ -105,8 +105,7 @@ public sealed class H264TemporalDirectMotionField
                 return i;
         }
 
-        throw new FormatException(
-            "The collocated reference picture is not present in the current RefPicList0.");
+        return -1;
     }
 
     private static H264ReferencePicture ResolveReference(
