@@ -51,8 +51,8 @@ public sealed class H264BTemporalDirectMotionVectorDeriverTests
                 new H264MotionVector(1, -1), 10, 0, -10, false,
                 CollocatedReferenceIndex: 0, CollocatedPictureIsShortTerm: true));
 
-        Assert.Equal(new H264MotionVector(-1, 1), result.MotionVectorL0);
-        Assert.Equal(new H264MotionVector(-2, 2), result.MotionVectorL1);
+        Assert.Equal(new H264MotionVector(2, -2), result.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(1, -1), result.MotionVectorL1);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class H264BTemporalDirectMotionVectorDeriverTests
     {
         H264TemporalDirectMotionVectorResult result = _deriver.Derive(
             new H264TemporalDirectPredictionContext(
-                new H264MotionVector(20, 4), 0, 10, 20, false));
+                new H264MotionVector(20, 4), -5, 10, 0, false));
 
         Assert.True(result.DistanceScaleFactor < 0);
         Assert.Equal(
