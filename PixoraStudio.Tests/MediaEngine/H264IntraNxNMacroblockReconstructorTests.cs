@@ -175,7 +175,7 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
         new(address, 0, false, 0, true, false, null, null, null, false);
 
     private static H264IntraMacroblockSyntax CreateSyntax(uint chromaFormat) =>
-        new(false,
+        new(null,
             new H264IntraPredictionModeSyntax(false,
                 Enumerable.Range(0, 16)
                     .Select(_ => new H264IntraPredictionModeEntry(true, null))
