@@ -53,6 +53,36 @@ public sealed class H264PInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_WithDpb_ShouldBuildRefPicList0AndReconstructPInterMacroblock()
+    {
+        H264SequenceParameterSet sps = Sps(1);
+        H264DecodedPictureSurface reference = Reference(sps, 61, 71, 81);
+        H264DecodedPictureBuffer dpb = new();
+        dpb.StoreDecodedPicture(reference, new H264ReferencePicture(0, 0),
+            true, 4, 0, 16,
+            new H264DecodedReferenceMarking(false, false, false, []));
+        H264DecodedPictureSurface destination = new(sps);
+        H264PInterSliceDataDecoder decoder = new(
+            destination, new H264MotionVectorPictureState(1, 1));
+        BitWriter bits = WritePSliceHeader(frameNum: 1);
+        bits.WriteUe(0); // mb_skip_run = 0
+        bits.WriteUe(0); // P_L0_16x16
+        bits.WriteSe(0);
+        bits.WriteSe(0);
+        bits.WriteUe(0); // coded_block_pattern = 0
+        bits.WriteRbspTrailingBits();
+
+        H264PInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 9);
+
+        Assert.Equal(1u, result.SliceHeader.FrameNum);
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Equal((byte)61, destination.GetLumaSample(0, 0));
+        Assert.Equal((byte)71, destination.GetChromaSample(1, 0, 0));
+        Assert.Equal((byte)81, destination.GetChromaSample(2, 0, 0));
+    }
+
+    [Fact]
     public void Decode_ShouldRejectIntraMacroblocksInsidePAndWrongReferenceListSize()
     {
         H264SequenceParameterSet sps = Sps(1);
@@ -138,7 +168,7 @@ public sealed class H264PInterSliceDataDecoderTests
         bits.WriteUe(0); // first_mb_in_slice
         bits.WriteUe(2); // I slice
         bits.WriteUe(0); // pic_parameter_set_id
-        bits.WriteBits(0, 4); // frame_num
+        bits.WriteBits(frameNum, 4); // frame_num
         bits.WriteUe(0); // idr_pic_id
         bits.WriteBits(0, 4); // pic_order_cnt_lsb
         bits.WriteFlag(false); // no_output_of_prior_pics_flag
@@ -147,7 +177,7 @@ public sealed class H264PInterSliceDataDecoderTests
         return bits;
     }
 
-    private static BitWriter WritePSliceHeader(uint sliceType = 0)
+    private static BitWriter WritePSliceHeader(uint sliceType = 0, uint frameNum = 0)
     {
         BitWriter bits = new();
         bits.WriteUe(0); // first_mb_in_slice
