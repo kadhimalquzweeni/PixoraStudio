@@ -6,6 +6,28 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264DecodedPictureOutputSchedulerTests
 {
     [Fact]
+    public void Enqueue_ShouldApplyCompleteDeblockingMetadataBeforeOutput()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(0);
+        H264DecodedPictureOutputScheduler scheduler = new();
+        H264DecodedPictureSurface surface = Surface(sps, 1);
+        H264DeblockingBlockMetadata intra =
+            new(true, false, null, null, null, null);
+        H264DeblockingMacroblockMetadata metadata = new(
+            30, 30, 30, 0, 0, 0, true,
+            Enumerable.Repeat(intra, 16).ToArray(),
+            Enumerable.Repeat(intra, 4).ToArray(),
+            Enumerable.Repeat(intra, 4).ToArray());
+        surface.SetDeblockingMetadata(0, 0, metadata);
+
+        H264DecodedPictureOutput output = Assert.Single(scheduler.Enqueue(
+            surface, sps, Slice(0, 0, idr: true), 3));
+
+        Assert.True(surface.IsDeblockingFilterApplied);
+        Assert.Same(surface, output.Surface);
+    }
+
+    [Fact]
     public void CalculatePocBeforeReconstruction_ShouldEnqueueTheSamePrecomputedPoc()
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(0);
