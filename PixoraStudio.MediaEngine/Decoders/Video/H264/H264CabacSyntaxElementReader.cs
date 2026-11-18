@@ -376,21 +376,32 @@ public sealed class H264CabacSyntaxElementReader
         if (!ReadFlagAtContext(30))
             return 1 + (ReadFlagAtContext(32) ? 1 : 0);
 
-        int prefix = (ReadFlagAtContext(31) ? 8 : 0) |
-            (ReadFlagAtContext(32) ? 4 : 0) |
-            (ReadFlagAtContext(32) ? 2 : 0) |
+        if (!ReadFlagAtContext(31))
+        {
+            int partitionCode = (ReadFlagAtContext(32) ? 4 : 0) |
+                (ReadFlagAtContext(32) ? 2 : 0) |
+                (ReadFlagAtContext(32) ? 1 : 0);
+            return 3 + partitionCode;
+        }
+
+        if (!ReadFlagAtContext(32))
+        {
+            int partitionCode = (ReadFlagAtContext(32) ? 4 : 0) |
+                (ReadFlagAtContext(32) ? 2 : 0) |
+                (ReadFlagAtContext(32) ? 1 : 0);
+            return 12 + partitionCode;
+        }
+
+        int suffix = (ReadFlagAtContext(32) ? 2 : 0) |
             (ReadFlagAtContext(32) ? 1 : 0);
-
-        if (prefix < 8)
-            return prefix + 3;
-        if (prefix == 13)
-            return 23 + ReadInterSliceIntraMacroblockType(32);
-        if (prefix == 14)
-            return 11;
-        if (prefix == 15)
-            return 22;
-
-        return (prefix << 1) + (ReadFlagAtContext(32) ? 1 : 0) - 4;
+        return suffix switch
+        {
+            0 => 20 + (ReadFlagAtContext(32) ? 1 : 0),
+            1 => 23 + ReadInterSliceIntraMacroblockType(32),
+            2 => 11,
+            3 => 22,
+            _ => throw new InvalidOperationException()
+        };
     }
 
     /// <summary>Decodes P-slice sub_mb_type (contexts 21..23).</summary>
