@@ -159,8 +159,10 @@ public sealed class H264InterMacroblockMotionVectorReconstructorTests
     {
         H264MotionVectorPictureState state = new(1, 1);
 
-        H264InterMacroblockSyntax invalidReference = CreateRectangularSyntax(
-            0, (0, 0, 16, 16, new H264MotionVectorDifference(0, 0)), referenceIndex: 1);
+        H264InterMacroblockSyntax invalidReference = new(
+            0, false, false,
+            [new H264InterPredictionPartition(0, 0, 16, 16, 1,
+                [new H264InterSubPartition(0, 0, 16, 16, [new(0, 0)])])]);
         Assert.Throws<FormatException>(() =>
             _reconstructor.Reconstruct(invalidReference, state, 0, 0, 0, 1));
 
