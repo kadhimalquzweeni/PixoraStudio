@@ -26,6 +26,21 @@ public sealed class H264PictureParameterSetReader
         H264NalUnit nalUnit,
         H264SequenceParameterSet? sequenceParameterSet = null)
     {
+        try
+        {
+            return ReadCore(nalUnit, sequenceParameterSet);
+        }
+        catch (EndOfStreamException exception)
+        {
+            throw new FormatException(
+                "The PPS RBSP is truncated or has invalid trailing bits.", exception);
+        }
+    }
+
+    private H264PictureParameterSetHeader ReadCore(
+        H264NalUnit nalUnit,
+        H264SequenceParameterSet? sequenceParameterSet)
+    {
         ArgumentNullException.ThrowIfNull(nalUnit);
         if (nalUnit.NalUnitType != 8)
             throw new FormatException("The NAL unit is not a PPS.");
