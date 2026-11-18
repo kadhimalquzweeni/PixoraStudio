@@ -37,6 +37,11 @@ public sealed class H264PictureOrderCountCalculator
             throw new FormatException("log2_max_frame_num_minus4 exceeds the supported H.264 range.");
         if (slice.FrameNum >= (1u << checked((int)sps.Log2MaxFrameNumMinus4 + 4)))
             throw new FormatException("frame_num exceeds the range declared by the SPS.");
+        if (sps.PicOrderCntType == 1 && !sps.DeltaPicOrderAlwaysZeroFlag &&
+            slice.DeltaPicOrderCnt0 is null)
+            throw new FormatException("POC type 1 requires delta_pic_order_cnt[0] when delta_pic_order_always_zero_flag is false.");
+        if (sps.PicOrderCntType == 1 && sps.OffsetForRefFrame.Count > 255)
+            throw new FormatException("num_ref_frames_in_pic_order_cnt_cycle exceeds the supported H.264 range.");
         if (sps.PicOrderCntType == 0)
         {
             if (slice.PicOrderCntLsb is not uint pocLsb)
