@@ -157,7 +157,6 @@ public sealed class H264DeblockingPictureFilterTests
             Array.Copy(samples, 0, cb, y * 8, 8);
             Array.Copy(samples, 0, cr, y * 8, 8);
         }
-        WriteMacroblock(surface, 0, 0, 0, 1, luma);
         // The chroma vertical edge at x=4 maps to the luma edge between
         // columns 1 and 2. Only the first corresponding luma block row is intra.
         H264DeblockingBlockMetadata inter = new(false, false, null, null, null, null);
