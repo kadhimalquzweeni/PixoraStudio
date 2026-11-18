@@ -50,6 +50,8 @@ public sealed class H264CabacSliceDataReaderTests
             new H264BitReader(new byte[] { 0xFE, 0x80 }), 26, true, 0);
 
         Assert.Equal(1, reader.DecodeTerminate());
+        Assert.False(reader.IsTerminated);
+        reader.MarkTerminated();
         Assert.True(reader.IsTerminated);
         Assert.Throws<InvalidOperationException>(() => reader.DecodeBypass());
         Assert.Throws<InvalidOperationException>(() => reader.DecodeBin(0));
@@ -72,6 +74,22 @@ public sealed class H264CabacSliceDataReaderTests
         H264CabacSliceDataReader reader = new(bits, 26, true, 0);
         bits.SkipBits(7);
         reader.RestartAfterPcm();
+        Assert.Equal(25, bits.PositionBits);
+    }
+
+
+    [Fact]
+    public void RestartAfterPcm_ShouldBeAllowedAfterTerminateBinUsedForPcmMacroblockType()
+    {
+        H264BitReader bits = new(new byte[] { 0xFE, 0x80, 0x00, 0x00 });
+        H264CabacSliceDataReader reader = new(bits, 26, true, 0);
+
+        Assert.Equal(1, reader.DecodeTerminate());
+        Assert.False(reader.IsTerminated);
+        bits.SkipBits(7);
+
+        reader.RestartAfterPcm();
+
         Assert.Equal(25, bits.PositionBits);
     }
 
