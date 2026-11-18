@@ -17,7 +17,10 @@ public sealed class H264Mp4SampleNalUnitReader
     {
         ArgumentNullException.ThrowIfNull(sample);
         ArgumentNullException.ThrowIfNull(configuration);
-        return _nalUnitReader.ReadLengthPrefixed(
+        IReadOnlyList<H264NalUnit> units = _nalUnitReader.ReadLengthPrefixed(
             sample.Data, configuration.NaluLengthSize);
+        if (units.Count == 0)
+            throw new FormatException("The MP4 AVC sample contains no NAL units.");
+        return units;
     }
 }
