@@ -56,16 +56,21 @@ public static class H264ScalingMatrixResolver
                 continue;
             }
 
-            // PPS fallback first inherits an explicitly signalled SPS list.
-            if (sps.ScalingMatrixPresentFlag && IsListPresent(sps.ScalingLists, i))
+            // Table 7-2 fallback rule B uses the sequence-level luma
+            // intra/inter matrices as anchors, then chains the chroma lists.
+            if (sps.ScalingMatrixPresentFlag && i == 0)
             {
-                result[i] = (int[])sequenceLists[i].Clone();
+                result[i] = (int[])sequenceLists[0].Clone();
             }
-            else if (i == 0)
+            else if (sps.ScalingMatrixPresentFlag && i == 3)
+            {
+                result[i] = (int[])sequenceLists[3].Clone();
+            }
+            else if (!sps.ScalingMatrixPresentFlag && i == 0)
             {
                 result[i] = (int[])DefaultIntra.Clone();
             }
-            else if (i == 3)
+            else if (!sps.ScalingMatrixPresentFlag && i == 3)
             {
                 result[i] = (int[])DefaultInter.Clone();
             }
