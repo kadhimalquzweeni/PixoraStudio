@@ -189,7 +189,7 @@ public sealed class H264BInterMacroblockReconstructorTests
                 index % 4, index / 4, false,
                 new H264CavlcResidualBlock(16, 0, 0, 0, new int[16])))
             .ToArray();
-        H264IntraChromaResidualComponent[] chroma = [1, 2]
+        H264IntraChromaResidualComponent[] chroma = new[] { 1, 2 }
             .Select(component => new H264IntraChromaResidualComponent(
                 (byte)component, null,
                 Enumerable.Range(0, 4)
