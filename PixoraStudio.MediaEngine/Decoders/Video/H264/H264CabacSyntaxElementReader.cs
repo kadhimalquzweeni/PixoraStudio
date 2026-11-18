@@ -1,3 +1,5 @@
+using PixoraStudio.MediaEngine.Models.Video;
+
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>Decodes CABAC-coded macroblock syntax elements.</summary>
