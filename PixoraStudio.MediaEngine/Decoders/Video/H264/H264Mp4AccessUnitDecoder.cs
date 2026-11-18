@@ -13,6 +13,10 @@ public sealed class H264Mp4AccessUnitDecoder
     private readonly H264DecodedPictureBuffer _decodedPictureBuffer = new();
     private readonly H264Mp4VideoOutputScheduler _outputScheduler = new();
     private readonly int? _maxNumReorderFramesFallback;
+    private uint? _trackId;
+    private uint? _timescale;
+    private uint? _lastSampleNumber;
+    private ulong? _lastDecodeTimeTicks;
     private bool _requiresReset;
 
     public H264Mp4AccessUnitDecoder(
@@ -43,9 +47,25 @@ public sealed class H264Mp4AccessUnitDecoder
                 "The decoder encountered a failed picture decode. Call Reset before decoding another sample.");
         if (sliceId < 0)
             throw new ArgumentOutOfRangeException(nameof(sliceId));
+        if (sample.TrackId == 0 || sample.SampleNumber == 0)
+            throw new FormatException("MP4 track and sample identifiers must be non-zero.");
         if (sample.Timescale == 0)
             throw new FormatException("The MP4 AVC sample has an invalid timescale.");
+        if (_trackId is uint activeTrackId && activeTrackId != sample.TrackId)
+            throw new InvalidOperationException("One decoder instance cannot switch MP4 tracks.");
+        if (_timescale is uint activeTimescale && activeTimescale != sample.Timescale)
+            throw new FormatException("The MP4 track timescale changed during decoding.");
+        if (_lastSampleNumber is uint previousSample && sample.SampleNumber <= previousSample)
+            throw new FormatException("MP4 AVC samples must be supplied in increasing decode order.");
+        if (_lastDecodeTimeTicks is ulong previousDecodeTime &&
+            sample.DecodeTimeTicks < previousDecodeTime)
+            throw new FormatException("MP4 AVC sample decode timestamps must be non-decreasing.");
+
         ValidateConfigurationIdentity(sample.Configuration);
+        _trackId ??= sample.TrackId;
+        _timescale ??= sample.Timescale;
+        _lastSampleNumber = sample.SampleNumber;
+        _lastDecodeTimeTicks = sample.DecodeTimeTicks;
 
         H264NalUnit[] slices = GetSliceNals(sample.NalUnits);
         if (slices.Length == 0)
@@ -68,12 +88,19 @@ public sealed class H264Mp4AccessUnitDecoder
 
         H264SliceHeader slice = sliceHeaderReader.Read(
             new H264BitReader(nalUnit.Rbsp), nalUnit, sps, pps);
+        if (nalUnit.NalUnitType == 5 && nalUnit.NalRefIdc == 0)
+            throw new FormatException("IDR NAL units must have non-zero nal_ref_idc.");
         if (nalUnit.NalUnitType == 5 && slice.SliceType != H264SliceType.I)
             throw new FormatException("IDR NAL units must contain I slices.");
+        if (slice.FirstMacroblockInSlice != 0)
+            throw new NotSupportedException(
+                "A single-slice MP4 access unit must begin at macroblock address zero.");
         if (slice.SliceType is H264SliceType.Sp or H264SliceType.Si)
             throw new NotSupportedException("SP and SI slice reconstruction is not supported.");
         if (nalUnit.NalRefIdc != 0 && sps.MaxNumRefFrames == 0)
             throw new FormatException("A reference slice cannot use an SPS with max_num_ref_frames equal to zero.");
+        if (nalUnit.NalRefIdc != 0 && sps.MaxNumRefFrames > 16)
+            throw new NotSupportedException("The managed decoded-picture buffer supports at most 16 reference frames.");
 
         H264DecodedPictureSurface surface = new(sps);
         H264MotionVectorPictureState? motionStateL0 = null;
@@ -142,10 +169,10 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface,
                     new H264ReferencePicture(checked((int)slice.FrameNum), poc.PictureOrderCount),
                     isReference: true,
-                    sps.MaxNumRefFrames,
-                    checked((int)slice.FrameNum),
-                    maxFrameNum,
-                    slice.DecodedReferenceMarking,
+                    maxNumRefFrames: sps.MaxNumRefFrames,
+                    currentFrameNum: checked((int)slice.FrameNum),
+                    maxFrameNum: maxFrameNum,
+                    marking: slice.DecodedReferenceMarking,
                     idrPicture: nalUnit.NalUnitType == 5,
                     motionVectorStateL0: motionStateL0,
                     motionVectorStateL1: motionStateL1,
@@ -180,6 +207,10 @@ public sealed class H264Mp4AccessUnitDecoder
     {
         _decodedPictureBuffer.Reset();
         _outputScheduler.Reset();
+        _trackId = null;
+        _timescale = null;
+        _lastSampleNumber = null;
+        _lastDecodeTimeTicks = null;
         _requiresReset = false;
     }
 
@@ -189,9 +220,31 @@ public sealed class H264Mp4AccessUnitDecoder
         if (configuration.Profile != expected.Profile ||
             configuration.Compatibility != expected.Compatibility ||
             configuration.Level != expected.Level ||
-            configuration.NaluLengthSize != expected.NaluLengthSize)
+            configuration.NaluLengthSize != expected.NaluLengthSize ||
+            configuration.ChromaFormat != expected.ChromaFormat ||
+            configuration.BitDepthLumaMinus8 != expected.BitDepthLumaMinus8 ||
+            configuration.BitDepthChromaMinus8 != expected.BitDepthChromaMinus8 ||
+            !NalUnitsMatch(configuration.SequenceParameterSets, expected.SequenceParameterSets) ||
+            !NalUnitsMatch(configuration.PictureParameterSets, expected.PictureParameterSets) ||
+            !NalUnitsMatch(configuration.SequenceParameterSetExtensions, expected.SequenceParameterSetExtensions))
             throw new FormatException(
                 "The MP4 sample's avcC configuration does not match the decoder's active parameter-set collection.");
+    }
+
+    private static bool NalUnitsMatch(
+        IReadOnlyList<H264NalUnit> left,
+        IReadOnlyList<H264NalUnit> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+        for (int i = 0; i < left.Count; i++)
+        {
+            if (left[i].NalUnitType != right[i].NalUnitType ||
+                left[i].NalRefIdc != right[i].NalRefIdc ||
+                !left[i].Payload.Span.SequenceEqual(right[i].Payload.Span))
+                return false;
+        }
+        return true;
     }
 
     private static H264NalUnit[] GetSliceNals(IReadOnlyList<H264NalUnit> nalUnits)
