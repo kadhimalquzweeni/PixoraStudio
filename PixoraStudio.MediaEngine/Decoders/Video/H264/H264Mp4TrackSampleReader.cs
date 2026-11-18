@@ -21,6 +21,20 @@ public sealed class H264Mp4TrackSampleReader
             throw new ArgumentException("The MP4 track is not a video track.", nameof(track));
         if (track.Timescale == 0)
             throw new FormatException("The MP4 video track timescale must be greater than zero.");
+        if (sample.Location.SampleNumber == 0)
+            throw new FormatException("MP4 sample numbers are one-based.");
+        if (sample.Location.Size != (uint)sample.Data.Length)
+            throw new FormatException("The encoded sample byte count does not match its sample-table size.");
+
+        long presentationTimeTicks;
+        try
+        {
+            presentationTimeTicks = sample.Location.PresentationTimeTicks;
+        }
+        catch (OverflowException exception)
+        {
+            throw new FormatException("The MP4 sample presentation timestamp exceeds the supported range.", exception);
+        }
 
         uint descriptionIndex = sample.Location.SampleDescriptionIndex;
         if (descriptionIndex == 0)
@@ -53,7 +67,7 @@ public sealed class H264Mp4TrackSampleReader
             track.TrackId,
             location.SampleNumber,
             (double)location.DecodeTimeTicks / track.Timescale,
-            (double)location.PresentationTimeTicks / track.Timescale,
+            (double)presentationTimeTicks / track.Timescale,
             (double)location.DurationTicks / track.Timescale,
             location.IsSyncSample,
             configuration,
