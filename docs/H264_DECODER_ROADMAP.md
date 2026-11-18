@@ -13,7 +13,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
 | Reference management | Frame DPB, short/long-term marking, MMCO 1–6, P/B reference-list construction |
-| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma sample kernels and threshold tables implemented; boundary-strength derivation, per-block metadata and picture traversal are not integrated |
+| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation, validated metadata storage and picture traversal implemented; reconstruction pipeline does not yet populate the metadata automatically |
 | Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
@@ -119,3 +119,5 @@ For a P picture, persist the P decoder's motion state as list 0, use an empty li
 \n- The H.264 in-loop deblocking filter is a remaining correctness milestone. The current `H264DecodedPictureSurface` does not yet retain all per-macroblock QP, coded-block, motion/reference and slice deblocking metadata required to derive boundary strengths and thresholds. Do not treat the current reconstructed surfaces as fully conformant final output until the filter and metadata path are integrated.
 
 - The sample-level deblocking kernel milestone is in place: H.264 alpha/beta/tC0 tables, weak filtering for bS 1–3, strong filtering for bS 4, and 8-bit luma/chroma-style edge handling. These are tested as isolated edge primitives only; the decoder still does not derive per-edge boundary strengths, retain all required macroblock metadata, or run the filter over a completed picture.
+
+- A caller can now attach defensive, validated per-macroblock deblocking metadata to a completed surface and run `H264DeblockingPictureFilter.Apply`. The picture pass handles 4:2:0/4:2:2 luma/chroma edges, `disable_deblocking_filter_idc` slice-boundary rules, and suppression of internal luma 4x4 edges inside 8x8 transforms. The filter is a one-time terminal surface operation. Automatic metadata production from I/P/B reconstruction remains the next integration task.
