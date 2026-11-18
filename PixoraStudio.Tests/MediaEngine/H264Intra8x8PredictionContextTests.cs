@@ -24,17 +24,17 @@ public sealed class H264Intra8x8PredictionContextTests
     }
 
     [Theory]
-    [InlineData(0u, 6u)]
-    [InlineData(5u, 0u)]
+    [InlineData(true, 0u)]
+    [InlineData(false, 5u)]
     public void GetPredictedMode_ShouldUseDcWhenEitherNeighbourIsUnavailable(
-        uint availableMode, uint unavailableSentinel)
+        bool recordLeftNeighbour, uint availableMode)
     {
         var context = new H264Intra8x8PredictionContext();
 
-        if (availableMode == 0)
+        if (recordLeftNeighbour)
             context.RecordMode(0, 1, 1, availableMode);
         else
-            context.RecordMode(0, 1, 1, availableMode);
+            context.RecordMode(1, 0, 1, availableMode);
 
         Assert.Equal(2u, context.GetPredictedMode(1, 1, 1));
     }
