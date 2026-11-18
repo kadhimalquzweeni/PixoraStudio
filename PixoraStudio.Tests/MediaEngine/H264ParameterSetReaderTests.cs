@@ -389,6 +389,20 @@ public sealed class H264ParameterSetReaderTests
     }
 
     [Fact]
+    public void ReadSps_ShouldAcceptTrailingZeroPaddingAfterRbspTrailingBits()
+    {
+        BitWriter bits = CreateBaselineSpsPrefix();
+        bits.WriteFlag(false); // vui_parameters_present_flag
+        byte[] rbsp = [.. bits.ToArray(), 0x00];
+
+        H264SequenceParameterSet result = new H264SequenceParameterSetReader()
+            .Read(new H264NalUnit(0x67, rbsp));
+
+        Assert.Equal(640u, result.FrameWidth);
+        Assert.Equal(368u, result.FrameHeight);
+    }
+
+    [Fact]
     public void ReadSps_ShouldRejectInvalidRbspTrailingBits()
     {
         BitWriter bits = CreateBaselineSpsPrefix();
