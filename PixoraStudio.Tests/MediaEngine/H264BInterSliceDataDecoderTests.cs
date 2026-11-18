@@ -21,7 +21,8 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.TrailingBits();
 
         H264BInterSliceDecodeResult result = decoder.Decode(
-            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0,
+            collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.Equal(H264SliceType.B, result.SliceHeader.SliceType);
         Assert.Single(result.ReferencePictureLists!.List0);
