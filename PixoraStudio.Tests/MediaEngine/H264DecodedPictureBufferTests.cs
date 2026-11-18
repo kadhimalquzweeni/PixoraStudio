@@ -180,6 +180,27 @@ public sealed class H264DecodedPictureBufferTests
     }
 
     [Fact]
+    public void StoreDecodedPicture_ShouldApplyCompleteDeblockingMetadataBeforeReferenceInsertion()
+    {
+        H264DecodedPictureSurface surface = Surface();
+        H264DeblockingBlockMetadata intra =
+            new(true, false, null, null, null, null);
+        surface.SetDeblockingMetadata(0, 0, new H264DeblockingMacroblockMetadata(
+            30, 30, 30, 0, 0, 0, true,
+            Enumerable.Repeat(intra, 16).ToArray(),
+            Enumerable.Repeat(intra, 4).ToArray(),
+            Enumerable.Repeat(intra, 4).ToArray()));
+
+        H264DecodedPictureBuffer dpb = new();
+        dpb.StoreDecodedPicture(
+            surface, new H264ReferencePicture(0, 0), true, 4, 0, 16,
+            new H264DecodedReferenceMarking(false, false, false, []));
+
+        Assert.True(surface.IsDeblockingFilterApplied);
+        Assert.Same(surface, Assert.Single(dpb.Entries).Surface);
+    }
+
+    [Fact]
     public void StoreDecodedPicture_ShouldRejectIncompleteReferenceSurface()
     {
         H264DecodedPictureBuffer dpb = new();
