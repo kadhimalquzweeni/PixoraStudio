@@ -44,12 +44,13 @@ public sealed class H264Mp4VideoSeekPlanner
             throw new FormatException("The MP4 video sample-location count is inconsistent.");
 
         long presentationEnd = long.MinValue;
-        foreach (Mp4SampleLocation sample in samples)
+        for (int index = 0; index < samples.Length; index++)
         {
-            if (sample.SampleNumber == 0 ||
-                sample.SampleNumber > track.SampleCount ||
+            Mp4SampleLocation sample = samples[index];
+            if (sample.SampleNumber != checked((uint)index + 1) ||
                 sample.DurationTicks == 0)
-                throw new FormatException("The MP4 video track contains invalid sample timing.");
+                throw new FormatException(
+                    "The MP4 video track contains invalid or non-contiguous sample timing.");
 
             long end;
             try
