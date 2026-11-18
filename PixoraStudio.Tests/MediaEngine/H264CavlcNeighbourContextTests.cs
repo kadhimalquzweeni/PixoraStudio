@@ -73,10 +73,11 @@ public sealed class H264CavlcNeighbourContextTests
         var context = new H264CavlcNeighbourContext();
         context.RecordBlock(0, 1, 1, 2);
         context.RecordBlock(1, 0, 1, 4);
+        context.RecordBlock(2, 0, 1, 4);
 
-        // coeff_token table nC=3: code 001001 is TotalCoeff=2, TrailingOnes=2;
-        // two positive signs follow.
-        H264BitReader reader = CreateReader("00100100");
+        // nC=(2+4+1)>>1 = 3. In coeff_token table 1, 011 is
+        // TotalCoeff=2/TrailingOnes=2; signs are positive and total_zeros=0.
+        H264BitReader reader = CreateReader("01100111");
 
         H264CavlcResidualBlock result = context.ReadBlock(reader, 1, 1, 1);
 
