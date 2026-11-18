@@ -104,7 +104,7 @@ public sealed class H264InterResidualMacroblockReaderTests
         H264CavlcNeighbourContext y = new(), cb = new(), cr = new();
         _reader.Read(Bits(""), Header(0), Pattern(0, 0, 1), Sps(1),
             0, 0, 8, y, cb, cr);
-        _reader.Read(Bits(""), Header(1), Pattern(0, 0, 1), Sps(1),
+        _reader.Read(Bits(""), Header(1), Pattern(0, 0, 1), Sps(1, 1),
             1, 0, 8, y, cb, cr);
 
         Assert.Equal(0, y.GetPredictedNonZeroCount(4, 0, 8));
@@ -150,9 +150,9 @@ public sealed class H264InterResidualMacroblockReaderTests
     private static H264CodedBlockPattern Pattern(uint luma, uint chroma, uint format) =>
         new(0, luma, chroma, format);
 
-    private static H264SequenceParameterSet Sps(uint chromaFormat) =>
+    private static H264SequenceParameterSet Sps(uint chromaFormat, uint widthMinus1 = 0) =>
         new(0, 100, 40, chromaFormat, false, 0, 0, 0, 0, 0, 1,
-            0, 0, true, true, 32, 16, false);
+            widthMinus1, 0, true, true, checked((widthMinus1 + 1) * 16), 16, false);
 
     private static H264BitReader Bits(string bits)
     {
