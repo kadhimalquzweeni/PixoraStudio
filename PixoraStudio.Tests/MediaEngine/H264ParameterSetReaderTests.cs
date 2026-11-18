@@ -260,7 +260,7 @@ public sealed class H264ParameterSetReaderTests
         bits.WriteFlag(false);
         bits.WriteFlag(false);
         bits.WriteUe(0);
-        WritePpsTail(bits);
+        WritePpsTail(bits, includeTrailingBits: false);
         bits.WriteFlag(true);  // transform_8x8_mode_flag
         bits.WriteFlag(true);  // pic_scaling_matrix_present_flag
         for (int i = 0; i < 8; i++)
@@ -270,6 +270,7 @@ public sealed class H264ParameterSetReaderTests
                 for (int j = 0; j < 16; j++) bits.WriteSe(0);
         }
         bits.WriteSe(2); // second_chroma_qp_index_offset
+        WriteRbspTrailingBits(bits);
 
         var result = new H264PictureParameterSetReader().Read(
             new H264NalUnit(0x68, bits.ToArray()));
@@ -289,7 +290,7 @@ public sealed class H264ParameterSetReaderTests
             new H264PictureParameterSetReader().Read(new H264NalUnit(0x67, [0x80])));
     }
 
-    private static void WritePpsTail(BitWriter bits)
+    private static void WritePpsTail(BitWriter bits, bool includeTrailingBits = true)
     {
         bits.WriteUe(1); // default L0 references minus one
         bits.WriteUe(1); // default L1 references minus one
@@ -301,11 +302,20 @@ public sealed class H264ParameterSetReaderTests
         bits.WriteFlag(true);
         bits.WriteFlag(false);
         bits.WriteFlag(false);
+        if (includeTrailingBits) WriteRbspTrailingBits(bits);
+    }
+
+    private static void WriteRbspTrailingBits(BitWriter bits)
+    {
+        bits.WriteFlag(true);
+        while (bits.BitCount % 8 != 0) bits.WriteFlag(false);
     }
 
     private sealed class BitWriter
     {
         private readonly List<bool> _bits = [];
+
+        public int BitCount => _bits.Count;
 
         public void WriteFlag(bool value) => _bits.Add(value);
 
