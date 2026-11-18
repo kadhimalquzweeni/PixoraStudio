@@ -15,9 +15,9 @@ public sealed class H264BTemporalDirectMotionVectorDeriver
         ArgumentNullException.ThrowIfNull(context);
         H264MotionVector collocated = H264MotionVectorRange.Clip(context.CollocatedMotionVector);
 
-        int td = Clip(context.CollocatedReferencePictureOrderCount -
+        int td = Clip((long)context.CollocatedReferencePictureOrderCount -
             context.CollocatedPictureOrderCount, -128, 127);
-        int tb = Clip(context.CurrentPictureOrderCount -
+        int tb = Clip((long)context.CurrentPictureOrderCount -
             context.CollocatedPictureOrderCount, -128, 127);
 
         if (context.CollocatedReferenceIsLongTerm || td == 0)
@@ -38,6 +38,6 @@ public sealed class H264BTemporalDirectMotionVectorDeriver
         return new H264TemporalDirectMotionVectorResult(list0, list1, scale);
     }
 
-    private static int Clip(int value, int minimum, int maximum) =>
-        Math.Clamp(value, minimum, maximum);
+    private static int Clip(long value, int minimum, int maximum) =>
+        (int)Math.Clamp(value, minimum, maximum);
 }
