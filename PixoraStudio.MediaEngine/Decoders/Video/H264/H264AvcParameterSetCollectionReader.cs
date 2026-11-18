@@ -17,6 +17,9 @@ public sealed class H264AvcParameterSetCollectionReader
     public H264AvcParameterSetCollection Read(Mp4CodecConfiguration configuration) =>
         Read(_configurationReader.Read(configuration));
 
+    public H264AvcParameterSetCollection Read(ReadOnlyMemory<byte> configurationData) =>
+        Read(_configurationReader.Read(configurationData));
+
     public H264AvcParameterSetCollection Read(H264AvcDecoderConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
