@@ -130,7 +130,7 @@ public sealed class H264DeblockingPictureFilterTests
             cr[y * 8 + x] = value;
         }
 
-        WriteMacroblock(surface, 0, 0, 0, 2, luma);
+        surface.WriteMacroblock(0, 0, 0, false, luma, cb, cr);
         surface.SetDeblockingMetadata(0, 0, Metadata(0, 4, transform8x8: false));
 
         H264DeblockingPictureFilter.Apply(surface);
