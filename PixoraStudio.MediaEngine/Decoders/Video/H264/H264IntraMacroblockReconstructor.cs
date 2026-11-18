@@ -103,7 +103,7 @@ public sealed class H264IntraMacroblockReconstructor
             ?? throw new FormatException($"Missing chroma residual component {componentId}.");
         if (component.Blocks.Any(block => !block.IsCoded && block.Residual.TotalCoefficients != 0))
             throw new FormatException("An uncoded chroma AC block cannot contain non-zero coefficients.");
-        H264IntraReferenceSamples = _references.GatherChroma(
+        H264IntraReferenceSamples references = _references.GatherChroma(
             componentId, macroblockX, macroblockY, sliceId, pps.ConstrainedIntraPredFlag);
         if (mode == 1 && !references.HasLeft ||
             mode == 2 && !references.HasTop ||
