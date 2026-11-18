@@ -54,21 +54,21 @@ public sealed class H264CabacResidualBlockReaderTests
     }
 
     [Fact]
-    public void ReadBlock_ShouldUseUpdatedLevelContextsForSubsequentCoefficients()
+    public void ReadBlock_ShouldDecodeMultipleSignificantCoefficientsInReverseOrder()
     {
-        // Two inferred significant coefficients, decoded from high to low.
-        // First is +1; second is -2 (first level bin 1, then terminating 0).
+        // Both positions are significant. The higher position is +1;
+        // the lower position is -2.
         ScriptedCabacReader bins = new(
-            decisionBins: new[] { 0, 1, 0 },
-            bypassBins: new[] { 0, 1, 0 });
+            decisionBins: new[] { 1, 0, 1, 1, 0 },
+            bypassBins: new[] { 0, 1 });
         H264CabacResidualBlockReader reader = new();
 
         int[] coefficients = reader.ReadBlock(
-            bins, 2, 0, 1, 105, 166, 227,
-            new[] { 0 }, new[] { 0 });
+            bins, 3, 0, 2, 105, 166, 227,
+            new[] { 0, 1 }, new[] { 0, 1 });
 
-        Assert.Equal(new[] { -2, 1 }, coefficients);
-        Assert.Equal(new[] { 105, 228, 233 }, bins.ContextIndices);
+        Assert.Equal(new[] { -2, 1, 0 }, coefficients);
+        Assert.Equal(new[] { 105, 166, 106, 167, 228, 229, 232 }, bins.ContextIndices);
     }
 
     [Fact]
