@@ -199,7 +199,6 @@ public sealed class H264CabacIntraResidualMacroblockReader
             H264CabacResidualBlockContext.Create(3, chroma422: chromaArrayType == 2);
         H264CabacResidualBlockContextMap chromaAcMap =
             H264CabacResidualBlockContext.Create(4);
-        int chromaDcMaximum = chromaArrayType == 1 ? 4 : 8;
         int chromaBlockOriginX = checked(macroblockX * 2);
         int chromaBlockOriginY = checked(macroblockY * chromaBlocksHigh);
 
