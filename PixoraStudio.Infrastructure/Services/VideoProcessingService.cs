@@ -1,5 +1,6 @@
 
 using System.Diagnostics;
+using System.Globalization;
 using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
 
