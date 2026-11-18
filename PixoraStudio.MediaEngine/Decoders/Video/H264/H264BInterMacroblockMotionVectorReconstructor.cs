@@ -208,8 +208,10 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
         {
             if (sub.Width <= 0 || sub.Height <= 0 ||
                 sub.X < partition.X || sub.Y < partition.Y ||
-                sub.X + sub.Width > partition.X + partition.Width ||
-                sub.Y + sub.Height > partition.Y + partition.Height ||
+                sub.X > partition.X + partition.Width ||
+                sub.Y > partition.Y + partition.Height ||
+                sub.Width > partition.X + partition.Width - sub.X ||
+                sub.Height > partition.Y + partition.Height - sub.Y ||
                 (sub.X | sub.Y | sub.Width | sub.Height) % 4 != 0)
                 throw new FormatException("A B sub-partition has invalid 4x4-aligned geometry.");
             for (int y = sub.Y; y < sub.Y + sub.Height; y++)
