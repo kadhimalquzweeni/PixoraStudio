@@ -63,11 +63,12 @@ public sealed class H264DecodedPictureBufferTests
             true, 4, 2, 16,
             Adaptive(true, new H264MemoryManagementControlOperation(3, 0, null, 0, null)));
 
-        Assert.DoesNotContain(dpb.Entries, entry => !entry.Picture.IsLongTerm);
         H264DecodedPictureBufferEntry longTerm = Assert.Single(
             dpb.Entries.Where(entry => entry.Picture.IsLongTerm));
         Assert.Equal(1, longTerm.Picture.FrameNum);
         Assert.Equal(0, longTerm.Picture.LongTermFrameIndex);
+        Assert.Contains(dpb.Entries, entry =>
+            !entry.Picture.IsLongTerm && entry.Picture.FrameNum == 2);
     }
 
     [Fact]
@@ -98,7 +99,9 @@ public sealed class H264DecodedPictureBufferTests
             true, 4, 1, 16,
             Adaptive(true, new H264MemoryManagementControlOperation(4, null, null, null, 0)));
 
-        Assert.Empty(dpb.Entries);
+        Assert.Single(dpb.Entries);
+        Assert.False(dpb.Entries[0].Picture.IsLongTerm);
+        Assert.Equal(1, dpb.Entries[0].Picture.FrameNum);
         Assert.Null(dpb.MaxLongTermFrameIndex);
     }
 
