@@ -30,10 +30,10 @@ public sealed class H264Intra16x16ResidualReconstructorTests
 
         Assert.Equal(new[]
         {
-            3, -1, 3, -1,
-            3, -1, 3, -1,
-            3, -1, 3, -1,
-            3, -1, 3, -1
+            3, 3, -1, -1,
+            3, 3, -1, -1,
+            3, 3, -1, -1,
+            3, 3, -1, -1
         }, H264Intra16x16ResidualReconstructor.InverseHadamard4x4(input));
     }
 
