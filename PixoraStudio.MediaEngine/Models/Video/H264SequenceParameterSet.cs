@@ -28,4 +28,7 @@ public sealed record H264SequenceParameterSet(
     public int OffsetForNonRefPic { get; init; }
     public int OffsetForTopToBottomField { get; init; }
     public IReadOnlyList<int> OffsetForRefFrame { get; init; } = [];
+    public bool ScalingMatrixPresentFlag { get; init; }
+    public IReadOnlyList<IReadOnlyList<int>> ScalingLists { get; init; } = [];
+    public IReadOnlyList<bool> ScalingListUseDefault { get; init; } = [];
 }
