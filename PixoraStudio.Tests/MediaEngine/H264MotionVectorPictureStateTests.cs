@@ -181,6 +181,20 @@ public sealed class H264MotionVectorPictureStateTests
         Assert.Equal(new H264MotionVector(32767, -32768), result);
     }
 
+    [Fact]
+    public void Clone_ShouldPreserveStoredMotionAndRemainIndependent()
+    {
+        H264MotionVectorPictureState original = new(2, 1);
+        original.RecordInterPartition(0, 0, 1, 1, 0, 2, new H264MotionVector(8, -4));
+        H264MotionVectorPictureState clone = original.Clone();
+
+        Assert.True(clone.TryGetStoredMotionVector(0, 0, out H264MotionVectorCandidate candidate));
+        Assert.Equal(new H264MotionVectorCandidate(2, new H264MotionVector(8, -4)), candidate);
+
+        original.RecordInterPartition(1, 0, 1, 1, 0, 0, new H264MotionVector(1, 1));
+        Assert.False(clone.TryGetStoredMotionVector(1, 0, out _));
+    }
+
     private static H264MotionVectorCandidate Candidate(int reference, int x, int y) =>
         new(reference, new H264MotionVector(x, y));
 }
