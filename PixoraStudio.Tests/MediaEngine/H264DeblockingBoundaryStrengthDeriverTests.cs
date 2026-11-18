@@ -65,6 +65,24 @@ public sealed class H264DeblockingBoundaryStrengthDeriverTests
             H264DeblockingBoundaryStrengthDeriver.Derive(p, q, false));
     }
 
+    [Fact]
+    public void Derive_WhenDifferentReferencePicturesSharePoc_ShouldReturnOne()
+    {
+        H264DeblockingBlockMetadata p = Inter() with
+        {
+            ReferencePictureL0 = new H264ReferencePicture(2, 10),
+            MotionVectorL0 = new H264MotionVector(0, 0)
+        };
+        H264DeblockingBlockMetadata q = Inter() with
+        {
+            ReferencePictureL0 = new H264ReferencePicture(3, 10),
+            MotionVectorL0 = new H264MotionVector(0, 0)
+        };
+
+        Assert.Equal(1,
+            H264DeblockingBoundaryStrengthDeriver.Derive(p, q, false));
+    }
+
     [Theory]
     [InlineData(3, 0)]
     [InlineData(4, 1)]
