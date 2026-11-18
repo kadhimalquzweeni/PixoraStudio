@@ -46,6 +46,24 @@ public sealed class H264TemporalDirectMotionFieldTests
     }
 
     [Fact]
+    public void GetContext_ShouldUseCurrentReferenceMarkingAfterShortToLongTermConversion()
+    {
+        H264MotionVectorPictureState l0 = new(1, 1);
+        l0.RecordInterPartition(0, 0, 1, 1, 0, 0, new H264MotionVector(8, 4));
+        H264TemporalDirectMotionField field = new(
+            l0, new H264MotionVectorPictureState(1, 1),
+            [new H264ReferencePicture(0, -2, false)],
+            [], 0, collocatedPictureIsShortTerm: true);
+
+        H264TemporalDirectPredictionContext context =
+            field.GetContext(0, 0, 1, 1, 5,
+                [new H264ReferencePicture(0, -2, true, 0)])!;
+
+        Assert.True(context.CollocatedReferenceIsLongTerm);
+        Assert.Equal(0, context.MappedReferenceIndexL0);
+    }
+
+    [Fact]
     public void GetContext_WhenReferenceIsNotInCurrentList0_ShouldRetainCollocatedMetadataWithUnmappedIndex()
     {
         H264MotionVectorPictureState l0 = new(1, 1);
