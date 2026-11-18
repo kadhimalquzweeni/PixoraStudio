@@ -46,6 +46,9 @@ public sealed class H264Mp4VideoOutputScheduler
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(slice);
         ArgumentNullException.ThrowIfNull(pictureOrderCount);
+        if (sourceSample.TrackId == 0 || sourceSample.SampleNumber == 0)
+            throw new ArgumentOutOfRangeException(nameof(sourceSample),
+                "MP4 track and sample identifiers must be one-based and non-zero.");
         if (sourceSample.Timescale == 0)
             throw new ArgumentOutOfRangeException(nameof(sourceSample),
                 "MP4 sample timescale must be greater than zero.");
