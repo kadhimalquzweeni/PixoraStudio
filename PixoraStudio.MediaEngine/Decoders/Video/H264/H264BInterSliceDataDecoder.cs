@@ -135,7 +135,8 @@ public sealed class H264BInterSliceDataDecoder
                         oneSkipped, referenceList0, referenceList1, referencePictures,
                         _motionVectorStateL0, _motionVectorStateL1,
                         _destination, x, y, sliceId, qpY,
-                        currentPictureOrderCount, slice.DirectSpatialMvPredFlag, sps, pps));
+                        currentPictureOrderCount, slice.DirectSpatialMvPredFlag, sps, pps,
+                        slice.PredictionWeights));
                 }
                 decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
                 address = checked(address + header.SkippedMacroblockCount);
