@@ -17,6 +17,11 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
     {
     }
 
+    public H264BInterMacroblockMotionVectorReconstructor(H264MotionVectorPredictor predictor)
+        : this(predictor, new H264BSpatialDirectMotionVectorDeriver())
+    {
+    }
+
     public H264BInterMacroblockMotionVectorReconstructor(
         H264MotionVectorPredictor predictor,
         H264BSpatialDirectMotionVectorDeriver directDeriver)
