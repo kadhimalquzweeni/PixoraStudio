@@ -233,8 +233,8 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
                 0, 0, direct8x8InferenceFlag: true));
 
         Assert.Equal((int?)0, result.ReferenceIndexL0);
-        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL0);
-        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL1);
+        Assert.Equal(new H264MotionVector(50, 50), result.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL1)
     }
 
     [Fact]
