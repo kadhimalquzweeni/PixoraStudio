@@ -1,0 +1,146 @@
+using PixoraStudio.MediaEngine.Decoders.Video.H264;
+using PixoraStudio.MediaEngine.Models.Video;
+
+namespace PixoraStudio.Tests.MediaEngine;
+
+public sealed class H264BInterSliceDataDecoderTests
+{
+    [Fact]
+    public void Decode_BSlice_ShouldTraverseAndCommitInterMacroblock()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264DecodedPictureSurface reference = Reference(sps, 63);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        H264BInterSliceDataDecoder decoder = Decoder(destination);
+        BitWriter bits = WriteBSliceHeader();
+        bits.Ue(0); // mb_skip_run
+        bits.Ue(1); // B_L0_16x16
+        bits.Se(0); bits.Se(0); // list-0 MVD
+        bits.Ue(0); // coded_block_pattern = 0
+        bits.TrailingBits();
+
+        H264BInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+
+        Assert.Equal(H264SliceType.B, result.SliceHeader.SliceType);
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Single(result.InterMacroblocks);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.Equal((byte)63, destination.GetLumaSample(0, 0));
+    }
+
+    [Fact]
+    public void Decode_BSkipRun_ShouldReconstructEachSkippedMacroblock()
+    {
+        H264SequenceParameterSet sps = Sps(2);
+        H264DecodedPictureSurface reference = Reference(sps, 41);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader();
+        bits.Ue(2); // two B_Skip macroblocks
+        bits.TrailingBits();
+
+        H264BInterSliceDecodeResult result = Decoder(destination).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+
+        Assert.Equal(2, result.MacroblocksDecoded);
+        Assert.Equal(2, result.InterMacroblocks.Count);
+        Assert.All(Enumerable.Range(0, 2), x => Assert.True(destination.IsMacroblockDecoded(x, 0)));
+        Assert.All(destination.CopyLumaPlane(), sample => Assert.Equal((byte)41, sample));
+    }
+
+    [Fact]
+    public void Decode_ShouldRejectNonBAndUnsupportedConfiguration()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264DecodedPictureSurface reference = Reference(sps, 1);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        BitWriter p = WriteBSliceHeader(sliceType: 0);
+        p.TrailingBits();
+        Assert.Throws<NotSupportedException>(() => Decoder(new H264DecodedPictureSurface(sps)).Decode(
+            new H264NalUnit(0x41, p.ToArray()), sps, Pps(), dpb, 0, 0));
+        Assert.Throws<NotSupportedException>(() => Decoder(new H264DecodedPictureSurface(sps)).Decode(
+            new H264NalUnit(0x41, WriteBSliceHeader().ToArray()), sps,
+            Pps() with { NumSliceGroupsMinus1 = 1 }, dpb, 0, 0));
+    }
+
+    private static H264BInterSliceDataDecoder Decoder(H264DecodedPictureSurface surface) =>
+        new(surface, new H264MotionVectorPictureState(surface.MacroblockWidth, surface.MacroblockHeight),
+            new H264MotionVectorPictureState(surface.MacroblockWidth, surface.MacroblockHeight));
+
+    private static H264SequenceParameterSet Sps(int width = 1) => new(
+        0, 66, 30, 1, false, 0, 0, 0, 0, 0, 2,
+        (uint)(width - 1), 0, true, true, (uint)(width * 16), 16, false);
+
+    private static H264PictureParameterSetHeader Pps() => new(0, 0, false, false, 0);
+
+    private static H264DecodedPictureSurface Reference(H264SequenceParameterSet sps, byte value)
+    {
+        H264DecodedPictureSurface surface = new(sps);
+        for (int x = 0; x < surface.MacroblockWidth; x++)
+            surface.WriteMacroblock(x, 0, 0, false,
+                Enumerable.Repeat(value, 256).ToArray(),
+                Enumerable.Repeat(value, 64).ToArray(),
+                Enumerable.Repeat(value, 64).ToArray());
+        return surface;
+    }
+
+    private static H264DecodedPictureBuffer Dpb(H264DecodedPictureSurface surface)
+    {
+        H264DecodedPictureBuffer dpb = new();
+        dpb.StoreDecodedPicture(surface, new H264ReferencePicture(0, 0),
+            true, 4, 0, 16,
+            new H264DecodedReferenceMarking(false, false, false, []));
+        return dpb;
+    }
+
+    private static BitWriter WriteBSliceHeader(uint sliceType = 1)
+    {
+        BitWriter bits = new();
+        bits.Ue(0); // first_mb_in_slice
+        bits.Ue(sliceType);
+        bits.Ue(0); // pic_parameter_set_id
+        bits.Bits(1, 4); // frame_num
+        bits.Bits(0, 4); // pic_order_cnt_lsb
+        bits.Flag(true); // direct_spatial_mv_pred_flag
+        bits.Flag(false); // num_ref_idx_active_override_flag
+        bits.Flag(false); // ref_pic_list_modification_flag_l0
+        bits.Flag(false); // ref_pic_list_modification_flag_l1
+        bits.Flag(false); // adaptive_ref_pic_marking_mode_flag
+        bits.Se(0); // slice_qp_delta
+        return bits;
+    }
+
+    private sealed class BitWriter
+    {
+        private readonly List<bool> _bits = [];
+        public void Flag(bool value) => _bits.Add(value);
+        public void Bits(uint value, int count)
+        {
+            for (int i = count - 1; i >= 0; i--) _bits.Add(((value >> i) & 1) != 0);
+        }
+        public void Ue(uint value)
+        {
+            uint code = value + 1; int zeros = 0;
+            for (uint n = code; n > 1; n >>= 1) zeros++;
+            for (int i = 0; i < zeros; i++) _bits.Add(false);
+            Bits(code, zeros + 1);
+        }
+        public void Se(int value) => Ue(value <= 0
+            ? checked((uint)(-2L * value))
+            : checked((uint)(2L * value - 1)));
+        public void TrailingBits()
+        {
+            Flag(true);
+            while ((_bits.Count & 7) != 0) Flag(false);
+        }
+        public byte[] ToArray()
+        {
+            byte[] result = new byte[(_bits.Count + 7) / 8];
+            for (int i = 0; i < _bits.Count; i++)
+                if (_bits[i]) result[i / 8] |= (byte)(1 << (7 - i % 8));
+            return result;
+        }
+    }
+}
