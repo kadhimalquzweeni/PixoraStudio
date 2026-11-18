@@ -29,12 +29,88 @@ public sealed class H264DecodedPictureOutputScheduler
 
     public int PendingCount => _outputQueue.PendingCount;
 
+    /// <summary>
+    /// Derives POC before macroblock reconstruction. The returned value can be
+    /// passed to temporal-direct prediction and then to the precomputed Enqueue
+    /// overload once the picture surface is complete.
+    /// </summary>
+    public H264PictureOrderCount CalculatePictureOrderCount(
+        H264SequenceParameterSet sps,
+        H264SliceHeader slice,
+        byte nalRefIdc)
+    {
+        ArgumentNullException.ThrowIfNull(sps);
+        ArgumentNullException.ThrowIfNull(slice);
+        return _pocCalculator.Calculate(sps, slice, nalRefIdc);
+    }
+
+    /// <summary>
+    /// Convenience path for callers that only need presentation ordering and
+    /// do not need the POC value during picture reconstruction.
+    /// </summary>
     public IReadOnlyList<H264DecodedPictureOutput> Enqueue(
         H264DecodedPictureSurface surface,
         H264SequenceParameterSet sps,
         H264SliceHeader slice,
         byte nalRefIdc,
         int? maxNumReorderFramesFallback = null)
+    {
+        ValidateOutputContext(surface, sps, slice, nalRefIdc);
+        int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
+        H264PictureOrderCount poc = CalculatePictureOrderCount(sps, slice, nalRefIdc);
+        return EnqueueCore(surface, slice, poc, maxNumReorderFrames);
+    }
+
+    /// <summary>
+    /// Enqueues a fully reconstructed picture using a POC value calculated
+    /// earlier by this scheduler, allowing temporal direct prediction to use
+    /// that same value before the picture is complete.
+    /// </summary>
+    public IReadOnlyList<H264DecodedPictureOutput> Enqueue(
+        H264DecodedPictureSurface surface,
+        H264SequenceParameterSet sps,
+        H264SliceHeader slice,
+        H264PictureOrderCount pictureOrderCount,
+        int? maxNumReorderFramesFallback = null)
+    {
+        ValidateOutputContext(surface, sps, slice, nalRefIdc: 1);
+        ArgumentNullException.ThrowIfNull(pictureOrderCount);
+        int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
+        return EnqueueCore(surface, slice, pictureOrderCount, maxNumReorderFrames);
+    }
+
+    private IReadOnlyList<H264DecodedPictureOutput> EnqueueCore(
+        H264DecodedPictureSurface surface,
+        H264SliceHeader slice,
+        H264PictureOrderCount pictureOrderCount,
+        int maxNumReorderFrames)
+    {
+        IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
+        if (slice.IdrPicId.HasValue)
+        {
+            bool noOutput = slice.DecodedReferenceMarking?.NoOutputOfPriorPicsFlag ?? false;
+            priorOutputs = _outputQueue.HandleIdr(noOutput);
+        }
+        else if (slice.DecodedReferenceMarking?.Operations.Any(
+            operation => operation.MemoryManagementControlOperation == 5) == true)
+        {
+            // MMCO 5 invokes DPB bumping until every prior output picture has
+            // been emitted before the new POC epoch begins.
+            priorOutputs = _outputQueue.Flush();
+        }
+
+        IReadOnlyList<H264DecodedPictureOutput> ready =
+            _outputQueue.Enqueue(surface, pictureOrderCount, maxNumReorderFrames);
+        if (priorOutputs.Count == 0)
+            return ready;
+        return priorOutputs.Concat(ready).ToArray();
+    }
+
+    private static void ValidateOutputContext(
+        H264DecodedPictureSurface surface,
+        H264SequenceParameterSet sps,
+        H264SliceHeader slice,
+        byte nalRefIdc)
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(sps);
@@ -54,28 +130,6 @@ public sealed class H264DecodedPictureOutputScheduler
             throw new ArgumentException("The SPS geometry and chroma format must match the decoded surface.", nameof(sps));
         if (slice.IdrPicId.HasValue && slice.DecodedReferenceMarking is null)
             throw new FormatException("An IDR slice must include decoded reference marking flags.");
-
-        int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
-        H264PictureOrderCount poc = _pocCalculator.Calculate(sps, slice, nalRefIdc);
-        IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
-        if (slice.IdrPicId.HasValue)
-        {
-            bool noOutput = slice.DecodedReferenceMarking?.NoOutputOfPriorPicsFlag ?? false;
-            priorOutputs = _outputQueue.HandleIdr(noOutput);
-        }
-        else if (slice.DecodedReferenceMarking?.Operations.Any(
-            operation => operation.MemoryManagementControlOperation == 5) == true)
-        {
-            // MMCO 5 invokes DPB bumping until every prior output picture has
-            // been emitted before the new POC epoch begins.
-            priorOutputs = _outputQueue.Flush();
-        }
-
-        IReadOnlyList<H264DecodedPictureOutput> ready =
-            _outputQueue.Enqueue(surface, poc, maxNumReorderFrames);
-        if (priorOutputs.Count == 0)
-            return ready;
-        return priorOutputs.Concat(ready).ToArray();
     }
 
     public IReadOnlyList<H264DecodedPictureOutput> Flush() => _outputQueue.Flush();
