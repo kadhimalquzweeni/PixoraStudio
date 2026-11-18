@@ -117,6 +117,7 @@ public sealed class H264DecodedPictureBufferTests
         Assert.Throws<FormatException>(() => dpb.StoreDecodedPicture(
             Surface(), new H264ReferencePicture(2, 4), true, 4, 2, 16,
             Adaptive(true,
+                new H264MemoryManagementControlOperation(4, null, null, null, 2),
                 new H264MemoryManagementControlOperation(1, 1, null, null, null),
                 new H264MemoryManagementControlOperation(1, 15, null, null, null))));
 
