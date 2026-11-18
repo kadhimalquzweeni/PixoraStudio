@@ -22,6 +22,30 @@ public sealed class H264CabacSyntaxElementReader
         return ReadFlagAtContext((isBSlice ? 24 : 11) + contextIndexIncrement);
     }
 
+    /// <summary>
+    /// Decodes ref_idx_l0 or ref_idx_l1 as truncated unary. The caller supplies
+    /// the neighbour-derived context increment and the largest permitted index.
+    /// </summary>
+    public int ReadReferenceIndex(int contextIndexIncrement, int maximumReferenceIndex)
+    {
+        if (contextIndexIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
+        if (maximumReferenceIndex is < 0 or > 31)
+            throw new ArgumentOutOfRangeException(nameof(maximumReferenceIndex));
+
+        for (int binIndex = 0; binIndex < maximumReferenceIndex; binIndex++)
+        {
+            int contextIndex = 54 + contextIndexIncrement + Math.Min(binIndex, 2);
+            int bin = _reader.DecodeBin(contextIndex);
+            if (bin == 0)
+                return binIndex;
+            if (bin != 1)
+                throw new FormatException("CABAC decision bins must be zero or one.");
+        }
+
+        return maximumReferenceIndex;
+    }
+
     /// <summary>Decodes end_of_slice_flag using the CABAC terminating-bin process.</summary>
     public bool ReadEndOfSliceFlag()
     {
