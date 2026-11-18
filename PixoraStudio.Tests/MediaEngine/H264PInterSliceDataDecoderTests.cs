@@ -168,7 +168,7 @@ public sealed class H264PInterSliceDataDecoderTests
         bits.WriteUe(0); // first_mb_in_slice
         bits.WriteUe(2); // I slice
         bits.WriteUe(0); // pic_parameter_set_id
-        bits.WriteBits(frameNum, 4); // frame_num
+        bits.WriteBits(0, 4); // frame_num
         bits.WriteUe(0); // idr_pic_id
         bits.WriteBits(0, 4); // pic_order_cnt_lsb
         bits.WriteFlag(false); // no_output_of_prior_pics_flag
@@ -183,7 +183,7 @@ public sealed class H264PInterSliceDataDecoderTests
         bits.WriteUe(0); // first_mb_in_slice
         bits.WriteUe(sliceType);
         bits.WriteUe(0); // pic_parameter_set_id
-        bits.WriteBits(0, 4); // frame_num
+        bits.WriteBits(frameNum, 4); // frame_num
         bits.WriteBits(0, 4); // pic_order_cnt_lsb
         bits.WriteFlag(false); // num_ref_idx_active_override_flag
         bits.WriteFlag(false); // ref_pic_list_modification_flag_l0
