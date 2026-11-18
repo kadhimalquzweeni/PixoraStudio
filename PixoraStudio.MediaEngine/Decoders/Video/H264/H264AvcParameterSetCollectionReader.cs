@@ -28,6 +28,11 @@ public sealed class H264AvcParameterSetCollectionReader
         foreach (H264NalUnit nalUnit in configuration.SequenceParameterSets)
         {
             H264SequenceParameterSet sps = _spsReader.Read(nalUnit);
+            if (configuration.Profile != sps.ProfileIdc ||
+                configuration.Compatibility != sps.ProfileCompatibility ||
+                configuration.Level != sps.LevelIdc)
+                throw new FormatException(
+                    "The avcC profile, compatibility or level fields do not match its SPS.");
             if (sps.SeparateColourPlaneFlag || sps.ChromaFormatIdc is not (1 or 2))
                 throw new NotSupportedException(
                     "The managed AVC decoder supports non-separate 4:2:0 and 4:2:2 only.");
