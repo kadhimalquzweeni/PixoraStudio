@@ -84,6 +84,48 @@ public sealed class H264Intra16x16ResidualReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_ShouldPlaceAllAcBlocksUsingH264MacroblockBlockScanOrder()
+    {
+        H264CavlcResidualBlock[] ac = Enumerable.Range(0, 16)
+            .Select(_ =>
+            {
+                int[] levels = new int[15];
+                levels[0] = 1;
+                return CreateResidual(15, levels);
+            })
+            .ToArray();
+
+        byte[] result = H264Intra16x16ResidualReconstructor.Reconstruct(
+            Enumerable.Repeat((byte)100, 256).ToArray(),
+            CreateResidual(16, new int[16]), ac,
+            24, CreateSps(), CreatePps());
+
+        for (int blockY = 0; blockY < 4; blockY++)
+        {
+            for (int blockX = 0; blockX < 4; blockX++)
+            {
+                for (int y = 0; y < 4; y++)
+                {
+                    Assert.Equal(new byte[] { 104, 102, 98, 96 },
+                        result.Skip((blockY * 4 + y) * 16 + blockX * 4).Take(4));
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void Reconstruct_ShouldRejectMalformedAcResidualBlock()
+    {
+        H264CavlcResidualBlock[] ac = CreateAcBlocks().ToArray();
+        ac[7] = new H264CavlcResidualBlock(15, 1, 0, 0, new int[15]);
+
+        Assert.Throws<FormatException>(() =>
+            H264Intra16x16ResidualReconstructor.Reconstruct(
+                new byte[256], CreateResidual(16, new int[16]), ac,
+                24, CreateSps(), CreatePps()));
+    }
+
+    [Fact]
     public void Reconstruct_ShouldCombineDcAndAcInSameTransformBlock()
     {
         int[] dc = new int[16];
