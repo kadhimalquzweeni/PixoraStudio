@@ -24,6 +24,8 @@ public sealed class H264BInterSliceDataDecoderTests
             new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
 
         Assert.Equal(H264SliceType.B, result.SliceHeader.SliceType);
+        Assert.Single(result.ReferencePictureLists!.List0);
+        Assert.Single(result.ReferencePictureLists.List1);
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Single(result.InterMacroblocks);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
@@ -127,6 +129,8 @@ public sealed class H264BInterSliceDataDecoderTests
         H264BInterMacroblockReconstructionResult skipped =
             Assert.Single(result.InterMacroblocks);
         Assert.True(skipped.IsSkipped);
+        Assert.Single(result.ReferencePictureLists!.List0);
+        Assert.Single(result.ReferencePictureLists.List1);
         H264ReconstructedBInterSubPartition first = skipped.Partitions[0];
         Assert.Equal(new H264MotionVector(-2, 2), first.MotionVectorL0);
         Assert.Equal(new H264MotionVector(-4, 4), first.MotionVectorL1);
