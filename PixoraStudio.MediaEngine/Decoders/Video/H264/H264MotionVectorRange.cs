@@ -12,10 +12,20 @@ public static class H264MotionVectorRange
     public const int MaximumComponent = 32767;
 
     public static int ClipComponent(int value) =>
-        Math.Clamp(value, MinimumComponent, MaximumComponent);
+        ClipComponent((long)value);
+
+    /// <summary>
+    /// Clips a widened intermediate so predictor-plus-MVD arithmetic cannot
+    /// overflow before the normative motion-vector range is applied.
+    /// </summary>
+    public static int ClipComponent(long value) =>
+        checked((int)Math.Clamp(value, MinimumComponent, MaximumComponent));
 
     public static H264MotionVector Clip(H264MotionVector motionVector) =>
         new(
             ClipComponent(motionVector.Horizontal),
             ClipComponent(motionVector.Vertical));
+
+    public static H264MotionVector Clip(long horizontal, long vertical) =>
+        new(ClipComponent(horizontal), ClipComponent(vertical));
 }
