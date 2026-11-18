@@ -13,7 +13,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
 | Reference management | Frame DPB, short/long-term marking, MMCO 1–6, P/B reference-list construction |
-| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | **Not yet implemented**; current surfaces contain pre-deblocking reconstruction samples |
+| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma sample kernels and threshold tables implemented; boundary-strength derivation, per-block metadata and picture traversal are not integrated |
 | Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
@@ -117,3 +117,5 @@ For a P picture, persist the P decoder's motion state as list 0, use an empty li
 
 - The output scheduler now exposes a pre-reconstruction POC calculation path and an overload that enqueues the same precomputed POC after the surface is complete. This allows temporal direct prediction to use the current picture POC during B-slice reconstruction without advancing the POC state a second time when the picture is finally queued.
 \n- The H.264 in-loop deblocking filter is a remaining correctness milestone. The current `H264DecodedPictureSurface` does not yet retain all per-macroblock QP, coded-block, motion/reference and slice deblocking metadata required to derive boundary strengths and thresholds. Do not treat the current reconstructed surfaces as fully conformant final output until the filter and metadata path are integrated.
+
+- The sample-level deblocking kernel milestone is in place: H.264 alpha/beta/tC0 tables, weak filtering for bS 1–3, strong filtering for bS 4, and 8-bit luma/chroma-style edge handling. These are tested as isolated edge primitives only; the decoder still does not derive per-edge boundary strengths, retain all required macroblock metadata, or run the filter over a completed picture.
