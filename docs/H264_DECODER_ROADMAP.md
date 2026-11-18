@@ -18,6 +18,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Bitstream validation | SPS/PPS readers validate RBSP trailing bits; signed Exp-Golomb decoding covers the full representable Int32 range |
 | Motion-vector arithmetic | Predictor-plus-MVD uses widened intermediates before normative signed 16-bit clipping |
 | Output scheduling | Surface/deblocking preflight occurs before the stateful POC calculator advances |
+| MP4 AVC ingestion | avcC parsing extracts SPS/PPS NAL units, validates record fields and PPS-to-SPS links, and reads length-prefixed AVC sample NAL units |
 | Automated tests | Regression tests cover the above cases; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
