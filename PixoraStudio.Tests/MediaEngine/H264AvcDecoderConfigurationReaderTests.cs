@@ -97,6 +97,20 @@ public sealed class H264AvcDecoderConfigurationReaderTests
     }
 
     [Fact]
+    public void Read_ShouldRejectUnescapedEmulationSequenceInsideAvccNal()
+    {
+        byte[] data =
+        [
+            1, 66, 0, 30, 0xFF, 0xE1,
+            0, 4, 0x67, 0, 0, 1,
+            1, 0, 2, 0x68, 0x80
+        ];
+
+        Assert.Throws<FormatException>(() =>
+            new H264AvcDecoderConfigurationReader().Read(data));
+    }
+
+    [Fact]
     public void Read_ShouldRejectParameterSetNalsWithZeroReferencePriority()
     {
         byte[] data = CreateBasicRecord(lengthSizeMinusOne: 3);
