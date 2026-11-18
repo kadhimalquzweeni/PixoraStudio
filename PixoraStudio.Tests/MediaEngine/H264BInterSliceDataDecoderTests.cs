@@ -50,6 +50,31 @@ public sealed class H264BInterSliceDataDecoderTests
         Assert.All(destination.CopyLumaPlane(), sample => Assert.Equal((byte)41, sample));
     }
 
+
+    [Fact]
+    public void Decode_BSliceWithIntraNxNMacroblock_ShouldUseSharedIntraReconstruction()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264DecodedPictureSurface reference = Reference(sps, 33);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader();
+        bits.Ue(0); // mb_skip_run
+        bits.Ue(23); // B-slice I_NxN macroblock
+        for (int i = 0; i < 16; i++) bits.Flag(true); // prev_intra4x4_pred_mode_flag
+        bits.Ue(0); // intra_chroma_pred_mode
+        bits.Ue(3); // intra coded_block_pattern maps to zero
+        bits.TrailingBits();
+
+        H264BInterSliceDecodeResult result = Decoder(destination).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Empty(result.InterMacroblocks);
+        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+    }
+
     [Fact]
     public void Decode_ShouldRejectNonBAndUnsupportedConfiguration()
     {
