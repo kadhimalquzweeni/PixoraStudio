@@ -32,17 +32,14 @@ public sealed class H264MotionVectorPictureStateTests
     {
         var state = new H264MotionVectorPictureState(2, 2);
         H264MotionVectorCandidate aboveLeft = Candidate(3, 41, -9);
-        state.RecordInterPartition(5, 3, 1, 1, 1, 0, new H264MotionVector(1, 1));
-        state.RecordInterPartition(3, 3, 1, 1, 1, 0, new H264MotionVector(2, 2));
-        state.RecordInterPartition(3, 5, 1, 1, 1, 0, new H264MotionVector(3, 3));
-        state.RecordInterPartition(3, 3 + 1, 1, 1, 1, 0, new H264MotionVector(4, 4));
-        // The queried C position is outside this 8x8-block picture.
-        state.RecordInterPartition(6, 6, 1, 1, 1, aboveLeft.ReferenceIndex, aboveLeft.MotionVector);
+        // For this partition C lies beyond the right picture edge; D is at (5, 3).
+        state.RecordInterPartition(5, 3, 1, 1, 1,
+            aboveLeft.ReferenceIndex, aboveLeft.MotionVector);
 
         H264MotionVectorNeighbourCandidates result = state.GetCandidates(6, 4, 2, 2, 1);
 
         Assert.Null(result.AboveRight);
-        Assert.Null(result.AboveLeft);
+        Assert.Equal(aboveLeft, result.AboveLeft);
     }
 
     [Fact]
