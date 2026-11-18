@@ -50,7 +50,7 @@ public sealed class H264AvcParameterSetCollectionReaderTests
     public void Read_ShouldRejectAvccChromaFormatThatDisagreesWithSps()
     {
         H264AvcDecoderConfiguration configuration = new(
-            100, 0, 40, 4,
+            66, 0, 30, 4,
             [new H264NalUnit(0x67, CreateSps(0))],
             [], [])
         {
