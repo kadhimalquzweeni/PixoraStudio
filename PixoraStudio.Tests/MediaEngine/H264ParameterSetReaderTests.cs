@@ -375,6 +375,18 @@ public sealed class H264ParameterSetReaderTests
             39, 22, true, true, 640, 368, false);
 
     [Fact]
+    public void ReadSps_ShouldRejectUnknownProfileSyntax()
+    {
+        BitWriter bits = CreateBaselineSpsPrefix();
+        bits.WriteFlag(false); // vui_parameters_present_flag
+        byte[] rbsp = bits.ToArray();
+        rbsp[0] = 200;
+
+        Assert.Throws<NotSupportedException>(() =>
+            new H264SequenceParameterSetReader().Read(new H264NalUnit(0x67, rbsp)));
+    }
+
+    [Fact]
     public void ReadSps_ShouldRejectInvalidRbspTrailingBits()
     {
         BitWriter bits = CreateBaselineSpsPrefix();
