@@ -88,9 +88,9 @@ public sealed class H264InverseQuantizerTests
         int[] flat = Enumerable.Repeat(16, 64).ToArray();
         int[] result = H264InverseQuantizer.Dequantize8x8(coefficients, 0, flat);
         Assert.Equal(5, result[0]);
-        Assert.Equal(6, result[1]);
-        Assert.Equal(7, result[2]);
-        Assert.Equal(8, result[9]);
+        Assert.Equal(7, result[1]);
+        Assert.Equal(8, result[2]);
+        Assert.Equal(6, result[9]);
         Assert.Equal(10, H264InverseQuantizer.Dequantize8x8(coefficients, 6, flat)[0]);
         Assert.Equal(320, H264InverseQuantizer.Dequantize8x8(coefficients, 36, flat)[0]);
     }
