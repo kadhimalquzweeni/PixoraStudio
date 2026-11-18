@@ -125,7 +125,7 @@ public sealed class H264AvcParameterSetCollectionReaderTests
         bits.WriteFlag(true); // direct_8x8_inference_flag
         bits.WriteFlag(false); // frame_cropping_flag
         bits.WriteFlag(false); // vui_parameters_present_flag
-        return bits.ToArray();
+        return [0x67, .. bits.ToArray()];
     }
 
     private static byte[] CreatePps(uint ppsId, uint spsId)
@@ -146,7 +146,7 @@ public sealed class H264AvcParameterSetCollectionReaderTests
         bits.WriteFlag(true); // deblocking_filter_control_present_flag
         bits.WriteFlag(false); // constrained_intra_pred_flag
         bits.WriteFlag(false); // redundant_pic_cnt_present_flag
-        return bits.ToArray();
+        return [0x68, .. bits.ToArray()];
     }
 
     private sealed class BitWriter
