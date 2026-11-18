@@ -58,7 +58,8 @@ public sealed class H264InterResidualMacroblockReaderTests
     public void Read_WithChromaDcOnly_ShouldReadCbThenCrDcAndNoAc(
         uint chromaFormat, int dcCapacity)
     {
-        H264BitReader bits = Bits("11");
+        string zeroDcToken = chromaFormat == 1 ? "01" : "1";
+        H264BitReader bits = Bits(zeroDcToken + zeroDcToken);
         H264InterResidualMacroblock result = _reader.Read(
             bits, Header(), Pattern(0, 1, chromaFormat), Sps(chromaFormat),
             0, 0, 2, new(), new(), new());
@@ -79,7 +80,8 @@ public sealed class H264InterResidualMacroblockReaderTests
         uint chromaFormat, int acTokenCount)
     {
         // Two DC coeff_token values followed by all Cb AC then all Cr AC.
-        H264BitReader bits = Bits(new string('1', 2 + acTokenCount));
+        string zeroDcToken = chromaFormat == 1 ? "01" : "1";
+        H264BitReader bits = Bits(zeroDcToken + zeroDcToken + new string('1', acTokenCount));
         H264InterResidualMacroblock result = _reader.Read(
             bits, Header(), Pattern(0, 2, chromaFormat), Sps(chromaFormat),
             0, 0, 3, new(), new(), new());
