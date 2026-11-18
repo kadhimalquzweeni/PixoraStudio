@@ -20,6 +20,16 @@ public sealed class H264BTemporalDirectMotionVectorDeriver
         int tb = Clip((long)context.CurrentPictureOrderCount -
             context.CollocatedPictureOrderCount, -128, 127);
 
+        bool colZeroFlag = context.CollocatedPictureIsShortTerm &&
+            context.CollocatedReferenceIndex == 0 &&
+            collocated.Horizontal is >= -1 and <= 1 &&
+            collocated.Vertical is >= -1 and <= 1;
+        if (colZeroFlag)
+        {
+            return new H264TemporalDirectMotionVectorResult(
+                new H264MotionVector(0, 0), new H264MotionVector(0, 0), 256);
+        }
+
         if (context.CollocatedReferenceIsLongTerm || td == 0)
         {
             return new H264TemporalDirectMotionVectorResult(
