@@ -192,6 +192,73 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     [Fact]
+    public void Decode_WhenSampleNumberIsSkipped_ShouldRejectGapWithoutAdvancingDecoder()
+    {
+        byte[] spsNal = BuildNal(0x67, CreateSpsRbsp());
+        byte[] ppsNal = BuildNal(0x68, CreatePpsRbsp());
+        List<byte> avcC = [1, 66, 0, 30, 0xFD, 0xE1];
+        AddLengthPrefixedNal(avcC, spsNal);
+        avcC.Add(1);
+        AddLengthPrefixedNal(avcC, ppsNal);
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 16, 16, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc,
+            new Mp4CodecConfiguration(Mp4VideoCodec.Avc, "avcC",
+                avcC.ToArray(), 1, 66, 0, 30, 2));
+        Mp4Track track = new(
+            9, 16, 16, 1000, 1000, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+
+        H264Mp4VideoSample idrSample = ReadSample(
+            track, 1, 0, true, BuildNal(0x65, CreateIdrPcmSliceRbsp()));
+        H264Mp4VideoSample skippedSample = ReadSample(
+            track, 3, 80, false, BuildNal(0x61, CreatePSkipSliceRbsp()));
+        H264Mp4VideoSample nextSample = ReadSample(
+            track, 2, 40, false, BuildNal(0x61, CreatePSkipSliceRbsp()));
+
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets, maxNumReorderFramesFallback: 0);
+        _ = decoder.Decode(idrSample);
+
+        Assert.Throws<FormatException>(() => decoder.Decode(skippedSample));
+
+        H264Mp4AccessUnitDecodeResult result = decoder.Decode(nextSample)!;
+        Assert.Equal(2u, Assert.Single(result.ReadyFrames).SampleNumber);
+        Assert.Equal(2, result.PictureOrderCount.PictureOrderCount);
+    }
+
+    [Fact]
+    public void Decode_WhenTrackTimescaleChanges_ShouldRejectSample()
+    {
+        byte[] spsNal = BuildNal(0x67, CreateSpsRbsp());
+        byte[] ppsNal = BuildNal(0x68, CreatePpsRbsp());
+        List<byte> avcC = [1, 66, 0, 30, 0xFD, 0xE1];
+        AddLengthPrefixedNal(avcC, spsNal);
+        avcC.Add(1);
+        AddLengthPrefixedNal(avcC, ppsNal);
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 16, 16, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc,
+            new Mp4CodecConfiguration(Mp4VideoCodec.Avc, "avcC",
+                avcC.ToArray(), 1, 66, 0, 30, 2));
+        Mp4Track track = new(
+            9, 16, 16, 1000, 1000, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+        H264Mp4VideoSample sample = ReadSample(
+            track, 1, 0, true, BuildNal(0x65, CreateIdrPcmSliceRbsp()));
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(sample.Configuration);
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets, maxNumReorderFramesFallback: 0);
+        _ = decoder.Decode(sample);
+
+        Assert.Throws<FormatException>(() =>
+            decoder.Decode(sample with { SampleNumber = 2, Timescale = 2000 }));
+    }
+
+    [Fact]
     public void ReadMp4Sample_WithTwoSlices_ShouldAssembleOneCompletePicture()
     {
         byte[] spsNal = BuildNal(0x67, CreateSpsRbsp(picWidthInMbsMinus1: 1));
