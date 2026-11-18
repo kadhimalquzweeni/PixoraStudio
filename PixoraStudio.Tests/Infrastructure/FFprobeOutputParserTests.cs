@@ -83,7 +83,7 @@ public sealed class FFprobeOutputParserTests
     [Fact]
     public void Parse_ShouldRejectInvalidJson()
     {
-        Assert.Throws<System.Text.Json.JsonException>(() =>
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() =>
             FFprobeOutputParser.Parse("{ invalid", "sample.mp4"));
     }
 }
