@@ -35,6 +35,9 @@ public sealed class H264PictureParameterSetReader
                     for (uint i = 0; i <= groupsMinus1; i++)
                         runLengths.Add(ReadBoundedUe(reader, 1_000_000, "run_length_minus1"));
                     break;
+                case 1:
+                    // Dispersed map type: the map is derived and carries no additional PPS syntax.
+                    break;
                 case 2:
                     for (uint i = 0; i < groupsMinus1; i++)
                     {
