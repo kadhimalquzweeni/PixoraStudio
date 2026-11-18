@@ -64,6 +64,8 @@ public sealed class H264InterMacroblockMotionVectorReconstructor
         if (syntax.ReferenceIndexForcedToZero != (syntax.MacroblockType == 4))
             throw new FormatException("The forced-reference-index flag does not match P_8x8ref0.");
 
+        ValidateSyntax(syntax, activeReferenceCount);
+
         List<H264ReconstructedInterPartition> result = [];
         int macroblockBlockX = checked(macroblockX * 4);
         int macroblockBlockY = checked(macroblockY * 4);
@@ -134,11 +136,15 @@ public sealed class H264InterMacroblockMotionVectorReconstructor
         H264MotionVectorNeighbourCandidates candidates =
             pictureState.GetCandidates(x, y, 4, 4, sliceId);
 
-        bool forceZero =
-            candidates.Left is not { } left ||
-            candidates.Above is not { } above ||
-            (left.ReferenceIndex == 0 && left.MotionVector == new H264MotionVector(0, 0)) ||
-            (above.ReferenceIndex == 0 && above.MotionVector == new H264MotionVector(0, 0));
+        bool forceZero = candidates.Left is null || candidates.Above is null;
+        if (!forceZero)
+        {
+            H264MotionVectorCandidate left = candidates.Left!.Value;
+            H264MotionVectorCandidate above = candidates.Above!.Value;
+            forceZero =
+                (left.ReferenceIndex == 0 && left.MotionVector == new H264MotionVector(0, 0)) ||
+                (above.ReferenceIndex == 0 && above.MotionVector == new H264MotionVector(0, 0));
+        }
 
         H264MotionVector motionVector = forceZero
             ? new H264MotionVector(0, 0)
@@ -150,6 +156,51 @@ public sealed class H264InterMacroblockMotionVectorReconstructor
         pictureState.RecordInterPartition(x, y, 4, 4, sliceId, 0, motionVector);
         return new H264ReconstructedInterPartition(
             0, 0, x, y, 4, 4, 0, motionVector);
+    }
+
+    private static void ValidateSyntax(
+        H264InterMacroblockSyntax syntax,
+        int activeReferenceCount)
+    {
+        for (int partitionIndex = 0; partitionIndex < syntax.Partitions.Count; partitionIndex++)
+        {
+            H264InterPredictionPartition partition = syntax.Partitions[partitionIndex];
+            (int expectedX, int expectedY, int expectedWidth, int expectedHeight) =
+                GetExpectedPartition(syntax.MacroblockType, partitionIndex);
+            if (partition.X != expectedX || partition.Y != expectedY ||
+                partition.Width != expectedWidth || partition.Height != expectedHeight)
+                throw new FormatException("An inter partition does not match its macroblock partition shape.");
+            if (partition.ReferenceIndex >= activeReferenceCount)
+                throw new FormatException("The inter partition references an entry outside RefPicList0.");
+            if (partition.SubPartitions.Count == 0)
+                throw new FormatException("An inter partition must contain at least one sub-partition.");
+
+            bool[,] covered = new bool[4, 4];
+            foreach (H264InterSubPartition sub in partition.SubPartitions)
+            {
+                if (sub.MotionVectorDifferences.Count != 1)
+                    throw new FormatException("Each list-0 sub-partition must contain exactly one MVD pair.");
+                if ((sub.X | sub.Y | sub.Width | sub.Height) % 4 != 0 ||
+                    sub.X < partition.X || sub.Y < partition.Y ||
+                    sub.Width <= 0 || sub.Height <= 0 ||
+                    sub.X + sub.Width > partition.X + partition.Width ||
+                    sub.Y + sub.Height > partition.Y + partition.Height)
+                    throw new FormatException("An inter sub-partition has invalid partition-relative geometry.");
+
+                for (int y = sub.Y / 4; y < (sub.Y + sub.Height) / 4; y++)
+                for (int x = sub.X / 4; x < (sub.X + sub.Width) / 4; x++)
+                {
+                    if (covered[x, y])
+                        throw new FormatException("Inter sub-partitions overlap.");
+                    covered[x, y] = true;
+                }
+            }
+
+            for (int y = partition.Y / 4; y < (partition.Y + partition.Height) / 4; y++)
+            for (int x = partition.X / 4; x < (partition.X + partition.Width) / 4; x++)
+                if (!covered[x, y])
+                    throw new FormatException("Inter sub-partitions do not cover their complete parent partition.");
+        }
     }
 
     private static (int X, int Y, int Width, int Height) GetExpectedPartition(
