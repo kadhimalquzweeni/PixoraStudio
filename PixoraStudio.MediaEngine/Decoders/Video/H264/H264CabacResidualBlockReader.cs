@@ -29,7 +29,7 @@ public sealed class H264CabacResidualBlockReader
                 nameof(contextMap));
         }
 
-        int maximumIncrement = contextMap.ContextBlockCategory == 0 ? 0 : 3;
+        int maximumIncrement = 3;
         if (contextIndexIncrement < 0 || contextIndexIncrement > maximumIncrement)
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
 
