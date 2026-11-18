@@ -78,6 +78,34 @@ public sealed class H264InterMacroblockDecoderTests
     }
 
     [Fact]
+    public void DecodeSkippedRun_ShouldExpandRunAcrossRasterRows()
+    {
+        H264MacroblockHeader skippedRun = new(1, 0, true, 3,
+            false, false, null, null, null, false);
+        H264MotionVectorPictureState state = new(2, 2);
+
+        IReadOnlyList<H264ReconstructedInterPartition> result =
+            _decoder.DecodeSkippedRun(skippedRun, state, 11);
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal(
+            new[] { (4, 0), (0, 4), (4, 4) },
+            result.Select(partition => (partition.X, partition.Y)));
+        Assert.All(result, partition =>
+            Assert.Equal(new H264MotionVector(0, 0), partition.MotionVector));
+    }
+
+    [Fact]
+    public void DecodeSkippedRun_ShouldRejectRunPastPictureEnd()
+    {
+        H264MacroblockHeader skippedRun = new(3, 0, true, 2,
+            false, false, null, null, null, false);
+
+        Assert.Throws<FormatException>(() => _decoder.DecodeSkippedRun(
+            skippedRun, new H264MotionVectorPictureState(2, 2), 0));
+    }
+
+    [Fact]
     public void DecodeSkipped_ShouldReconstructAndRecordPskipVector()
     {
         H264MacroblockHeader skipped = new(0, 0, true, 1,
