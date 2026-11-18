@@ -13,6 +13,11 @@ public sealed class H264CabacArithmeticDecoder
     private int _range = 510;
     private int _offset;
 
+    public H264CabacArithmeticDecoder(H264BitReader reader)
+        : this(reader, H264CabacTables.RangeLps, H264CabacTables.TransitionMps, H264CabacTables.TransitionLps)
+    {
+    }
+
     public H264CabacArithmeticDecoder(
         H264BitReader reader,
         byte[,] rangeLps,
