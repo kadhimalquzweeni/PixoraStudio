@@ -45,7 +45,7 @@ public sealed class H264CabacArithmeticDecoderTests
     [Fact]
     public void DecodeDecision_ShouldDecodeLpsAndApplyStateZeroMpsSwitch()
     {
-        H264CabacArithmeticDecoder decoder = CreateDecoder(0x1FF);
+        H264CabacArithmeticDecoder decoder = CreateDecoder(509);
         H264CabacContextModel context = new(0, 0);
 
         int bin = decoder.DecodeDecision(ref context);
@@ -79,7 +79,7 @@ public sealed class H264CabacArithmeticDecoderTests
     [Fact]
     public void DecodeTerminate_ShouldReturnOneWhenOffsetIsInTerminalInterval()
     {
-        H264CabacArithmeticDecoder decoder = CreateDecoder(0x1FF);
+        H264CabacArithmeticDecoder decoder = CreateDecoder(509);
 
         Assert.Equal(1, decoder.DecodeTerminate());
     }
@@ -96,7 +96,7 @@ public sealed class H264CabacArithmeticDecoderTests
     private static H264CabacArithmeticDecoder CreateDecoder(int offset)
     {
         byte[] bytes = { (byte)(offset >> 1), (byte)((offset & 1) << 7) };
-        return new H264CabacArithmeticDecoder(new H264BitReader(bytes, 9),
+        return new H264CabacArithmeticDecoder(new H264BitReader(bytes, 16),
             RangeLps, TransMps, TransLps);
     }
 
