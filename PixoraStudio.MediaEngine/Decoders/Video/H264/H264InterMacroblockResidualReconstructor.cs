@@ -32,6 +32,14 @@ public static class H264InterMacroblockResidualReconstructor
         if (qpY is < 0 or > 51)
             throw new ArgumentOutOfRangeException(nameof(qpY));
 
+        if (residual.LumaBlocks is null || residual.Luma8x8Blocks is null ||
+            residual.ChromaComponents is null)
+            throw new ArgumentException("Residual block collections cannot be null.", nameof(residual));
+        if (residual.ChromaComponents.Count != 2 ||
+            residual.ChromaComponents.Count(component => component is not null && component.ComponentId == 1) != 1 ||
+            residual.ChromaComponents.Count(component => component is not null && component.ComponentId == 2) != 1)
+            throw new FormatException("Inter residuals must contain exactly one Cb and one Cr component.");
+
         int chromaHeight = sps.ChromaFormatIdc == 1 ? 8 : 16;
         if (prediction.LumaWidth != 16 || prediction.LumaHeight != 16 ||
             prediction.Luma.Length != 256 ||
@@ -51,6 +59,8 @@ public static class H264InterMacroblockResidualReconstructor
             int qpPrimeY = H264InverseQuantizer.ToQpPrimeY(sps, qpY);
             foreach (H264Intra8x8LumaResidualBlock block in residual.Luma8x8Blocks)
             {
+                if (block is null)
+                    throw new FormatException("An inter 8x8 residual block cannot be null.");
                 if (block.BlockX is < 0 or > 1 || block.BlockY is < 0 or > 1)
                     throw new FormatException("Inter 8x8 residual coordinates must be within the macroblock.");
                 int index = block.BlockY * 2 + block.BlockX;
@@ -79,6 +89,8 @@ public static class H264InterMacroblockResidualReconstructor
             bool[] seen = new bool[16];
             foreach (H264IntraLumaResidualBlock block in residual.LumaBlocks)
             {
+                if (block is null)
+                    throw new FormatException("An inter 4x4 residual block cannot be null.");
                 if (block.BlockX is < 0 or > 3 || block.BlockY is < 0 or > 3)
                     throw new FormatException("Luma residual coordinates must be within the macroblock.");
                 int index = block.BlockY * 4 + block.BlockX;
