@@ -146,6 +146,59 @@ public sealed class H264SliceHeaderReaderTests
     }
 
     [Fact]
+    public void Read_ShouldParseSpSliceCabacAndSwitchQuantiserSyntax()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(3); // SP slice
+        bits.WriteUe(0);
+        bits.WriteBits(0, 4);
+        bits.WriteBits(0, 4);
+        bits.WriteFlag(false); // ref count override
+        bits.WriteFlag(false); // list modification
+        bits.WriteUe(2); // cabac_init_idc
+        bits.WriteSe(-1); // slice_qp_delta
+        bits.WriteFlag(true); // sp_for_switch_flag
+        bits.WriteSe(-2); // slice_qs_delta
+        bits.WriteUe(1); // deblocking disabled
+
+        H264PictureParameterSetHeader pps = CreatePps() with { EntropyCodingModeFlag = true };
+        H264SliceHeader result = new H264SliceHeaderReader().Read(
+            new H264NalUnit(0x01, bits.ToArray()), CreateSps(), pps);
+
+        Assert.Equal(H264SliceType.Sp, result.SliceType);
+        Assert.Equal(2u, result.CabacInitIdc);
+        Assert.True(result.SpForSwitchFlag);
+        Assert.Equal(-2, result.SliceQsDelta);
+    }
+
+    [Fact]
+    public void Read_ShouldParseSliceGroupChangeCycle()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(2); // I slice
+        bits.WriteUe(0);
+        bits.WriteBits(0, 4);
+        bits.WriteBits(0, 4);
+        bits.WriteSe(0); // QP delta
+        bits.WriteUe(1); // deblocking disabled
+        bits.WriteBits(257, 9); // ceil(log2(920 / 2 + 1)) bits
+
+        H264PictureParameterSetHeader pps = new(0, 0, false, false, 1)
+        {
+            SliceGroupMapType = 3,
+            SliceGroupChangeDirectionFlag = false,
+            SliceGroupChangeRateMinus1 = 1,
+            DeblockingFilterControlPresentFlag = true
+        };
+        H264SliceHeader result = new H264SliceHeaderReader().Read(
+            new H264NalUnit(0x01, bits.ToArray()), CreateSps(), pps);
+
+        Assert.Equal(257u, result.SliceGroupChangeCycle);
+    }
+
+    [Fact]
     public void Read_ShouldRejectMismatchedPpsAndUnsupportedNalTypes()
     {
         BitWriter bits = new();
