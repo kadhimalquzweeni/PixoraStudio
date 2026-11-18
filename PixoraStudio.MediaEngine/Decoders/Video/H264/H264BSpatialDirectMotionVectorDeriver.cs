@@ -81,12 +81,12 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
             }
 
             bool colZeroFlag = colZeroFlagProvider?.Invoke(regionX, regionY, step, step) ?? false;
-            H264MotionVector vector0 = directZeroPrediction ||
+            H264MotionVector vector0 = directZeroPrediction || referenceIndex0 < 0 ||
                 (referenceIndex0 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
                 : _predictor.Predict(candidates0.Left, candidates0.Above,
                     candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
-            H264MotionVector vector1 = directZeroPrediction ||
+            H264MotionVector vector1 = directZeroPrediction || referenceIndex1 < 0 ||
                 (referenceIndex1 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
                 : _predictor.Predict(candidates1.Left, candidates1.Above,
