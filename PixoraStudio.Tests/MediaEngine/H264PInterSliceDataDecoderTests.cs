@@ -83,12 +83,12 @@ public sealed class H264PInterSliceDataDecoderTests
     public void Decode_ShouldRejectNonPSlicesAndUnsupportedFmo()
     {
         H264SequenceParameterSet sps = Sps(1);
-        BitWriter iSlice = WritePSliceHeader(sliceType: 2);
+        BitWriter iSlice = WriteISliceHeader();
         iSlice.WriteRbspTrailingBits();
         Assert.Throws<NotSupportedException>(() =>
             new H264PInterSliceDataDecoder(new H264DecodedPictureSurface(sps),
                 new H264MotionVectorPictureState(1, 1)).Decode(
-                new H264NalUnit(0x41, iSlice.ToArray()), sps, Pps(),
+                new H264NalUnit(0x65, iSlice.ToArray()), sps, Pps(),
                 [Reference(sps, 1, 2, 3)], 0));
 
         BitWriter pSlice = WritePSliceHeader();
@@ -130,6 +130,21 @@ public sealed class H264PInterSliceDataDecoderTests
                 Enumerable.Repeat(cb, 64).ToArray(),
                 Enumerable.Repeat(cr, 64).ToArray());
         return surface;
+    }
+
+    private static BitWriter WriteISliceHeader()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(2); // I slice
+        bits.WriteUe(0); // pic_parameter_set_id
+        bits.WriteBits(0, 4); // frame_num
+        bits.WriteUe(0); // idr_pic_id
+        bits.WriteBits(0, 4); // pic_order_cnt_lsb
+        bits.WriteFlag(false); // no_output_of_prior_pics_flag
+        bits.WriteFlag(false); // long_term_reference_flag
+        bits.WriteSe(0); // slice_qp_delta
+        return bits;
     }
 
     private static BitWriter WritePSliceHeader(uint sliceType = 0)
