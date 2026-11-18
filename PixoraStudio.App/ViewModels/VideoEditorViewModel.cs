@@ -90,22 +90,34 @@ public partial class VideoEditorViewModel : ObservableObject
             VideoPath = filePath;
             VideoName = Path.GetFileName(filePath);
 
-            // Initialise the timeline before playback starts. Previously the
-            // player could advance while TotalMilliseconds was still zero,
-            // then metadata initialisation reset the visible playhead.
+            // Start LibVLC immediately rather than making video startup wait
+            // for FFprobe. The timeline can render its duration as soon as
+            // metadata arrives; Timer_Tick already tracks the player clock
+            // while TotalMilliseconds is temporarily zero.
+            TotalMilliseconds = 0;
+            PlaybackPosition = 0;
+            CurrentTime = "00:00";
+            TrimStart = 0;
+            TrimEnd = 0;
+            VideoDuration = "00:00";
+            VideoResolution = "-";
+            VideoFrameRate = "-";
+            VideoFrames.Clear();
+
+            StatusMessage = "Opening video...";
+            VideoLoaded?.Invoke(filePath);
+
             _videoInfo = await _videoService.GetVideoInfoAsync(filePath);
 
             TotalMilliseconds = Math.Max(0, _videoInfo.Duration.TotalMilliseconds);
-            PlaybackPosition = 0;
-            CurrentTime = "00:00";
+            // Do not reset PlaybackPosition or CurrentTime here: playback may
+            // already have advanced while FFprobe was reading the metadata.
             TrimStart = 0;
             TrimEnd = TotalMilliseconds;
 
             VideoDuration = FormatDuration(_videoInfo.Duration);
             VideoResolution = $"{_videoInfo.Width} × {_videoInfo.Height}";
             VideoFrameRate = $"{_videoInfo.FramesPerSecond:F2} FPS";
-
-            VideoLoaded?.Invoke(filePath);
 
             StatusMessage = "Generating video thumbnails...";
 
