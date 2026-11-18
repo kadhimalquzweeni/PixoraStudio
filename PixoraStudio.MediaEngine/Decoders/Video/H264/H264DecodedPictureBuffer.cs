@@ -39,7 +39,11 @@ public sealed class H264DecodedPictureBuffer
         int currentFrameNum,
         int maxFrameNum,
         H264DecodedReferenceMarking? marking,
-        bool idrPicture = false)
+        bool idrPicture = false,
+        H264MotionVectorPictureState? motionVectorStateL0 = null,
+        H264MotionVectorPictureState? motionVectorStateL1 = null,
+        IReadOnlyList<H264ReferencePicture>? referenceList0 = null,
+        IReadOnlyList<H264ReferencePicture>? referenceList1 = null)
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(picture);
@@ -53,6 +57,25 @@ public sealed class H264DecodedPictureBuffer
             throw new ArgumentException("The current picture frame_num does not match currentFrameNum.", nameof(picture));
         if (picture.IsLongTerm)
             throw new ArgumentException("The current picture must not be pre-marked as long-term.", nameof(picture));
+        bool hasMotionMetadata = motionVectorStateL0 is not null ||
+            motionVectorStateL1 is not null || referenceList0 is not null || referenceList1 is not null;
+        if (hasMotionMetadata &&
+            (motionVectorStateL0 is null || motionVectorStateL1 is null ||
+             referenceList0 is null || referenceList1 is null))
+            throw new ArgumentException("Temporal-direct metadata must include both motion grids and both reference lists.");
+        if (hasMotionMetadata)
+        {
+            if (motionVectorStateL0!.MacroblockWidth != surface.MacroblockWidth ||
+                motionVectorStateL0.MacroblockHeight != surface.MacroblockHeight ||
+                motionVectorStateL1!.MacroblockWidth != surface.MacroblockWidth ||
+                motionVectorStateL1.MacroblockHeight != surface.MacroblockHeight)
+                throw new ArgumentException("Stored motion grids must match the decoded surface geometry.");
+            if (referenceList0!.Any(item => item is null) ||
+                referenceList1!.Any(item => item is null))
+                throw new ArgumentException("Stored collocated reference lists cannot contain null entries.");
+            referenceList0 = referenceList0.ToArray();
+            referenceList1 = referenceList1.ToArray();
+        }
         if (marking is null)
             throw new ArgumentNullException(nameof(marking),
                 "Reference pictures require decoded reference marking syntax.");
@@ -88,9 +111,34 @@ public sealed class H264DecodedPictureBuffer
             throw new FormatException("Reference marking leaves no decoded-picture-buffer slot for the current picture.");
 
         ValidateNoDuplicatePictureNumber(current);
-        H264DecodedPictureBufferEntry entry = new(current, surface);
+        H264DecodedPictureBufferEntry entry = new(
+            current, surface, motionVectorStateL0, motionVectorStateL1,
+            referenceList0, referenceList1);
         _entries.Add(entry);
         return entry;
+    }
+
+    /// <summary>
+    /// Creates a temporal-direct motion-field adapter for a reference picture
+    /// already stored in the DPB. Motion grids and the reference lists used
+    /// when that picture was decoded must have been retained at insertion time.
+    /// </summary>
+    public H264TemporalDirectMotionField CreateTemporalDirectMotionField(
+        H264ReferencePicture collocatedPicture)
+    {
+        ArgumentNullException.ThrowIfNull(collocatedPicture);
+        H264DecodedPictureBufferEntry entry = _entries.SingleOrDefault(
+            candidate => candidate.Picture == collocatedPicture)
+            ?? throw new ArgumentException("The collocated picture is not present in the DPB.", nameof(collocatedPicture));
+        if (entry.MotionVectorStateL0 is null || entry.MotionVectorStateL1 is null ||
+            entry.ReferenceList0 is null || entry.ReferenceList1 is null)
+            throw new NotSupportedException("The collocated DPB entry was stored without temporal-direct motion metadata.");
+
+        return new H264TemporalDirectMotionField(
+            entry.MotionVectorStateL0, entry.MotionVectorStateL1,
+            entry.ReferenceList0, entry.ReferenceList1,
+            entry.Picture.PictureOrderCount,
+            collocatedPictureIsShortTerm: !entry.Picture.IsLongTerm);
     }
 
     /// <summary>Builds the active frame-coded P-slice RefPicList0 and returns its surfaces.</summary>
@@ -207,7 +255,7 @@ public sealed class H264DecodedPictureBuffer
                         LongTermFrameIndex = longTermIndex
                     };
                     _entries.Remove(selected);
-                    _entries.Add(new H264DecodedPictureBufferEntry(converted, selected.Surface));
+                    _entries.Add(selected with { Picture = converted });
                     break;
                 }
                 case 4:
@@ -368,4 +416,8 @@ public sealed class H264DecodedPictureBuffer
 /// <summary>A DPB reference entry pairing frame metadata with its decoded Y/Cb/Cr surface.</summary>
 public sealed record H264DecodedPictureBufferEntry(
     H264ReferencePicture Picture,
-    H264DecodedPictureSurface Surface);
+    H264DecodedPictureSurface Surface,
+    H264MotionVectorPictureState? MotionVectorStateL0 = null,
+    H264MotionVectorPictureState? MotionVectorStateL1 = null,
+    IReadOnlyList<H264ReferencePicture>? ReferenceList0 = null,
+    IReadOnlyList<H264ReferencePicture>? ReferenceList1 = null);
