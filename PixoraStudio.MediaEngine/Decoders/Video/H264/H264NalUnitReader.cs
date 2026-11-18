@@ -80,7 +80,9 @@ public sealed class H264NalUnitReader
         if ((header & 0x80) != 0) throw new FormatException("H.264 forbidden_zero_bit must be zero.");
         byte type = (byte)(header & 0x1F);
         if (type is 0 or > 23) throw new FormatException($"Reserved or unspecified H.264 NAL unit type: {type}.");
-        return new H264NalUnit(header, bytes[1..]);
+        H264NalUnit unit = new(header, bytes[1..]);
+        _ = unit.Rbsp; // Validate emulation-prevention syntax for every framed NAL.
+        return unit;
     }
 
     private static int FindStartCode(ReadOnlySpan<byte> data, int start, out int length)
