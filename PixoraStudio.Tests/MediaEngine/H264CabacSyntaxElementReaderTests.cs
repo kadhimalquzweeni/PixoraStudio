@@ -532,13 +532,20 @@ public sealed class H264CabacSyntaxElementReaderTests
 
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
-        private readonly Queue<int> _bins;
+        private readonly Queue<int> _decisionBins;
+        private readonly Queue<int> _bypassBins;
 
-        public ScriptedCabacReader(params int[] bins) : this((IEnumerable<int>)bins) { }
-
-        public ScriptedCabacReader(IEnumerable<int> bins)
+        public ScriptedCabacReader(params int[] bins)
+            : this(bins, Array.Empty<int>())
         {
-            _bins = new Queue<int>(bins);
+        }
+
+        public ScriptedCabacReader(
+            IEnumerable<int> decisionBins,
+            IEnumerable<int> bypassBins)
+        {
+            _decisionBins = new Queue<int>(decisionBins);
+            _bypassBins = new Queue<int>(bypassBins);
         }
 
         public List<int> ContextIndices { get; } = [];
@@ -547,11 +554,11 @@ public sealed class H264CabacSyntaxElementReaderTests
         public int DecodeBin(int contextIndex)
         {
             ContextIndices.Add(contextIndex);
-            return _bins.Dequeue();
+            return _decisionBins.Dequeue();
         }
 
-        public int DecodeBypass() => _bins.Dequeue();
-        public int DecodeTerminate() => _bins.Dequeue();
+        public int DecodeBypass() => _bypassBins.Dequeue();
+        public int DecodeTerminate() => _decisionBins.Dequeue();
         public void MarkTerminated() => Terminated = true;
     }
 }
