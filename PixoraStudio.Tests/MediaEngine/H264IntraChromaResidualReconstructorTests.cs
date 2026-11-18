@@ -89,14 +89,14 @@ public sealed class H264IntraChromaResidualReconstructorTests
     {
         Assert.Equal(0, H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(
             0, 1, CreateSps(1), CreatePps() with { ChromaQpIndexOffset = -12 }));
-        Assert.Equal(51, H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(
+        Assert.Equal(39, H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(
             51, 1, CreateSps(1), CreatePps() with { ChromaQpIndexOffset = 12 }));
     }
 
     [Fact]
     public void InverseChromaDc2x2_ShouldApplyExpectedHadamardPattern()
     {
-        Assert.Equal(new[] { 3, 3, -1, -1 },
+        Assert.Equal(new[] { 3, -1, 3, -1 },
             H264IntraChromaResidualReconstructor.InverseChromaDc2x2(new[] { 1, 2, 0, 0 }));
     }
 
