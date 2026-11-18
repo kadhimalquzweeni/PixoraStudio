@@ -13,12 +13,12 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
 | Reference management | Frame DPB, short/long-term marking, MMCO 1–6, P/B reference-list construction |
-| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering and IDR prior-output handling |
+| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | **Not yet implemented**; current surfaces contain pre-deblocking reconstruction samples |
 | Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
 
-**Still unsupported:** CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces, but MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are not yet connected.
+**Still unsupported:** CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces, but the mandatory H.264 in-loop deblocking filter is not yet implemented. MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are also not yet connected.
 
 The detailed bullets below record implementation history; where they say a feature remains outstanding, this current-status section takes precedence.
 
@@ -116,3 +116,4 @@ For a P picture, persist the P decoder's motion state as list 0, use an empty li
 - Output-order handling now performs the prior-picture bumping required when MMCO 5 starts a new POC epoch, before queuing the normalized current picture. POC validation also enforces IDR frame_num/POC constraints and rejects MMCO 5 on non-reference or IDR pictures.
 
 - The output scheduler now exposes a pre-reconstruction POC calculation path and an overload that enqueues the same precomputed POC after the surface is complete. This allows temporal direct prediction to use the current picture POC during B-slice reconstruction without advancing the POC state a second time when the picture is finally queued.
+\n- The H.264 in-loop deblocking filter is a remaining correctness milestone. The current `H264DecodedPictureSurface` does not yet retain all per-macroblock QP, coded-block, motion/reference and slice deblocking metadata required to derive boundary strengths and thresholds. Do not treat the current reconstructed surfaces as fully conformant final output until the filter and metadata path are integrated.
