@@ -138,7 +138,7 @@ public sealed class H264ReferencePictureListBuilderTests
 
         Assert.Throws<FormatException>(() => _builder.BuildList0(
             references, 6, 16, 1,
-            [new H264ReferenceListModification(3, null, null), new(3, null, null)]));
+            [new H264ReferenceListModification(4, null, null), new(3, null, null)]));
 
         Assert.Throws<FormatException>(() => _builder.BuildList0(
             references, 6, 16, 1,
