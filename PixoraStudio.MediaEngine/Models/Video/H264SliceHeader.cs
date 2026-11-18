@@ -34,7 +34,7 @@ public sealed record H264SliceHeader(
     uint? CabacInitIdc,
     int SliceQpDelta,
     bool SpForSwitchFlag,
-    uint? SliceQsDelta,
+    int? SliceQsDelta,
     uint? DisableDeblockingFilterIdc,
     int? SliceAlphaC0OffsetDiv2,
     int? SliceBetaOffsetDiv2,
