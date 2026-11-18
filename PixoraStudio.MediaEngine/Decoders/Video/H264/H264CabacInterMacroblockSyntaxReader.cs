@@ -116,7 +116,7 @@ public sealed class H264CabacInterMacroblockSyntaxReader
             mvdL0[i] = ReadMvd(reader, neighbourContext, 0, shapes[i],
                 macroblockX, macroblockY, sliceId);
             RecordPartition(neighbourContext, 0, shapes[i], macroblockX, macroblockY,
-                sliceId, referencesL0[i]!.Value, isDirect: false,
+                sliceId, checked((int)referencesL0[i]!.Value), isDirect: false,
                 mvdL0[i]!.Horizontal, mvdL0[i]!.Vertical);
         }
         for (int i = 0; i < shapes.Length; i++)
@@ -135,7 +135,7 @@ public sealed class H264CabacInterMacroblockSyntaxReader
             mvdL1[i] = ReadMvd(reader, neighbourContext, 1, shapes[i],
                 macroblockX, macroblockY, sliceId);
             RecordPartition(neighbourContext, 1, shapes[i], macroblockX, macroblockY,
-                sliceId, referencesL1[i]!.Value, isDirect: false,
+                sliceId, checked((int)referencesL1[i]!.Value), isDirect: false,
                 mvdL1[i]!.Horizontal, mvdL1[i]!.Vertical);
         }
 
