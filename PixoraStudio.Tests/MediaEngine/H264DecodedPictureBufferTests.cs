@@ -195,6 +195,7 @@ public sealed class H264DecodedPictureBufferTests
             motionVectorStateL0: l0, motionVectorStateL1: l1,
             referenceList0: references0, referenceList1: references1);
 
+        references0[0] = new H264ReferencePicture(0, 99);
         l0.RecordInterPartition(1, 0, 1, 1, 0, 0, new H264MotionVector(99, 99));
 
         H264TemporalDirectMotionField field = dpb.CreateTemporalDirectMotionField(collocated);
