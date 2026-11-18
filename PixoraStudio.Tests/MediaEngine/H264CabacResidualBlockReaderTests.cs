@@ -278,6 +278,31 @@ public sealed class H264CabacResidualBlockReaderTests
         Assert.Equal(265, bins.ContextIndices[^1]);
     }
 
+
+    [Fact]
+    public void ReadBlockWithCodedBlockFlag_ShouldApplyNeighbourContextToLumaDc()
+    {
+        ScriptedCabacReader bins = new(new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        _ = reader.ReadBlockWithCodedBlockFlag(
+            bins, H264CabacResidualBlockContext.Create(0), contextIndexIncrement: 3);
+
+        Assert.Equal(new[] { 88 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadBlockWithCodedBlockFlag_ShouldRejectContextForImplicitEightByEightFlag()
+    {
+        ScriptedCabacReader bins = new();
+        H264CabacResidualBlockReader reader = new();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            reader.ReadBlockWithCodedBlockFlag(
+                bins, H264CabacResidualBlockContext.Create(5), contextIndexIncrement: 1));
+        Assert.Empty(bins.ContextIndices);
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _decisionBins;
