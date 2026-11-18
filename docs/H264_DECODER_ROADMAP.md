@@ -13,7 +13,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
 | Reference management | Frame DPB, short/long-term marking, MMCO 1–6, P/B reference-list construction |
-| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation and picture traversal implemented; I/P/B intra, PCM and inter paths populate metadata; picture-wide vertical filtering precedes horizontal filtering; DPB/output reject unfiltered pictures |
+| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation and picture traversal implemented; I/P/B intra, PCM and inter paths populate metadata; macroblock-order traversal filters vertical edges before horizontal edges within each macroblock; DPB/output reject unfiltered pictures |
 | Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
