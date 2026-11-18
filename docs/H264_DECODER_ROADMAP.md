@@ -106,3 +106,5 @@ dpb.StoreDecodedPicture(
 For a P picture, persist the P decoder's motion state as list 0, use an empty list-1 motion state, and pass `decodeResult.ReferenceList0` plus an empty list 1. This retains the exact reference metadata needed if that picture is selected as the collocated picture by a later B slice.
 
 - POC conformance review tightened type 0/1/2 state handling: MMCO 5 now normalizes the current picture's top/bottom field order counts to a new POC epoch, type 1/2 frame-number history advances across non-reference pictures, type 0 reference POC history remains reference-only, and frame/POC syntax is checked against SPS bit widths. Regression tests cover MMCO 5 and frame-number wrap across non-reference pictures.
+
+- Reference-picture insertion and presentation output now reject partially reconstructed surfaces. The surface exposes an `IsComplete` marker, DPB insertion snapshots motion grids/reference lists defensively, and output scheduling validates POC syntax before mutating the pending output queue. Tests cover incomplete surfaces, immutable DPB metadata snapshots, and malformed IDR input.
