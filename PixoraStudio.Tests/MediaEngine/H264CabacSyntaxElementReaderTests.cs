@@ -567,10 +567,10 @@ public sealed class H264CabacSyntaxElementReaderTests
     {
         (int[] Bins, int Expected)[] cases =
         [
-            (new[] { 0 }, 0),
-            (new[] { 1, 0 }, 1),
-            (new[] { 1, 1, 0 }, 2),
-            (new[] { 1, 1, 1 }, 3)
+            (new[] { 1 }, 0),
+            (new[] { 0, 0 }, 1),
+            (new[] { 0, 1, 1 }, 2),
+            (new[] { 0, 1, 0 }, 3)
         ];
 
         foreach ((int[] encoded, int expected) in cases)
