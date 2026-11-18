@@ -19,7 +19,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Motion-vector arithmetic | Predictor-plus-MVD uses widened intermediates before normative signed 16-bit clipping |
 | Output scheduling | Surface/deblocking preflight occurs before the stateful POC calculator advances |
 | MP4 AVC ingestion | avcC parsing extracts SPS/PPS NAL units, validates PPS-to-SPS links and rejects unsupported SPS extensions/chroma/bit depth; MP4 track sample parsing resolves sample descriptions, splits length-prefixed NAL units and preserves exact DTS/PTS/duration ticks plus sync metadata |
-| MP4-to-decoder regression | Synthetic AVC MP4 samples are exercised through avcC parsing, SPS/PPS resolution, NAL extraction and I_PCM IDR reconstruction, including a two-slice picture |
+| MP4-to-decoder regression | Synthetic AVC MP4 samples are exercised through avcC parsing, SPS/PPS resolution, NAL extraction, two-slice I_PCM assembly, P-skip reference prediction and B-direct bi-prediction with POC reordering |
 | MP4 access-unit decoding | One complete frame-coded picture per MP4 sample is dispatched through managed I/P/B slice decoders; multiple slices are assembled when picture identity and reference-list ordering are consistent; reference pictures enter the DPB and outputs retain MP4 timing through POC reordering |
 | MP4 output scheduling | Decoded surfaces retain their source sample's exact timing metadata while the POC queue reorders output; IDR no-output handling and reset clear discarded timestamp associations |
 | Automated tests | Regression tests cover the above cases; this branch has not yet had a full build/test run |
