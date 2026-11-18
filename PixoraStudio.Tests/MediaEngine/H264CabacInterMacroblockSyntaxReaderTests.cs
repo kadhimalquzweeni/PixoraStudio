@@ -68,7 +68,7 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
 
         Assert.True(syntax.ReferenceIndexForcedToZero);
         Assert.All(syntax.Partitions, partition => Assert.Equal((uint)0, partition.ReferenceIndex));
-        Assert.Equal(8, bins.ContextIndices.Count);
+        Assert.Equal(12, bins.ContextIndices.Count);
     }
 
     [Fact]
