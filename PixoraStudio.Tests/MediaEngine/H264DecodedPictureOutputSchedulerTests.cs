@@ -72,8 +72,10 @@ public sealed class H264DecodedPictureOutputSchedulerTests
         Assert.Throws<NotSupportedException>(() =>
             new H264DecodedPictureOutputScheduler().Enqueue(
                 Surface(sps, 1), sps, Slice(0, 0), 1));
-        Assert.Empty(new H264DecodedPictureOutputScheduler().Enqueue(
-            Surface(sps, 1), sps, Slice(0, 0), 1, 0));
+        H264DecodedPictureOutput immediate = Assert.Single(
+            new H264DecodedPictureOutputScheduler().Enqueue(
+                Surface(sps, 1), sps, Slice(0, 0), 1, 0));
+        Assert.Equal(0, immediate.PictureOrderCount);
     }
 
     private static H264SequenceParameterSet SpsWithReorderLimit(uint reorderLimit)
