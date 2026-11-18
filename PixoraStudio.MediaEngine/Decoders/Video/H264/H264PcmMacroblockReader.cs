@@ -21,8 +21,6 @@ public sealed class H264PcmMacroblockReader
 
         if (!header.IsPcm || !header.IsIntra || header.IsSkipped)
             throw new ArgumentException("The macroblock header must describe an I_PCM macroblock.", nameof(header));
-        if (pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("CABAC I_PCM parsing is not implemented.");
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
         if (!sps.FrameMbsOnlyFlag || sps.SeparateColourPlaneFlag ||
