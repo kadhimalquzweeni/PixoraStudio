@@ -102,6 +102,19 @@ public sealed class H264DecodedPictureOutputQueueTests
     }
 
     [Fact]
+    public void HandleIdr_WithNoOutputOfPriorPicsTrue_ShouldDiscardPendingFrames()
+    {
+        H264DecodedPictureOutputQueue queue = new();
+        queue.Enqueue(Surface(10), Poc(4), 4);
+        queue.Enqueue(Surface(20), Poc(2), 4);
+
+        IReadOnlyList<H264DecodedPictureOutput> output = queue.HandleIdr(true);
+
+        Assert.Empty(output);
+        Assert.Equal(0, queue.PendingCount);
+    }
+
+    [Fact]
     public void Reset_ShouldClearQueueAndSequence()
     {
         H264DecodedPictureOutputQueue queue = new();
