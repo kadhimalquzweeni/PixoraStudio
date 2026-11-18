@@ -90,10 +90,10 @@ public sealed class H264CabacSyntaxElementReaderTests
     [Fact]
     public void ReadRemainingIntraPredictionMode_ShouldReadThreeBinsFromContext69()
     {
-        ScriptedCabacReader bins = new(new[] { 1, 0, 1 });
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0 });
         H264CabacSyntaxElementReader reader = new(bins);
 
-        Assert.Equal(5, reader.ReadRemainingIntraPredictionMode());
+        Assert.Equal(1, reader.ReadRemainingIntraPredictionMode());
         Assert.Equal(new[] { 69, 69, 69 }, bins.ContextIndices);
     }
 
