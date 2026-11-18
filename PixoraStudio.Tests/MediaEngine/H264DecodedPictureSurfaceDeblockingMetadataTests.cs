@@ -12,7 +12,9 @@ public sealed class H264DecodedPictureSurfaceDeblockingMetadataTests
         uint chromaFormat, int chromaBlockCount)
     {
         H264DecodedPictureSurface surface = Surface(chromaFormat);
-        H264DeblockingMacroblockMetadata metadata = Metadata(chromaBlockCount);
+        H264DeblockingBlockMetadata[] originalLuma =
+            Enumerable.Repeat(InterBlock(), 16).ToArray();
+        H264DeblockingMacroblockMetadata metadata = Metadata(chromaBlockCount, originalLuma);
 
         surface.WriteMacroblock(0, 0, 0, false, new byte[256],
             new byte[chromaFormat == 1 ? 64 : 128],
@@ -28,7 +30,7 @@ public sealed class H264DecodedPictureSurfaceDeblockingMetadataTests
         Assert.Equal(chromaBlockCount, stored.ChromaCrBlocks.Count);
         Assert.Equal(27, stored.QpY);
 
-        metadata.LumaBlocks[0] = IntraBlock();
+        originalLuma[0] = IntraBlock();
         Assert.False(surface.GetDeblockingMetadata(0, 0)!.LumaBlocks[0].IsIntra);
     }
 
@@ -92,9 +94,10 @@ public sealed class H264DecodedPictureSurfaceDeblockingMetadataTests
             new byte[chromaSamples], new byte[chromaSamples]);
     }
 
-    private static H264DeblockingMacroblockMetadata Metadata(int chromaBlockCount) =>
+    private static H264DeblockingMacroblockMetadata Metadata(
+        int chromaBlockCount, H264DeblockingBlockMetadata[]? luma = null) =>
         new(27, 25, 26, 0, 0, 0, false,
-            Enumerable.Repeat(InterBlock(), 16).ToArray(),
+            luma ?? Enumerable.Repeat(InterBlock(), 16).ToArray(),
             Enumerable.Repeat(InterBlock(), chromaBlockCount).ToArray(),
             Enumerable.Repeat(InterBlock(), chromaBlockCount).ToArray());
 
