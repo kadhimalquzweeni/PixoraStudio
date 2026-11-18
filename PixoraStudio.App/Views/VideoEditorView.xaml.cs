@@ -310,31 +310,12 @@ public partial class VideoEditorView : UserControl
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
+
+        // Do not decode the complete AAC track before playback. LibVLC can
+        // stream the MP4's audio immediately while the optional managed video
+        // decoder prepares frames independently in the background.
+        _aacAudioPlaybackService.Unload();
         _usesCustomAacAudio = false;
-
-        try
-        {
-            // Decode AAC before starting video so both playback clocks begin together.
-            // Unsupported/non-MP4 audio falls back to LibVLC's built-in audio.
-            _usesCustomAacAudio = await _aacAudioPlaybackService.LoadAsync(
-                filePath,
-                cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            if (loadVersion == _videoLoadVersion)
-                _isPreparingVideo = false;
-            return;
-        }
-        catch (Exception ex)
-        {
-            if (loadVersion != _videoLoadVersion)
-                return;
-
-            _aacAudioPlaybackService.Unload();
-            System.Diagnostics.Debug.WriteLine(
-                $"Custom AAC playback unavailable; using LibVLC audio: {ex.Message}");
-        }
 
         if (loadVersion != _videoLoadVersion ||
             cancellationToken.IsCancellationRequested ||
@@ -383,22 +364,6 @@ public partial class VideoEditorView : UserControl
             return;
         }
 
-        if (_usesCustomAacAudio)
-        {
-            try
-            {
-                await _aacAudioPlaybackService.PlayAsync();
-            }
-            catch (Exception ex)
-            {
-                _aacAudioPlaybackService.Unload();
-                _usesCustomAacAudio = false;
-                _mediaPlayer.Mute = DataContext is VideoEditorViewModel fallbackVm &&
-                    fallbackVm.IsMuted;
-                System.Diagnostics.Debug.WriteLine(
-                    $"Custom AAC output could not start; using LibVLC audio: {ex.Message}");
-            }
-        }
     }
 
     private void OnVideoClosed()
