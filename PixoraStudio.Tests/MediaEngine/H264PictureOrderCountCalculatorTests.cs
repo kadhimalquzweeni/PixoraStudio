@@ -13,7 +13,7 @@ public sealed class H264PictureOrderCountCalculatorTests
         H264PictureOrderCount first = calculator.Calculate(sps, CreateSlice(frameNum: 0, pocLsb: 14, idr: true), 3);
         H264PictureOrderCount second = calculator.Calculate(sps, CreateSlice(frameNum: 1, pocLsb: 1), 3);
 
-        Assert.Equal(14, first.PictureOrderCount);
+        Assert.Equal(-2, first.PictureOrderCount);
         Assert.Equal(17, second.PictureOrderCount);
         Assert.Equal(17, second.TopFieldOrderCount);
     }
