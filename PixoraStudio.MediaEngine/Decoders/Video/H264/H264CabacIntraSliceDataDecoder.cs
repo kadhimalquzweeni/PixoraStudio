@@ -92,7 +92,7 @@ public sealed class H264CabacIntraSliceDataDecoder
             H264DeblockingSliceParameters.FromSliceHeader(slice));
 
         IH264CabacSliceDataReader cabac = _cabacReaderFactory(
-            bitReader, qpY, isIntraSlice: true, cabacInitIdc: 0);
+            bitReader, qpY, true, 0);
         H264CabacSyntaxElementReader syntax = new(cabac);
         uint macroblockAddress = slice.FirstMacroblockInSlice;
         int decodedCount = 0;
