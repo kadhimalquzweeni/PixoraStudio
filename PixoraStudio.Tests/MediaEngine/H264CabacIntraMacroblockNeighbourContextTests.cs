@@ -80,6 +80,22 @@ public sealed class H264CabacIntraMacroblockNeighbourContextTests
             context.GetChromaCodedBlockPatternContextIncrements(1, 1, 1));
     }
 
+
+    [Fact]
+    public void GetTransformSize8x8ContextIncrement_ShouldCountAvailableTransformNeighbours()
+    {
+        H264CabacIntraMacroblockNeighbourContext context = new();
+        context.RecordMacroblock(
+            0, 0, 1, 1, true, false, false, 0, 0, 0, null,
+            transformSize8x8Flag: true);
+        context.RecordMacroblock(
+            1, 1, 0, 1, true, false, false, 0, 0, 0, null,
+            transformSize8x8Flag: false);
+
+        Assert.Equal(1, context.GetTransformSize8x8ContextIncrement(1, 1, 1));
+        Assert.Equal(0, context.GetTransformSize8x8ContextIncrement(1, 1, 2));
+    }
+
     [Fact]
     public void Reset_ShouldClearAllNeighbourState()
     {
