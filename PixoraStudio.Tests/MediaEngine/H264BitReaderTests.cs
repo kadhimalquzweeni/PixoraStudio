@@ -37,6 +37,37 @@ public sealed class H264BitReaderTests
     }
 
     [Fact]
+    public void ReadSignedExpGolomb_ShouldSupportValuesNearInt32Limits()
+    {
+        Assert.Equal(int.MaxValue,
+            new H264BitReader(EncodeUnsignedExpGolomb(uint.MaxValue - 2))
+                .ReadSignedExpGolomb());
+        Assert.Equal(-int.MaxValue,
+            new H264BitReader(EncodeUnsignedExpGolomb(uint.MaxValue - 1))
+                .ReadSignedExpGolomb());
+    }
+
+    private static byte[] EncodeUnsignedExpGolomb(uint value)
+    {
+        ulong code = (ulong)value + 1;
+        int leadingZeroes = 0;
+        for (ulong current = code; current > 1; current >>= 1)
+            leadingZeroes++;
+
+        List<bool> bits = [];
+        for (int i = 0; i < leadingZeroes; i++)
+            bits.Add(false);
+        for (int i = leadingZeroes; i >= 0; i--)
+            bits.Add(((code >> i) & 1) != 0);
+
+        byte[] data = new byte[(bits.Count + 7) / 8];
+        for (int i = 0; i < bits.Count; i++)
+            if (bits[i])
+                data[i / 8] |= (byte)(1 << (7 - i % 8));
+        return data;
+    }
+
+    [Fact]
     public void MoreRbspData_ShouldRecognizeStopBitAndZeroAlignmentAsTrailingBits()
     {
         H264BitReader reader = new(new byte[] { 0b1000_0000 });
