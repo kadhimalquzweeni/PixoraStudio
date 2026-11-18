@@ -10,7 +10,7 @@ public sealed class H264MacroblockHeaderReaderTests
     [InlineData(1, true, true, 0, 0, 0, false)]
     [InlineData(4, true, true, 3, 0, 0, false)]
     [InlineData(13, true, true, 0, 15, 0, false)]
-    [InlineData(24, true, true, 3, 15, 1, false)]
+    [InlineData(24, true, true, 3, 15, 2, false)]
     [InlineData(25, true, false, null, null, null, true)]
     public void ReadNext_IType_ShouldDecodeIntraMacroblockType(
         uint mbType,
