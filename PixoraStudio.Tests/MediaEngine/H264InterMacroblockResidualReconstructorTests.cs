@@ -99,6 +99,21 @@ public sealed class H264InterMacroblockResidualReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_ShouldRejectMissingOrDuplicateChromaComponents()
+    {
+        H264IntraChromaResidualComponent cb =
+            Residual(1).ChromaComponents.Single(component => component.ComponentId == 1);
+        Assert.Throws<FormatException>(() =>
+            H264InterMacroblockResidualReconstructor.Reconstruct(
+                Prediction(8), Residual(1) with { ChromaComponents = [cb, cb] },
+                24, Sps(1), Pps()));
+        Assert.Throws<FormatException>(() =>
+            H264InterMacroblockResidualReconstructor.Reconstruct(
+                Prediction(8), Residual(1) with { ChromaComponents = [cb] },
+                24, Sps(1), Pps()));
+    }
+
+    [Fact]
     public void Reconstruct_ShouldRejectWrongPredictionGeometryAndUnsupportedSettings()
     {
         H264InterResidualMacroblock residual = Residual(1);
