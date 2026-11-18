@@ -58,7 +58,7 @@ public sealed class H264CabacResidualNeighbourContextTests
         context.RecordMacroblock(0, 0, 0, 1, isPcm: false);
 
         Assert.Equal(0, context.GetContextIndexIncrement(
-            0, 1, 0, 4, 4, 1, currentMacroblockIsIntra: true));
+            0, 1, 1, 4, 4, 1, currentMacroblockIsIntra: true));
     }
 
     [Fact]
@@ -93,6 +93,6 @@ public sealed class H264CabacResidualNeighbourContextTests
         H264CabacResidualNeighbourContext context = new();
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            context.RecordMacroblock(3, 0, 0, 1, isPcm: false));
+            context.RecordMacroblock(6, 0, 0, 1, isPcm: false));
     }
 }
