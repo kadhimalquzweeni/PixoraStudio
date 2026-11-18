@@ -86,7 +86,7 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
-    public void Apply_ShouldCompleteAllVerticalEdgesBeforeHorizontalEdges()
+    public void Apply_ShouldFilterVerticalEdgesBeforeHorizontalEdgesWithinEachMacroblock()
     {
         H264DecodedPictureSurface surface = Surface(0, 0, 1);
         byte[] source = new byte[256];
@@ -101,13 +101,13 @@ public sealed class H264DeblockingPictureFilterTests
         H264DeblockingEdgeParameters parameters =
             new(3, 40, 40, 0, 0, false);
 
-        // Normative picture traversal: all vertical edges first.
+        // Normative macroblock traversal: vertical edges first within this macroblock.
         for (int edge = 4; edge < 16; edge += 4)
         for (int blockRow = 0; blockRow < 4; blockRow++)
             H264DeblockingFilter.FilterEdge(
                 expected, blockRow * 4 * 16 + edge, 1, 16, 4, parameters);
 
-        // Then all horizontal edges, using the vertically filtered samples.
+        // Then horizontal edges, using this macroblock's vertically filtered samples.
         for (int edge = 4; edge < 16; edge += 4)
         for (int blockColumn = 0; blockColumn < 4; blockColumn++)
             H264DeblockingFilter.FilterEdge(
