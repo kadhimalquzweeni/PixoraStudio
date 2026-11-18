@@ -87,19 +87,21 @@ public sealed class H264CabacSyntaxElementReader
     /// </summary>
     public int ReadReferenceIndex(int contextIndexIncrement, int maximumReferenceIndex)
     {
-        if (contextIndexIncrement is < 0 or > 2)
+        if (contextIndexIncrement is < 0 or > 3)
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
         if (maximumReferenceIndex is < 0 or > 31)
             throw new ArgumentOutOfRangeException(nameof(maximumReferenceIndex));
 
+        int contextIncrement = contextIndexIncrement;
         for (int binIndex = 0; binIndex < maximumReferenceIndex; binIndex++)
         {
-            int contextIndex = 54 + contextIndexIncrement + Math.Min(binIndex, 2);
-            int bin = _reader.DecodeBin(contextIndex);
+            int bin = _reader.DecodeBin(54 + contextIncrement);
             if (bin == 0)
                 return binIndex;
             if (bin != 1)
                 throw new FormatException("CABAC decision bins must be zero or one.");
+
+            contextIncrement = (contextIncrement >> 2) + 4;
         }
 
         return maximumReferenceIndex;
@@ -253,8 +255,12 @@ public sealed class H264CabacSyntaxElementReader
     }
 
     /// <summary>Decodes transform_size_8x8_flag (ctxIdx 399).</summary>
-    public bool ReadTransformSize8x8Flag() =>
-        ReadFlagAtContext(399);
+    public bool ReadTransformSize8x8Flag(int contextIndexIncrement = 0)
+    {
+        if (contextIndexIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
+        return ReadFlagAtContext(399 + contextIndexIncrement);
+    }
 
     /// <summary>
     /// Decodes intra_chroma_pred_mode as truncated unary (ctxIdx offset 64).
@@ -265,17 +271,157 @@ public sealed class H264CabacSyntaxElementReader
         if (contextIndexIncrement is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
 
-        for (int binIndex = 0; binIndex < 3; binIndex++)
+        int firstBin = _reader.DecodeBin(64 + contextIndexIncrement);
+        if (firstBin is not (0 or 1))
+            throw new FormatException("CABAC decision bins must be zero or one.");
+        if (firstBin == 0)
+            return 0;
+
+        int secondBin = _reader.DecodeBin(67);
+        if (secondBin is not (0 or 1))
+            throw new FormatException("CABAC decision bins must be zero or one.");
+        if (secondBin == 0)
+            return 1;
+
+        int thirdBin = _reader.DecodeBin(67);
+        if (thirdBin is not (0 or 1))
+            throw new FormatException("CABAC decision bins must be zero or one.");
+        return thirdBin == 0 ? 2 : 3;
+    }
+
+
+    /// <summary>
+    /// Decodes one signed horizontal or vertical mvd component. The context
+    /// increment is derived from the sum of absolute left and top MVD values.
+    /// </summary>
+    public int ReadMotionVectorDifference(int contextBase, int contextIndexIncrement)
+    {
+        if (contextBase is not (40 or 47))
+            throw new ArgumentOutOfRangeException(nameof(contextBase));
+        if (contextIndexIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
+
+        int firstBin = _reader.DecodeBin(contextBase + contextIndexIncrement);
+        if (firstBin is not (0 or 1))
+            throw new FormatException("CABAC decision bins must be zero or one.");
+        if (firstBin == 0)
+            return 0;
+
+        int magnitude = 1;
+        int contextIndex = contextBase + 3;
+        while (magnitude < 9)
         {
-            int contextIndex = 64 + contextIndexIncrement + Math.Min(binIndex, 1);
             int bin = _reader.DecodeBin(contextIndex);
-            if (bin == 0)
-                return binIndex;
-            if (bin != 1)
+            if (bin is not (0 or 1))
                 throw new FormatException("CABAC decision bins must be zero or one.");
+            if (bin == 0)
+                break;
+
+            if (magnitude < 4)
+                contextIndex++;
+            magnitude++;
         }
 
-        return 3;
+        if (magnitude == 9)
+        {
+            int order = 3;
+            while (true)
+            {
+                int bin = _reader.DecodeBypass();
+                if (bin is not (0 or 1))
+                    throw new FormatException("CABAC bypass bins must be zero or one.");
+                if (bin == 0)
+                    break;
+
+                magnitude = checked(magnitude + (1 << order));
+                order++;
+                if (order > 24)
+                    throw new FormatException("CABAC MVD escape prefix exceeds the supported range.");
+            }
+
+            for (int bit = order - 1; bit >= 0; bit--)
+            {
+                int bin = _reader.DecodeBypass();
+                if (bin is not (0 or 1))
+                    throw new FormatException("CABAC bypass bins must be zero or one.");
+                magnitude = checked(magnitude + (bin << bit));
+            }
+        }
+
+        int sign = _reader.DecodeBypass();
+        if (sign is not (0 or 1))
+            throw new FormatException("CABAC bypass bins must be zero or one.");
+        return sign == 0 ? magnitude : -magnitude;
+    }
+
+    /// <summary>Decodes P-slice mb_type, including intra macroblock types.</summary>
+    public int ReadPSliceMacroblockType()
+    {
+        if (ReadFlagAtContext(14))
+            return 5 + ReadInterSliceIntraMacroblockType(17);
+
+        if (!ReadFlagAtContext(15))
+            return ReadFlagAtContext(16) ? 3 : 0;
+
+        return ReadFlagAtContext(17) ? 1 : 2;
+    }
+
+    /// <summary>Decodes B-slice mb_type, including intra macroblock types.</summary>
+    public int ReadBSliceMacroblockType(int firstBinContextIncrement)
+    {
+        if (firstBinContextIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(firstBinContextIncrement));
+        if (!ReadFlagAtContext(27 + firstBinContextIncrement))
+            return 0;
+        if (!ReadFlagAtContext(30))
+            return 1 + (ReadFlagAtContext(32) ? 1 : 0);
+
+        int prefix = (ReadFlagAtContext(31) ? 8 : 0) |
+            (ReadFlagAtContext(32) ? 4 : 0) |
+            (ReadFlagAtContext(32) ? 2 : 0) |
+            (ReadFlagAtContext(32) ? 1 : 0);
+
+        if (prefix < 8)
+            return prefix + 3;
+        if (prefix == 13)
+            return 23 + ReadInterSliceIntraMacroblockType(32);
+        if (prefix == 14)
+            return 11;
+        if (prefix == 15)
+            return 22;
+
+        return (prefix << 1) + (ReadFlagAtContext(32) ? 1 : 0) - 4;
+    }
+
+    /// <summary>Decodes P-slice sub_mb_type (contexts 21..23).</summary>
+    public int ReadPSubMacroblockType()
+    {
+        if (!ReadFlagAtContext(21))
+            return 0;
+        if (!ReadFlagAtContext(22))
+            return 1;
+        return ReadFlagAtContext(23) ? 3 : 2;
+    }
+
+    /// <summary>Decodes B-slice sub_mb_type (contexts 36..39).</summary>
+    public int ReadBSubMacroblockType()
+    {
+        if (!ReadFlagAtContext(36))
+            return 0;
+        if (!ReadFlagAtContext(37))
+            return 1 + (ReadFlagAtContext(39) ? 1 : 0);
+
+        int value = 3;
+        if (ReadFlagAtContext(38))
+        {
+            if (ReadFlagAtContext(39))
+                return 11 + (ReadFlagAtContext(39) ? 1 : 0);
+            value += 4;
+        }
+
+        value += 2 * (ReadFlagAtContext(39) ? 1 : 0);
+        value += ReadFlagAtContext(39) ? 1 : 0;
+        return value;
     }
 
     private bool ReadFlagAtContext(int contextIndex)
@@ -295,13 +441,15 @@ public sealed class H264CabacSyntaxElementReader
     /// </summary>
     public int ReadMacroblockQpDelta(int contextIndexIncrement)
     {
-        if (contextIndexIncrement is < 0 or > 2)
+        if (contextIndexIncrement is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
 
         int codeNum = 0;
         while (true)
         {
-            int contextIndex = 60 + contextIndexIncrement + Math.Min(codeNum, 2);
+            int contextIndex = codeNum == 0
+                ? 60 + contextIndexIncrement
+                : codeNum == 1 ? 62 : 63;
             int bin = _reader.DecodeBin(contextIndex);
             if (bin == 0)
                 break;
