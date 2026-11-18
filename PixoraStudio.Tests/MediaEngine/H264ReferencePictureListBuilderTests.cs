@@ -69,20 +69,20 @@ public sealed class H264ReferencePictureListBuilderTests
     {
         H264ReferencePicture[] references =
         [
-            new(14, 140),
-            new(1, 10),
-            new(3, 30)
+            new(15, 150),
+            new(2, 20),
+            new(13, 130)
         ];
         H264ReferenceListModification[] modifications =
         [
-            new(1, 0, null), // CurrPicNum 1 -> PicNumNoWrap 2
+            new(1, 0, null), // CurrPicNum 14 -> PicNumNoWrap 15, wrapped PicNum -1
             new(3, null, null)
         ];
 
         IReadOnlyList<H264ReferencePicture> result =
-            _builder.BuildList0(references, 1, 16, 3, modifications);
+            _builder.BuildList0(references, 14, 16, 3, modifications);
 
-        Assert.Equal(new[] { 3, 14, 1 }, result.Select(picture => picture.FrameNum));
+        Assert.Equal(new[] { 15, 13, 2 }, result.Select(picture => picture.FrameNum));
     }
 
     [Fact]
