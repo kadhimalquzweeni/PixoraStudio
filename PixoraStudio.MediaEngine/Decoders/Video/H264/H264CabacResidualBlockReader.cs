@@ -23,7 +23,11 @@ public sealed class H264CabacResidualBlockReader
         if (contextMap.CodedBlockFlagContextOffset is not int contextOffset)
         {
             if (contextMap.ContextBlockCategory == 5)
+            {
+                if (contextIndexIncrement != 0)
+                    throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
                 return ReadBlock(reader, contextMap, codedBlockFlag: true);
+            }
             throw new ArgumentException(
                 "The supplied residual category does not define coded_block_flag.",
                 nameof(contextMap));
