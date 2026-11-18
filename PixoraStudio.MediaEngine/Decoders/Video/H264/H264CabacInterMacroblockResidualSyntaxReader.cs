@@ -31,6 +31,10 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReader
     {
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(pps);
+        if (!pps.EntropyCodingModeFlag)
+            throw new ArgumentException("The supplied PPS must enable CABAC.", nameof(pps));
+        if (pps.SequenceParameterSetId != sps.Id)
+            throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
         if (macroblockX < 0)
             throw new ArgumentOutOfRangeException(nameof(macroblockX));
         if (macroblockY < 0)
