@@ -42,6 +42,30 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
             throw new FormatException("The SPS contains an invalid ChromaArrayType.");
 
         bool isIntraNxN = !macroblockHeader.IsIntra16x16;
+        if (isIntraNxN)
+        {
+            if (lumaCbpContextIncrements is null)
+                throw new ArgumentNullException(nameof(lumaCbpContextIncrements));
+            if (lumaCbpContextIncrements.Count != 4 ||
+                lumaCbpContextIncrements.Any(value => value is < 0 or > 3))
+                throw new ArgumentException(
+                    "Four luma CBP context increments in the range 0..3 are required.",
+                    nameof(lumaCbpContextIncrements));
+            if (chromaArrayType is 1 or 2 &&
+                (chromaCbpContextIncrements is null ||
+                 chromaCbpContextIncrements.Count != 2 ||
+                 chromaCbpContextIncrements.Any(value => value is < 0 or > 3)))
+                throw new ArgumentException(
+                    "Two chroma CBP context increments in the range 0..3 are required.",
+                    nameof(chromaCbpContextIncrements));
+        }
+        if (chromaArrayType != 0 && chromaPredictionContextIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(chromaPredictionContextIncrement));
+        if (macroblockHeader.IsIntra16x16 &&
+            (macroblockHeader.CodedBlockPatternLuma is null ||
+             macroblockHeader.CodedBlockPatternChroma is null))
+            throw new FormatException("I_16x16 macroblock header is missing its coded block pattern.");
+
         bool? transform8X8 = null;
         H264IntraPredictionModeSyntax? predictionModes = null;
         if (isIntraNxN)
@@ -63,10 +87,6 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         H264CodedBlockPattern codedBlockPattern;
         if (macroblockHeader.IsIntra16x16)
         {
-            if (macroblockHeader.CodedBlockPatternLuma is null ||
-                macroblockHeader.CodedBlockPatternChroma is null)
-                throw new FormatException("I_16x16 macroblock header is missing its coded block pattern.");
-
             codedBlockPattern = new H264CodedBlockPattern(
                 macroblockHeader.MbTypeCode,
                 macroblockHeader.CodedBlockPatternLuma.Value,
@@ -75,8 +95,6 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         }
         else
         {
-            if (lumaCbpContextIncrements is null)
-                throw new ArgumentNullException(nameof(lumaCbpContextIncrements));
             codedBlockPattern = reader.ReadIntraCodedBlockPattern(
                 lumaCbpContextIncrements, chromaCbpContextIncrements, chromaArrayType);
         }
