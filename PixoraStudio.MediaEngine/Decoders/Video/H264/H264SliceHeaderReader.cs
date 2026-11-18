@@ -110,7 +110,7 @@ public sealed class H264SliceHeaderReader
         if (sliceType is H264SliceType.Sp or H264SliceType.Si)
         {
             if (sliceType == H264SliceType.Sp) spForSwitch = reader.ReadFlag();
-            sliceQsDelta = ReadBoundedUe(reader, 51, "slice_qs_delta");
+            sliceQsDelta = ReadBoundedSe(reader, -26, 25, "slice_qs_delta");
         }
 
         uint? disableDeblocking = null;
