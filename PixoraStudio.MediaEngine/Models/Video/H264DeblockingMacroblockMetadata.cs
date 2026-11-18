@@ -16,7 +16,7 @@ public sealed record H264DeblockingMacroblockMetadata(
     IReadOnlyList<H264DeblockingBlockMetadata> ChromaCbBlocks,
     IReadOnlyList<H264DeblockingBlockMetadata> ChromaCrBlocks)
 {
-    public H264DeblockingMacroblockMetadata Clone() => this with
+    public H264DeblockingMacroblockMetadata DeepCopy() => this with
     {
         LumaBlocks = Array.AsReadOnly(LumaBlocks.ToArray()),
         ChromaCbBlocks = Array.AsReadOnly(ChromaCbBlocks.ToArray()),
