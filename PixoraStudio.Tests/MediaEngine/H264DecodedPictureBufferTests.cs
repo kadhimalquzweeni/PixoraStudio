@@ -274,14 +274,16 @@ public sealed class H264DecodedPictureBufferTests
     }
 
     [Fact]
-    public void CreateTemporalDirectMotionField_ShouldRejectEntriesWithoutStoredMotionMetadata()
+    public void CreateTemporalDirectMotionField_ForIntraOnlyCollocatedPicture_ShouldExposeUnavailableMotion()
     {
         H264DecodedPictureBuffer dpb = new();
         H264ReferencePicture collocated = new(1, 2);
         dpb.StoreDecodedPicture(Surface(), collocated, true, 4, 1, 16, Adaptive(false));
 
-        Assert.Throws<NotSupportedException>(() =>
-            dpb.CreateTemporalDirectMotionField(collocated));
+        H264TemporalDirectMotionField field =
+            dpb.CreateTemporalDirectMotionField(collocated);
+
+        Assert.Null(field.GetContext(0, 0, 1, 1, 4, []));
     }
 
     [Fact]
