@@ -90,8 +90,11 @@ public sealed class H264IntraPredictionTests
     [Fact]
     public void Predict4x4_TransposedModes_ShouldBeTransposesOfTheirPairedModes()
     {
+        byte[] swappedTop = [Left4[0], Left4[1], Left4[2], Left4[3],
+            Left4[3], Left4[3], Left4[3], Left4[3]];
+        byte[] swappedLeft = Top4.Take(4).ToArray();
         byte[] mode5 = H264IntraPrediction.Predict4x4(
-            5, Top4, Left4, 15, true, true, true);
+            5, swappedTop, swappedLeft, 15, true, true, true);
         byte[] mode6 = H264IntraPrediction.Predict4x4(
             6, Top4, Left4, 15, true, true, true);
         for (int y = 0; y < 4; y++)
@@ -99,7 +102,7 @@ public sealed class H264IntraPredictionTests
                 Assert.Equal(mode5[x * 4 + y], mode6[y * 4 + x]);
 
         byte[] mode7 = H264IntraPrediction.Predict4x4(
-            7, Top4, Left4, 15, true, true, true);
+            7, swappedTop, swappedLeft, 15, true, true, true);
         byte[] mode8 = H264IntraPrediction.Predict4x4(
             8, Top4, Left4, 15, true, true, true);
         for (int y = 0; y < 4; y++)
