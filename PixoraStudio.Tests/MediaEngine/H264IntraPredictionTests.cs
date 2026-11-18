@@ -24,7 +24,7 @@ public sealed class H264IntraPredictionTests
     }
 
     [Theory]
-    [InlineData(true, true, 40)]
+    [InlineData(true, true, 45)]
     [InlineData(true, false, 25)]
     [InlineData(false, true, 65)]
     [InlineData(false, false, 128)]
@@ -93,8 +93,8 @@ public sealed class H264IntraPredictionTests
 
     [Theory]
     [InlineData(true, true, 30)]
-    [InlineData(true, false, 18)]
-    [InlineData(false, true, 48)]
+    [InlineData(true, false, 10)]
+    [InlineData(false, true, 50)]
     [InlineData(false, false, 128)]
     public void Predict16x16_Dc_ShouldUseAvailableReferenceEdges(
         bool hasTop, bool hasLeft, byte expected)

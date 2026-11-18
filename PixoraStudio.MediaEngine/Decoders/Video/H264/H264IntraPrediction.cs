@@ -195,8 +195,10 @@ public static class H264IntraPrediction
         int vertical = 0;
         for (int i = 1; i <= 8; i++)
         {
-            horizontal += i * (top[7 + i] - top[7 - i]);
-            vertical += i * (left[7 + i] - left[7 - i]);
+            byte topBefore = i == 8 ? topLeft : top[7 - i];
+            byte leftBefore = i == 8 ? topLeft : left[7 - i];
+            horizontal += i * (top[7 + i] - topBefore);
+            vertical += i * (left[7 + i] - leftBefore);
         }
         int a = 16 * (top[15] + left[15]);
         int b = (5 * horizontal + 32) >> 6;
