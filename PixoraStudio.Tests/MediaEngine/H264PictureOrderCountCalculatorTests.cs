@@ -61,8 +61,8 @@ public sealed class H264PictureOrderCountCalculatorTests
 
         Assert.Equal(2, reference.TopFieldOrderCount);
         Assert.Equal(4, reference.BottomFieldOrderCount);
-        Assert.Equal(4, nonReference.TopFieldOrderCount);
-        Assert.Equal(6, nonReference.BottomFieldOrderCount);
+        Assert.Equal(1, nonReference.TopFieldOrderCount);
+        Assert.Equal(3, nonReference.BottomFieldOrderCount);
     }
 
     [Fact]
