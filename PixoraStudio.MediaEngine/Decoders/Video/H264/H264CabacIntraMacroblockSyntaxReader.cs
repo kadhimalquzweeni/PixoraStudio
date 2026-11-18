@@ -4,68 +4,11 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Parses CABAC prediction, coded-block-pattern and QP-delta syntax for
-/// I_NxN and I_16x16 macroblocks. Context increments are supplied by the
-/// picture-level neighbour-state tracker.
+/// I_NxN and I_16x16 macroblocks.
 /// </summary>
 public sealed class H264CabacIntraMacroblockSyntaxReader
 {
     private readonly H264IntraPredictionModeReader _predictionModeReader = new();
-
-    /// <summary>
-    /// Parses CABAC intra syntax while deriving all macroblock-neighbour
-    /// context increments from the retained picture state.
-    /// </summary>
-    public H264IntraMacroblockSyntax Read(
-        H264CabacSyntaxElementReader reader,
-        H264MacroblockHeader macroblockHeader,
-        H264SequenceParameterSet sequenceParameterSet,
-        H264PictureParameterSetHeader pictureParameterSet,
-        H264CabacIntraMacroblockNeighbourContext neighbourContext,
-        int macroblockX,
-        int macroblockY,
-        int sliceId,
-        uint? previousMacroblockAddress,
-        uint previouslyDecodedCodedBlockPattern = 0)
-    {
-        ArgumentNullException.ThrowIfNull(neighbourContext);
-
-        uint chromaArrayType = sequenceParameterSet.SeparateColourPlaneFlag
-            ? 0u
-            : sequenceParameterSet.ChromaFormatIdc;
-        int chromaPredictionIncrement = chromaArrayType == 0
-            ? 0
-            : neighbourContext.GetChromaPredictionModeContextIncrement(
-                macroblockX, macroblockY, sliceId);
-
-        IReadOnlyList<int>? lumaCbpIncrements = null;
-        IReadOnlyList<int>? chromaCbpIncrements = null;
-        if (!macroblockHeader.IsIntra16x16)
-        {
-            lumaCbpIncrements =
-                neighbourContext.GetLumaCodedBlockPatternContextIncrements(
-                    macroblockX, macroblockY, sliceId,
-                    previouslyDecodedCodedBlockPattern);
-            if (chromaArrayType is 1 or 2)
-            {
-                chromaCbpIncrements =
-                    neighbourContext.GetChromaCodedBlockPatternContextIncrements(
-                        macroblockX, macroblockY, sliceId);
-            }
-        }
-
-        int qpDeltaIncrement = neighbourContext.GetQpDeltaContextIncrement(
-            previousMacroblockAddress, sliceId);
-
-        return Read(
-            reader,
-            macroblockHeader,
-            sequenceParameterSet,
-            pictureParameterSet,
-            chromaPredictionIncrement,
-            lumaCbpIncrements,
-            chromaCbpIncrements,
-            qpDeltaIncrement);
-    }
 
     public H264IntraMacroblockSyntax Read(
         H264CabacSyntaxElementReader reader,
@@ -76,6 +19,74 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         IReadOnlyList<int>? lumaCbpContextIncrements,
         IReadOnlyList<int>? chromaCbpContextIncrements,
         int qpDeltaContextIncrement)
+    {
+        return ReadCore(
+            reader, macroblockHeader, sequenceParameterSet, pictureParameterSet,
+            chromaPredictionContextIncrement, lumaCbpContextIncrements,
+            chromaCbpContextIncrements, qpDeltaContextIncrement, null);
+    }
+
+    /// <summary>
+    /// Parses CABAC intra syntax while deriving neighbour context increments
+    /// from retained picture state. Luma CBP increments are recalculated after
+    /// every bin so the current macroblock's earlier CBP bins affect later bins.
+    /// </summary>
+    public H264IntraMacroblockSyntax Read(
+        H264CabacSyntaxElementReader reader,
+        H264MacroblockHeader macroblockHeader,
+        H264SequenceParameterSet sequenceParameterSet,
+        H264PictureParameterSetHeader pictureParameterSet,
+        H264CabacIntraMacroblockNeighbourContext neighbourContext,
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        uint? previousMacroblockAddress)
+    {
+        ArgumentNullException.ThrowIfNull(neighbourContext);
+        ArgumentNullException.ThrowIfNull(sequenceParameterSet);
+
+        uint chromaArrayType = sequenceParameterSet.SeparateColourPlaneFlag
+            ? 0u
+            : sequenceParameterSet.ChromaFormatIdc;
+        int chromaPredictionIncrement = chromaArrayType == 0
+            ? 0
+            : neighbourContext.GetChromaPredictionModeContextIncrement(
+                macroblockX, macroblockY, sliceId);
+
+        IReadOnlyList<int>? chromaCbpIncrements = null;
+        if (!macroblockHeader.IsIntra16x16 && chromaArrayType is 1 or 2)
+        {
+            chromaCbpIncrements =
+                neighbourContext.GetChromaCodedBlockPatternContextIncrements(
+                    macroblockX, macroblockY, sliceId);
+        }
+
+        int qpDeltaIncrement = neighbourContext.GetQpDeltaContextIncrement(
+            previousMacroblockAddress, sliceId);
+        Func<int, uint, int>? lumaCbpContextProvider = null;
+        if (!macroblockHeader.IsIntra16x16)
+        {
+            lumaCbpContextProvider = (binIndex, decodedPattern) =>
+                neighbourContext.GetLumaCodedBlockPatternContextIncrement(
+                    macroblockX, macroblockY, sliceId, binIndex, decodedPattern);
+        }
+
+        return ReadCore(
+            reader, macroblockHeader, sequenceParameterSet, pictureParameterSet,
+            chromaPredictionIncrement, null, chromaCbpIncrements,
+            qpDeltaIncrement, lumaCbpContextProvider);
+    }
+
+    private H264IntraMacroblockSyntax ReadCore(
+        H264CabacSyntaxElementReader reader,
+        H264MacroblockHeader macroblockHeader,
+        H264SequenceParameterSet sequenceParameterSet,
+        H264PictureParameterSetHeader pictureParameterSet,
+        int chromaPredictionContextIncrement,
+        IReadOnlyList<int>? lumaCbpContextIncrements,
+        IReadOnlyList<int>? chromaCbpContextIncrements,
+        int qpDeltaContextIncrement,
+        Func<int, uint, int>? lumaCbpContextProvider)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(macroblockHeader);
@@ -100,13 +111,17 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         bool isIntraNxN = !macroblockHeader.IsIntra16x16;
         if (isIntraNxN)
         {
-            if (lumaCbpContextIncrements is null)
-                throw new ArgumentNullException(nameof(lumaCbpContextIncrements));
-            if (lumaCbpContextIncrements.Count != 4 ||
-                lumaCbpContextIncrements.Any(value => value is < 0 or > 3))
-                throw new ArgumentException(
-                    "Four luma CBP context increments in the range 0..3 are required.",
-                    nameof(lumaCbpContextIncrements));
+            if (lumaCbpContextProvider is null)
+            {
+                if (lumaCbpContextIncrements is null)
+                    throw new ArgumentNullException(nameof(lumaCbpContextIncrements));
+                if (lumaCbpContextIncrements.Count != 4 ||
+                    lumaCbpContextIncrements.Any(value => value is < 0 or > 3))
+                    throw new ArgumentException(
+                        "Four luma CBP context increments in the range 0..3 are required.",
+                        nameof(lumaCbpContextIncrements));
+            }
+
             if (chromaArrayType is 1 or 2 &&
                 (chromaCbpContextIncrements is null ||
                  chromaCbpContextIncrements.Count != 2 ||
@@ -115,7 +130,8 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
                     "Two chroma CBP context increments in the range 0..3 are required.",
                     nameof(chromaCbpContextIncrements));
         }
-        if (chromaArrayType != 0 && (chromaPredictionContextIncrement is < 0 or > 2))
+
+        if (chromaArrayType != 0 && chromaPredictionContextIncrement is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(chromaPredictionContextIncrement));
         if (qpDeltaContextIncrement is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(qpDeltaContextIncrement));
@@ -151,10 +167,15 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
                 macroblockHeader.CodedBlockPatternChroma.Value,
                 chromaArrayType);
         }
+        else if (lumaCbpContextProvider is not null)
+        {
+            codedBlockPattern = reader.ReadIntraCodedBlockPattern(
+                lumaCbpContextProvider, chromaCbpContextIncrements, chromaArrayType);
+        }
         else
         {
             codedBlockPattern = reader.ReadIntraCodedBlockPattern(
-                lumaCbpContextIncrements, chromaCbpContextIncrements, chromaArrayType);
+                lumaCbpContextIncrements!, chromaCbpContextIncrements, chromaArrayType);
         }
 
         int? macroblockQpDelta = null;
