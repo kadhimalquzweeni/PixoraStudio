@@ -7,8 +7,7 @@ public sealed class H264BitReaderTests
     [Fact]
     public void ReadBits_ShouldReadMostSignificantBitFirst()
     {
-        H264BitReader reader = new(new byte[] { 0b1011_0010 
-});
+        H264BitReader reader = new(new byte[] { 0b1011_0010 });
         Assert.Equal(5u, reader.ReadBits(3));
         Assert.Equal(0b10010u, reader.ReadBits(5));
         Assert.Equal(0, reader.RemainingBits);
