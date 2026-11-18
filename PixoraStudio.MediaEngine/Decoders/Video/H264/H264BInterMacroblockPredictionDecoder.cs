@@ -130,6 +130,9 @@ public sealed class H264BInterMacroblockPredictionDecoder
             H264ReconstructedBInterSubPartition partition = item.Partition;
             H264MotionCompensatedBlock block = item.Prediction;
             ValidatePartition(partition);
+            if (partition.X + partition.Width > 4 ||
+                partition.Y + partition.Height > 4)
+                throw new FormatException("A macroblock-local B sub-partition lies outside the 16x16 macroblock.");
             int width = checked(partition.Width * 4);
             int height = checked(partition.Height * 4);
             int chromaWidth = checked(partition.Width * 2);
