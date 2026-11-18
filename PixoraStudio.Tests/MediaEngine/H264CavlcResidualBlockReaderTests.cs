@@ -27,7 +27,7 @@ public sealed class H264CavlcResidualBlockReaderTests
         Assert.Equal(1, block.TrailingOnes);
         Assert.Equal(0, block.TotalZeros);
         Assert.Equal(1, block.Coefficients[0]);
-        Assert.Equal(0, block.Coefficients.Skip(1).Sum(Math.Abs));
+        Assert.All(block.Coefficients.Skip(1), value => Assert.Equal(0, value));
     }
 
     [Fact]
