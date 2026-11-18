@@ -50,8 +50,10 @@ public sealed class H264IntraMacroblockReconstructor
             throw new FormatException("I_16x16 macroblocks cannot carry I_NxN luma prediction modes.");
         if (syntax.IntraChromaPredictionMode is null or > 3)
             throw new FormatException("The chroma prediction mode must be present and in the range 0..3.");
-        if (residual.Intra16x16Dc is null || residual.Blocks.Count != 16)
-            throw new FormatException("I_16x16 residual data must contain one DC block and sixteen AC blocks.");
+        H264CavlcResidualBlock dcResidual = residual.Intra16x16Dc
+            ?? throw new FormatException("I_16x16 residual data must contain a DC block.");
+        if (residual.Blocks.Count != 16)
+            throw new FormatException("I_16x16 residual data must contain sixteen AC blocks.");
 
         H264IntraReferenceSamples lumaReferences = _references.GatherLuma16x16(
             macroblockX, macroblockY, sliceId, pps.ConstrainedIntraPredFlag);
@@ -68,7 +70,7 @@ public sealed class H264IntraMacroblockReconstructor
             lumaReferences.HasTop, lumaReferences.HasLeft);
         H264CavlcResidualBlock[] acBlocks = OrderLumaAcBlocks(residual.Blocks);
         byte[] luma = H264Intra16x16ResidualReconstructor.Reconstruct(
-            lumaPrediction, residual.Intra16x16Dc, acBlocks,
+            lumaPrediction, dcResidual, acBlocks,
             qpPrimeY, sps, pps);
 
         byte[] cb = ReconstructChroma(1, macroblockX, macroblockY, sliceId,
