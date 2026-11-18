@@ -20,7 +20,7 @@ public sealed class H264Intra8x8ResidualReconstructorTests
     public void Reconstruct_ShouldApplyInverseQuantisationAndTransformToDcCoefficient()
     {
         int[] coefficients = new int[64];
-        coefficients[0] = 1;
+        coefficients[0] = 32;
 
         byte[] result = H264Intra8x8ResidualReconstructor.Reconstruct(
             Prediction, coefficients, 0, CreateSps(), CreatePps());
