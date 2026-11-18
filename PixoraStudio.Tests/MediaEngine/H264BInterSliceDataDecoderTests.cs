@@ -76,6 +76,33 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_BSliceWithIpcmMacroblock_ShouldReadRawSamples()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264DecodedPictureSurface reference = Reference(sps, 33);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader();
+        bits.Ue(0); // mb_skip_run
+        bits.Ue(48); // B-slice I_PCM macroblock type
+        bits.AlignToByte();
+        for (int i = 0; i < 256; i++) bits.Bits(99, 8);
+        for (int i = 0; i < 64; i++) bits.Bits(109, 8);
+        for (int i = 0; i < 64; i++) bits.Bits(119, 8);
+        bits.TrailingBits();
+
+        H264BInterSliceDecodeResult result = Decoder(destination).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Empty(result.InterMacroblocks);
+        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal((byte)99, destination.GetLumaSample(0, 0));
+        Assert.Equal((byte)109, destination.GetChromaSample(1, 0, 0));
+        Assert.Equal((byte)119, destination.GetChromaSample(2, 0, 0));
+    }
+
+    [Fact]
     public void Decode_ShouldRejectNonBAndUnsupportedConfiguration()
     {
         H264SequenceParameterSet sps = Sps();
@@ -141,6 +168,10 @@ public sealed class H264BInterSliceDataDecoderTests
     {
         private readonly List<bool> _bits = [];
         public void Flag(bool value) => _bits.Add(value);
+        public void AlignToByte()
+        {
+            while ((_bits.Count & 7) != 0) Flag(false);
+        }
         public void Bits(uint value, int count)
         {
             for (int i = count - 1; i >= 0; i--) _bits.Add(((value >> i) & 1) != 0);
