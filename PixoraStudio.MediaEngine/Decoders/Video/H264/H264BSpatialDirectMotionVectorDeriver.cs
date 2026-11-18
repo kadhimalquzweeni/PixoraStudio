@@ -33,7 +33,8 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         int partitionHeight,
         int macroblockPartitionIndex,
         int sliceId,
-        bool direct8x8InferenceFlag)
+        bool direct8x8InferenceFlag,
+        bool colZeroFlag = false)
     {
         ArgumentNullException.ThrowIfNull(motionVectorStateL0);
         ArgumentNullException.ThrowIfNull(motionVectorStateL1);
@@ -75,11 +76,13 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
             bool directZeroPrediction = AllReferencesUnavailable(candidates0) &&
                 AllReferencesUnavailable(candidates1);
 
-            H264MotionVector vector0 = directZeroPrediction
+            H264MotionVector vector0 = directZeroPrediction ||
+                (referenceIndex0 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
                 : _predictor.Predict(candidates0.Left, candidates0.Above,
                     candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
-            H264MotionVector vector1 = directZeroPrediction
+            H264MotionVector vector1 = directZeroPrediction ||
+                (referenceIndex1 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
                 : _predictor.Predict(candidates1.Left, candidates1.Above,
                     candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
