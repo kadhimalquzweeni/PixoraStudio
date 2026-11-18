@@ -14,7 +14,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
             new(new H264CabacSyntaxElementReader(bins), neighbours);
 
         H264InterMacroblockResidualSyntax result = reader.Read(
-            Sps(), Pps(), 0, 0, 1, 0, noSubMacroblockPartitionSmallerThan8x8: true);
+            Sps(), Pps() with { EntropyCodingModeFlag = true }, 0, 0, 1, 0, noSubMacroblockPartitionSmallerThan8x8: true);
 
         Assert.Equal(0u, result.CodedBlockPattern.Luma);
         Assert.Equal(0u, result.CodedBlockPattern.Chroma);
@@ -32,7 +32,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
             new(new H264CabacSyntaxElementReader(bins), neighbours);
 
         H264InterMacroblockResidualSyntax result = reader.Read(
-            Sps(), Pps() with { Transform8X8ModeFlag = true },
+            Sps(), Pps() with { EntropyCodingModeFlag = true, Transform8X8ModeFlag = true },
             0, 0, 1, 0, noSubMacroblockPartitionSmallerThan8x8: true);
 
         Assert.Equal(1u, result.CodedBlockPattern.Luma);
