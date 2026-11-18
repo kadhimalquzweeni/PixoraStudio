@@ -37,6 +37,16 @@ public sealed class H264PictureOrderCountCalculator
             throw new FormatException("log2_max_frame_num_minus4 exceeds the supported H.264 range.");
         if (slice.FrameNum >= (1u << checked((int)sps.Log2MaxFrameNumMinus4 + 4)))
             throw new FormatException("frame_num exceeds the range declared by the SPS.");
+        if (sps.PicOrderCntType == 0)
+        {
+            if (slice.PicOrderCntLsb is not uint pocLsb)
+                throw new FormatException("POC type 0 requires pic_order_cnt_lsb.");
+            if (sps.Log2MaxPicOrderCntLsbMinus4 > 12)
+                throw new FormatException("log2_max_pic_order_cnt_lsb_minus4 exceeds the supported H.264 range.");
+            uint maxPocLsb = 1u << checked((int)sps.Log2MaxPicOrderCntLsbMinus4 + 4);
+            if (pocLsb >= maxPocLsb)
+                throw new FormatException("pic_order_cnt_lsb exceeds the range declared by the SPS.");
+        }
 
         bool idr = slice.IdrPicId.HasValue;
         bool reference = nalRefIdc != 0;
