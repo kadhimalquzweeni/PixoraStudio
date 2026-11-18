@@ -202,6 +202,10 @@ public sealed class H264PictureOrderCountCalculatorTests
         H264SequenceParameterSet sps = CreateSps();
         H264SliceHeader slice = CreateSlice(0, null, idr: true);
         Assert.Throws<FormatException>(() => new H264PictureOrderCountCalculator().Calculate(sps, slice, 3));
+        Assert.Throws<FormatException>(() => new H264PictureOrderCountCalculator().Calculate(
+            sps, CreateSlice(0, 16, idr: true), 3));
+        Assert.Throws<FormatException>(() => new H264PictureOrderCountCalculator().Calculate(
+            sps with { Log2MaxFrameNumMinus4 = 13 }, CreateSlice(0, 0, idr: true), 3));
     }
 
     private static H264SequenceParameterSet CreateSps() => new(
