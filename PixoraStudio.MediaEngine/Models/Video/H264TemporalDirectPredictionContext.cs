@@ -18,4 +18,5 @@ public sealed record H264TemporalDirectPredictionContext(
 public sealed record H264TemporalDirectMotionVectorResult(
     H264MotionVector MotionVectorL0,
     H264MotionVector MotionVectorL1,
-    int DistanceScaleFactor);
+    int DistanceScaleFactor,
+    int ReferenceIndexL0 = 0);
