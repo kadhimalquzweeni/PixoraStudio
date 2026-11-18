@@ -82,6 +82,40 @@ public sealed class H264TemporalDirectMotionFieldTests
     }
 
     [Fact]
+    public void GetContext_WhenDifferentFrameSharesPoc_ShouldNotMapItAsTheSameReference()
+    {
+        H264MotionVectorPictureState l0 = new(1, 1);
+        l0.RecordInterPartition(0, 0, 1, 1, 0, 0, new H264MotionVector(4, 2));
+        H264TemporalDirectMotionField field = new(
+            l0, new H264MotionVectorPictureState(1, 1),
+            [new H264ReferencePicture(3, 8)], [], 0,
+            collocatedPictureIsShortTerm: true);
+
+        H264TemporalDirectPredictionContext context = field.GetContext(
+            0, 0, 1, 1, 12,
+            [new H264ReferencePicture(4, 8)])!;
+
+        Assert.Equal(-1, context.MappedReferenceIndexL0);
+    }
+
+    [Fact]
+    public void GetContext_WhenSameFrameHasDifferentPoc_ShouldNotMapItAsTheSameReference()
+    {
+        H264MotionVectorPictureState l0 = new(1, 1);
+        l0.RecordInterPartition(0, 0, 1, 1, 0, 0, new H264MotionVector(4, 2));
+        H264TemporalDirectMotionField field = new(
+            l0, new H264MotionVectorPictureState(1, 1),
+            [new H264ReferencePicture(3, 8)], [], 0,
+            collocatedPictureIsShortTerm: true);
+
+        H264TemporalDirectPredictionContext context = field.GetContext(
+            0, 0, 1, 1, 12,
+            [new H264ReferencePicture(3, 10)])!;
+
+        Assert.Equal(-1, context.MappedReferenceIndexL0);
+    }
+
+    [Fact]
     public void GetContext_WhenCollocatedBlockHasNoInterMotion_ShouldReturnNull()
     {
         H264TemporalDirectMotionField field = new(
