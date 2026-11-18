@@ -58,7 +58,7 @@ public sealed class H264CabacArithmeticDecoderTests
     [Fact]
     public void DecodeBypass_ShouldNotChangeRangeOrContext()
     {
-        H264CabacArithmeticDecoder decoder = CreateDecoder(0x100);
+        H264CabacArithmeticDecoder decoder = CreateDecoder(100);
         int range = decoder.Range;
 
         int bin = decoder.DecodeBypass();
