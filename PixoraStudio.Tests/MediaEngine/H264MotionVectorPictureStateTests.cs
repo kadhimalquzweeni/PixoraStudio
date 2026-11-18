@@ -40,6 +40,11 @@ public sealed class H264MotionVectorPictureStateTests
 
         Assert.Null(result.AboveRight);
         Assert.Equal(aboveLeft, result.AboveLeft);
+
+        H264MotionVector reconstructed = state.ReconstructAndRecord(
+            _predictor, 6, 4, 2, 2, 1, 3,
+            new H264MotionVectorDifference(1, 2));
+        Assert.Equal(new H264MotionVector(42, -7), reconstructed);
     }
 
     [Fact]
