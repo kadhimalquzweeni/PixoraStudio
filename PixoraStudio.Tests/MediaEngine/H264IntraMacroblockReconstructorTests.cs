@@ -23,10 +23,28 @@ public sealed class H264IntraMacroblockReconstructorTests
             0, 0, 0, header, syntax, residual, 24, sps, pps);
 
         Assert.True(surface.IsMacroblockDecoded(0, 0));
-        Assert.All(surface.CopyLumaPlane(), value => Assert.Equal((byte)128, value));
-        Assert.Equal(chromaCount, surface.CopyCbPlane().Length);
-        Assert.All(surface.CopyCbPlane(), value => Assert.Equal((byte)128, value));
-        Assert.All(surface.CopyCrPlane(), value => Assert.Equal((byte)128, value));
+
+        // The SPS describes a 2x2 macroblock picture. This call reconstructs
+        // only macroblock (0, 0), so assert its 16x16 luma and format-specific
+        // 8x8/8x16 chroma regions rather than untouched neighbouring regions.
+        byte[] luma = surface.CopyLumaPlane();
+        for (int row = 0; row < 16; row++)
+        {
+            Assert.All(luma.Skip(row * surface.Width).Take(16),
+                value => Assert.Equal((byte)128, value));
+        }
+
+        byte[] cb = surface.CopyCbPlane();
+        byte[] cr = surface.CopyCrPlane();
+        Assert.Equal(chromaCount, cb.Length);
+        int chromaBlockHeight = format == 1 ? 8 : 16;
+        for (int row = 0; row < chromaBlockHeight; row++)
+        {
+            Assert.All(cb.Skip(row * surface.ChromaWidth).Take(8),
+                value => Assert.Equal((byte)128, value));
+            Assert.All(cr.Skip(row * surface.ChromaWidth).Take(8),
+                value => Assert.Equal((byte)128, value));
+        }
     }
 
     [Fact]
