@@ -80,6 +80,27 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_ExplicitBInterWithoutDirectPartitions_ShouldNotRequireCollocatedMotionMetadata()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264DecodedPictureSurface reference = Reference(sps, 55);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader(directSpatial: false);
+        bits.Ue(0); // mb_skip_run
+        bits.Ue(1); // B_L0_16x16
+        bits.Se(0); bits.Se(0);
+        bits.Ue(0); // coded_block_pattern = 0
+        bits.TrailingBits();
+
+        H264BInterSliceDecodeResult result = Decoder(destination).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+
+        Assert.Single(result.InterMacroblocks);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+    }
+
+    [Fact]
     public void Decode_BSkipRun_TemporalDirect_ShouldUseCollocatedMotionProvider()
     {
         H264SequenceParameterSet sps = Sps();
