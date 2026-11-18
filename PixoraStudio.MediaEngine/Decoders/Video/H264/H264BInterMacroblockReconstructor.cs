@@ -63,6 +63,11 @@ public sealed class H264BInterMacroblockReconstructor
             throw new ArgumentException("A coded inter B macroblock header is required.", nameof(header));
         if (pps.WeightedBipredIdc == 1 && predictionWeights is null)
             throw new ArgumentNullException(nameof(predictionWeights));
+        if (referenceList0.Count != checked((int)(numRefIdxL0ActiveMinus1 + 1)) ||
+            referenceList1.Count != checked((int)(numRefIdxL1ActiveMinus1 + 1)))
+            throw new ArgumentException("Decoded reference surfaces must match the active B reference-list counts.");
+        if (header.MacroblockAddress != checked((uint)(macroblockY * destination.MacroblockWidth + macroblockX)))
+            throw new FormatException("The B macroblock header address does not match its picture coordinates.");
 
         H264BMacroblockSyntax syntax = _syntaxReader.Read(
             reader, header, numRefIdxL0ActiveMinus1, numRefIdxL1ActiveMinus1);
@@ -127,6 +132,8 @@ public sealed class H264BInterMacroblockReconstructor
         ValidateContext(destination, macroblockX, macroblockY, sliceId, currentQpY, sps, pps);
         if (!header.IsSkipped || header.SkippedMacroblockCount != 1)
             throw new ArgumentException("A single B_Skip macroblock header is required.", nameof(header));
+        if (header.MacroblockAddress != checked((uint)(macroblockY * destination.MacroblockWidth + macroblockX)))
+            throw new FormatException("The B_Skip header address does not match its picture coordinates.");
         if (!directSpatialPrediction)
             throw new NotSupportedException("Temporal B_Skip prediction requires collocated-picture motion metadata.");
         if (destination.IsMacroblockDecoded(macroblockX, macroblockY))
@@ -193,7 +200,6 @@ public sealed class H264BInterMacroblockReconstructor
             sps.PicHeightInMapUnitsMinus1 + 1 != (uint)destination.MacroblockHeight ||
             sps.ChromaFormatIdc != destination.ChromaFormatIdc)
             throw new ArgumentException("The SPS does not describe the destination picture surface.", nameof(sps));
-        uint address = checked((uint)(y * destination.MacroblockWidth + x));
         if (destination.IsMacroblockDecoded(x, y))
             throw new InvalidOperationException("The destination macroblock has already been decoded.");
     }
