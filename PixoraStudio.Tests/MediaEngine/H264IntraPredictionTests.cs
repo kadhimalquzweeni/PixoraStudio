@@ -68,6 +68,35 @@ public sealed class H264IntraPredictionTests
     }
 
     [Fact]
+    public void Predict4x4_ShouldRejectMissingTopRightSamplesWhenDeclaredAvailable()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            H264IntraPrediction.Predict4x4(
+                3, new byte[] { 1, 2, 3, 4 }, Left4, 0,
+                true, true, true, hasTopRight: true));
+    }
+
+    [Fact]
+    public void Predict4x4_TransposedModes_ShouldBeTransposesOfTheirPairedModes()
+    {
+        byte[] mode5 = H264IntraPrediction.Predict4x4(
+            5, Top4, Left4, 15, true, true, true);
+        byte[] mode6 = H264IntraPrediction.Predict4x4(
+            6, Top4, Left4, 15, true, true, true);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                Assert.Equal(mode5[x * 4 + y], mode6[y * 4 + x]);
+
+        byte[] mode7 = H264IntraPrediction.Predict4x4(
+            7, Top4, Left4, 15, true, true, true);
+        byte[] mode8 = H264IntraPrediction.Predict4x4(
+            8, Top4, Left4, 15, true, true, true);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                Assert.Equal(mode7[x * 4 + y], mode8[y * 4 + x]);
+    }
+
+    [Fact]
     public void Predict4x4_ShouldRejectInvalidModeAndShortReferences()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

@@ -9,8 +9,7 @@ public static class H264IntraPrediction
 {
     /// <summary>
     /// Predicts a 4x4 luma block. top contains T0..T7, left contains L0..L3.
-    /// Unavailable top-right samples are replaced by T3; unavailable
-    /// bottom-left samples are replaced by L3 as required by the prediction modes.
+    /// Unavailable top-right samples are replaced by T3 where required.
     /// </summary>
     public static byte[] Predict4x4(
         uint mode,
@@ -20,8 +19,7 @@ public static class H264IntraPrediction
         bool hasTop,
         bool hasLeft,
         bool hasTopLeft,
-        bool hasTopRight = true,
-        bool hasBottomLeft = true)
+        bool hasTopRight = true)
     {
         ArgumentNullException.ThrowIfNull(top);
         ArgumentNullException.ThrowIfNull(left);
@@ -31,8 +29,10 @@ public static class H264IntraPrediction
             throw new ArgumentOutOfRangeException(nameof(mode));
 
         RequireReferences(mode, hasTop, hasLeft, hasTopLeft);
+        if (hasTopRight && mode is 3 or 7 && top.Count < 8)
+            throw new ArgumentException("This prediction mode requires all eight top reference samples when top-right is available.", nameof(top));
         byte[] t = ExtendTop(top, hasTopRight);
-        byte[] l = ExtendLeft(left, hasBottomLeft);
+        byte[] l = ExtendLeft(left);
         byte[] result = new byte[16];
 
         switch (mode)
@@ -287,15 +287,8 @@ public static class H264IntraPrediction
         return result;
     }
 
-    private static byte[] ExtendLeft(IReadOnlyList<byte> source, bool hasBottomLeft)
-    {
-        byte[] result = new byte[4];
-        for (int i = 0; i < 4; i++)
-            result[i] = source[i];
-        if (!hasBottomLeft)
-            result[3] = source[3];
-        return result;
-    }
+    private static byte[] ExtendLeft(IReadOnlyList<byte> source) =>
+        [source[0], source[1], source[2], source[3]];
 
     private static byte VerticalRightReference(int index, byte[] top, byte[] left, byte topLeft) =>
         index >= 0 ? top[Math.Min(index, 7)]
