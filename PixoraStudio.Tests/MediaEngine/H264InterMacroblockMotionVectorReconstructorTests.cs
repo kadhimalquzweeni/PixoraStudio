@@ -100,6 +100,51 @@ public sealed class H264InterMacroblockMotionVectorReconstructorTests
         Assert.Equal(new H264MotionVector(1, 1), result[1].MotionVector);
     }
 
+    [Theory]
+    [InlineData(0, 4)]
+    [InlineData(1, 8)]
+    [InlineData(2, 8)]
+    [InlineData(3, 16)]
+    public void Reconstruct_P8x8_ShouldSupportEverySubMacroblockShape(
+        uint subMacroblockType, int expectedSubPartitionCount)
+    {
+        H264MotionVectorPictureState state = new(1, 1);
+        H264InterPredictionPartition[] partitions = new H264InterPredictionPartition[4];
+        (int width, int height, int count) = subMacroblockType switch
+        {
+            0 => (8, 8, 1),
+            1 => (8, 4, 2),
+            2 => (4, 8, 2),
+            3 => (4, 4, 4),
+            _ => throw new InvalidOperationException()
+        };
+
+        for (int i = 0; i < 4; i++)
+        {
+            int originX = (i & 1) * 8;
+            int originY = (i >> 1) * 8;
+            H264InterSubPartition[] subPartitions = new H264InterSubPartition[count];
+            int perRow = 8 / width;
+            for (int j = 0; j < count; j++)
+            {
+                int x = originX + (j % perRow) * width;
+                int y = originY + (j / perRow) * height;
+                subPartitions[j] = new H264InterSubPartition(
+                    x, y, width, height, [new H264MotionVectorDifference(0, 0)]);
+            }
+            partitions[i] = new H264InterPredictionPartition(
+                originX, originY, 8, 8, 0, subPartitions);
+        }
+
+        H264InterMacroblockSyntax syntax = new(3, true, false, partitions);
+        IReadOnlyList<H264ReconstructedInterPartition> result =
+            _reconstructor.Reconstruct(syntax, state, 0, 0, 0, 1);
+
+        Assert.Equal(expectedSubPartitionCount, result.Count);
+        Assert.All(result, partition =>
+            Assert.Equal(new H264MotionVector(0, 0), partition.MotionVector));
+    }
+
     [Fact]
     public void Reconstruct_P8x8ref0_ShouldUseReferenceIndexZeroWithoutChangingParsedMvd()
     {
