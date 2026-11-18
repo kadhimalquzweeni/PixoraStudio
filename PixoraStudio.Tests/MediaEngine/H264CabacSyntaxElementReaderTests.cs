@@ -267,30 +267,50 @@ public sealed class H264CabacSyntaxElementReaderTests
     [Fact]
     public void ReadIntraSliceMacroblockType_ShouldDecodeI16x16SuffixAndContextDerivation()
     {
-        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0, 0 });
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0 });
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(1, reader.ReadIntraSliceMacroblockType(0));
-        Assert.Equal(new[] { 3, 6, 7, 9, 10, 10 }, bins.ContextIndices);
+        Assert.Equal(new[] { 3, 6, 7, 9, 10 }, bins.ContextIndices);
     }
 
     [Fact]
     public void ReadIntraSliceMacroblockType_ShouldDecodeHighestI16x16Type()
     {
-        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 0, 1, 1, 1 });
+        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 1, 1, 1, 1 });
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(24, reader.ReadIntraSliceMacroblockType(0));
     }
 
     [Fact]
-    public void ReadIntraSliceMacroblockType_ShouldRejectReservedSuffixValues()
+    public void ReadInterSliceIntraMacroblockType_ShouldUsePSliceContextOffsets()
     {
-        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 1, 0, 0, 0 });
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0 });
         H264CabacSyntaxElementReader reader = new(bins);
 
-        Assert.Throws<FormatException>(() => reader.ReadIntraSliceMacroblockType(0));
-        Assert.Equal(new[] { 3, 6, 7, 8, 9, 10 }, bins.ContextIndices);
+        Assert.Equal(1, reader.ReadInterSliceIntraMacroblockType(17));
+        Assert.Equal(new[] { 17, 20, 21, 22, 22 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadInterSliceIntraMacroblockType_ShouldUseBSliceContextOffsets()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 1, 1, 1, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(24, reader.ReadInterSliceIntraMacroblockType(32));
+        Assert.Equal(new[] { 32, 35, 36, 36, 37, 37 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadInterSliceIntraMacroblockType_ShouldDecodePcmWithoutEndingSlice()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(25, reader.ReadInterSliceIntraMacroblockType(17));
+        Assert.False(bins.Terminated);
     }
 
     [Theory]
