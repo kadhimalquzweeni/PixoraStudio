@@ -13,6 +13,8 @@ public sealed class H264BTemporalDirectMotionVectorDeriver
         H264TemporalDirectPredictionContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+        if (context.MappedReferenceIndexL0 < 0)
+            throw new FormatException("The collocated reference picture is not present in the current RefPicList0.");
         H264MotionVector collocated = H264MotionVectorRange.Clip(context.CollocatedMotionVector);
 
         int td = Clip((long)context.CollocatedReferencePictureOrderCount -
