@@ -3,16 +3,16 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Connects parsed I_16x16 syntax and CAVLC residual payloads to prediction,
-/// inverse quantisation/transforms and the decoded picture surface. I_NxN,
-/// PCM, inter, field, CABAC, 4:4:4 and high-bit-depth macroblocks are rejected.
+/// Connects supported intra macroblock syntax and CAVLC residual payloads
+/// to prediction, inverse quantisation/transforms and the decoded picture
+/// surface. I_16x16 and Intra4x4 I_NxN are supported; Intra8x8, PCM, inter,
+/// field, CABAC, 4:4:4 and high-bit-depth macroblocks remain unsupported.
 /// </summary>
 public sealed class H264IntraMacroblockReconstructor
 {
     private readonly H264IntraReferenceSampleProvider _references;
     private readonly H264DecodedPictureSurface _surface;
     private readonly H264Intra4x4PredictionContext _intra4x4Modes = new();
-    private readonly H264Intra8x8PredictionContext _intra8x8Modes = new();
     private readonly H264Intra4x4MacroblockLumaReconstructor _intra4x4Luma = new();
 
     public H264IntraMacroblockReconstructor(H264DecodedPictureSurface surface)
@@ -164,7 +164,6 @@ public sealed class H264IntraMacroblockReconstructor
     public void ResetPictureContexts()
     {
         _intra4x4Modes.Reset();
-        _intra8x8Modes.Reset();
     }
 
     private void RecordIntra16x16Modes(int macroblockX, int macroblockY, int sliceId)
