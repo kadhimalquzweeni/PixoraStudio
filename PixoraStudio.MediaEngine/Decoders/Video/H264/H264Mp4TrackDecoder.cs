@@ -36,6 +36,33 @@ public sealed class H264Mp4TrackDecoder
     }
 
     /// <summary>
+    /// Decodes a video track from an already parsed MP4 media-info object.
+    /// The track's sample enumerator supplies encoded samples in decode order.
+    /// </summary>
+    public IEnumerable<H264Mp4DecodedVideoFrame> Decode(
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        int? maxNumReorderFramesFallback = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(mediaInfo);
+        if (!stream.CanRead || !stream.CanSeek)
+            throw new ArgumentException("The MP4 stream must support reading and seeking.", nameof(stream));
+
+        Mp4MediaTrack mediaTrack = mediaInfo.GetTrack(trackId) ??
+            throw new ArgumentException($"MP4 track {trackId} does not exist.", nameof(trackId));
+        if (mediaTrack.HandlerType != Mp4HandlerType.Video)
+            throw new NotSupportedException($"MP4 track {trackId} is not a video track.");
+
+        IEnumerable<Mp4EncodedSample> samples = mediaTrack.ReadSamples(
+            stream, mediaInfo.MediaDataRegions, cancellationToken);
+        return DecodeSamples(
+            mediaTrack.Track, samples, maxNumReorderFramesFallback, cancellationToken);
+    }
+
+    /// <summary>
     /// Decodes an already-enumerated sequence of MP4 samples. This overload is
     /// useful for callers that manage sample storage or for deterministic tests.
     /// Samples must be supplied contiguously in decode order.
