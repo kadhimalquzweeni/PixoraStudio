@@ -8,10 +8,10 @@ public sealed class H264InterResidualMacroblockReaderTests
     private readonly H264InterResidualMacroblockReader _reader = new();
 
     [Theory]
-    [InlineData(1, 2, 4)]
-    [InlineData(2, 4, 8)]
+    [InlineData(1, 2)]
+    [InlineData(2, 4)]
     public void Read_WithNoCodedBlocks_ShouldCreateZeroResidualLayoutForBothChromaFormats(
-        uint chromaFormat, int blocksHigh, int blocksPerComponent)
+        uint chromaFormat, int blocksHigh)
     {
         H264CavlcNeighbourContext y = new(), cb = new(), cr = new();
         H264InterResidualMacroblock result = _reader.Read(
@@ -28,7 +28,7 @@ public sealed class H264InterResidualMacroblockReaderTests
         foreach (H264IntraChromaResidualComponent component in result.ChromaComponents)
         {
             Assert.Null(component.Dc);
-            Assert.Equal(blocksPerComponent, component.Blocks.Count);
+            Assert.Equal(blocksHigh * 2, component.Blocks.Count);
             Assert.All(component.Blocks, block => Assert.False(block.IsCoded));
         }
         Assert.Equal(0, y.GetPredictedNonZeroCount(1, 0, 1));
