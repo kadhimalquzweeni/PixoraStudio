@@ -55,6 +55,26 @@ public sealed class H264InverseTransformTests
     }
 
     [Fact]
+    public void Inverse8x8_ShouldMatchReferenceVectorForNonDcCoefficients()
+    {
+        int[] input = Enumerable.Range(1, 64).ToArray();
+
+        int[] expected =
+        [
+            22, -8, 5, -1, 4, -2, 3, -1,
+            -21, 6, -4, 1, -3, 1, -2, 1,
+            8, -2, 2, 0, 1, 0, 1, 0,
+            -7, 2, -1, 0, -1, 0, -1, 0,
+            5, -2, 1, 0, 1, 0, 1, 0,
+            -6, 2, -1, 0, -1, 0, -1, 0,
+            4, -1, 1, 0, 1, 0, 0, 0,
+            -3, 1, -1, 0, 0, 0, 0, 0
+        ];
+
+        Assert.Equal(expected, H264InverseTransform.Inverse8x8(input));
+    }
+
+    [Fact]
     public void Inverse8x8_ShouldRejectWrongCoefficientCount()
     {
         Assert.Throws<ArgumentException>(() => H264InverseTransform.Inverse8x8(new int[63]));
