@@ -4,8 +4,8 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Reconstructs explicit list-0/list-1 motion vectors for frame-coded B-slice
-/// inter partitions. Spatial direct prediction is integrated; temporal direct
-/// prediction requires collocated-picture metadata.
+/// inter partitions. Spatial direct prediction and provider-based temporal
+/// direct prediction are integrated.
 /// </summary>
 public sealed class H264BInterMacroblockMotionVectorReconstructor
 {
