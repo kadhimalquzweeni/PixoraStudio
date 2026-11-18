@@ -3,9 +3,9 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Implements the frame-picture temporal direct distance scaling operation.
-/// Selection and storage of the collocated picture/partition are supplied by
-/// the slice/DPB integration layer.
+/// Implements frame-picture temporal direct derivation, including colZeroFlag,
+/// long-term/equal-POC handling, distance scaling and clipping. Selection and
+/// storage of the collocated picture/partition are supplied by the caller.
 /// </summary>
 public sealed class H264BTemporalDirectMotionVectorDeriver
 {
