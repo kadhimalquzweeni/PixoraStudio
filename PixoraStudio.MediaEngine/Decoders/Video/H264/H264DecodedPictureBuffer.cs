@@ -74,8 +74,8 @@ public sealed class H264DecodedPictureBuffer
             if (referenceList0!.Any(item => item is null) ||
                 referenceList1!.Any(item => item is null))
                 throw new ArgumentException("Stored collocated reference lists cannot contain null entries.");
-            referenceList0 = referenceList0.ToArray();
-            referenceList1 = referenceList1.ToArray();
+            referenceList0 = Array.AsReadOnly(referenceList0.ToArray());
+            referenceList1 = Array.AsReadOnly(referenceList1.ToArray());
         }
         if (marking is null)
             throw new ArgumentNullException(nameof(marking),
@@ -113,7 +113,7 @@ public sealed class H264DecodedPictureBuffer
 
         ValidateNoDuplicatePictureNumber(current);
         H264DecodedPictureBufferEntry entry = new(
-            current, surface, motionVectorStateL0, motionVectorStateL1,
+            current, surface, motionVectorStateL0?.Clone(), motionVectorStateL1?.Clone(),
             referenceList0, referenceList1);
         _entries.Add(entry);
         return entry;
