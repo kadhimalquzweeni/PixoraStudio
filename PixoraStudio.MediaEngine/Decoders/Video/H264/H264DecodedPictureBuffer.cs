@@ -4,8 +4,9 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Frame-coded decoded picture buffer for 8-bit 4:2:0/4:2:2 pictures.
-/// It applies sliding-window reference marking and MMCO operations 1–6.
-/// Output reordering and field-picture DPB semantics are separate stages.
+/// It applies sliding-window reference marking and MMCO operations 1–6 and can
+/// retain collocated motion metadata for temporal direct prediction. Output
+/// reordering and field-picture DPB semantics are separate stages.
 /// </summary>
 public sealed class H264DecodedPictureBuffer
 {
