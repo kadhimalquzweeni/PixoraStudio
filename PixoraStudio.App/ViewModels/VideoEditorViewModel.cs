@@ -90,24 +90,22 @@ public partial class VideoEditorViewModel : ObservableObject
             VideoPath = filePath;
             VideoName = Path.GetFileName(filePath);
 
-            VideoLoaded?.Invoke(filePath);
-
+            // Initialise the timeline before playback starts. Previously the
+            // player could advance while TotalMilliseconds was still zero,
+            // then metadata initialisation reset the visible playhead.
             _videoInfo = await _videoService.GetVideoInfoAsync(filePath);
 
-            VideoDuration = FormatDuration(_videoInfo.Duration);
-
-            TotalMilliseconds = _videoInfo.Duration.TotalMilliseconds;
+            TotalMilliseconds = Math.Max(0, _videoInfo.Duration.TotalMilliseconds);
             PlaybackPosition = 0;
             CurrentTime = "00:00";
-
             TrimStart = 0;
             TrimEnd = TotalMilliseconds;
 
-            VideoResolution =
-                $"{_videoInfo.Width} × {_videoInfo.Height}";
+            VideoDuration = FormatDuration(_videoInfo.Duration);
+            VideoResolution = $"{_videoInfo.Width} × {_videoInfo.Height}";
+            VideoFrameRate = $"{_videoInfo.FramesPerSecond:F2} FPS";
 
-            VideoFrameRate =
-                $"{_videoInfo.FramesPerSecond:F2} FPS";
+            VideoLoaded?.Invoke(filePath);
 
             StatusMessage = "Generating video thumbnails...";
 
