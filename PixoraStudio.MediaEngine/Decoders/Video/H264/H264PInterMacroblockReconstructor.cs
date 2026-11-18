@@ -176,8 +176,12 @@ public sealed class H264PInterMacroblockReconstructor
         if (motionVectorState.MacroblockWidth != destination.MacroblockWidth ||
             motionVectorState.MacroblockHeight != destination.MacroblockHeight)
             throw new ArgumentException("Motion-vector state dimensions must match the destination.", nameof(motionVectorState));
-        if (referencePictureList0.Count != partitions.Max(p => p.Partition.ReferenceIndex) + 1)
-            throw new ArgumentException("Reference-picture metadata must cover every selected RefPicList0 index.", nameof(referencePictureList0));
+        if (partitions.Any(partition =>
+                partition.Partition.ReferenceIndex < 0 ||
+                partition.Partition.ReferenceIndex >= referencePictureList0.Count))
+            throw new ArgumentException(
+                "Reference-picture metadata must cover every selected RefPicList0 index.",
+                nameof(referencePictureList0));
 
         int qpY = residualSyntax.MacroblockQpDelta is int delta
             ? UpdateQpY(previousQpY, delta)
