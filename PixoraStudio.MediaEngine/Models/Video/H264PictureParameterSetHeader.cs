@@ -29,6 +29,7 @@ public sealed record H264PictureParameterSetHeader(
     public bool Transform8X8ModeFlag { get; init; }
     public bool PicScalingMatrixPresentFlag { get; init; }
     public IReadOnlyList<IReadOnlyList<int>> ScalingLists { get; init; } = [];
+    public IReadOnlyList<bool> ScalingListUseDefault { get; init; } = [];
     public int? SecondChromaQpIndexOffset { get; init; }
 }
 
