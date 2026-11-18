@@ -82,11 +82,10 @@ public sealed class H264CabacSliceDataReader : IH264CabacBinReader
     public int DecodeTerminate()
     {
         EnsureNotTerminated();
-        int bin = _arithmeticDecoder.DecodeTerminate();
-        if (bin == 1)
-            _terminated = true;
-        return bin;
+        return _arithmeticDecoder.DecodeTerminate();
     }
+
+    public void MarkTerminated() => _terminated = true;
 
     private void EnsureNotTerminated()
     {
