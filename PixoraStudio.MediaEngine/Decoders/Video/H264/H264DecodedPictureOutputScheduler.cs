@@ -39,6 +39,11 @@ public sealed class H264DecodedPictureOutputScheduler
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(slice);
+        if (nalRefIdc > 3)
+            throw new ArgumentOutOfRangeException(nameof(nalRefIdc));
+        if (slice.IdrPicId.HasValue &&
+            (nalRefIdc == 0 || slice.SliceType is not (H264SliceType.I or H264SliceType.Si)))
+            throw new FormatException("An IDR picture must use a reference I/SI slice.");
         if (!sps.FrameMbsOnlyFlag || sps.MbAdaptiveFrameFieldFlag || slice.FieldPicFlag)
             throw new NotSupportedException("Decoded picture output scheduling currently supports frame pictures only.");
         if (surface.MacroblockWidth != checked((int)(sps.PicWidthInMbsMinus1 + 1)) ||
