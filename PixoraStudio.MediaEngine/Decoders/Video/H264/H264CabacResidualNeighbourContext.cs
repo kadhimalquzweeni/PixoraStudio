@@ -105,7 +105,7 @@ public sealed class H264CabacResidualNeighbourContext
 
     private static void ValidatePlane(int plane)
     {
-        if (plane is < 0 or > 2)
+        if (plane is < 0 or > 5)
             throw new ArgumentOutOfRangeException(nameof(plane));
     }
 
