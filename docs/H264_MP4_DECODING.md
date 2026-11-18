@@ -33,7 +33,7 @@ foreach (H264Mp4DecodedVideoFrame frame in frames)
 
 If the SPS VUI contains a valid bitstream restriction, its `max_num_reorder_frames` value is used. Otherwise the caller must provide a container-appropriate fallback. The fallback is not a frame-rate estimate; it is the maximum number of decoded pictures that may be held for presentation reordering.
 
-The track decoder reads samples in decode order. Do not skip samples when using one decoder instance: reference-picture state depends on the preceding access units. Start from a random-access point (normally an IDR sample). Seeking and recovery from arbitrary sample positions are not implemented yet.
+The track decoder reads samples in decode order. Do not skip samples when using one decoder instance: reference-picture state depends on the preceding access units. Start from a random-access point (normally an IDR sample). Seeking is available through `DecodeFromTime`, which restarts from the preceding MP4 sync sample and decodes forward. Recovery from a corrupt access unit is not automatic; reset and seek again from a valid sync sample.
 
 ## Seek within an AVC track
 
@@ -105,6 +105,6 @@ One MP4 sample represents one coded picture. Multiple VCL slices in that sample 
 
 ## Explicit limitations
 
-The decoder rejects unsupported syntax instead of silently approximating it. Current exclusions include CABAC, FMO, field/MBAFF/interlaced pictures, separate colour planes, 4:4:4, high bit depth, SP/SI reconstruction and partitioned slice NAL units. Field pairing, arbitrary seeking, streaming recovery, colour conversion and UI playback integration are separate remaining tasks.
+The decoder rejects unsupported syntax instead of silently approximating it. Current exclusions include CABAC, FMO, field/MBAFF/interlaced pictures, separate colour planes, 4:4:4, high bit depth, SP/SI reconstruction and partitioned slice NAL units. Field pairing, streaming recovery and wiring the managed decoded frames into the WPF playback surface remain separate tasks. BGRA colour conversion and keyframe-based MP4 seeking are implemented in the media engine.
 
 The supported subset still requires real-stream conformance validation against independently decoded reference output. Synthetic tests exercise parser, reconstruction, DPB, deblocking and MP4 integration paths, but do not establish complete H.264 conformance.
