@@ -186,7 +186,7 @@ public sealed class H264DecodedPictureBufferTests
         H264ReferencePicture collocated = new(1, 2);
         H264MotionVectorPictureState l0 = new(1, 1);
         H264MotionVectorPictureState l1 = new(1, 1);
-        l0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(6, -4));
+        l0.RecordInterPartition(0, 0, 1, 1, 0, 0, new H264MotionVector(6, -4));
         H264ReferencePicture[] references0 = [new H264ReferencePicture(0, -2)];
         H264ReferencePicture[] references1 = [new H264ReferencePicture(2, 6)];
 
@@ -195,7 +195,11 @@ public sealed class H264DecodedPictureBufferTests
             motionVectorStateL0: l0, motionVectorStateL1: l1,
             referenceList0: references0, referenceList1: references1);
 
-        H264TemporalDirectPredictionContext context = dpb
+        l0.RecordInterPartition(1, 0, 1, 1, 0, 0, new H264MotionVector(99, 99));
+
+        H264TemporalDirectMotionField field = dpb.CreateTemporalDirectMotionField(collocated);
+        Assert.Null(field.GetContext(1, 0, 1, 1, 10));
+        H264TemporalDirectPredictionContext context = field
             .CreateTemporalDirectMotionField(collocated)
             .GetContext(0, 0, 1, 1, 10)!;
 
