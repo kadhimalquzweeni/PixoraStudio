@@ -9,4 +9,8 @@ namespace PixoraStudio.MediaEngine.Models.Video;
 public sealed record H264InterResidualMacroblock(
     uint MacroblockAddress,
     IReadOnlyList<H264IntraLumaResidualBlock> LumaBlocks,
-    IReadOnlyList<H264IntraChromaResidualComponent> ChromaComponents);
+    IReadOnlyList<H264IntraChromaResidualComponent> ChromaComponents)
+{
+    public bool TransformSize8X8Flag { get; init; }
+    public IReadOnlyList<H264Intra8x8LumaResidualBlock> Luma8x8Blocks { get; init; } = [];
+}
