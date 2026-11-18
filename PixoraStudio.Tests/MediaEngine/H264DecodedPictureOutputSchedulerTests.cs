@@ -98,6 +98,18 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
+    public void Enqueue_ShouldRejectMissingVuiWhenSpsSignalsVuiPresence()
+    {
+        H264SequenceParameterSet sps = new(
+            0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
+            0, 0, true, true, 16, 16, true);
+
+        Assert.Throws<FormatException>(() =>
+            new H264DecodedPictureOutputScheduler().Enqueue(
+                Surface(sps, 1), sps, Slice(0, 0), 1, 0));
+    }
+
+    [Fact]
     public void Enqueue_ShouldRejectIncompletePictureSurfaces()
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(0);
