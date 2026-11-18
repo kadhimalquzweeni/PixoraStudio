@@ -146,18 +146,14 @@ public sealed class H264CabacResidualBlockReader
         // coefficient at endIndex is inferred to be significant.
         significant[finalPosition] = true;
 
-        int decodedGreaterThanOne = 0;
-        int decodedEqualToOne = 0;
+        int levelContextState = 0;
         for (int position = finalPosition; position >= startIndex; position--)
         {
             if (!significant[position])
                 continue;
 
             int absoluteLevelMinusOne = ReadAbsoluteLevelMinusOne(
-                reader,
-                absoluteLevelContextOffset,
-                decodedGreaterThanOne,
-                decodedEqualToOne,
+                reader, absoluteLevelContextOffset, ref levelContextState,
                 absoluteLevelContextAdjust);
 
             int absoluteLevel = checked(absoluteLevelMinusOne + 1);
@@ -166,10 +162,6 @@ public sealed class H264CabacResidualBlockReader
                 throw new FormatException("CABAC bypass bins must be zero or one.");
 
             coefficients[position] = sign == 0 ? absoluteLevel : -absoluteLevel;
-            if (absoluteLevel == 1)
-                decodedEqualToOne++;
-            else
-                decodedGreaterThanOne++;
         }
 
         return coefficients;
@@ -178,38 +170,64 @@ public sealed class H264CabacResidualBlockReader
     private static int ReadAbsoluteLevelMinusOne(
         IH264CabacBinReader reader,
         int contextOffset,
-        int decodedGreaterThanOne,
-        int decodedEqualToOne,
+        ref int nodeContextState,
         int contextAdjust)
     {
-        int firstIncrement = decodedGreaterThanOne != 0
-            ? 0
-            : Math.Min(4, 1 + decodedEqualToOne);
-        int remainingIncrement = 5 +
-            Math.Min(4 - contextAdjust, decodedGreaterThanOne);
+        // H.264 Table 9-? coefficient-level context state machine. The node
+        // state tracks decoded levels in reverse scan order, independently of
+        // the residual category's absolute context offset.
+        ReadOnlySpan<int> levelOneContextIncrements = [1, 2, 3, 4, 0, 0, 0, 0];
+        ReadOnlySpan<int> levelGreaterThanOneContextIncrements =
+            contextAdjust == 0
+                ? [5, 5, 5, 5, 6, 7, 8, 9]
+                : [5, 5, 5, 5, 6, 7, 8, 8];
+        ReadOnlySpan<int> transitionAfterOne = [1, 2, 3, 3, 4, 5, 6, 7];
+        ReadOnlySpan<int> transitionAfterGreaterThanOne = [4, 4, 4, 4, 5, 6, 7, 7];
 
-        int bin = DecodeDecision(reader, contextOffset + firstIncrement);
-        if (bin == 0)
-            return 0;
+        if ((uint)nodeContextState >= 8)
+            throw new InvalidOperationException("CABAC coefficient-level context state is invalid.");
 
-        int value = 0;
-        while (value < 13)
+        int firstBin = DecodeDecision(
+            reader, contextOffset + levelOneContextIncrements[nodeContextState]);
+        if (firstBin == 0)
         {
-            bin = DecodeDecision(reader, contextOffset + remainingIncrement);
-            if (bin == 0)
-                break;
-            value++;
+            nodeContextState = transitionAfterOne[nodeContextState];
+            return 0;
         }
 
-        value += bin;
-        if (value != 14)
-            return value;
+        nodeContextState = transitionAfterGreaterThanOne[nodeContextState];
+        int absoluteLevel = 2;
+        int greaterThanOneContext = contextOffset +
+            levelGreaterThanOneContextIncrements[
+                transitionAfterGreaterThanOne[nodeContextState == 4 ? 0 : 0]];
 
-        // Escape suffix: unary-coded order followed by that many suffix bits.
+        // The greater-than-one context is selected from the node state before
+        // its transition, so derive it from the previous state explicitly.
+        int previousState = nodeContextState switch
+        {
+            4 => 0,
+            5 => 4,
+            6 => 5,
+            7 => 6,
+            _ => 0
+        };
+        greaterThanOneContext = contextOffset +
+            levelGreaterThanOneContextIncrements[previousState];
+
+        while (absoluteLevel < 15)
+        {
+            int bin = DecodeDecision(reader, greaterThanOneContext);
+            if (bin == 0)
+                return absoluteLevel - 1;
+            absoluteLevel++;
+        }
+
+        // Escape suffix: a bypass-coded unary prefix followed by a suffix
+        // of the same length, then the category-independent base value 14.
         int escapeOrder = 0;
         while (true)
         {
-            bin = reader.DecodeBypass();
+            int bin = reader.DecodeBypass();
             if (bin is not (0 or 1))
                 throw new FormatException("CABAC bypass bins must be zero or one.");
             if (bin == 0)
@@ -219,19 +237,19 @@ public sealed class H264CabacResidualBlockReader
                 throw new FormatException("CABAC coefficient escape prefix exceeds Int32.");
         }
 
-        long suffix = 0;
-        for (int bit = escapeOrder - 1; bit >= 0; bit--)
+        long escapedMagnitude = 1;
+        for (int bit = 0; bit < escapeOrder; bit++)
         {
-            bin = reader.DecodeBypass();
+            int bin = reader.DecodeBypass();
             if (bin is not (0 or 1))
                 throw new FormatException("CABAC bypass bins must be zero or one.");
-            suffix |= (long)bin << bit;
+            escapedMagnitude = (escapedMagnitude << 1) | (uint)bin;
         }
 
-        long escapedValue = 14L + ((1L << escapeOrder) - 1) + suffix;
-        if (escapedValue > int.MaxValue)
+        long level = 14 + escapedMagnitude;
+        if (level > int.MaxValue)
             throw new FormatException("CABAC coefficient level exceeds Int32.");
-        return (int)escapedValue;
+        return (int)level - 1;
     }
 
     private static int DecodeDecision(IH264CabacBinReader reader, int contextIndex)
