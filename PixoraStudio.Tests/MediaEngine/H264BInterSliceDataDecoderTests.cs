@@ -229,6 +229,11 @@ public sealed class H264BInterSliceDataDecoderTests
         Assert.Equal((byte)99, destination.GetLumaSample(0, 0));
         Assert.Equal((byte)109, destination.GetChromaSample(1, 0, 0));
         Assert.Equal((byte)119, destination.GetChromaSample(2, 0, 0));
+        H264DeblockingMacroblockMetadata metadata =
+            destination.GetDeblockingMetadata(0, 0)!;
+        Assert.Equal(0, metadata.QpY);
+        Assert.Equal(0, metadata.QpCb);
+        Assert.Equal(0, metadata.QpCr);
         Assert.True(destination.HasCompleteDeblockingMetadata);
         Assert.All(destination.GetDeblockingMetadata(0, 0)!.LumaBlocks,
             block => Assert.True(block.IsIntra));
