@@ -12,6 +12,7 @@ public sealed class H264PInterMacroblockReconstructorTests
     {
         H264SequenceParameterSet sps = Sps();
         H264DecodedPictureSurface reference = Surface(sps, 100, 110, 120);
+        H264DecodedPictureSurface unusedReference = Surface(sps, 20, 30, 40);
         H264DecodedPictureSurface destination = new(sps);
 
         H264InterMacroblockReconstructionResult result = _decoder.DecodeAndReconstruct(
@@ -117,14 +118,16 @@ public sealed class H264PInterMacroblockReconstructorTests
             ]);
         IReadOnlyList<H264InterMacroblockPrediction> predictions =
             new H264InterMacroblockPredictionDecoder().PredictFromSyntax(
-                syntax, 0, [reference], motionState, 0, 0, 2);
+                syntax, 1, [reference, unusedReference], motionState, 0, 0, 2);
 
         H264CodedBlockPattern pattern = new(0, 0, 0, sps.ChromaFormatIdc);
         H264InterMacroblockResidualSyntax residualSyntax = new(pattern, null);
         H264InterResidualMacroblock residual = EmptyCabacResidual(0);
         H264InterMacroblockReconstructionResult result = _decoder.ReconstructCabac(
             Header(), predictions, residualSyntax, residual,
-            motionState, [new H264ReferencePicture(0, 0)], destination,
+            motionState,
+            [new H264ReferencePicture(0, 0), new H264ReferencePicture(1, 1)],
+            destination,
             0, 0, 2, 24, sps, cabacPps);
 
         Assert.Equal(24, result.QpY);
