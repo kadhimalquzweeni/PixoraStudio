@@ -15,7 +15,7 @@ public sealed class H264TemporalDirectMotionFieldTests
         H264TemporalDirectMotionField field = new(
             l0, l1,
             [new H264ReferencePicture(0, -4), new H264ReferencePicture(1, -2)],
-            [new H264ReferencePicture(2, 8)], 6);
+            [new H264ReferencePicture(2, 8)], 6, collocatedPictureIsShortTerm: true);
 
         H264TemporalDirectPredictionContext context =
             field.GetContext(0, 0, 1, 1, 10)!;
@@ -34,7 +34,7 @@ public sealed class H264TemporalDirectMotionFieldTests
         H264MotionVectorPictureState l1 = new(1, 1);
         l1.RecordInterPartition(0, 0, 1, 1, 0, 0, new H264MotionVector(-7, 9));
         H264TemporalDirectMotionField field = new(
-            l0, l1, [], [new H264ReferencePicture(2, 3, true, 0)], 8);
+            l0, l1, [], [new H264ReferencePicture(2, 3, true, 0)], 8, collocatedPictureIsShortTerm: true);
 
         H264TemporalDirectPredictionContext context =
             field.GetContext(0, 0, 1, 1, 12)!;
@@ -49,7 +49,7 @@ public sealed class H264TemporalDirectMotionFieldTests
     {
         H264TemporalDirectMotionField field = new(
             new H264MotionVectorPictureState(1, 1),
-            new H264MotionVectorPictureState(1, 1), [], [], 0);
+            new H264MotionVectorPictureState(1, 1), [], [], 0, collocatedPictureIsShortTerm: true);
 
         Assert.Null(field.GetContext(0, 0, 1, 1, 4));
     }
@@ -61,7 +61,7 @@ public sealed class H264TemporalDirectMotionFieldTests
         l0.RecordInterPartition(0, 0, 1, 1, 0, 2, new H264MotionVector(1, 1));
         H264TemporalDirectMotionField field = new(
             l0, new H264MotionVectorPictureState(1, 1),
-            [new H264ReferencePicture(0, 0)], [], 0);
+            [new H264ReferencePicture(0, 0)], [], 0, collocatedPictureIsShortTerm: true);
 
         Assert.Throws<FormatException>(() => field.GetContext(0, 0, 1, 1, 1));
     }
