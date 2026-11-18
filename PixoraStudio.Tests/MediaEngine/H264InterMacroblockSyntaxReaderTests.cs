@@ -99,11 +99,13 @@ public sealed class H264InterMacroblockSyntaxReaderTests
         for (int i = 0; i < 4; i++) bits.WriteUe(0);
         for (int i = 0; i < 4; i++) { bits.WriteSe(i); bits.WriteSe(-i); }
 
-        H264InterMacroblockSyntax result = Read(bits, 4, 3);
+        H264BitReader reader = bits.CreateReader();
+        H264InterMacroblockSyntax result = new H264InterMacroblockSyntaxReader().Read(
+            reader, Header(4), 3);
 
         Assert.True(result.ReferenceIndexForcedToZero);
         Assert.All(result.Partitions, p => Assert.Equal((uint)0, p.ReferenceIndex));
-        Assert.Equal(0, bits.RemainingBits);
+        Assert.Equal(0, reader.RemainingBits);
     }
 
     [Fact]
