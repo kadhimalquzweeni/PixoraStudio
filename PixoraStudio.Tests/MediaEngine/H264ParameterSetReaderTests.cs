@@ -183,7 +183,7 @@ public sealed class H264ParameterSetReaderTests
         bits.WriteUe(0);
         WritePpsTail(bits);
 
-        var result = new H264PictureParameterSetReader().Read(new H264NalUnit(0x68, bits.ToArray()));
+        var result = new H264PictureParameterSetReader().Read(new H264NalUnit(0x68, bits.ToArray(appendTrailingBits: false)));
 
         Assert.Equal(3u, result.Id);
         Assert.Equal(2u, result.SequenceParameterSetId);
@@ -375,6 +375,35 @@ public sealed class H264ParameterSetReaderTests
             39, 22, true, true, 640, 368, false);
 
     [Fact]
+    public void ReadSps_ShouldRejectInvalidRbspTrailingBits()
+    {
+        BitWriter bits = CreateBaselineSpsPrefix();
+        bits.WriteFlag(false); // vui_parameters_present_flag
+        byte[] rbsp = bits.ToArray();
+        rbsp[^1] = 0;
+
+        Assert.Throws<FormatException>(() =>
+            new H264SequenceParameterSetReader().Read(new H264NalUnit(0x67, rbsp)));
+    }
+
+    [Fact]
+    public void ReadPps_ShouldRejectInvalidRbspTrailingBits()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(0);
+        bits.WriteFlag(false);
+        bits.WriteFlag(false);
+        bits.WriteUe(0);
+        WritePpsTail(bits, includeTrailingBits: false);
+        byte[] rbsp = bits.ToArray();
+        rbsp[^1] = 0;
+
+        Assert.Throws<FormatException>(() =>
+            new H264PictureParameterSetReader().Read(new H264NalUnit(0x68, rbsp)));
+    }
+
+    [Fact]
     public void ReadPps_ShouldRejectWrongNalType()
     {
         Assert.Throws<FormatException>(() =>
@@ -431,8 +460,14 @@ public sealed class H264ParameterSetReaderTests
             WriteBits(codeNum, leadingZeroes + 1);
         }
 
-        public byte[] ToArray()
+        public byte[] ToArray(bool appendTrailingBits = true)
         {
+            if (appendTrailingBits)
+            {
+                _bits.Add(true); // rbsp_stop_one_bit
+                while (_bits.Count % 8 != 0) _bits.Add(false);
+            }
+
             byte[] result = new byte[(_bits.Count + 7) / 8];
             for (int i = 0; i < _bits.Count; i++)
                 if (_bits[i]) result[i / 8] |= (byte)(1 << (7 - (i % 8)));
