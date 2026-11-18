@@ -135,11 +135,12 @@ public sealed class H264IntraPredictionTests
     [Fact]
     public void AddResidual_ShouldSupportHighBitDepthAndValidateInput()
     {
-        byte[] result = H264IntraPrediction.AddResidual([255, 0], [100, -100], 10);
-        Assert.Equal(new byte[] { 255, 0 }, result);
+        ushort[] result = H264IntraPrediction.AddResidualHighBitDepth(
+            new ushort[] { 255, 0 }, [100, -100], 10);
+        Assert.Equal(new ushort[] { 355, 0 }, result);
         Assert.Throws<ArgumentException>(() =>
             H264IntraPrediction.AddResidual([1], [1, 2]));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            H264IntraPrediction.AddResidual([1], [1], 15));
+            H264IntraPrediction.AddResidualHighBitDepth([1], [1], 15));
     }
 }

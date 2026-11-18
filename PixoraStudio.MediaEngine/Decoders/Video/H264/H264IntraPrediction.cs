@@ -212,11 +212,27 @@ public static class H264IntraPrediction
         return result;
     }
 
-    /// <summary>Adds a spatial-domain residual block to prediction samples and clips to bit depth.</summary>
+    /// <summary>Adds an 8-bit spatial-domain residual block and clips reconstructed samples.</summary>
     public static byte[] AddResidual(
         IReadOnlyList<byte> prediction,
+        IReadOnlyList<int> residual)
+    {
+        ArgumentNullException.ThrowIfNull(prediction);
+        ArgumentNullException.ThrowIfNull(residual);
+        if (prediction.Count == 0 || prediction.Count != residual.Count)
+            throw new ArgumentException("Prediction and residual arrays must have the same non-zero length.");
+
+        byte[] result = new byte[prediction.Count];
+        for (int i = 0; i < result.Length; i++)
+            result[i] = (byte)Math.Clamp(prediction[i] + (long)residual[i], 0, 255);
+        return result;
+    }
+
+    /// <summary>Adds residuals to high-bit-depth prediction samples and clips to the configured bit depth.</summary>
+    public static ushort[] AddResidualHighBitDepth(
+        IReadOnlyList<ushort> prediction,
         IReadOnlyList<int> residual,
-        int bitDepth = 8)
+        int bitDepth)
     {
         ArgumentNullException.ThrowIfNull(prediction);
         ArgumentNullException.ThrowIfNull(residual);
@@ -225,10 +241,10 @@ public static class H264IntraPrediction
         if (bitDepth is < 8 or > 14)
             throw new ArgumentOutOfRangeException(nameof(bitDepth));
 
-        byte[] result = new byte[prediction.Count];
+        ushort[] result = new ushort[prediction.Count];
         int maximum = (1 << bitDepth) - 1;
         for (int i = 0; i < result.Length; i++)
-            result[i] = (byte)Math.Clamp(prediction[i] + (long)residual[i], 0, maximum);
+            result[i] = (ushort)Math.Clamp(prediction[i] + (long)residual[i], 0, maximum);
         return result;
     }
 
