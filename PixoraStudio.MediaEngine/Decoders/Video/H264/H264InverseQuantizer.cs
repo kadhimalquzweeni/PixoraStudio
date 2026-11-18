@@ -8,6 +8,16 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// </summary>
 public static class H264InverseQuantizer
 {
+    private static readonly int[,] LevelScale8x8 =
+    {
+        { 20, 22, 26, 28, 32, 36 },
+        { 22, 24, 28, 30, 34, 38 },
+        { 26, 28, 32, 36, 40, 44 },
+        { 28, 30, 36, 38, 44, 48 },
+        { 32, 34, 40, 44, 48, 54 },
+        { 36, 38, 44, 48, 54, 58 }
+    };
+
     private static readonly int[,] LevelScale =
     {
         { 10, 11, 13, 14, 16, 18 },
