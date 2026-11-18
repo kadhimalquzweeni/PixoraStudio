@@ -85,8 +85,6 @@ public sealed class H264BInterSliceDataDecoder
         H264DeblockingSliceParameters deblockingParameters =
             H264DeblockingSliceParameters.FromSliceHeader(slice);
         _intraReconstructor.SetDeblockingSliceParameters(deblockingParameters);
-        _intraReconstructor.SetDeblockingSliceParameters(
-            H264DeblockingSliceParameters.FromSliceHeader(slice));
         if (slice.SliceType != H264SliceType.B)
             throw new NotSupportedException("This decoder accepts B slices only.");
         if (slice.FieldPicFlag || slice.ColourPlaneId != 0 || slice.RedundantPicCnt is > 0)
