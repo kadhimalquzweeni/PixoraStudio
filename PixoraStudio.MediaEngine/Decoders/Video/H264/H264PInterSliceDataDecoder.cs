@@ -54,6 +54,37 @@ public sealed class H264PInterSliceDataDecoder
         _crNeighbours.Reset();
     }
 
+    /// <summary>
+    /// Decodes a P slice using the DPB to construct the active RefPicList0,
+    /// including slice-header list modifications. The header is inspected
+    /// once to build the list and parsed again by the main decode path.
+    /// </summary>
+    public H264PInterSliceDecodeResult Decode(
+        H264NalUnit nalUnit,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps,
+        H264DecodedPictureBuffer decodedPictureBuffer,
+        int sliceId)
+    {
+        ArgumentNullException.ThrowIfNull(nalUnit);
+        ArgumentNullException.ThrowIfNull(sps);
+        ArgumentNullException.ThrowIfNull(pps);
+        ArgumentNullException.ThrowIfNull(decodedPictureBuffer);
+
+        H264SliceHeader slice = new H264SliceHeaderReader().Read(
+            new H264BitReader(nalUnit.Rbsp), nalUnit, sps, pps);
+        if (slice.SliceType != H264SliceType.P)
+            throw new NotSupportedException("This decoder accepts P slices only.");
+
+        int maxFrameNum = 1 << checked((int)sps.Log2MaxFrameNumMinus4 + 4);
+        int activeCount = checked((int)(slice.NumRefIdxL0ActiveMinus1 + 1));
+        IReadOnlyList<H264DecodedPictureSurface> activeList0 =
+            decodedPictureBuffer.BuildList0(
+                checked((int)slice.FrameNum), maxFrameNum, activeCount,
+                slice.RefPicList0Modifications);
+        return Decode(nalUnit, sps, pps, activeList0, sliceId);
+    }
+
     public H264PInterSliceDecodeResult Decode(
         H264NalUnit nalUnit,
         H264SequenceParameterSet sps,
