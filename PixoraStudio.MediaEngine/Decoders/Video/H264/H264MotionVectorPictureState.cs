@@ -32,7 +32,9 @@ public sealed class H264MotionVectorPictureState
     public H264MotionVectorPictureState Clone()
     {
         H264MotionVectorPictureState clone = new(MacroblockWidth, MacroblockHeight);
-        Array.Copy(_cells, clone._cells, _cells.Length);
+        for (int y = 0; y < BlockHeight; y++)
+        for (int x = 0; x < BlockWidth; x++)
+            clone._cells[x, y] = _cells[x, y];
         return clone;
     }
 
