@@ -101,7 +101,7 @@ public sealed class H264BReferencePictureListBuilderTests
         H264ReferenceListModification[] modifications =
         [
             new(0, 1, null), // CurrPicNum 1 -> PicNum -1 (frame_num 15)
-            new(1, 0, null), // PicNum 2 (frame_num 2)
+            new(1, 2, null), // PicNumWrap -14 (frame_num 2)
             new(3, null, null)
         ];
 
