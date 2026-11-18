@@ -171,7 +171,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
                 new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1,
                 directSpatialPrediction: false,
                 direct8x8InferenceFlag: true,
-                collocatedContextProvider: field.AsProvider(5));
+                collocatedContextProvider: field.AsProvider(5, [new H264ReferencePicture(0, 10)]));
 
         Assert.Equal(4, result.Count);
         Assert.All(result, item =>
