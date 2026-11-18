@@ -11,6 +11,62 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
 {
     private readonly H264IntraPredictionModeReader _predictionModeReader = new();
 
+    /// <summary>
+    /// Parses CABAC intra syntax while deriving all macroblock-neighbour
+    /// context increments from the retained picture state.
+    /// </summary>
+    public H264IntraMacroblockSyntax Read(
+        H264CabacSyntaxElementReader reader,
+        H264MacroblockHeader macroblockHeader,
+        H264SequenceParameterSet sequenceParameterSet,
+        H264PictureParameterSetHeader pictureParameterSet,
+        H264CabacIntraMacroblockNeighbourContext neighbourContext,
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        uint? previousMacroblockAddress,
+        uint previouslyDecodedCodedBlockPattern = 0)
+    {
+        ArgumentNullException.ThrowIfNull(neighbourContext);
+
+        uint chromaArrayType = sequenceParameterSet.SeparateColourPlaneFlag
+            ? 0u
+            : sequenceParameterSet.ChromaFormatIdc;
+        int chromaPredictionIncrement = chromaArrayType == 0
+            ? 0
+            : neighbourContext.GetChromaPredictionModeContextIncrement(
+                macroblockX, macroblockY, sliceId);
+
+        IReadOnlyList<int>? lumaCbpIncrements = null;
+        IReadOnlyList<int>? chromaCbpIncrements = null;
+        if (!macroblockHeader.IsIntra16x16)
+        {
+            lumaCbpIncrements =
+                neighbourContext.GetLumaCodedBlockPatternContextIncrements(
+                    macroblockX, macroblockY, sliceId,
+                    previouslyDecodedCodedBlockPattern);
+            if (chromaArrayType is 1 or 2)
+            {
+                chromaCbpIncrements =
+                    neighbourContext.GetChromaCodedBlockPatternContextIncrements(
+                        macroblockX, macroblockY, sliceId);
+            }
+        }
+
+        int qpDeltaIncrement = neighbourContext.GetQpDeltaContextIncrement(
+            previousMacroblockAddress, sliceId);
+
+        return Read(
+            reader,
+            macroblockHeader,
+            sequenceParameterSet,
+            pictureParameterSet,
+            chromaPredictionIncrement,
+            lumaCbpIncrements,
+            chromaCbpIncrements,
+            qpDeltaIncrement);
+    }
+
     public H264IntraMacroblockSyntax Read(
         H264CabacSyntaxElementReader reader,
         H264MacroblockHeader macroblockHeader,
