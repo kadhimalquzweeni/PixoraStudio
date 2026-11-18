@@ -51,13 +51,15 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(2);
         H264DecodedPictureOutputScheduler scheduler = new();
-        H264DecodedPictureSurface prior = Surface(sps, 10);
-        scheduler.Enqueue(prior, sps, Slice(0, 8, idr: true), 3);
+        H264DecodedPictureSurface idr = Surface(sps, 10);
+        H264DecodedPictureSurface prior = Surface(sps, 15);
+        scheduler.Enqueue(idr, sps, Slice(0, 0, idr: true), 3);
+        scheduler.Enqueue(prior, sps, Slice(1, 8), 3);
 
         H264DecodedReferenceMarking marking = new(
             false, false, true,
             [new H264MemoryManagementControlOperation(5, null, null, null, null)]);
-        H264SliceHeader mmco5 = Slice(1, 10) with
+        H264SliceHeader mmco5 = Slice(2, 10) with
         {
             DeltaPicOrderCntBottom = -6,
             DecodedReferenceMarking = marking
@@ -66,9 +68,11 @@ public sealed class H264DecodedPictureOutputSchedulerTests
         IReadOnlyList<H264DecodedPictureOutput> priorOutputs = scheduler.Enqueue(
             Surface(sps, 20), sps, mmco5, 3);
 
-        H264DecodedPictureOutput output = Assert.Single(priorOutputs);
-        Assert.Same(prior, output.Surface);
-        Assert.Equal(8, output.PictureOrderCount);
+        Assert.Equal(2, priorOutputs.Count);
+        Assert.Same(idr, priorOutputs[0].Surface);
+        Assert.Equal(0, priorOutputs[0].PictureOrderCount);
+        Assert.Same(prior, priorOutputs[1].Surface);
+        Assert.Equal(8, priorOutputs[1].PictureOrderCount);
         Assert.Equal(1, scheduler.PendingCount);
         H264DecodedPictureOutput current = Assert.Single(scheduler.Flush());
         Assert.Equal(0, current.PictureOrderCount);
