@@ -161,7 +161,7 @@ public sealed class H264PictureOrderCountCalculatorTests
     }
 
     [Fact]
-    public void Calculate_ShouldResetFrameNumberStateAfterMmcoFive()
+    public void Calculate_ShouldResetFrameNumOffsetButRetainPreviousFrameNumAfterMmcoFive()
     {
         H264PictureOrderCountCalculator calculator = new();
         H264SequenceParameterSet sps = CreateSps() with { PicOrderCntType = 2 };
@@ -173,8 +173,8 @@ public sealed class H264PictureOrderCountCalculatorTests
         Assert.Equal(0, mmco5.PictureOrderCount);
         Assert.Equal(0, mmco5.TopFieldOrderCount);
         Assert.Equal(0, mmco5.BottomFieldOrderCount);
-        Assert.Equal(2, result.PictureOrderCount);
-        Assert.Equal(0, result.FrameNumOffset);
+        Assert.Equal(34, result.PictureOrderCount);
+        Assert.Equal(16, result.FrameNumOffset);
     }
 
     [Fact]
