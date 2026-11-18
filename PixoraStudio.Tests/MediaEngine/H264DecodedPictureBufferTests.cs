@@ -64,7 +64,7 @@ public sealed class H264DecodedPictureBufferTests
             Adaptive(true, new H264MemoryManagementControlOperation(3, 0, null, 0, null)));
 
         H264DecodedPictureBufferEntry longTerm = Assert.Single(
-            dpb.Entries.Where(entry => entry.Picture.IsLongTerm));
+            dpb.Entries, entry => entry.Picture.IsLongTerm);
         Assert.Equal(1, longTerm.Picture.FrameNum);
         Assert.Equal(0, longTerm.Picture.LongTermFrameIndex);
         Assert.Contains(dpb.Entries, entry =>
@@ -325,7 +325,7 @@ public sealed class H264DecodedPictureBufferTests
             Adaptive(true, new H264MemoryManagementControlOperation(3, 0, null, 0, null)));
 
         H264ReferencePicture converted = Assert.Single(
-            dpb.Entries.Where(entry => entry.Picture.IsLongTerm)).Picture;
+            dpb.Entries, entry => entry.Picture.IsLongTerm).Picture;
         H264TemporalDirectPredictionContext context = dpb
             .CreateTemporalDirectMotionField(converted)
             .GetContext(0, 0, 1, 1, 8, [new H264ReferencePicture(0, 0)])!;
