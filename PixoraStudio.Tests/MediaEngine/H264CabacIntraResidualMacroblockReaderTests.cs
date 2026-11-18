@@ -127,7 +127,7 @@ public sealed class H264CabacIntraResidualMacroblockReaderTests
     [Fact]
     public void Read_ShouldDecodeCodedEightByEightBlockWithoutCodedBlockFlag()
     {
-        int[] decisions = Enumerable.Repeat(0, 63).Append(0).ToArray();
+        int[] decisions = Enumerable.Repeat(0, 64).Append(0).ToArray();
         ScriptedCabacReader bins = new(decisions);
         H264IntraMacroblockSyntax syntax = new(
             true,
