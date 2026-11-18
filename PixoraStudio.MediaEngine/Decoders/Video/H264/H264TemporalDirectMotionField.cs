@@ -16,13 +16,15 @@ public sealed class H264TemporalDirectMotionField
     private readonly IReadOnlyList<H264ReferencePicture> _referencesL0;
     private readonly IReadOnlyList<H264ReferencePicture> _referencesL1;
     private readonly int _collocatedPictureOrderCount;
+    private readonly bool _collocatedPictureIsShortTerm;
 
     public H264TemporalDirectMotionField(
         H264MotionVectorPictureState motionL0,
         H264MotionVectorPictureState motionL1,
         IReadOnlyList<H264ReferencePicture> referencesL0,
         IReadOnlyList<H264ReferencePicture> referencesL1,
-        int collocatedPictureOrderCount)
+        int collocatedPictureOrderCount,
+        bool collocatedPictureIsShortTerm = true)
     {
         ArgumentNullException.ThrowIfNull(motionL0);
         ArgumentNullException.ThrowIfNull(motionL1);
@@ -40,6 +42,7 @@ public sealed class H264TemporalDirectMotionField
         _referencesL0 = referencesL0.ToArray();
         _referencesL1 = referencesL1.ToArray();
         _collocatedPictureOrderCount = collocatedPictureOrderCount;
+        _collocatedPictureIsShortTerm = collocatedPictureIsShortTerm;
     }
 
     public Func<int, int, int, int, H264TemporalDirectPredictionContext?> AsProvider(
@@ -62,7 +65,8 @@ public sealed class H264TemporalDirectMotionField
             return new H264TemporalDirectPredictionContext(
                 list0.MotionVector, currentPictureOrderCount,
                 _collocatedPictureOrderCount, reference.PictureOrderCount,
-                reference.IsLongTerm);
+                reference.IsLongTerm, list0.ReferenceIndex,
+                _collocatedPictureIsShortTerm);
         }
 
         if (_motionL1.TryGetStoredMotionVector(x, y, out H264MotionVectorCandidate list1))
@@ -71,7 +75,8 @@ public sealed class H264TemporalDirectMotionField
             return new H264TemporalDirectPredictionContext(
                 list1.MotionVector, currentPictureOrderCount,
                 _collocatedPictureOrderCount, reference.PictureOrderCount,
-                reference.IsLongTerm);
+                reference.IsLongTerm, list1.ReferenceIndex,
+                _collocatedPictureIsShortTerm);
         }
 
         return null;
