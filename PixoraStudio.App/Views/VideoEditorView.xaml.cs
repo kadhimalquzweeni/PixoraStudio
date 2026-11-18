@@ -27,6 +27,8 @@ public partial class VideoEditorView : UserControl
     private static extern bool GetCursorPos(out NativePoint point);
     private VlcMediaPlayer? _mediaPlayer;
     private readonly AacAudioPlaybackService _aacAudioPlaybackService = new();
+    private readonly ManagedH264VideoPlaybackService _managedH264PlaybackService = new();
+    private bool _usesManagedH264Video;
     private CancellationTokenSource? _audioLoadCancellation;
     private bool _usesCustomAacAudio;
     private bool _isPreparingVideo;
@@ -350,6 +352,34 @@ public partial class VideoEditorView : UserControl
             ApplyAudioOutputSettings(audioVm);
         _mediaPlayer.Play(media);
 
+        try
+        {
+            _usesManagedH264Video = await _managedH264PlaybackService.TryStartAsync(
+                filePath,
+                () => (_mediaPlayer?.Time ?? 0) / 1000d,
+                bitmap => Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ManagedVideoFrame.Source = bitmap;
+                    ManagedVideoFrame.Visibility = Visibility.Visible;
+                })),
+                exception => Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _usesManagedH264Video = false;
+                    ManagedVideoFrame.Source = null;
+                    ManagedVideoFrame.Visibility = Visibility.Collapsed;
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Managed H.264 preview stopped; LibVLC fallback remains active: {exception.Message}");
+                })),
+                cancellationToken);
+
+            if (!_usesManagedH264Video)
+                ManagedVideoFrame.Visibility = Visibility.Collapsed;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
         if (_usesCustomAacAudio)
         {
             try
@@ -378,6 +408,10 @@ public partial class VideoEditorView : UserControl
         _audioLoadCancellation?.Dispose();
         _audioLoadCancellation = null;
         _aacAudioPlaybackService.Unload();
+        _ = _managedH264PlaybackService.StopAsync();
+        _usesManagedH264Video = false;
+        ManagedVideoFrame.Source = null;
+        ManagedVideoFrame.Visibility = Visibility.Collapsed;
         _usesCustomAacAudio = false;
 
         if (_mediaPlayer is not null)
@@ -437,6 +471,22 @@ public partial class VideoEditorView : UserControl
             _mediaPlayer.Pause();
 
         _mediaPlayer.Time = (long)position;
+
+        if (_usesManagedH264Video)
+        {
+            try
+            {
+                await _managedH264PlaybackService.SeekAsync(position / 1000d);
+            }
+            catch (Exception exception)
+            {
+                _usesManagedH264Video = false;
+                ManagedVideoFrame.Source = null;
+                ManagedVideoFrame.Visibility = Visibility.Collapsed;
+                System.Diagnostics.Debug.WriteLine(
+                    $"Managed H.264 seek failed; LibVLC fallback remains active: {exception.Message}");
+            }
+        }
 
         if (!_usesCustomAacAudio)
         {
@@ -1054,6 +1104,10 @@ public partial class VideoEditorView : UserControl
         _audioLoadCancellation = null;
 
         _aacAudioPlaybackService.Unload();
+        _ = _managedH264PlaybackService.StopAsync();
+        _usesManagedH264Video = false;
+        ManagedVideoFrame.Source = null;
+        ManagedVideoFrame.Visibility = Visibility.Collapsed;
         _usesCustomAacAudio = false;
 
         if (_isFullScreen)

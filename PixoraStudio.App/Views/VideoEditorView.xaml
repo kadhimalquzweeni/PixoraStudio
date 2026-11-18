@@ -56,6 +56,12 @@
                     <vlc:VideoView x:Name="VideoPlayer"
                                    HorizontalAlignment="Stretch"
                                    VerticalAlignment="Stretch"/>
+                    <Image x:Name="ManagedVideoFrame"
+                           HorizontalAlignment="Stretch"
+                           VerticalAlignment="Stretch"
+                           Stretch="Uniform"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
 
                 </Grid>
 
