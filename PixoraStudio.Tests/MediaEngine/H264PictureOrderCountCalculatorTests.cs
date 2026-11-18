@@ -10,12 +10,14 @@ public sealed class H264PictureOrderCountCalculatorTests
     {
         H264PictureOrderCountCalculator calculator = new();
         H264SequenceParameterSet sps = CreateSps();
-        H264PictureOrderCount first = calculator.Calculate(sps, CreateSlice(frameNum: 0, pocLsb: 14, idr: true), 3);
-        H264PictureOrderCount second = calculator.Calculate(sps, CreateSlice(frameNum: 1, pocLsb: 1), 3);
+        H264PictureOrderCount first = calculator.Calculate(sps, CreateSlice(frameNum: 0, pocLsb: 0, idr: true), 3);
+        H264PictureOrderCount second = calculator.Calculate(sps, CreateSlice(frameNum: 1, pocLsb: 14), 3);
+        H264PictureOrderCount third = calculator.Calculate(sps, CreateSlice(frameNum: 2, pocLsb: 1), 3);
 
-        Assert.Equal(-2, first.PictureOrderCount);
-        Assert.Equal(1, second.PictureOrderCount);
-        Assert.Equal(1, second.TopFieldOrderCount);
+        Assert.Equal(0, first.PictureOrderCount);
+        Assert.Equal(14, second.PictureOrderCount);
+        Assert.Equal(17, third.PictureOrderCount);
+        Assert.Equal(17, third.TopFieldOrderCount);
     }
 
     [Fact]
@@ -23,7 +25,7 @@ public sealed class H264PictureOrderCountCalculatorTests
     {
         H264PictureOrderCountCalculator calculator = new();
         H264SequenceParameterSet sps = CreateSps();
-        calculator.Calculate(sps, CreateSlice(frameNum: 0, pocLsb: 4, idr: true), 3);
+        calculator.Calculate(sps, CreateSlice(frameNum: 0, pocLsb: 0, idr: true), 3);
         H264PictureOrderCount result = calculator.Calculate(
             sps, CreateSlice(frameNum: 1, pocLsb: 6, deltaBottom: -2), 0);
 
@@ -37,12 +39,13 @@ public sealed class H264PictureOrderCountCalculatorTests
     {
         H264PictureOrderCountCalculator calculator = new();
         H264SequenceParameterSet sps = CreateSps();
-        calculator.Calculate(sps, CreateSlice(0, 14, idr: true), 3);
+        calculator.Calculate(sps, CreateSlice(0, 0, idr: true), 3);
+        calculator.Calculate(sps, CreateSlice(1, 14), 3);
 
         Assert.Throws<FormatException>(() => calculator.Calculate(
             sps, CreateSlice(0, null, idr: true), 3));
         H264PictureOrderCount next = calculator.Calculate(
-            sps, CreateSlice(1, 1), 3);
+            sps, CreateSlice(2, 1), 3);
 
         Assert.Equal(17, next.PictureOrderCount);
     }
@@ -52,24 +55,24 @@ public sealed class H264PictureOrderCountCalculatorTests
     {
         H264PictureOrderCountCalculator calculator = new();
         H264SequenceParameterSet sps = CreateSps();
-        calculator.Calculate(sps, CreateSlice(0, 14, idr: true), 3);
-        calculator.Calculate(sps, CreateSlice(1, 1), 0);
+        calculator.Calculate(sps, CreateSlice(0, 0, idr: true), 3);
+        calculator.Calculate(sps, CreateSlice(1, 14), 0);
 
         H264PictureOrderCount nextReference = calculator.Calculate(
             sps, CreateSlice(2, 2), 3);
 
-        Assert.Equal(18, nextReference.PictureOrderCount);
+        Assert.Equal(1, nextReference.PictureOrderCount);
     }
 
     [Fact]
     public void Calculate_TypeZero_ShouldCalculateBottomFieldOnly()
     {
         H264PictureOrderCount result = new H264PictureOrderCountCalculator().Calculate(
-            CreateSps(), CreateSlice(frameNum: 0, pocLsb: 7, idr: true, field: true, bottom: true), 3);
+            CreateSps(), CreateSlice(frameNum: 0, pocLsb: 0, idr: true, field: true, bottom: true), 3);
 
         Assert.False(result.HasTopField);
         Assert.True(result.HasBottomField);
-        Assert.Equal(7, result.PictureOrderCount);
+        Assert.Equal(0, result.PictureOrderCount);
         Assert.Equal(int.MaxValue, result.TopFieldOrderCount);
     }
 
@@ -225,6 +228,8 @@ public sealed class H264PictureOrderCountCalculatorTests
             sps, CreateSlice(0, 16, idr: true), 3));
         Assert.Throws<FormatException>(() => new H264PictureOrderCountCalculator().Calculate(
             sps, CreateSlice(1, 0, idr: true), 3));
+        Assert.Throws<FormatException>(() => new H264PictureOrderCountCalculator().Calculate(
+            sps, CreateSlice(0, 1, idr: true), 3));
         Assert.Throws<FormatException>(() => new H264PictureOrderCountCalculator().Calculate(
             sps, CreateSlice(0, 0, idr: true), 0));
         Assert.Throws<FormatException>(() => new H264PictureOrderCountCalculator().Calculate(
