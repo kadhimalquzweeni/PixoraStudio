@@ -85,18 +85,18 @@ public sealed class H264PictureOrderCountCalculator
             }
         }
 
-        if (reference)
+        // frame_num history advances for every decoded picture, including
+        // non-reference pictures. Only POC type 0's MSB/LSB history is
+        // restricted to reference pictures.
+        if (mmco5)
         {
-            if (mmco5)
-            {
-                _previousFrameNum = 0;
-                _previousFrameNumOffset = 0;
-            }
-            else
-            {
-                _previousFrameNum = checked((int)slice.FrameNum);
-                _previousFrameNumOffset = frameNumOffset;
-            }
+            _previousFrameNum = 0;
+            _previousFrameNumOffset = 0;
+        }
+        else
+        {
+            _previousFrameNum = checked((int)slice.FrameNum);
+            _previousFrameNumOffset = frameNumOffset;
         }
 
         return new H264PictureOrderCount(top, bottom, pictureOrder, frameNumOffset, hasTop, hasBottom);
