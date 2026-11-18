@@ -25,6 +25,8 @@ public sealed class H264DecodedPictureOutputQueue
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(pictureOrderCount);
+        if (!surface.IsComplete)
+            throw new InvalidOperationException("A picture must be fully reconstructed before it enters the output queue.");
         if (maxNumReorderFrames is < 0 or > 16)
             throw new ArgumentOutOfRangeException(nameof(maxNumReorderFrames));
 
