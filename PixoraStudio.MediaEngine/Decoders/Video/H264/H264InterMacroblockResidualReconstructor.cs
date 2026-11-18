@@ -25,8 +25,6 @@ public static class H264InterMacroblockResidualReconstructor
             sps.BitDepthLumaMinus8 != 0 || sps.BitDepthChromaMinus8 != 0 ||
             sps.ChromaFormatIdc is not (1 or 2))
             throw new NotSupportedException("Inter residual reconstruction supports frame-only 8-bit non-separate 4:2:0 and 4:2:2 only.");
-        if (pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("CABAC inter residual reconstruction is not implemented.");
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
         if (qpY is < 0 or > 51)
