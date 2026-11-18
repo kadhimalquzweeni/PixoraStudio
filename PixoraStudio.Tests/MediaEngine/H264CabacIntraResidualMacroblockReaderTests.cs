@@ -123,6 +123,33 @@ public sealed class H264CabacIntraResidualMacroblockReaderTests
         Assert.Empty(bins.ContextIndices);
     }
 
+
+    [Fact]
+    public void Read_ShouldDecodeCodedEightByEightBlockWithoutCodedBlockFlag()
+    {
+        int[] decisions = Enumerable.Repeat(0, 63).Append(0).ToArray();
+        ScriptedCabacReader bins = new(decisions);
+        H264IntraMacroblockSyntax syntax = new(
+            true,
+            new H264IntraPredictionModeSyntax(true,
+                Enumerable.Repeat(new H264IntraPredictionModeEntry(true, null), 4).ToArray()),
+            0,
+            new H264CodedBlockPattern(1, 1, 0, 1),
+            null);
+
+        H264IntraLumaResidualMacroblock result =
+            new H264CabacIntraResidualMacroblockReader().Read(
+                bins, CreateIntraNxNHeader(), syntax,
+                CreateSps(1), 0, 0, 1,
+                new H264CabacResidualNeighbourContext());
+
+        Assert.True(result.Intra8x8Blocks[0].IsCoded);
+        Assert.Equal(1, result.Intra8x8Blocks[0].CoefficientsInScanOrder[63]);
+        Assert.Equal(64, bins.ContextIndices.Count);
+        Assert.Equal(402, bins.ContextIndices[0]);
+        Assert.Equal(427, bins.ContextIndices[^1]);
+    }
+
     [Fact]
     public void RecordPcmMacroblock_ShouldMarkNeighbourBlocksAsCoded()
     {
