@@ -63,11 +63,12 @@ public sealed class H264PictureOrderCountCalculator
 
         int top = int.MaxValue;
         int bottom = int.MaxValue;
+        int pictureOrderCountMsb = 0;
 
         switch (sps.PicOrderCntType)
         {
             case 0:
-                CalculateTypeZero(sps, slice, reference, idr, mmco5, out top, out bottom);
+                CalculateTypeZero(sps, slice, idr, out top, out bottom, out pictureOrderCountMsb);
                 break;
             case 1:
                 CalculateTypeOne(sps, slice, reference, frameNumOffset, out top, out bottom);
@@ -98,6 +99,21 @@ public sealed class H264PictureOrderCountCalculator
             }
         }
 
+        if (sps.PicOrderCntType == 0 && reference)
+        {
+            int lsb = checked((int)slice.PicOrderCntLsb!.Value);
+            if (mmco5)
+            {
+                _previousPicOrderCntMsb = 0;
+                _previousPicOrderCntLsb = hasTop ? top : 0;
+            }
+            else
+            {
+                _previousPicOrderCntMsb = pictureOrderCountMsb;
+                _previousPicOrderCntLsb = lsb;
+            }
+        }
+
         // frame_num history advances for every decoded picture, including
         // non-reference pictures. Only POC type 0's MSB/LSB history is
         // restricted to reference pictures.
@@ -110,11 +126,10 @@ public sealed class H264PictureOrderCountCalculator
     private void CalculateTypeZero(
         H264SequenceParameterSet sps,
         H264SliceHeader slice,
-        bool reference,
         bool idr,
-        bool mmco5,
         out int top,
-        out int bottom)
+        out int bottom,
+        out int pictureOrderCountMsb)
     {
         if (slice.PicOrderCntLsb is null)
             throw new FormatException("POC type 0 requires pic_order_cnt_lsb.");
@@ -150,19 +165,7 @@ public sealed class H264PictureOrderCountCalculator
             bottom = int.MaxValue;
         }
 
-        if (reference)
-        {
-            if (mmco5)
-            {
-                _previousPicOrderCntMsb = 0;
-                _previousPicOrderCntLsb = slice.FieldPicFlag && slice.BottomFieldFlag ? 0 : top;
-            }
-            else
-            {
-                _previousPicOrderCntMsb = msb;
-                _previousPicOrderCntLsb = lsb;
-            }
-        }
+        pictureOrderCountMsb = msb;
     }
 
     private static void CalculateTypeOne(
