@@ -178,7 +178,7 @@ public sealed class H264CabacResidualBlockReader
         ref int nodeContextState,
         int contextAdjust)
     {
-        // H.264 Table 9-? coefficient-level context state machine. The node
+        // H.264 CABAC residual coefficient-level context state machine. The node
         // state tracks decoded levels in reverse scan order, independently of
         // the residual category's absolute context offset.
         ReadOnlySpan<int> levelOneContextIncrements = [1, 2, 3, 4, 0, 0, 0, 0];
@@ -217,7 +217,7 @@ public sealed class H264CabacResidualBlockReader
         // Escape suffix: a bypass-coded unary prefix followed by a suffix
         // of the same length, then the category-independent base value 14.
         int escapeOrder = 0;
-        while (true)
+        while (escapeOrder < 23)
         {
             int bin = reader.DecodeBypass();
             if (bin is not (0 or 1))
@@ -225,8 +225,6 @@ public sealed class H264CabacResidualBlockReader
             if (bin == 0)
                 break;
             escapeOrder++;
-            if (escapeOrder > 30)
-                throw new FormatException("CABAC coefficient escape prefix exceeds Int32.");
         }
 
         long escapedMagnitude = 1;
