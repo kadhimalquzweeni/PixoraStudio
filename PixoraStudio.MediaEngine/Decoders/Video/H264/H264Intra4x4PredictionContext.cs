@@ -26,9 +26,8 @@ public sealed class H264Intra4x4PredictionContext
     }
 
     /// <summary>
-    /// Returns min(modeA, modeB) when both neighbours are available. If
-    /// either neighbour is unavailable, the missing mode is treated as DC
-    /// mode 2 before applying the minimum rule.
+    /// Returns min(modeA, modeB) when both neighbours are available.
+    /// If either neighbour is unavailable, the predicted mode is DC (2).
     /// </summary>
     public uint GetPredictedMode(int x, int y, int sliceId)
     {
@@ -39,9 +38,10 @@ public sealed class H264Intra4x4PredictionContext
         bool hasLeft = x > 0 && TryGetMode((x - 1, y), sliceId, out left);
         bool hasTop = y > 0 && TryGetMode((x, y - 1), sliceId, out top);
 
-        uint modeA = hasLeft ? left : 2;
-        uint modeB = hasTop ? top : 2;
-        return Math.Min(modeA, modeB);
+        if (!hasLeft || !hasTop)
+            return 2;
+
+        return Math.Min(left, top);
     }
 
     /// <summary>
