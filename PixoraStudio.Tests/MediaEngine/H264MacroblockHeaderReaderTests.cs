@@ -6,7 +6,7 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264MacroblockHeaderReaderTests
 {
     [Theory]
-    [InlineData(0, false, false, null, null, null, false)]
+    [InlineData(0, true, false, null, null, null, false)]
     [InlineData(1, true, true, 0, 0, 0, false)]
     [InlineData(4, true, true, 3, 0, 0, false)]
     [InlineData(13, true, true, 0, 15, 0, false)]
@@ -80,7 +80,7 @@ public sealed class H264MacroblockHeaderReaderTests
 
         Assert.True(result.IsIntra);
         Assert.Equal(5u, result.MbTypeCode);
-        Assert.Equal(0u, result.Intra16x16PredMode);
+        Assert.Null(result.Intra16x16PredMode);
     }
 
     [Fact]
