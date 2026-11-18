@@ -56,6 +56,16 @@ public sealed class H264BTemporalDirectMotionVectorDeriverTests
     }
 
     [Fact]
+    public void Derive_ShouldRejectCollocatedReferenceMissingFromCurrentList0()
+    {
+        H264TemporalDirectPredictionContext context =
+            new(new H264MotionVector(4, 2), 5, 0, -2, false,
+                MappedReferenceIndexL0: -1);
+
+        Assert.Throws<FormatException>(() => _deriver.Derive(context));
+    }
+
+    [Fact]
     public void Derive_WithFutureCollocatedReference_ShouldProduceNegativeScale()
     {
         H264TemporalDirectMotionVectorResult result = _deriver.Derive(
