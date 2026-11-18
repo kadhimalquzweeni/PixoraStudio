@@ -190,7 +190,8 @@ public static class H264IntraChromaResidualReconstructor
             ValidateResidual(dcResidual, count, nameof(dcResidual));
             if (blocksHigh == 2)
             {
-                Array.Copy(dcResidual.Coefficients, levels, 4);
+                for (int i = 0; i < 4; i++)
+                    levels[i] = dcResidual.Coefficients[i];
             }
             else
             {
