@@ -83,18 +83,27 @@ public sealed class H264PInterSliceDataDecoderTests
     }
 
     [Fact]
-    public void Decode_ShouldRejectIntraMacroblocksInsidePAndWrongReferenceListSize()
+    public void Decode_PSliceWithIntraNxNMacroblock_ShouldReconstructAndCommitIt()
     {
         H264SequenceParameterSet sps = Sps(1);
         H264DecodedPictureSurface reference = Reference(sps, 1, 2, 3);
+        H264DecodedPictureSurface destination = new(sps);
         BitWriter intra = WritePSliceHeader();
-        intra.WriteUe(0);
+        intra.WriteUe(0); // mb_skip_run
         intra.WriteUe(5); // P-slice I_NxN macroblock type
+        for (int i = 0; i < 16; i++) intra.WriteFlag(true);
+        intra.WriteUe(0); // intra_chroma_pred_mode
+        intra.WriteUe(3); // coded_block_pattern maps to zero
         intra.WriteRbspTrailingBits();
-        Assert.Throws<NotSupportedException>(() =>
-            new H264PInterSliceDataDecoder(new H264DecodedPictureSurface(sps),
-                new H264MotionVectorPictureState(1, 1)).Decode(
-                new H264NalUnit(0x41, intra.ToArray()), sps, Pps(), [reference], 0));
+
+        H264PInterSliceDecodeResult result = new H264PInterSliceDataDecoder(
+            destination, new H264MotionVectorPictureState(1, 1)).Decode(
+            new H264NalUnit(0x41, intra.ToArray()), sps, Pps(), [reference], 0);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Empty(result.Macroblocks);
+        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
 
         BitWriter p = WritePSliceHeader();
         p.WriteUe(0);
