@@ -116,15 +116,19 @@ public sealed class H264MotionVectorPictureStateTests
     }
 
     [Fact]
-    public void ReconstructAndRecord_ShouldRejectIntegerOverflow()
+    public void ReconstructAndRecord_ShouldClipWidenedPredictorPlusMvdArithmetic()
     {
         var state = new H264MotionVectorPictureState(1, 1);
         state.RecordInterPartition(0, 0, 1, 1, 0, 0,
-            new H264MotionVector(int.MaxValue, 0));
+            new H264MotionVector(H264MotionVectorRange.MaximumComponent,
+                H264MotionVectorRange.MinimumComponent));
 
-        Assert.Throws<OverflowException>(() => state.ReconstructAndRecord(
+        H264MotionVector result = state.ReconstructAndRecord(
             _predictor, 1, 0, 1, 1, 0, 0,
-            new H264MotionVectorDifference(int.MaxValue, 0)));
+            new H264MotionVectorDifference(int.MaxValue, int.MinValue));
+
+        Assert.Equal(H264MotionVectorRange.MaximumComponent, result.Horizontal);
+        Assert.Equal(H264MotionVectorRange.MinimumComponent, result.Vertical);
     }
 
     [Fact]
