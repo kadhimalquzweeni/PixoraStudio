@@ -10,6 +10,7 @@ public sealed class H264CabacResidualNeighbourContextTests
         H264CabacResidualNeighbourContext context = new();
         context.RecordMacroblock(0, 0, 0, 1, isPcm: false);
         context.RecordBlock(0, 0, 0, 1, codedBlockFlag: true);
+        context.RecordBlock(0, 0, 1, 1, codedBlockFlag: true);
         context.RecordBlock(0, 1, 0, 1, codedBlockFlag: false);
 
         Assert.Equal(1, context.GetContextIndexIncrement(
@@ -33,10 +34,11 @@ public sealed class H264CabacResidualNeighbourContextTests
     {
         H264CabacResidualNeighbourContext context = new();
         context.RecordMacroblock(0, 0, 0, 1, isPcm: false);
-        context.RecordBlock(0, 3, 0, 1, codedBlockFlag: true);
+        context.RecordBlock(0, 3, 1, 1, codedBlockFlag: true);
+        context.RecordMacroblock(0, 1, 0, 2, isPcm: false);
 
         Assert.Equal(1, context.GetContextIndexIncrement(
-            0, 4, 0, 4, 4, 2, currentMacroblockIsIntra: true));
+            0, 4, 1, 4, 4, 2, currentMacroblockIsIntra: true));
     }
 
     [Fact]
