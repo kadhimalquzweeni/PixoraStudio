@@ -89,3 +89,18 @@ The roadmap is complete only when the implemented feature set is backed by autom
 - The DPB can now retain each reference picture's list-0/list-1 motion-vector grids and the reference lists used when that picture was decoded. `CreateTemporalDirectMotionField` restores that metadata, and B-slice traversal automatically selects `RefPicList1[0]` as the collocated picture when temporal direct is signalled. The explicit callback remains available for externally managed or custom collocated metadata. MMCO conversion preserves the retained motion metadata.
 
 - P- and B-slice decode results now expose the exact ordered reference-picture metadata used by the slice. This lets the caller persist the current picture's list-0/list-1 motion grids together with the matching reference lists when inserting it into the DPB, so later B pictures can resolve temporal direct prediction without a separately maintained lookup table.
+
+Example DPB persistence after a decoded B picture:
+
+```csharp
+dpb.StoreDecodedPicture(
+    decodedSurface, currentReferencePicture, isReferencePicture,
+    maxNumRefFrames, currentFrameNum, maxFrameNum,
+    sliceHeader.DecodedReferenceMarking,
+    motionVectorStateL0: motionStateL0,
+    motionVectorStateL1: motionStateL1,
+    referenceList0: decodeResult.ReferencePictureLists!.List0,
+    referenceList1: decodeResult.ReferencePictureLists.List1);
+```
+
+For a P picture, persist the P decoder's motion state as list 0, use an empty list-1 motion state, and pass `decodeResult.ReferenceList0` plus an empty list 1. This retains the exact reference metadata needed if that picture is selected as the collocated picture by a later B slice.
