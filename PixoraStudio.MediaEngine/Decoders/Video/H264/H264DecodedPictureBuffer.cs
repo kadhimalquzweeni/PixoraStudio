@@ -162,13 +162,21 @@ public sealed class H264DecodedPictureBuffer
         H264DecodedPictureBufferEntry entry = _entries.SingleOrDefault(
             candidate => candidate.Picture == collocatedPicture)
             ?? throw new ArgumentException("The collocated picture is not present in the DPB.", nameof(collocatedPicture));
-        if (entry.MotionVectorStateL0 is null || entry.MotionVectorStateL1 is null ||
-            entry.ReferenceList0 is null || entry.ReferenceList1 is null)
-            throw new NotSupportedException("The collocated DPB entry was stored without temporal-direct motion metadata.");
+        // Intra-only reference pictures have no inter motion field or
+        // reference lists to retain. An empty field is still a valid temporal-
+        // direct source: every collocated block is unavailable and the direct
+        // derivation therefore falls back to zero motion vectors and refIdx 0.
+        // StoreDecodedPicture rejects partial metadata, so the four values
+        // below are either all present or all absent.
+        H264MotionVectorPictureState motionL0 = entry.MotionVectorStateL0 ??
+            new H264MotionVectorPictureState(entry.Surface.MacroblockWidth, entry.Surface.MacroblockHeight);
+        H264MotionVectorPictureState motionL1 = entry.MotionVectorStateL1 ??
+            new H264MotionVectorPictureState(entry.Surface.MacroblockWidth, entry.Surface.MacroblockHeight);
 
         return new H264TemporalDirectMotionField(
-            entry.MotionVectorStateL0, entry.MotionVectorStateL1,
-            entry.ReferenceList0, entry.ReferenceList1,
+            motionL0, motionL1,
+            entry.ReferenceList0 ?? [],
+            entry.ReferenceList1 ?? [],
             entry.Picture.PictureOrderCount,
             collocatedPictureIsShortTerm: !entry.Picture.IsLongTerm);
     }
