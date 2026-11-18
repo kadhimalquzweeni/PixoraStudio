@@ -57,7 +57,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
             new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
                 syntax, state0, state1, 0, 0, 0, 1, 1);
 
-        Assert.Equal(9, results.Count); // 1 + 1 + 1 + 4 sub-partitions
+        Assert.Equal(7, results.Count); // 1 + 1 + 1 + 4 sub-partitions
         Assert.Equal(4, results.Count(item => item.Width == 1 && item.Height == 1));
         Assert.All(results.Where(item => item.ReferenceIndexL0 is not null),
             item => Assert.NotNull(item.MotionVectorL0));
