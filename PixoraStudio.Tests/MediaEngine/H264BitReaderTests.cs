@@ -8,43 +8,6 @@ public sealed class H264BitReaderTests
     public void ReadBits_ShouldReadMostSignificantBitFirst()
     {
         H264BitReader reader = new(new byte[] { 0b1011_0010 
-    [Theory]
-    [InlineData(new byte[] { 0x80 })]
-    [InlineData(new byte[] { 0x80, 0x00, 0x00 })]
-    [InlineData(new byte[] { 0x80, 0x00, 0x00, 0x00, 0x00 })]
-    public void ConsumeCabacTrailingBits_ShouldAcceptStopBitAndZeroWords(byte[] data)
-    {
-        H264BitReader reader = new(data);
-
-        reader.ConsumeCabacTrailingBits();
-
-        Assert.Equal(0, reader.RemainingBits);
-    }
-
-    [Fact]
-    public void ConsumeCabacTrailingBits_ShouldRejectPartialZeroWord()
-    {
-        H264BitReader reader = new(new byte[] { 0x80, 0x00 });
-
-        Assert.Throws<FormatException>(() => reader.ConsumeCabacTrailingBits());
-    }
-
-    [Fact]
-    public void ConsumeCabacTrailingBits_ShouldRejectNonZeroPaddingWord()
-    {
-        H264BitReader reader = new(new byte[] { 0x80, 0x00, 0x01 });
-
-        Assert.Throws<FormatException>(() => reader.ConsumeCabacTrailingBits());
-    }
-
-    [Fact]
-    public void ConsumeCabacTrailingBits_ShouldRejectMissingStopBit()
-    {
-        H264BitReader reader = new(new byte[] { 0x00 });
-
-        Assert.Throws<FormatException>(() => reader.ConsumeCabacTrailingBits());
-    }
-
 });
         Assert.Equal(5u, reader.ReadBits(3));
         Assert.Equal(0b10010u, reader.ReadBits(5));
@@ -196,4 +159,42 @@ public sealed class H264BitReaderTests
         H264BitReader reader = new(new byte[] { 0xFF });
         Assert.Throws<ArgumentOutOfRangeException>(() => reader.ReadBits(33));
     }
+
+    [Theory]
+    [InlineData(new byte[] { 0x80 })]
+    [InlineData(new byte[] { 0x80, 0x00, 0x00 })]
+    [InlineData(new byte[] { 0x80, 0x00, 0x00, 0x00, 0x00 })]
+    public void ConsumeCabacTrailingBits_ShouldAcceptStopBitAndZeroWords(byte[] data)
+    {
+        H264BitReader reader = new(data);
+
+        reader.ConsumeCabacTrailingBits();
+
+        Assert.Equal(0, reader.RemainingBits);
+    }
+
+    [Fact]
+    public void ConsumeCabacTrailingBits_ShouldRejectPartialZeroWord()
+    {
+        H264BitReader reader = new(new byte[] { 0x80, 0x00 });
+
+        Assert.Throws<FormatException>(() => reader.ConsumeCabacTrailingBits());
+    }
+
+    [Fact]
+    public void ConsumeCabacTrailingBits_ShouldRejectNonZeroPaddingWord()
+    {
+        H264BitReader reader = new(new byte[] { 0x80, 0x00, 0x01 });
+
+        Assert.Throws<FormatException>(() => reader.ConsumeCabacTrailingBits());
+    }
+
+    [Fact]
+    public void ConsumeCabacTrailingBits_ShouldRejectMissingStopBit()
+    {
+        H264BitReader reader = new(new byte[] { 0x00 });
+
+        Assert.Throws<FormatException>(() => reader.ConsumeCabacTrailingBits());
+    }
+
 }
