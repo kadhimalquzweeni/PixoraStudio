@@ -63,6 +63,77 @@ public sealed class H264Mp4TrackDecoder
     }
 
     /// <summary>
+    /// Seeks to a presentation time in an MP4 AVC video track. Decoding starts
+    /// at the preceding sync sample and continues in decode order so reference
+    /// pictures and POC state are rebuilt correctly. Frames before the target
+    /// presentation interval are discarded; the first overlapping frame and
+    /// all subsequent presentation frames are returned.
+    /// </summary>
+    public IEnumerable<H264Mp4DecodedVideoFrame> DecodeFromTime(
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        double targetPresentationTimeSeconds,
+        int? maxNumReorderFramesFallback = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(mediaInfo);
+        if (!stream.CanRead || !stream.CanSeek)
+            throw new ArgumentException("The MP4 stream must support reading and seeking.", nameof(stream));
+
+        Mp4MediaTrack mediaTrack = mediaInfo.GetTrack(trackId) ??
+            throw new ArgumentException($"MP4 track {trackId} does not exist.", nameof(trackId));
+        if (mediaTrack.HandlerType != Mp4HandlerType.Video)
+            throw new NotSupportedException($"MP4 track {trackId} is not a video track.");
+
+        H264Mp4VideoSeekPlan plan = new H264Mp4VideoSeekPlanner().Plan(
+            mediaTrack, targetPresentationTimeSeconds);
+        uint remainingSamples = checked(mediaTrack.SampleCount - plan.FirstSampleToDecode + 1);
+        IEnumerable<Mp4EncodedSample> samples = mediaTrack.ReadSamples(
+            stream,
+            plan.FirstSampleToDecode,
+            remainingSamples,
+            mediaInfo.MediaDataRegions,
+            cancellationToken);
+
+        return DecodeFromSeekPoint(
+            mediaTrack.Track,
+            samples,
+            plan,
+            maxNumReorderFramesFallback,
+            cancellationToken);
+    }
+
+    private IEnumerable<H264Mp4DecodedVideoFrame> DecodeFromSeekPoint(
+        Mp4Track track,
+        IEnumerable<Mp4EncodedSample> samples,
+        H264Mp4VideoSeekPlan plan,
+        int? maxNumReorderFramesFallback,
+        CancellationToken cancellationToken)
+    {
+        foreach (H264Mp4DecodedVideoFrame frame in DecodeSamples(
+            track, samples, maxNumReorderFramesFallback, cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            long presentationEnd;
+            try
+            {
+                presentationEnd = checked(frame.PresentationTimeTicks + frame.DurationTicks);
+            }
+            catch (OverflowException exception)
+            {
+                throw new FormatException(
+                    "A decoded MP4 frame has an overflowing presentation interval.", exception);
+            }
+
+            if (presentationEnd > plan.TargetPresentationTimeTicks)
+                yield return frame;
+        }
+    }
+
+    /// <summary>
     /// Decodes an already-enumerated sequence of MP4 samples. This overload is
     /// useful for callers that manage sample storage or for deterministic tests.
     /// Samples must be supplied contiguously in decode order.
