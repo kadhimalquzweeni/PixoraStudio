@@ -21,6 +21,7 @@ public sealed record H264SequenceParameterSet(
     uint FrameHeight,
     bool VuiParametersPresentFlag)
 {
+    public byte ProfileCompatibility { get; init; }
     public H264VuiParameters? VuiParameters { get; init; }
     public bool GapsInFrameNumValueAllowedFlag { get; init; }
     public bool MbAdaptiveFrameFieldFlag { get; init; }
