@@ -18,6 +18,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     private readonly H264YuvToBgraConverter _converter = new();
     private readonly H264Mp4TrackDecoder _decoder = new();
     private readonly H264AvcParameterSetCollectionReader _parameterSetReader = new();
+    private readonly SemaphoreSlim _operationLock = new(1, 1);
 
     private Mp4MediaInfo? _mediaInfo;
     private uint _trackId;
@@ -75,15 +76,23 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         if (prepared is null)
             return false;
 
-        _mediaInfo = prepared.Value.Info;
-        _trackId = prepared.Value.TrackId;
-        _filePath = filePath;
-        _playbackClock = playbackClock;
-        _frameReady = frameReady;
-        _failed = failed;
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _mediaInfo = prepared.Value.Info;
+            _trackId = prepared.Value.TrackId;
+            _filePath = filePath;
+            _playbackClock = playbackClock;
+            _frameReady = frameReady;
+            _failed = failed;
 
-        await StartDecodeAsync(0, cancellationToken).ConfigureAwait(false);
-        return true;
+            await StartDecodeAsync(0, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
     }
 
     public async Task SeekAsync(
@@ -95,19 +104,35 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         if (_mediaInfo is null || _filePath is null)
             return;
 
-        await StopDecodeTaskAsync().ConfigureAwait(false);
-        await StartDecodeAsync(positionSeconds, cancellationToken).ConfigureAwait(false);
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await StopDecodeTaskAsync().ConfigureAwait(false);
+            await StartDecodeAsync(positionSeconds, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
     }
 
     public async Task StopAsync()
     {
-        await StopDecodeTaskAsync().ConfigureAwait(false);
-        _mediaInfo = null;
-        _filePath = null;
-        _playbackClock = null;
-        _frameReady = null;
-        _failed = null;
-        _trackId = 0;
+        await _operationLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await StopDecodeTaskAsync().ConfigureAwait(false);
+            _mediaInfo = null;
+            _filePath = null;
+            _playbackClock = null;
+            _frameReady = null;
+            _failed = null;
+            _trackId = 0;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
     }
 
     private Task StartDecodeAsync(double startSeconds, CancellationToken cancellationToken)
