@@ -180,6 +180,7 @@ public sealed class H264ParameterSetReaderTests
         bits.WriteFlag(true);
         bits.WriteFlag(false);
         bits.WriteUe(0);
+        WritePpsTail(bits);
 
         var result = new H264PictureParameterSetReader().Read(new H264NalUnit(0x68, bits.ToArray()));
 
@@ -188,6 +189,95 @@ public sealed class H264ParameterSetReaderTests
         Assert.True(result.EntropyCodingModeFlag);
         Assert.False(result.BottomFieldPicOrderInFramePresentFlag);
         Assert.Equal(0u, result.NumSliceGroupsMinus1);
+        Assert.Equal(1u, result.NumRefIdxL0DefaultActiveMinus1);
+        Assert.Equal(1u, result.NumRefIdxL1DefaultActiveMinus1);
+        Assert.True(result.DeblockingFilterControlPresentFlag);
+        Assert.False(result.HasExtension);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void ReadPps_ShouldParseSupportedFlexibleMacroblockOrderingMapTypes(uint mapType)
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // PPS id
+        bits.WriteUe(0); // SPS id
+        bits.WriteFlag(false);
+        bits.WriteFlag(false);
+        bits.WriteUe(1); // two slice groups
+        bits.WriteUe(mapType);
+        switch (mapType)
+        {
+            case 0:
+                bits.WriteUe(2);
+                bits.WriteUe(3);
+                break;
+            case 2:
+                bits.WriteUe(0);
+                bits.WriteUe(5);
+                break;
+            case 3:
+            case 4:
+            case 5:
+                bits.WriteFlag(true);
+                bits.WriteUe(4);
+                break;
+            case 6:
+                bits.WriteUe(3); // four map units
+                bits.WriteBits(0, 1);
+                bits.WriteBits(1, 1);
+                bits.WriteBits(0, 1);
+                bits.WriteBits(1, 1);
+                break;
+        }
+        WritePpsTail(bits);
+
+        var result = new H264PictureParameterSetReader().Read(
+            new H264NalUnit(0x68, bits.ToArray()));
+
+        Assert.Equal(mapType, result.SliceGroupMapType);
+        if (mapType == 6)
+            Assert.Equal(new uint[] { 0, 1, 0, 1 }, result.SliceGroupId);
+        if (mapType == 0)
+            Assert.Equal(new uint[] { 2, 3 }, result.RunLengthMinus1);
+        if (mapType == 2)
+            Assert.Equal(new H264SliceGroupRectangle(0, 5), Assert.Single(result.SliceGroupRectangles));
+    }
+
+    [Fact]
+    public void ReadPps_ShouldParseHighProfileScalingMatrixExtension()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(0);
+        bits.WriteFlag(false);
+        bits.WriteFlag(false);
+        bits.WriteUe(0);
+        WritePpsTail(bits);
+        bits.WriteFlag(true);  // transform_8x8_mode_flag
+        bits.WriteFlag(true);  // pic_scaling_matrix_present_flag
+        for (int i = 0; i < 8; i++)
+        {
+            bits.WriteFlag(i == 0);
+            if (i == 0)
+                for (int j = 0; j < 16; j++) bits.WriteSe(0);
+        }
+        bits.WriteSe(2); // second_chroma_qp_index_offset
+
+        var result = new H264PictureParameterSetReader().Read(
+            new H264NalUnit(0x68, bits.ToArray()));
+
+        Assert.True(result.HasExtension);
+        Assert.True(result.Transform8X8ModeFlag);
+        Assert.True(result.PicScalingMatrixPresentFlag);
+        Assert.Equal(8, result.ScalingLists.Count);
+        Assert.Equal(16, result.ScalingLists[0].Count);
+        Assert.Equal(2, result.SecondChromaQpIndexOffset);
     }
 
     [Fact]
@@ -195,6 +285,20 @@ public sealed class H264ParameterSetReaderTests
     {
         Assert.Throws<FormatException>(() =>
             new H264PictureParameterSetReader().Read(new H264NalUnit(0x67, [0x80])));
+    }
+
+    private static void WritePpsTail(BitWriter bits)
+    {
+        bits.WriteUe(1); // default L0 references minus one
+        bits.WriteUe(1); // default L1 references minus one
+        bits.WriteFlag(false);
+        bits.WriteBits(0, 2);
+        bits.WriteSe(0);
+        bits.WriteSe(0);
+        bits.WriteSe(0);
+        bits.WriteFlag(true);
+        bits.WriteFlag(false);
+        bits.WriteFlag(false);
     }
 
     private sealed class BitWriter
@@ -207,6 +311,12 @@ public sealed class H264ParameterSetReaderTests
         {
             for (int i = count - 1; i >= 0; i--)
                 _bits.Add(((value >> i) & 1) != 0);
+        }
+
+        public void WriteSe(int value)
+        {
+            uint codeNum = value <= 0 ? checked((uint)(-2L * value)) : checked((uint)(2L * value - 1));
+            WriteUe(codeNum);
         }
 
         public void WriteUe(uint value)
