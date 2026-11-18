@@ -129,20 +129,20 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
                         for (int offsetY = 0; offsetY < regionHeight; offsetY += step)
                         for (int offsetX = 0; offsetX < regionWidth; offsetX += step)
                         {
-                            int x = originX + offsetX;
-                            int y = originY + offsetY;
+                            int temporalBlockX = originX + offsetX;
+                            int temporalBlockY = originY + offsetY;
                             H264TemporalDirectPredictionContext? context =
-                                collocatedContextProvider(x, y, step, step);
+                                collocatedContextProvider(temporalBlockX, temporalBlockY, step, step);
                             H264TemporalDirectMotionVectorResult vectors = context is null
                                 ? new H264TemporalDirectMotionVectorResult(
                                     new H264MotionVector(0, 0), new H264MotionVector(0, 0), 256, 0)
                                 : _temporalDeriver.Derive(context);
                             motionVectorStateL0.RecordInterPartition(
-                                x, y, step, step, sliceId, vectors.ReferenceIndexL0, vectors.MotionVectorL0);
+                                temporalBlockX, temporalBlockY, step, step, sliceId, vectors.ReferenceIndexL0, vectors.MotionVectorL0);
                             motionVectorStateL1.RecordInterPartition(
-                                x, y, step, step, sliceId, 0, vectors.MotionVectorL1);
+                                temporalBlockX, temporalBlockY, step, step, sliceId, 0, vectors.MotionVectorL1);
                             result.Add(new H264ReconstructedBInterSubPartition(
-                                partitionIndex, temporalSubIndex++, x, y, step, step,
+                                partitionIndex, temporalSubIndex++, temporalBlockX, temporalBlockY, step, step,
                                 vectors.ReferenceIndexL0, 0, vectors.MotionVectorL0, vectors.MotionVectorL1));
                         }
                     }
