@@ -47,7 +47,7 @@ public sealed class H264Mp4AvcEndToEndTests
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(mp4Sample.Configuration);
         H264SequenceParameterSet sps = Assert.Single(parameterSets.SequenceParameterSets).Value;
-        H264PictureParameterSetHeader pps = Assert.Single(parameterSets.PictureParameterSets).Value;
+        Assert.Equal(0u, Assert.Single(parameterSets.PictureParameterSets).Value.Id);
 
         H264Mp4AccessUnitDecoder decoder = new(
             parameterSets, maxNumReorderFramesFallback: 0);
