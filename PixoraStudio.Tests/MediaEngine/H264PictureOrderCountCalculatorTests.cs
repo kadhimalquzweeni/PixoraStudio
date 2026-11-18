@@ -33,6 +33,20 @@ public sealed class H264PictureOrderCountCalculatorTests
     }
 
     [Fact]
+    public void Calculate_TypeZero_ShouldIgnoreNonReferencePictureWhenUpdatingPreviousPocState()
+    {
+        H264PictureOrderCountCalculator calculator = new();
+        H264SequenceParameterSet sps = CreateSps();
+        calculator.Calculate(sps, CreateSlice(0, 14, idr: true), 3);
+        calculator.Calculate(sps, CreateSlice(1, 1), 0);
+
+        H264PictureOrderCount nextReference = calculator.Calculate(
+            sps, CreateSlice(2, 2), 3);
+
+        Assert.Equal(18, nextReference.PictureOrderCount);
+    }
+
+    [Fact]
     public void Calculate_TypeZero_ShouldCalculateBottomFieldOnly()
     {
         H264PictureOrderCount result = new H264PictureOrderCountCalculator().Calculate(
