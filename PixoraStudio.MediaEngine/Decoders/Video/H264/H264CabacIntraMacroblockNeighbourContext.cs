@@ -27,7 +27,8 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
         uint codedBlockPatternLuma,
         uint codedBlockPatternChroma,
         uint? intraChromaPredictionMode,
-        int? macroblockQpDelta)
+        int? macroblockQpDelta,
+        bool transformSize8x8Flag = false)
     {
         if (macroblockX < 0)
             throw new ArgumentOutOfRangeException(nameof(macroblockX));
@@ -49,7 +50,7 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
         MacroblockState state = new(
             address, sliceId, isIntraNxN, isIntra16x16, isPcm,
             codedBlockPatternLuma, codedBlockPatternChroma,
-            intraChromaPredictionMode, macroblockQpDelta);
+            intraChromaPredictionMode, macroblockQpDelta, transformSize8x8Flag);
         _macroblocks[(macroblockX, macroblockY)] = state;
         _macroblocksByAddress[address] = state;
     }
@@ -66,6 +67,21 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
             state => state.IsIntraNxN ? 0 : 1);
         int top = GetSpatialNeighbour(macroblockX, macroblockY - 1, sliceId,
             state => state.IsIntraNxN ? 0 : 1);
+        return left + top;
+    }
+
+    /// <summary>
+    /// Returns the transform_size_8x8_flag context increment from available
+    /// left and top macroblocks that also use the 8x8 transform.
+    /// </summary>
+    public int GetTransformSize8x8ContextIncrement(
+        int macroblockX, int macroblockY, int sliceId)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        int left = GetSpatialNeighbour(macroblockX - 1, macroblockY, sliceId,
+            state => state.TransformSize8x8Flag ? 1 : 0);
+        int top = GetSpatialNeighbour(macroblockX, macroblockY - 1, sliceId,
+            state => state.TransformSize8x8Flag ? 1 : 0);
         return left + top;
     }
 
@@ -268,5 +284,6 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
         uint CodedBlockPatternLuma,
         uint CodedBlockPatternChroma,
         uint? IntraChromaPredictionMode,
-        int? MacroblockQpDelta);
+        int? MacroblockQpDelta,
+        bool TransformSize8x8Flag);
 }
