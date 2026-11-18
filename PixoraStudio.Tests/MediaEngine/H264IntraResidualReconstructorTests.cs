@@ -26,10 +26,11 @@ public sealed class H264IntraResidualReconstructorTests
 
         byte[] result = H264IntraResidualReconstructor.Reconstruct4x4(
             Enumerable.Repeat((byte)100, 16).ToArray(),
-            residual, 0, CreateSps(), CreatePps());
+            residual, 24, CreateSps(), CreatePps());
 
-        // Flat scaling list, QP-prime zero: DC dequantises to 160 and
-        // the 4x4 inverse transform contributes three to every sample.
+        // With the flat default intra scaling list and QP-prime 24,
+        // the DC coefficient dequantises to 160. The inverse transform
+        // contributes three to every reconstructed sample.
         Assert.Equal(Enumerable.Repeat((byte)103, 16), result);
     }
 
@@ -42,10 +43,18 @@ public sealed class H264IntraResidualReconstructorTests
 
         byte[] result = H264IntraResidualReconstructor.Reconstruct4x4(
             Enumerable.Repeat((byte)100, 16).ToArray(),
-            residual, 0, CreateSps(), CreatePps());
+            residual, 24, CreateSps(), CreatePps());
 
-        Assert.Equal(16, result.Length);
-        Assert.Contains(result, sample => sample != 100);
+        // The first AC coefficient is scan position 1 (raster position 1),
+        // not the DC position. At QP-prime 24 its transformed residual is
+        // [4, 2, -2, -4] on each row.
+        Assert.Equal(new byte[]
+        {
+            104, 102, 98, 96,
+            104, 102, 98, 96,
+            104, 102, 98, 96,
+            104, 102, 98, 96
+        }, result);
     }
 
     [Fact]
