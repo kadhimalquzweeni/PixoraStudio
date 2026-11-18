@@ -16,7 +16,7 @@ public sealed class H264BiPredictionCombinerTests
 
         Assert.All(result.Luma, value => Assert.Equal((byte)11, value));
         Assert.All(result.Cb, value => Assert.Equal((byte)21, value));
-        Assert.All(result.Cr, value => Assert.Equal((byte)32, value));
+        Assert.All(result.Cr, value => Assert.Equal((byte)31, value));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class H264BiPredictionCombinerTests
         // Cb: ((4*80 + 4*40 + 4) >> 3) + ((1+3+1)>>1) = 62
         Assert.All(result.Cb, value => Assert.Equal((byte)62, value));
         // Cr: ((2*60 + 6*20 + 4) >> 3) + ((-1+5+1)>>1) = 32
-        Assert.All(result.Cr, value => Assert.Equal((byte)31, value));
+        Assert.All(result.Cr, value => Assert.Equal((byte)32, value));
     }
 
     [Fact]
