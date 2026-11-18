@@ -21,6 +21,8 @@ The roadmap targets a standards-based decoder with explicit profile/tool capabil
 - NAL framing, EBSP-to-RBSP conversion, bit reader and initial SPS/PPS readers are implemented.
 - SPS parsing now reads VUI aspect ratio, overscan, video signal/colour description, chroma location, timing, NAL/VCL HRD, picture-structure and bitstream-restriction metadata.
 - VUI/HRD parsing has focused synthetic unit tests. The test suite still needs to be run locally after these changes.
-- Full PPS syntax, slice headers, entropy decoding, pixel reconstruction, reference management and playback integration remain outstanding.
+- PPS parsing now covers reference defaults, weighted prediction, QP offsets, deblocking/constrained-intra/redundant-picture flags, all FMO map syntax types (0–6), and the optional transform/scaling-matrix extension. The SPS is accepted as an optional context when PPS scaling-list count depends on chroma format.
+- Slice headers, entropy decoding, pixel reconstruction, reference management and playback integration remain outstanding.
+- Complete PPS parsing and FMO/scaling-matrix paths now have synthetic unit coverage; local test execution is pending.
 
 The roadmap is complete only when the implemented feature set is backed by automated tests and real H.264 streams with independently verified decoded output.
