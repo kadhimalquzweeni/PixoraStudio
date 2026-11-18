@@ -11,7 +11,7 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 public sealed class H264AvcDecoderConfigurationReader
 {
     private static readonly HashSet<byte> ProfilesWithAvcCExtension =
-        [100, 110, 122, 144];
+        new() { 100, 110, 122, 144 };
 
     public H264AvcDecoderConfiguration Read(Mp4CodecConfiguration configuration)
     {
