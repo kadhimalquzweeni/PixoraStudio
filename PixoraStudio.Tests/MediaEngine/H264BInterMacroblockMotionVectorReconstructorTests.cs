@@ -252,8 +252,8 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
 
         Assert.Equal((int?)1, result.ReferenceIndexL0);
         Assert.Equal(new H264MotionVector(20, 0), result.MotionVectorL0);
-        Assert.Equal((int?)0, result.ReferenceIndexL1);
-        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL1);
+        Assert.Null(result.ReferenceIndexL1);
+        Assert.Null(result.MotionVectorL1);
     }
 
     [Fact]
