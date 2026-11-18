@@ -66,18 +66,21 @@ public sealed class H264Mp4AccessUnitDecoder
         _timescale ??= sample.Timescale;
         _lastSampleNumber = sample.SampleNumber;
         _lastDecodeTimeTicks = sample.DecodeTimeTicks;
+        _requiresReset = true;
 
         H264NalUnit[] slices = GetSliceNals(sample.NalUnits);
         if (slices.Length == 0)
+        {
+            _requiresReset = false;
             return null;
+        }
         if (slices.Length != 1)
             throw new NotSupportedException(
                 "This MP4 access-unit decoder currently requires exactly one VCL slice per sample.");
 
         H264NalUnit nalUnit = slices[0];
         H264SliceHeaderReader sliceHeaderReader = new();
-        (uint _, uint _, uint ppsId) =
-            sliceHeaderReader.ReadLeadingIdentifiers(nalUnit);
+        uint ppsId = sliceHeaderReader.ReadLeadingIdentifiers(nalUnit).PictureParameterSetId;
         if (!_parameterSets.PictureParameterSets.TryGetValue(
             ppsId, out H264PictureParameterSetHeader? pps))
             throw new FormatException($"The AVC slice references missing PPS {ppsId}.");
@@ -108,10 +111,9 @@ public sealed class H264Mp4AccessUnitDecoder
         IReadOnlyList<H264ReferencePicture>? referenceList0 = null;
         IReadOnlyList<H264ReferencePicture>? referenceList1 = null;
 
-        // POC is needed during B temporal-direct reconstruction. Once this
-        // stateful calculation succeeds, any later failure faults this decoder
-        // instance until Reset so subsequent samples cannot use a false epoch.
-        _requiresReset = true;
+        // POC is needed during B temporal-direct reconstruction. Any failure
+        // after accepting a sample faults this decoder until Reset so later
+        // samples cannot silently continue from an incomplete reference chain.
         try
         {
             H264PictureOrderCount poc = _outputScheduler.CalculatePictureOrderCount(
