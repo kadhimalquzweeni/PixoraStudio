@@ -86,7 +86,10 @@ public sealed class H264DecodedPictureOutputScheduler
         H264PictureOrderCount pictureOrderCount,
         int maxNumReorderFrames)
     {
-        if (surface.HasCompleteDeblockingMetadata && !surface.IsDeblockingFilterApplied)
+        if (!surface.HasCompleteDeblockingMetadata)
+            throw new InvalidOperationException(
+                "A picture must have complete deblocking metadata before presentation output.");
+        if (!surface.IsDeblockingFilterApplied)
             H264DeblockingPictureFilter.Apply(surface);
 
         IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
