@@ -263,10 +263,11 @@ public sealed class H264DecodedPictureBuffer
         int maxFrameNum,
         uint? differenceMinus1)
     {
-        int difference = checked(ReadRequiredInt(
-            differenceMinus1, nameof(differenceMinus1)) + 1);
-        if (difference > maxFrameNum)
+        int differenceMinus1Value = ReadRequiredInt(
+            differenceMinus1, nameof(differenceMinus1));
+        if (differenceMinus1Value >= maxFrameNum)
             throw new FormatException("difference_of_pic_nums_minus1 exceeds MaxPicNum.");
+        int difference = differenceMinus1Value + 1;
         int noWrap = currentFrameNum - difference;
         if (noWrap < 0)
             noWrap += maxFrameNum;
