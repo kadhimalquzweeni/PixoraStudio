@@ -129,28 +129,33 @@ public static class H264DeblockingPictureFilter
             int pColumn = external ? 1 : 0;
             for (int blockRow = 0; blockRow < chromaRows; blockRow++)
             {
-                int pIndex = blockRow * 2 + pColumn;
-                int qIndex = blockRow * 2 + edge;
+                // Chroma bS is inherited from the luma edge containing
+                // the corresponding subsampled luma sample. For 4:2:0 one
+                // chroma segment spans two luma block rows; the top row is
+                // the normative representative for its q0 sample location.
+                int lumaBlockRow = surface.ChromaFormatIdc == 1
+                    ? blockRow * 2 : blockRow;
+                int pLumaColumn = external ? 3 : 1;
+                int qLumaColumn = external ? 0 : 2;
+                H264DeblockingBlockMetadata pLuma =
+                    pMetadata.LumaBlocks[lumaBlockRow * 4 + pLumaColumn];
+                H264DeblockingBlockMetadata qLuma =
+                    current.LumaBlocks[lumaBlockRow * 4 + qLumaColumn];
                 int q0Offset = (mbY * chromaRows * 4 + blockRow * 4) *
                     surface.ChromaWidth + mbX * 8 + edge * 4;
 
-                int cbStrength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                    pMetadata.ChromaCbBlocks[pIndex],
-                    current.ChromaCbBlocks[qIndex], external);
-                if (cbStrength > 0 && H264DeblockingFilter.FilterEdge(
+                int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
+                    pLuma, qLuma, external);
+                if (strength > 0 && H264DeblockingFilter.FilterEdge(
                     cb, q0Offset, 1, surface.ChromaWidth, 4,
                     new H264DeblockingEdgeParameters(
-                        cbStrength, pMetadata.QpCb, current.QpCb,
+                        strength, pMetadata.QpCb, current.QpCb,
                         current.AlphaOffsetDiv2, current.BetaOffsetDiv2, true)))
                     filtered++;
-
-                int crStrength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                    pMetadata.ChromaCrBlocks[pIndex],
-                    current.ChromaCrBlocks[qIndex], external);
-                if (crStrength > 0 && H264DeblockingFilter.FilterEdge(
+                if (strength > 0 && H264DeblockingFilter.FilterEdge(
                     cr, q0Offset, 1, surface.ChromaWidth, 4,
                     new H264DeblockingEdgeParameters(
-                        crStrength, pMetadata.QpCr, current.QpCr,
+                        strength, pMetadata.QpCr, current.QpCr,
                         current.AlphaOffsetDiv2, current.BetaOffsetDiv2, true)))
                     filtered++;
             }
@@ -236,28 +241,33 @@ public static class H264DeblockingPictureFilter
             int pRow = external ? chromaRows - 1 : edge - 1;
             for (int blockColumn = 0; blockColumn < 2; blockColumn++)
             {
-                int pIndex = pRow * 2 + blockColumn;
-                int qIndex = edge * 2 + blockColumn;
+                // Map the chroma q0 sample to its corresponding luma
+                // block edge (SubWidthC=2; SubHeightC=2 for 4:2:0, 1 for
+                // 4:2:2) as required by the H.264 chroma bS derivation.
+                int lumaBlockColumn = blockColumn * 2;
+                int pLumaRow = external
+                    ? 3 : surface.ChromaFormatIdc == 1 ? 1 : edge - 1;
+                int qLumaRow = external
+                    ? 0 : surface.ChromaFormatIdc == 1 ? 2 : edge;
+                H264DeblockingBlockMetadata pLuma =
+                    pMetadata.LumaBlocks[pLumaRow * 4 + lumaBlockColumn];
+                H264DeblockingBlockMetadata qLuma =
+                    current.LumaBlocks[qLumaRow * 4 + lumaBlockColumn];
                 int q0Offset = (mbY * chromaRows * 4 + edge * 4) *
                     surface.ChromaWidth + mbX * 8 + blockColumn * 4;
 
-                int cbStrength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                    pMetadata.ChromaCbBlocks[pIndex],
-                    current.ChromaCbBlocks[qIndex], external);
-                if (cbStrength > 0 && H264DeblockingFilter.FilterEdge(
+                int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
+                    pLuma, qLuma, external);
+                if (strength > 0 && H264DeblockingFilter.FilterEdge(
                     cb, q0Offset, surface.ChromaWidth, 1, 4,
                     new H264DeblockingEdgeParameters(
-                        cbStrength, pMetadata.QpCb, current.QpCb,
+                        strength, pMetadata.QpCb, current.QpCb,
                         current.AlphaOffsetDiv2, current.BetaOffsetDiv2, true)))
                     filtered++;
-
-                int crStrength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                    pMetadata.ChromaCrBlocks[pIndex],
-                    current.ChromaCrBlocks[qIndex], external);
-                if (crStrength > 0 && H264DeblockingFilter.FilterEdge(
+                if (strength > 0 && H264DeblockingFilter.FilterEdge(
                     cr, q0Offset, surface.ChromaWidth, 1, 4,
                     new H264DeblockingEdgeParameters(
-                        crStrength, pMetadata.QpCr, current.QpCr,
+                        strength, pMetadata.QpCr, current.QpCr,
                         current.AlphaOffsetDiv2, current.BetaOffsetDiv2, true)))
                     filtered++;
             }
