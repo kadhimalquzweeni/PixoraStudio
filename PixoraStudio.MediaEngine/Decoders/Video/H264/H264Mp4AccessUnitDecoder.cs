@@ -115,6 +115,9 @@ public sealed class H264Mp4AccessUnitDecoder
 
         H264SequenceParameterSet activeSps = sps!;
         H264PictureParameterSetHeader activePps = pps!;
+        if (!activeSps.FrameMbsOnlyFlag || activeSps.MbAdaptiveFrameFieldFlag)
+            throw new NotSupportedException(
+                "The MP4 access-unit decoder supports frame-coded pictures only.");
         ulong pictureMacroblockCount =
             ((ulong)activeSps.PicWidthInMbsMinus1 + 1) *
             ((ulong)activeSps.PicHeightInMapUnitsMinus1 + 1);
