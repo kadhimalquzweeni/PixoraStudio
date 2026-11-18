@@ -303,7 +303,8 @@ public sealed class H264IntraMacroblockReconstructor
             pcm.LumaSamples, pcm.CbSamples, pcm.CrSamples);
         RecordIntra16x16Modes(macroblockX, macroblockY, sliceId);
         if (qpY.HasValue)
-            AttachIntraDeblockingMetadata(macroblockX, macroblockY, qpY.Value, false, sps, pps);
+            // H.264 specifies QP_y = 0 for I_PCM macroblocks during deblocking.
+            AttachIntraDeblockingMetadata(macroblockX, macroblockY, 0, false, sps, pps);
     }
 
     /// <summary>Clears neighbour-derived mode state at a new picture boundary.</summary>
