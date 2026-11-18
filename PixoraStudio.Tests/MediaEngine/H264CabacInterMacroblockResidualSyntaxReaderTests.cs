@@ -60,6 +60,39 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
         Assert.Equal(7, bins.ContextIndices.Count);
     }
 
+
+    [Fact]
+    public void Read_ShouldDeriveChromaArrayTypeFromSpsFor422()
+    {
+        ScriptedCabacReader bins = new(new[] { 0, 0, 0, 0, 0, 0 });
+        H264CabacInterMacroblockResidualSyntaxReader reader =
+            new(new H264CabacSyntaxElementReader(bins),
+                new H264CabacIntraMacroblockNeighbourContext());
+
+        H264SequenceParameterSet sps = Sps() with { ChromaFormatIdc = 2 };
+        H264InterMacroblockResidualSyntax result = reader.Read(
+            sps, Pps() with { EntropyCodingModeFlag = true },
+            0, 0, 0, 0, noSubMacroblockPartitionSmallerThan8x8: true);
+
+        Assert.Equal(2u, result.CodedBlockPattern.ChromaArrayType);
+        Assert.Equal(6, bins.ContextIndices.Count);
+    }
+
+    [Fact]
+    public void Read_ShouldUseNoPreviousMacroblockForFirstAddress()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0, 0, 1, 0 });
+        H264CabacIntraMacroblockNeighbourContext neighbours = new();
+        H264CabacInterMacroblockResidualSyntaxReader reader =
+            new(new H264CabacSyntaxElementReader(bins), neighbours);
+
+        H264InterMacroblockResidualSyntax result = reader.Read(
+            Sps(), Pps() with { EntropyCodingModeFlag = true, Transform8X8ModeFlag = true },
+            0, 0, 0, 0, noSubMacroblockPartitionSmallerThan8x8: true);
+
+        Assert.Equal(1, result.MacroblockQpDelta);
+    }
+
     private static H264SequenceParameterSet Sps() =>
         new(0, 100, 40, 1, false, 0, 0, 0, 0, 0, 1,
             0, 0, true, true, 16, 16, false);
