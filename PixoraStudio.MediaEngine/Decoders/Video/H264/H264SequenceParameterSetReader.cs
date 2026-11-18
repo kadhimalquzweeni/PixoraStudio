@@ -49,23 +49,26 @@ public sealed class H264SequenceParameterSetReader
         uint log2MaxFrameNumMinus4 = ReadBoundedUe(reader, 12, "log2_max_frame_num_minus4");
         uint picOrderCntType = ReadBoundedUe(reader, 2, "pic_order_cnt_type");
         uint log2MaxPicOrderCntLsbMinus4 = 0;
+        bool deltaPicOrderAlwaysZero = false;
+        int offsetForNonRefPic = 0, offsetForTopToBottomField = 0;
+        List<int> offsetForRefFrame = [];
         if (picOrderCntType == 0)
             log2MaxPicOrderCntLsbMinus4 = ReadBoundedUe(reader, 12, "log2_max_pic_order_cnt_lsb_minus4");
         else if (picOrderCntType == 1)
         {
-            _ = reader.ReadFlag();
-            _ = reader.ReadSignedExpGolomb();
-            _ = reader.ReadSignedExpGolomb();
+            deltaPicOrderAlwaysZero = reader.ReadFlag();
+            offsetForNonRefPic = reader.ReadSignedExpGolomb();
+            offsetForTopToBottomField = reader.ReadSignedExpGolomb();
             uint cycleCount = ReadBoundedUe(reader, 255, "num_ref_frames_in_pic_order_cnt_cycle");
-            for (uint i = 0; i < cycleCount; i++) _ = reader.ReadSignedExpGolomb();
+            for (uint i = 0; i < cycleCount; i++) offsetForRefFrame.Add(reader.ReadSignedExpGolomb());
         }
 
         uint maxNumRefFrames = ReadBoundedUe(reader, 65535, "max_num_ref_frames");
-        _ = reader.ReadFlag();
+        bool gapsInFrameNumAllowed = reader.ReadFlag();
         uint widthInMbsMinus1 = ReadBoundedUe(reader, 65535, "pic_width_in_mbs_minus1");
         uint heightInMapUnitsMinus1 = ReadBoundedUe(reader, 65535, "pic_height_in_map_units_minus1");
         bool frameMbsOnly = reader.ReadFlag();
-        if (!frameMbsOnly) _ = reader.ReadFlag();
+        bool mbAdaptiveFrameField = !frameMbsOnly && reader.ReadFlag();
         bool direct8X8Inference = reader.ReadFlag();
 
         uint cropLeft = 0, cropRight = 0, cropTop = 0, cropBottom = 0;
@@ -102,7 +105,15 @@ public sealed class H264SequenceParameterSetReader
             heightInMapUnitsMinus1, frameMbsOnly,
             direct8X8Inference, checked((uint)(codedWidth - cropWidth)),
             checked((uint)(codedHeight - cropHeight)), vuiPresent)
-        { VuiParameters = vui };
+        {
+            VuiParameters = vui,
+            GapsInFrameNumValueAllowedFlag = gapsInFrameNumAllowed,
+            MbAdaptiveFrameFieldFlag = mbAdaptiveFrameField,
+            DeltaPicOrderAlwaysZeroFlag = deltaPicOrderAlwaysZero,
+            OffsetForNonRefPic = offsetForNonRefPic,
+            OffsetForTopToBottomField = offsetForTopToBottomField,
+            OffsetForRefFrame = offsetForRefFrame
+        };
     }
 
     private static H264VuiParameters ReadVui(H264BitReader reader)
