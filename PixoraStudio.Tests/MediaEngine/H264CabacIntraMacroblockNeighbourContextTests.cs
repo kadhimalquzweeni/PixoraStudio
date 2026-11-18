@@ -10,7 +10,7 @@ public sealed class H264CabacIntraMacroblockNeighbourContextTests
         H264CabacIntraMacroblockNeighbourContext context = new();
         context.RecordMacroblock(0, 0, 0, 1, true, false, false, 0, 0, 1, null);
         context.RecordMacroblock(1, 1, 0, 1, false, true, false, 15, 2, 1, 1);
-        context.RecordMacroblock(2, 0, 1, 1, false, false, true, 0, 0, null, null);
+        context.RecordMacroblock(2, 0, 1, 1, true, false, false, 0, 0, 1, null);
 
         Assert.Equal(1, context.GetMacroblockTypeContextIncrement(1, 1, 1));
     }
