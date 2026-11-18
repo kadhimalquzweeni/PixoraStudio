@@ -114,8 +114,9 @@ public sealed class H264AvcDecoderConfigurationReader
 
             ushort length = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(position, 2));
             position += 2;
-            if (length == 0)
-                throw new FormatException($"The avcC {description} NAL unit cannot be empty.");
+            if (length < 2)
+                throw new FormatException(
+                    $"The avcC {description} NAL unit must contain a header and RBSP payload.");
             if (length > data.Length - position)
                 throw new FormatException($"The avcC {description} NAL unit extends beyond the record.");
 
