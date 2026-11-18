@@ -2,10 +2,12 @@ using PixoraStudio.MediaEngine.Models.Video;
 
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
-/// <summary>Reads and validates the leading PPS syntax elements.</summary>
+/// <summary>Parses the complete PPS syntax, including FMO maps and optional scaling matrices.</summary>
 public sealed class H264PictureParameterSetReader
 {
-    public H264PictureParameterSetHeader Read(H264NalUnit nalUnit)
+    public H264PictureParameterSetHeader Read(
+        H264NalUnit nalUnit,
+        H264SequenceParameterSet? sequenceParameterSet = null)
     {
         ArgumentNullException.ThrowIfNull(nalUnit);
         if (nalUnit.NalUnitType != 8)
@@ -14,19 +16,170 @@ public sealed class H264PictureParameterSetReader
         H264BitReader reader = new(nalUnit.Rbsp);
         uint ppsId = ReadBoundedUe(reader, 255, "pic_parameter_set_id");
         uint spsId = ReadBoundedUe(reader, 31, "seq_parameter_set_id");
-        bool entropyCodingMode = reader.ReadFlag();
-        bool bottomFieldPicOrderPresent = reader.ReadFlag();
-        uint sliceGroupsMinus1 = ReadBoundedUe(reader, 7, "num_slice_groups_minus1");
+        bool entropy = reader.ReadFlag();
+        bool bottomFieldPoc = reader.ReadFlag();
+        uint groupsMinus1 = ReadBoundedUe(reader, 7, "num_slice_groups_minus1");
+
+        uint? mapType = null, changeRate = null, mapUnitsMinus1 = null;
+        bool? changeDirection = null;
+        List<uint> runLengths = [];
+        List<H264SliceGroupRectangle> rectangles = [];
+        List<uint> groupIds = [];
+
+        if (groupsMinus1 > 0)
+        {
+            mapType = ReadBoundedUe(reader, 6, "slice_group_map_type");
+            switch (mapType.Value)
+            {
+                case 0:
+                    for (uint i = 0; i <= groupsMinus1; i++)
+                        runLengths.Add(ReadBoundedUe(reader, 1_000_000, "run_length_minus1"));
+                    break;
+                case 2:
+                    for (uint i = 0; i < groupsMinus1; i++)
+                    {
+                        uint topLeft = ReadBoundedUe(reader, 1_000_000, "top_left");
+                        uint bottomRight = ReadBoundedUe(reader, 1_000_000, "bottom_right");
+                        if (bottomRight < topLeft)
+                            throw new FormatException("FMO slice group rectangle has inverted bounds.");
+                        rectangles.Add(new H264SliceGroupRectangle(topLeft, bottomRight));
+                    }
+                    break;
+                case 3:
+                case 4:
+                case 5:
+                    changeDirection = reader.ReadFlag();
+                    changeRate = ReadBoundedUe(reader, 1_000_000, "slice_group_change_rate_minus1");
+                    break;
+                case 6:
+                    mapUnitsMinus1 = ReadBoundedUe(reader, 1_000_000, "pic_size_in_map_units_minus1");
+                    int bitsPerGroup = CeilLog2(groupsMinus1 + 1);
+                    for (uint i = 0; i <= mapUnitsMinus1; i++)
+                    {
+                        uint groupId = reader.ReadBits(bitsPerGroup);
+                        if (groupId > groupsMinus1)
+                            throw new FormatException("FMO slice_group_id exceeds num_slice_groups_minus1.");
+                        groupIds.Add(groupId);
+                    }
+                    break;
+                default:
+                    throw new FormatException("Unsupported FMO slice_group_map_type.");
+            }
+        }
+
+        uint l0 = ReadBoundedUe(reader, 31, "num_ref_idx_l0_default_active_minus1");
+        uint l1 = ReadBoundedUe(reader, 31, "num_ref_idx_l1_default_active_minus1");
+        bool weightedPred = reader.ReadFlag();
+        uint weightedBipred = reader.ReadBits(2);
+        if (weightedBipred > 2)
+            throw new FormatException("weighted_bipred_idc value 3 is reserved.");
+        int initQp = ReadBoundedSe(reader, -26, 25, "pic_init_qp_minus26");
+        int initQs = ReadBoundedSe(reader, -26, 25, "pic_init_qs_minus26");
+        int chromaOffset = ReadBoundedSe(reader, -12, 12, "chroma_qp_index_offset");
+        bool deblocking = reader.ReadFlag();
+        bool constrainedIntra = reader.ReadFlag();
+        bool redundant = reader.ReadFlag();
+
+        bool hasExtension = MoreRbspData(reader);
+        bool transform8x8 = false, scalingPresent = false;
+        List<IReadOnlyList<int>> scalingLists = [];
+        int? secondChromaOffset = null;
+        if (hasExtension)
+        {
+            transform8x8 = reader.ReadFlag();
+            scalingPresent = reader.ReadFlag();
+            if (scalingPresent)
+            {
+                uint chromaFormat = sequenceParameterSet?.ChromaFormatIdc ?? 1;
+                int listCount = 6 + (transform8x8 ? (chromaFormat == 3 ? 6 : 2) : 0);
+                for (int i = 0; i < listCount; i++)
+                {
+                    if (reader.ReadFlag())
+                    {
+                        int[] list = ReadScalingList(reader, i < 6 ? 16 : 64);
+                        scalingLists.Add(list);
+                    }
+                    else
+                    {
+                        scalingLists.Add([]);
+                    }
+                }
+            }
+            secondChromaOffset = ReadBoundedSe(reader, -12, 12, "second_chroma_qp_index_offset");
+        }
 
         return new H264PictureParameterSetHeader(
-            ppsId, spsId, entropyCodingMode,
-            bottomFieldPicOrderPresent, sliceGroupsMinus1);
+            ppsId, spsId, entropy, bottomFieldPoc, groupsMinus1)
+        {
+            SliceGroupMapType = mapType,
+            RunLengthMinus1 = runLengths,
+            SliceGroupRectangles = rectangles,
+            SliceGroupChangeDirectionFlag = changeDirection,
+            SliceGroupChangeRateMinus1 = changeRate,
+            PicSizeInMapUnitsMinus1 = mapUnitsMinus1,
+            SliceGroupId = groupIds,
+            NumRefIdxL0DefaultActiveMinus1 = l0,
+            NumRefIdxL1DefaultActiveMinus1 = l1,
+            WeightedPredFlag = weightedPred,
+            WeightedBipredIdc = (byte)weightedBipred,
+            PicInitQpMinus26 = initQp,
+            PicInitQsMinus26 = initQs,
+            ChromaQpIndexOffset = chromaOffset,
+            DeblockingFilterControlPresentFlag = deblocking,
+            ConstrainedIntraPredFlag = constrainedIntra,
+            RedundantPicCntPresentFlag = redundant,
+            HasExtension = hasExtension,
+            Transform8X8ModeFlag = transform8x8,
+            PicScalingMatrixPresentFlag = scalingPresent,
+            ScalingLists = scalingLists,
+            SecondChromaQpIndexOffset = secondChromaOffset
+        };
+    }
+
+    private static bool MoreRbspData(H264BitReader reader)
+    {
+        if (reader.RemainingBits == 0) return false;
+        // rbsp_trailing_bits is a single one bit followed only by zero bits.
+        if (!reader.ReadFlag()) return true;
+        while (reader.RemainingBits > 0)
+            if (reader.ReadFlag()) return true;
+        return false;
+    }
+
+    private static int[] ReadScalingList(H264BitReader reader, int size)
+    {
+        int[] values = new int[size];
+        int lastScale = 8, nextScale = 8;
+        for (int i = 0; i < size; i++)
+        {
+            if (nextScale != 0)
+                nextScale = (int)(((long)lastScale + reader.ReadSignedExpGolomb() + 256) % 256);
+            int scale = nextScale == 0 ? lastScale : nextScale;
+            values[i] = scale;
+            lastScale = scale;
+        }
+        return values;
+    }
+
+    private static int CeilLog2(uint value)
+    {
+        int bits = 0;
+        uint v = value - 1;
+        while (v != 0) { bits++; v >>= 1; }
+        return bits;
     }
 
     private static uint ReadBoundedUe(H264BitReader reader, uint maximum, string field)
     {
         uint value = reader.ReadUnsignedExpGolomb();
-        if (value > maximum)
+        if (value > maximum) throw new FormatException($"PPS {field} is outside its permitted range.");
+        return value;
+    }
+
+    private static int ReadBoundedSe(H264BitReader reader, int minimum, int maximum, string field)
+    {
+        int value = reader.ReadSignedExpGolomb();
+        if (value < minimum || value > maximum)
             throw new FormatException($"PPS {field} is outside its permitted range.");
         return value;
     }
