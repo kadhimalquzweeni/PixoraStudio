@@ -5,7 +5,7 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// bypass and termination bins. Syntax-element binarisation is implemented
 /// by the slice and macroblock syntax readers.
 /// </summary>
-public sealed class H264CabacSliceDataReader
+public sealed class H264CabacSliceDataReader : IH264CabacBinReader
 {
     private readonly H264BitReader _reader;
     private H264CabacArithmeticDecoder _arithmeticDecoder;
