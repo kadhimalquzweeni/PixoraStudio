@@ -19,6 +19,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Motion-vector arithmetic | Predictor-plus-MVD uses widened intermediates before normative signed 16-bit clipping |
 | Output scheduling | Surface/deblocking preflight occurs before the stateful POC calculator advances |
 | MP4 AVC ingestion | avcC parsing extracts SPS/PPS NAL units and validates PPS-to-SPS links; MP4 track sample parsing resolves sample descriptions, splits length-prefixed NAL units and preserves DTS/PTS/duration/sync metadata |
+| MP4-to-decoder regression | A synthetic AVC MP4 sample is exercised through avcC parsing, SPS/PPS resolution, NAL extraction and I_PCM IDR-slice reconstruction |
 | Automated tests | Regression tests cover the above cases; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
