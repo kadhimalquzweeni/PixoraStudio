@@ -6,4 +6,5 @@ public interface IH264CabacBinReader
     int DecodeBin(int contextIndex);
     int DecodeBypass();
     int DecodeTerminate();
+    void MarkTerminated();
 }
