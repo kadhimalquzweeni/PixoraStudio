@@ -72,6 +72,9 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReader
         }
 
         return new H264InterMacroblockResidualSyntax(
-            codedBlockPattern, qpDelta, transformSize8x8Flag);
+            codedBlockPattern, qpDelta)
+        {
+            TransformSize8X8Flag = transformSize8x8Flag
+        };
     }
 }
