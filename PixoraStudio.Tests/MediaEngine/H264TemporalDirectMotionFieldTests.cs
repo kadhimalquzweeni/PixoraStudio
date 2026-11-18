@@ -18,12 +18,13 @@ public sealed class H264TemporalDirectMotionFieldTests
             [new H264ReferencePicture(2, 8)], 6, collocatedPictureIsShortTerm: true);
 
         H264TemporalDirectPredictionContext context =
-            field.GetContext(0, 0, 1, 1, 10)!;
+            field.GetContext(0, 0, 1, 1, 10, [new H264ReferencePicture(9, -2), new H264ReferencePicture(8, 7)])!;
 
         Assert.Equal(new H264MotionVector(4, 5), context.CollocatedMotionVector);
         Assert.Equal(10, context.CurrentPictureOrderCount);
         Assert.Equal(6, context.CollocatedPictureOrderCount);
         Assert.Equal(-2, context.CollocatedReferencePictureOrderCount);
+        Assert.Equal(0, context.MappedReferenceIndexL0);
         Assert.False(context.CollocatedReferenceIsLongTerm);
     }
 
@@ -37,7 +38,7 @@ public sealed class H264TemporalDirectMotionFieldTests
             l0, l1, [], [new H264ReferencePicture(2, 3, true, 0)], 8, collocatedPictureIsShortTerm: true);
 
         H264TemporalDirectPredictionContext context =
-            field.GetContext(0, 0, 1, 1, 12)!;
+            field.GetContext(0, 0, 1, 1, 12, [new H264ReferencePicture(8, 3)])!;
 
         Assert.Equal(new H264MotionVector(-7, 9), context.CollocatedMotionVector);
         Assert.Equal(3, context.CollocatedReferencePictureOrderCount);
@@ -51,7 +52,7 @@ public sealed class H264TemporalDirectMotionFieldTests
             new H264MotionVectorPictureState(1, 1),
             new H264MotionVectorPictureState(1, 1), [], [], 0, collocatedPictureIsShortTerm: true);
 
-        Assert.Null(field.GetContext(0, 0, 1, 1, 4));
+        Assert.Null(field.GetContext(0, 0, 1, 1, 4, []));
     }
 
     [Fact]
@@ -63,6 +64,6 @@ public sealed class H264TemporalDirectMotionFieldTests
             l0, new H264MotionVectorPictureState(1, 1),
             [new H264ReferencePicture(0, 0)], [], 0, collocatedPictureIsShortTerm: true);
 
-        Assert.Throws<FormatException>(() => field.GetContext(0, 0, 1, 1, 1));
+        Assert.Throws<FormatException>(() => field.GetContext(0, 0, 1, 1, 1, []));
     }
 }
