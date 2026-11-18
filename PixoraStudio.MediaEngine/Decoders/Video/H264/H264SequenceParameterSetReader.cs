@@ -107,7 +107,7 @@ public sealed class H264SequenceParameterSetReader
 
         try
         {
-            reader.ConsumeRbspTrailingBits();
+            reader.ConsumeRbspTrailingBitsAndZeroPadding();
         }
         catch (FormatException exception)
         {
