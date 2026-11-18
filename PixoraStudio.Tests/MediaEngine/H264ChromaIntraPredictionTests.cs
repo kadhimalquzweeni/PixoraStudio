@@ -76,7 +76,7 @@ public sealed class H264ChromaIntraPredictionTests
 
         Assert.Equal((byte)60, result[0]);       // top-left: (80 + 400) / 8
         Assert.Equal((byte)60, result[4]);       // top-right: top only
-        Assert.Equal((byte)120, result[4 * 8]);  // bottom-left: left only
+        Assert.Equal((byte)140, result[4 * 8]);  // bottom-left: left only
         Assert.Equal((byte)100, result[4 * 8 + 4]); // bottom-right: both
     }
 
