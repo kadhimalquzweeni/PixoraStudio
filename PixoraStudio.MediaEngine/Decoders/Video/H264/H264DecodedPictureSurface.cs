@@ -192,6 +192,7 @@ public sealed class H264DecodedPictureSurface
         int index = GetMacroblockIndex(macroblockX, macroblockY);
         _sliceIds[index] = sliceId;
         _intra[index] = isIntra;
+        _deblockingMetadata[index] = null;
         _decoded[index] = true;
     }
 
