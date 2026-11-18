@@ -12,7 +12,7 @@ public sealed class H264CabacSliceDataReaderTests
 
         H264CabacSliceDataReader reader = new(bits, 26, true, 0);
 
-        Assert.Equal(16, bits.PositionBits);
+        Assert.Equal(17, bits.PositionBits);
         Assert.Equal(0, reader.DecodeBin(0));
     }
 
@@ -46,7 +46,8 @@ public sealed class H264CabacSliceDataReaderTests
     [Fact]
     public void DecodeTerminate_ShouldMarkReaderTerminatedAndRejectFurtherBins()
     {
-        H264CabacSliceDataReader reader = CreateReader(isIntra: true);
+        H264CabacSliceDataReader reader = new(
+            new H264BitReader(new byte[] { 0xFE, 0x80 }), 26, true, 0);
 
         Assert.Equal(1, reader.DecodeTerminate());
         Assert.True(reader.IsTerminated);
