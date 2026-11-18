@@ -97,6 +97,22 @@ public sealed class H264AvcDecoderConfigurationReaderTests
     }
 
     [Fact]
+    public void Read_ShouldRejectParameterSetNalsWithZeroReferencePriority()
+    {
+        byte[] data = CreateBasicRecord(lengthSizeMinusOne: 3);
+        data[8] = 0x07; // SPS NAL with nal_ref_idc == 0.
+
+        Assert.Throws<FormatException>(() =>
+            new H264AvcDecoderConfigurationReader().Read(data));
+
+        data = CreateBasicRecord(lengthSizeMinusOne: 3);
+        data[13] = 0x08; // PPS NAL with nal_ref_idc == 0.
+
+        Assert.Throws<FormatException>(() =>
+            new H264AvcDecoderConfigurationReader().Read(data));
+    }
+
+    [Fact]
     public void Read_ShouldRejectTruncatedOrEmptyNalUnits()
     {
         byte[] truncated = CreateBasicRecord(lengthSizeMinusOne: 3);
