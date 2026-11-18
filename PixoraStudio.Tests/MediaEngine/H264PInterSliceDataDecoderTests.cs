@@ -134,7 +134,8 @@ public sealed class H264PInterSliceDataDecoderTests
             new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), [reference], 0);
 
         Assert.Equal(2, result.MacroblocksDecoded);
-        Assert.Single(result.Macroblocks);
+        Assert.Equal(new uint[] { 0, 1 },
+            result.Macroblocks.Select(macroblock => macroblock.MacroblockAddress));
         Assert.True(destination.IsMacroblockDecoded(0, 0));
         Assert.True(destination.IsMacroblockDecoded(1, 0));
     }
