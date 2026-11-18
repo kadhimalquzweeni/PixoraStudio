@@ -54,7 +54,8 @@ public sealed class H264BInterMacroblockReconstructorTests
                 skipped, [reference], [reference], references,
                 new H264MotionVectorPictureState(1, 1),
                 new H264MotionVectorPictureState(1, 1),
-                destination, 0, 0, 0, 26, 2, true, sps, pps);
+                destination, 0, 0, 0, 26, 2, true, sps, pps,
+                collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.True(result.IsSkipped);
         Assert.Equal(26, result.QpY);
