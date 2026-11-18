@@ -202,11 +202,12 @@ public sealed class H264BInterMacroblockPredictionDecoder
 
     private static void ValidatePartition(H264ReconstructedBInterSubPartition partition)
     {
+        // X/Y are picture-relative 4x4-block coordinates here. The
+        // macroblock reconstructor converts them to macroblock-local
+        // coordinates before calling Assemble.
         if (partition.X < 0 || partition.Y < 0 ||
             partition.Width <= 0 || partition.Height <= 0 ||
-            partition.X > 4 || partition.Y > 4 ||
-            partition.Width > 4 - partition.X ||
-            partition.Height > 4 - partition.Y)
-            throw new FormatException("A B sub-partition must lie within the 16x16 macroblock.");
+            partition.Width > 4 || partition.Height > 4)
+            throw new FormatException("A B sub-partition has invalid picture-relative geometry.");
     }
 }
