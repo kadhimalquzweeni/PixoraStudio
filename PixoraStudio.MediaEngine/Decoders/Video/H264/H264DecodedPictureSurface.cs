@@ -71,7 +71,7 @@ public sealed class H264DecodedPictureSurface
         if (!_decoded[index])
             throw new InvalidOperationException("Deblocking metadata can only be attached after macroblock reconstruction.");
         metadata.Validate(checked((int)ChromaFormatIdc));
-        _deblockingMetadata[index] = metadata.Clone();
+        _deblockingMetadata[index] = metadata.DeepCopy();
     }
 
     public H264DeblockingMacroblockMetadata? GetDeblockingMetadata(
@@ -79,7 +79,7 @@ public sealed class H264DecodedPictureSurface
         int macroblockY)
     {
         ValidateMacroblock(macroblockX, macroblockY);
-        return _deblockingMetadata[GetMacroblockIndex(macroblockX, macroblockY)]?.Clone();
+        return _deblockingMetadata[GetMacroblockIndex(macroblockX, macroblockY)]?.DeepCopy();
     }
 
     internal H264DeblockingMacroblockMetadata GetDeblockingMetadataForFiltering(
