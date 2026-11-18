@@ -196,7 +196,11 @@ public sealed class H264DecodedPictureBufferTests
     public void StoreDecodedPicture_ShouldRejectCompletePixelsWithoutDeblockingMetadata()
     {
         H264DecodedPictureBuffer dpb = new();
-        H264DecodedPictureSurface surface = Surface();
+        H264SequenceParameterSet sps = new(0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
+            0, 0, true, true, 16, 16, false);
+        H264DecodedPictureSurface surface = new(sps);
+        surface.WriteMacroblock(0, 0, 0, false,
+            new byte[256], new byte[64], new byte[64]);
 
         Assert.Throws<InvalidOperationException>(() => dpb.StoreDecodedPicture(
             surface, new H264ReferencePicture(0, 0), true, 4, 0, 16,
