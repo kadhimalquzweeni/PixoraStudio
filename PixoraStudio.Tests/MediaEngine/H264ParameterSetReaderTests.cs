@@ -389,6 +389,22 @@ public sealed class H264ParameterSetReaderTests
     }
 
     [Fact]
+    public void ReadSps_ShouldParseHighProfileSampleWithTrailingZeroPadding()
+    {
+        byte[] rbsp = Convert.FromHexString(
+            "64002AAC2B200F0044FCB80B5010101400000FA0000753021000");
+
+        H264SequenceParameterSet result = new H264SequenceParameterSetReader()
+            .Read(new H264NalUnit(0x67, rbsp));
+
+        Assert.Equal((byte)100, result.ProfileIdc);
+        Assert.Equal((byte)42, result.LevelIdc);
+        Assert.Equal(1920u, result.FrameWidth);
+        Assert.Equal(1080u, result.FrameHeight);
+        Assert.True(result.VuiParametersPresentFlag);
+    }
+
+    [Fact]
     public void ReadSps_ShouldAcceptTrailingZeroPaddingAfterRbspTrailingBits()
     {
         BitWriter bits = CreateBaselineSpsPrefix();
