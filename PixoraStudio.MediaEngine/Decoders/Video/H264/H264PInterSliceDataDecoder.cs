@@ -32,6 +32,7 @@ public sealed class H264PInterSliceDataDecoder
     private readonly H264CabacIntraMacroblockNeighbourContext _cabacMacroblockNeighbours = new();
     private readonly H264CabacMotionVectorNeighbourContext _cabacMotionNeighbours = new();
     private readonly H264CabacResidualNeighbourContext _cabacResidualNeighbours = new();
+    private readonly Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> _cabacReaderFactory;
 
     public H264PInterSliceDataDecoder(
         H264DecodedPictureSurface destination,
@@ -44,14 +45,27 @@ public sealed class H264PInterSliceDataDecoder
         H264DecodedPictureSurface destination,
         H264MotionVectorPictureState motionVectorState,
         H264PInterMacroblockReconstructor macroblockReconstructor)
+        : this(destination, motionVectorState, macroblockReconstructor,
+            static (reader, qpY, isIntra, cabacInitIdc) =>
+                new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc))
+    {
+    }
+
+    internal H264PInterSliceDataDecoder(
+        H264DecodedPictureSurface destination,
+        H264MotionVectorPictureState motionVectorState,
+        H264PInterMacroblockReconstructor macroblockReconstructor,
+        Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> cabacReaderFactory)
     {
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(motionVectorState);
         ArgumentNullException.ThrowIfNull(macroblockReconstructor);
+        ArgumentNullException.ThrowIfNull(cabacReaderFactory);
         _destination = destination;
         _motionVectorState = motionVectorState;
         _macroblockReconstructor = macroblockReconstructor;
         _intraReconstructor = new H264IntraMacroblockReconstructor(destination);
+        _cabacReaderFactory = cabacReaderFactory;
         if (motionVectorState.MacroblockWidth != destination.MacroblockWidth ||
             motionVectorState.MacroblockHeight != destination.MacroblockHeight)
             throw new ArgumentException("Motion-vector state dimensions must match the destination picture.", nameof(motionVectorState));
@@ -303,8 +317,8 @@ public sealed class H264PInterSliceDataDecoder
             throw new FormatException("A CABAC P slice must provide a valid cabac_init_idc.");
 
         int qpY = initialQpY;
-        H264CabacSliceDataReader cabac = new(
-            reader, qpY, isIntraSlice: false, checked((int)cabacInitIdc));
+        IH264CabacSliceDataReader cabac = _cabacReaderFactory(
+            reader, qpY, false, checked((int)cabacInitIdc));
         H264CabacSyntaxElementReader syntaxReader = new(cabac);
         H264CabacInterMacroblockResidualSyntaxReader interResidualSyntaxReader =
             new(syntaxReader, _cabacMacroblockNeighbours);
