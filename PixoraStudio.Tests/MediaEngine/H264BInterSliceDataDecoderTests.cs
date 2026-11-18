@@ -45,7 +45,8 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.TrailingBits();
 
         H264BInterSliceDecodeResult result = Decoder(destination).Decode(
-            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0,
+            collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.Equal(2, result.MacroblocksDecoded);
         Assert.Equal(2, result.InterMacroblocks.Count);
@@ -72,7 +73,8 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.TrailingBits();
 
         H264BInterSliceDecodeResult result = Decoder(destination).Decode(
-            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0,
+            collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.Equal(2, result.MacroblocksDecoded);
         Assert.Equal(2, result.InterMacroblocks.Count);
