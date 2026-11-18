@@ -3,10 +3,10 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Connects supported intra macroblock syntax and CAVLC residual payloads
+/// Connects supported intra macroblock syntax and decoded residual payloads
 /// to prediction, inverse quantisation/transforms and the decoded picture
 /// surface. I_16x16, Intra4x4, Intra8x8 and I_PCM are supported for the
-/// implemented frame-only 8-bit 4:2:0/4:2:2 paths; inter, field, CABAC,
+/// implemented frame-only 8-bit 4:2:0/4:2:2 paths; inter, field,
 /// 4:4:4 and high-bit-depth macroblocks remain unsupported.
 /// </summary>
 public sealed class H264IntraMacroblockReconstructor
@@ -280,8 +280,6 @@ public sealed class H264IntraMacroblockReconstructor
             sps.BitDepthLumaMinus8 != 0 || sps.BitDepthChromaMinus8 != 0 ||
             sps.ChromaFormatIdc is not (1 or 2))
             throw new NotSupportedException("I_PCM reconstruction supports frame-only 8-bit non-separate 4:2:0 and 4:2:2 pictures.");
-        if (pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("CABAC macroblock reconstruction is not implemented.");
         if (pps.SequenceParameterSetId != sps.Id ||
             sps.PicWidthInMbsMinus1 + 1 != (uint)_surface.MacroblockWidth ||
             sps.PicHeightInMapUnitsMinus1 + 1 != (uint)_surface.MacroblockHeight ||
@@ -415,8 +413,6 @@ public sealed class H264IntraMacroblockReconstructor
             sps.PicHeightInMapUnitsMinus1 + 1 != (uint)_surface.MacroblockHeight ||
             sps.ChromaFormatIdc != _surface.ChromaFormatIdc)
             throw new ArgumentException("The SPS does not describe the supplied decoded picture surface.", nameof(sps));
-        if (pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("CABAC macroblock reconstruction is not implemented.");
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
         uint expectedAddress = checked((uint)(y * _surface.MacroblockWidth + x));
