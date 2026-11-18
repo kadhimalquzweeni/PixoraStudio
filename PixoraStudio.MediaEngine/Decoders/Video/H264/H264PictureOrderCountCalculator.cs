@@ -92,11 +92,6 @@ public sealed class H264PictureOrderCountCalculator
             if (hasBottom)
                 bottom = checked(bottom - pocOffset);
             pictureOrder = 0;
-            if (sps.PicOrderCntType == 0 && reference)
-            {
-                _previousPicOrderCntMsb = 0;
-                _previousPicOrderCntLsb = hasTop ? top : 0;
-            }
         }
 
         if (sps.PicOrderCntType == 0 && reference)
