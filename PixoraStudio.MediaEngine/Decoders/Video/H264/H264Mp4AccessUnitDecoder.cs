@@ -3,9 +3,10 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Decodes a single-slice AVC picture carried in one MP4 sample, using the
-/// managed I/P/B slice decoders, frame DPB and MP4-aware POC output scheduler.
-/// Multi-slice access units and in-band parameter-set changes are rejected.
+/// Decodes one AVC picture carried in an MP4 sample using the managed I/P/B
+/// slice decoders, frame DPB and MP4-aware POC output scheduler. Multiple
+/// frame-coded slices are supported when they share picture identity and
+/// reference-list ordering. In-band parameter-set changes are rejected.
 /// </summary>
 public sealed class H264Mp4AccessUnitDecoder
 {
@@ -35,18 +36,19 @@ public sealed class H264Mp4AccessUnitDecoder
 
     /// <summary>
     /// Decodes one MP4 sample. Samples with no VCL NAL unit (for example,
-    /// SEI/AUD-only samples) return null. Exactly one VCL slice is supported.
+    /// SEI/AUD-only samples) return null. All VCL slices in a sample must
+    /// describe the same frame-coded picture and use consistent reference lists.
     /// </summary>
     public H264Mp4AccessUnitDecodeResult? Decode(
         H264Mp4VideoSample sample,
-        int sliceId = 0)
+        int firstSliceId = 0)
     {
         ArgumentNullException.ThrowIfNull(sample);
         if (_requiresReset)
             throw new InvalidOperationException(
                 "The decoder encountered a failed picture decode. Call Reset before decoding another sample.");
-        if (sliceId < 0)
-            throw new ArgumentOutOfRangeException(nameof(sliceId));
+        if (firstSliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(firstSliceId));
         if (sample.TrackId == 0 || sample.SampleNumber == 0)
             throw new FormatException("MP4 track and sample identifiers must be non-zero.");
         if (sample.Timescale == 0)
@@ -68,114 +70,172 @@ public sealed class H264Mp4AccessUnitDecoder
         _lastDecodeTimeTicks = sample.DecodeTimeTicks;
         _requiresReset = true;
 
-        H264NalUnit[] slices = GetSliceNals(sample.NalUnits);
-        if (slices.Length == 0)
+        H264NalUnit[] sliceNals = GetSliceNals(sample.NalUnits);
+        if (sliceNals.Length == 0)
         {
             _requiresReset = false;
             return null;
         }
-        if (slices.Length != 1)
-            throw new NotSupportedException(
-                "This MP4 access-unit decoder currently requires exactly one VCL slice per sample.");
 
-        H264NalUnit nalUnit = slices[0];
         H264SliceHeaderReader sliceHeaderReader = new();
-        uint ppsId = sliceHeaderReader.ReadLeadingIdentifiers(nalUnit).PictureParameterSetId;
-        if (!_parameterSets.PictureParameterSets.TryGetValue(
-            ppsId, out H264PictureParameterSetHeader? pps))
-            throw new FormatException($"The AVC slice references missing PPS {ppsId}.");
-        if (!_parameterSets.SequenceParameterSets.TryGetValue(
-            pps.SequenceParameterSetId, out H264SequenceParameterSet? sps))
-            throw new FormatException(
-                $"PPS {pps.Id} references missing SPS {pps.SequenceParameterSetId}.");
+        List<(H264NalUnit NalUnit, H264SliceHeader Header)> slices = new(sliceNals.Length);
+        H264SequenceParameterSet? sps = null;
+        H264PictureParameterSetHeader? pps = null;
 
-        H264SliceHeader slice = sliceHeaderReader.Read(
-            new H264BitReader(nalUnit.Rbsp), nalUnit, sps, pps);
-        if (nalUnit.NalUnitType == 5 && nalUnit.NalRefIdc == 0)
-            throw new FormatException("IDR NAL units must have non-zero nal_ref_idc.");
-        if (nalUnit.NalUnitType == 5 && slice.SliceType != H264SliceType.I)
-            throw new FormatException("IDR NAL units must contain I slices.");
-        if (slice.FirstMacroblockInSlice != 0)
-            throw new NotSupportedException(
-                "A single-slice MP4 access unit must begin at macroblock address zero.");
-        if (slice.SliceType is H264SliceType.Sp or H264SliceType.Si)
-            throw new NotSupportedException("SP and SI slice reconstruction is not supported.");
-        if (nalUnit.NalRefIdc != 0 && sps.MaxNumRefFrames == 0)
+        foreach (H264NalUnit nalUnit in sliceNals)
+        {
+            uint ppsId = sliceHeaderReader.ReadLeadingIdentifiers(nalUnit).PictureParameterSetId;
+            if (!_parameterSets.PictureParameterSets.TryGetValue(
+                ppsId, out H264PictureParameterSetHeader? currentPps))
+                throw new FormatException($"The AVC slice references missing PPS {ppsId}.");
+            if (!_parameterSets.SequenceParameterSets.TryGetValue(
+                currentPps.SequenceParameterSetId, out H264SequenceParameterSet? currentSps))
+                throw new FormatException(
+                    $"PPS {currentPps.Id} references missing SPS {currentPps.SequenceParameterSetId}.");
+
+            if (sps is null)
+            {
+                sps = currentSps;
+                pps = currentPps;
+            }
+            else if (currentSps.Id != sps.Id || currentPps.Id != pps!.Id)
+            {
+                throw new NotSupportedException(
+                    "All slices in one MP4 sample must use the same SPS and PPS.");
+            }
+
+            H264SliceHeader header = sliceHeaderReader.Read(
+                nalUnit, currentSps, currentPps);
+            ValidateSliceHeader(nalUnit, header);
+            if (slices.Count != 0)
+                ValidateSamePicture(
+                    slices[0].NalUnit, slices[0].Header, nalUnit, header);
+            slices.Add((nalUnit, header));
+        }
+
+        H264SequenceParameterSet activeSps = sps!;
+        H264PictureParameterSetHeader activePps = pps!;
+        H264NalUnit firstNal = slices[0].NalUnit;
+        H264SliceHeader firstSlice = slices[0].Header;
+        if (firstNal.NalRefIdc != 0 && activeSps.MaxNumRefFrames == 0)
             throw new FormatException("A reference slice cannot use an SPS with max_num_ref_frames equal to zero.");
-        if (nalUnit.NalRefIdc != 0 && sps.MaxNumRefFrames > 16)
+        if (firstNal.NalRefIdc != 0 && activeSps.MaxNumRefFrames > 16)
             throw new NotSupportedException("The managed decoded-picture buffer supports at most 16 reference frames.");
 
-        H264DecodedPictureSurface surface = new(sps);
+        H264DecodedPictureSurface surface = new(activeSps);
         H264MotionVectorPictureState? motionStateL0 = null;
         H264MotionVectorPictureState? motionStateL1 = null;
         IReadOnlyList<H264ReferencePicture>? referenceList0 = null;
         IReadOnlyList<H264ReferencePicture>? referenceList1 = null;
 
-        // POC is needed during B temporal-direct reconstruction. Any failure
-        // after accepting a sample faults this decoder until Reset so later
-        // samples cannot silently continue from an incomplete reference chain.
+        // POC is calculated once per picture, not once per slice. Any failure
+        // after accepting this sample faults the decoder until Reset so later
+        // samples cannot continue from an incomplete reference chain.
         try
         {
             H264PictureOrderCount poc = _outputScheduler.CalculatePictureOrderCount(
-                sps, slice, nalUnit.NalRefIdc);
+                activeSps, firstSlice, firstNal.NalRefIdc);
 
-            switch (slice.SliceType)
+            H264IntraSliceDataDecoder? intraDecoder = null;
+            H264PInterSliceDataDecoder? pDecoder = null;
+            H264BInterSliceDataDecoder? bDecoder = null;
+
+            if (firstSlice.SliceType == H264SliceType.P)
             {
-                case H264SliceType.I:
-                    _ = new H264IntraSliceDataDecoder(surface).Decode(
-                        nalUnit, sps, pps, sliceId);
-                    break;
+                motionStateL0 = new H264MotionVectorPictureState(
+                    surface.MacroblockWidth, surface.MacroblockHeight);
+                motionStateL1 = new H264MotionVectorPictureState(
+                    surface.MacroblockWidth, surface.MacroblockHeight);
+                pDecoder = new H264PInterSliceDataDecoder(surface, motionStateL0);
+            }
+            else if (firstSlice.SliceType == H264SliceType.B)
+            {
+                motionStateL0 = new H264MotionVectorPictureState(
+                    surface.MacroblockWidth, surface.MacroblockHeight);
+                motionStateL1 = new H264MotionVectorPictureState(
+                    surface.MacroblockWidth, surface.MacroblockHeight);
+                bDecoder = new H264BInterSliceDataDecoder(
+                    surface, motionStateL0, motionStateL1);
+            }
+            else if (firstSlice.SliceType == H264SliceType.I)
+            {
+                intraDecoder = new H264IntraSliceDataDecoder(surface);
+            }
+            else
+            {
+                throw new NotSupportedException(
+                    $"Slice type {firstSlice.SliceType} is not supported by the MP4 access-unit decoder.");
+            }
 
-                case H264SliceType.P:
-                    motionStateL0 = new H264MotionVectorPictureState(
-                        surface.MacroblockWidth, surface.MacroblockHeight);
-                    motionStateL1 = new H264MotionVectorPictureState(
-                        surface.MacroblockWidth, surface.MacroblockHeight);
-                    H264PInterSliceDecodeResult pResult =
-                        new H264PInterSliceDataDecoder(surface, motionStateL0).Decode(
-                            nalUnit, sps, pps, _decodedPictureBuffer, sliceId);
-                    referenceList0 = pResult.ReferenceList0 ??
-                        throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
-                    referenceList1 = [];
-                    break;
+            for (int i = 0; i < slices.Count; i++)
+            {
+                (H264NalUnit nalUnit, H264SliceHeader header) = slices[i];
+                int currentSliceId = checked(firstSliceId + i);
 
-                case H264SliceType.B:
-                    motionStateL0 = new H264MotionVectorPictureState(
-                        surface.MacroblockWidth, surface.MacroblockHeight);
-                    motionStateL1 = new H264MotionVectorPictureState(
-                        surface.MacroblockWidth, surface.MacroblockHeight);
-                    H264BInterSliceDecodeResult bResult =
-                        new H264BInterSliceDataDecoder(
-                            surface, motionStateL0, motionStateL1).Decode(
-                                nalUnit, sps, pps, _decodedPictureBuffer,
-                                poc.PictureOrderCount, sliceId);
-                    H264BReferencePictureLists lists = bResult.ReferencePictureLists ??
-                        throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
-                    referenceList0 = lists.List0;
-                    referenceList1 = lists.List1;
-                    break;
+                switch (header.SliceType)
+                {
+                    case H264SliceType.I:
+                        _ = intraDecoder!.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                        break;
 
-                default:
-                    throw new NotSupportedException(
-                        $"Slice type {slice.SliceType} is not supported by the MP4 access-unit decoder.");
+                    case H264SliceType.P:
+                        H264PInterSliceDecodeResult pResult = pDecoder!.Decode(
+                            nalUnit, activeSps, activePps, _decodedPictureBuffer, currentSliceId);
+                        IReadOnlyList<H264ReferencePicture> currentList0 = pResult.ReferenceList0 ??
+                            throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
+                        if (referenceList0 is null)
+                        {
+                            referenceList0 = currentList0;
+                            referenceList1 = [];
+                        }
+                        else if (!referenceList0.SequenceEqual(currentList0))
+                        {
+                            throw new NotSupportedException(
+                                "P slices in one picture must use identical RefPicList0 ordering for temporal-direct metadata.");
+                        }
+                        break;
+
+                    case H264SliceType.B:
+                        H264BInterSliceDecodeResult bResult = bDecoder!.Decode(
+                            nalUnit, activeSps, activePps, _decodedPictureBuffer,
+                            poc.PictureOrderCount, currentSliceId);
+                        H264BReferencePictureLists currentLists = bResult.ReferencePictureLists ??
+                            throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
+                        if (referenceList0 is null)
+                        {
+                            referenceList0 = currentLists.List0;
+                            referenceList1 = currentLists.List1;
+                        }
+                        else if (!referenceList0.SequenceEqual(currentLists.List0) ||
+                                 !referenceList1!.SequenceEqual(currentLists.List1))
+                        {
+                            throw new NotSupportedException(
+                                "B slices in one picture must use identical reference-list ordering for temporal-direct metadata.");
+                        }
+                        break;
+
+                    default:
+                        throw new NotSupportedException(
+                            $"Slice type {header.SliceType} is not supported by the MP4 access-unit decoder.");
+                }
             }
 
             if (!surface.IsComplete)
                 throw new NotSupportedException(
-                    "The single VCL slice did not reconstruct the complete picture; multi-slice access units are not supported.");
+                    "The MP4 sample's slices did not reconstruct every macroblock in the picture.");
 
-            if (nalUnit.NalRefIdc != 0)
+            if (firstNal.NalRefIdc != 0)
             {
-                int maxFrameNum = 1 << checked((int)sps.Log2MaxFrameNumMinus4 + 4);
+                int maxFrameNum = 1 << checked((int)activeSps.Log2MaxFrameNumMinus4 + 4);
                 _decodedPictureBuffer.StoreDecodedPicture(
                     surface,
-                    new H264ReferencePicture(checked((int)slice.FrameNum), poc.PictureOrderCount),
+                    new H264ReferencePicture(checked((int)firstSlice.FrameNum), poc.PictureOrderCount),
                     isReference: true,
-                    maxNumRefFrames: sps.MaxNumRefFrames,
-                    currentFrameNum: checked((int)slice.FrameNum),
+                    maxNumRefFrames: activeSps.MaxNumRefFrames,
+                    currentFrameNum: checked((int)firstSlice.FrameNum),
                     maxFrameNum: maxFrameNum,
-                    marking: slice.DecodedReferenceMarking,
-                    idrPicture: nalUnit.NalUnitType == 5,
+                    marking: firstSlice.DecodedReferenceMarking,
+                    idrPicture: firstNal.NalUnitType == 5,
                     motionVectorStateL0: motionStateL0,
                     motionVectorStateL1: motionStateL1,
                     referenceList0: referenceList0,
@@ -184,11 +244,11 @@ public sealed class H264Mp4AccessUnitDecoder
 
             IReadOnlyList<H264Mp4DecodedVideoFrame> readyFrames =
                 _outputScheduler.Enqueue(
-                    surface, sample, sps, slice, nalUnit.NalRefIdc, poc,
+                    surface, sample, activeSps, firstSlice, firstNal.NalRefIdc, poc,
                     _maxNumReorderFramesFallback);
             _requiresReset = false;
             return new H264Mp4AccessUnitDecodeResult(
-                sample, slice, poc, surface, readyFrames);
+                sample, firstSlice, poc, surface, readyFrames);
         }
         catch
         {
@@ -247,6 +307,60 @@ public sealed class H264Mp4AccessUnitDecoder
                 return false;
         }
         return true;
+    }
+
+    private static void ValidateSliceHeader(H264NalUnit nalUnit, H264SliceHeader slice)
+    {
+        if (nalUnit.NalUnitType == 5 && nalUnit.NalRefIdc == 0)
+            throw new FormatException("IDR NAL units must have non-zero nal_ref_idc.");
+        if (nalUnit.NalUnitType == 5 && slice.SliceType != H264SliceType.I)
+            throw new FormatException("IDR NAL units must contain I slices.");
+        if (slice.FirstMacroblockInSlice >= uint.MaxValue)
+            throw new FormatException("first_mb_in_slice exceeds the supported macroblock address range.");
+        if (slice.FieldPicFlag || slice.ColourPlaneId != 0 || slice.RedundantPicCnt is > 0)
+            throw new NotSupportedException(
+                "Field, separate-plane and redundant slices are not supported.");
+        if (slice.SliceType is H264SliceType.Sp or H264SliceType.Si)
+            throw new NotSupportedException("SP and SI slice reconstruction is not supported.");
+    }
+
+    private static void ValidateSamePicture(
+        H264NalUnit firstNal,
+        H264SliceHeader first,
+        H264NalUnit currentNal,
+        H264SliceHeader current)
+    {
+        bool samePicture =
+            firstNal.NalUnitType == currentNal.NalUnitType &&
+            firstNal.NalRefIdc == currentNal.NalRefIdc &&
+            first.SliceType == current.SliceType &&
+            first.PicParameterSetId == current.PicParameterSetId &&
+            first.ColourPlaneId == current.ColourPlaneId &&
+            first.FrameNum == current.FrameNum &&
+            first.FieldPicFlag == current.FieldPicFlag &&
+            first.BottomFieldFlag == current.BottomFieldFlag &&
+            first.IdrPicId == current.IdrPicId &&
+            first.PicOrderCntLsb == current.PicOrderCntLsb &&
+            first.DeltaPicOrderCntBottom == current.DeltaPicOrderCntBottom &&
+            first.DeltaPicOrderCnt0 == current.DeltaPicOrderCnt0 &&
+            first.DeltaPicOrderCnt1 == current.DeltaPicOrderCnt1 &&
+            first.RedundantPicCnt == current.RedundantPicCnt &&
+            ReferenceMarkingMatches(first.DecodedReferenceMarking, current.DecodedReferenceMarking);
+
+        if (!samePicture)
+            throw new FormatException("The MP4 sample contains VCL slices from different coded pictures.");
+    }
+
+    private static bool ReferenceMarkingMatches(
+        H264DecodedReferenceMarking? left,
+        H264DecodedReferenceMarking? right)
+    {
+        if (left is null || right is null)
+            return left is null && right is null;
+        return left.NoOutputOfPriorPicsFlag == right.NoOutputOfPriorPicsFlag &&
+            left.LongTermReferenceFlag == right.LongTermReferenceFlag &&
+            left.AdaptiveRefPicMarkingModeFlag == right.AdaptiveRefPicMarkingModeFlag &&
+            left.Operations.SequenceEqual(right.Operations);
     }
 
     private static H264NalUnit[] GetSliceNals(IReadOnlyList<H264NalUnit> nalUnits)
