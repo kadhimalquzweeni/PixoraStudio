@@ -8,6 +8,39 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 public sealed class H264CabacResidualBlockReader
 {
     /// <summary>
+    /// Decodes coded_block_flag (where the category carries one), then the
+    /// residual payload. contextIndexIncrement is condTermFlagA + 2*condTermFlagB.
+    /// Category 0 has a fixed context and therefore requires increment zero.
+    /// </summary>
+    public PixoraStudio.MediaEngine.Models.Video.H264CavlcResidualBlock ReadBlockWithCodedBlockFlag(
+        IH264CabacBinReader reader,
+        H264CabacResidualBlockContextMap contextMap,
+        int contextIndexIncrement)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(contextMap);
+
+        if (contextMap.CodedBlockFlagContextOffset is not int contextOffset)
+        {
+            if (contextMap.ContextBlockCategory == 5)
+                return ReadBlock(reader, contextMap, codedBlockFlag: true);
+            throw new ArgumentException(
+                "The supplied residual category does not define coded_block_flag.",
+                nameof(contextMap));
+        }
+
+        int maximumIncrement = contextMap.ContextBlockCategory == 0 ? 0 : 3;
+        if (contextIndexIncrement < 0 || contextIndexIncrement > maximumIncrement)
+            throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
+
+        int codedBlockFlag = reader.DecodeBin(contextOffset + contextIndexIncrement);
+        if (codedBlockFlag is not (0 or 1))
+            throw new FormatException("CABAC decision bins must be zero or one.");
+
+        return ReadBlock(reader, contextMap, codedBlockFlag == 1);
+    }
+
+    /// <summary>
     /// Decodes a residual block using its normative category context map.
     /// For categories 0..4, codedBlockFlag=false represents an uncoded block
     /// and consumes no CABAC bins. Category 5 infers coded-block presence
