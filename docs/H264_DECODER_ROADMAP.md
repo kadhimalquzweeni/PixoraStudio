@@ -8,7 +8,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 |---|---|
 | Slice traversal | Frame-coded CAVLC I, P and B paths are implemented for the supported subset |
 | P macroblocks | P_L0 partitions, P_8x8 sub-macroblocks, P_Skip, I_NxN, I_16x16 and I_PCM |
-| B macroblocks | B inter types 0–22, B_8x8 sub-macroblocks, B_Skip, spatial and temporal direct (temporal metadata supplied through a caller callback), I_NxN, I_16x16 and I_PCM |
+| B macroblocks | B inter types 0–22, B_8x8 sub-macroblocks, B_Skip, spatial and temporal direct (DPB-backed collocated metadata with optional caller override), I_NxN, I_16x16 and I_PCM |
 | Motion compensation | List 0 and list 1; luma fractional interpolation and 4:2:0/4:2:2 chroma interpolation |
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
