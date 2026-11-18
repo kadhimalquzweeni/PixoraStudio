@@ -6,8 +6,8 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264DecodedPictureSurfaceTests
 {
     [Theory]
-    [InlineData(1, 32, 16, 64, 8)]
-    [InlineData(2, 32, 16, 64, 16)]
+    [InlineData(1, 32, 16, 16, 8)]
+    [InlineData(2, 32, 16, 16, 16)]
     public void Constructor_ShouldCreateCorrectPlaneGeometry(
         uint format, int width, int height, int chromaWidth, int chromaHeight)
     {
@@ -36,6 +36,17 @@ public sealed class H264DecodedPictureSurfaceTests
         Assert.Equal((byte)11, surface.GetLumaSample(15, 15));
         Assert.Equal((byte)22, surface.GetChromaSample(1, 7, format == 1 ? 7 : 15));
         Assert.Equal((byte)33, surface.GetChromaSample(2, 7, format == 1 ? 7 : 15));
+    }
+
+    [Fact]
+    public void WriteMacroblock_ShouldDistinguishInterFromIntraForConstrainedPrediction()
+    {
+        var surface = new H264DecodedPictureSurface(CreateSps(1, 1, 0));
+        surface.WriteMacroblock(0, 0, 2, false,
+            new byte[256], new byte[64], new byte[64]);
+
+        Assert.True(surface.IsMacroblockAvailable(0, 0, 2, false));
+        Assert.False(surface.IsMacroblockAvailable(0, 0, 2, true));
     }
 
     [Fact]
