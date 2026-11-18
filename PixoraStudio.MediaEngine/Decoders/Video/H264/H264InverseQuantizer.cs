@@ -151,6 +151,48 @@ public static class H264InverseQuantizer
     }
 
     /// <summary>
+    /// Applies the special Intra16x16 luma DC inverse scaling. Unlike ordinary
+    /// 4x4 coefficients, every transformed DC coefficient uses the DC
+    /// position-class scale and the first entry of the effective 4x4 scaling list.
+    /// </summary>
+    public static int[] DequantizeIntra16x16Dc(
+        IReadOnlyList<int> coefficients,
+        int qpPrimeY,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps,
+        int scalingListIndex = 0)
+    {
+        ArgumentNullException.ThrowIfNull(coefficients);
+        ArgumentNullException.ThrowIfNull(sps);
+        ArgumentNullException.ThrowIfNull(pps);
+        if (coefficients.Count != 16)
+            throw new ArgumentException("An Intra16x16 DC block requires exactly 16 coefficients.", nameof(coefficients));
+        if (scalingListIndex is < 0 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(scalingListIndex));
+        if (qpPrimeY is < 0 or > 87)
+            throw new ArgumentOutOfRangeException(nameof(qpPrimeY));
+
+        int[] scalingList = H264ScalingMatrixResolver.Resolve4x4(sps, pps)[scalingListIndex];
+        int qpDiv6 = qpPrimeY / 6;
+        int qpMod6 = qpPrimeY % 6;
+        long scale = (long)LevelScale[0, qpMod6] * scalingList[0];
+        int[] result = new int[16];
+
+        for (int i = 0; i < 16; i++)
+        {
+            long product = checked((long)coefficients[i] * scale);
+            long value = qpDiv6 >= 4
+                ? checked(product << (qpDiv6 - 4))
+                : (product + (1L << (3 - qpDiv6))) >> (4 - qpDiv6);
+            if (value is > int.MaxValue or < int.MinValue)
+                throw new FormatException("Intra16x16 DC inverse-quantised coefficient exceeds Int32.");
+            result[i] = (int)value;
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Applies H.264 4x4 inverse scaling. qpPrimeY is QPY-prime (SliceQPY + QpBdOffsetY).
     /// scalingListRasterOrder is the effective, already-resolved 16-entry matrix in raster order.
     /// </summary>
