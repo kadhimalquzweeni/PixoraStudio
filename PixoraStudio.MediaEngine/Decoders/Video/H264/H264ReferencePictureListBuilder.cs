@@ -30,18 +30,22 @@ public sealed class H264ReferencePictureListBuilder
         H264ReferencePicture[] pictures = referencePictures.ToArray();
         ValidatePictures(pictures, maxFrameNum);
 
-        int CurrentPicNum = currentFrameNum;
-        int MaxPicNum = maxFrameNum;
-
-        List<(H264ReferencePicture Picture, int PicNum)> shortTerm = pictures
+        // RefPicList0 is ordered by descending FrameNumWrap (PicNum), not by
+        // the stored frame_num. A frame_num above CurrPicNum belongs to the
+        // previous frame_num cycle and therefore wraps below zero.
+        List<H264ReferencePicture> shortTerm = pictures
             .Where(picture => !picture.IsLongTerm)
-            .Select(picture => (
-                Picture: picture,
-                PicNum: picture.FrameNum > CurrentPicNum
-                    ? picture.FrameNum - MaxPicNum
-                    : picture.FrameNum))
-            .OrderByDescending(item => item.PicNum)
             .ToList();
+
+        shortTerm.Sort((left, right) =>
+        {
+            int leftPicNum = GetFrameNumWrap(
+                left.FrameNum, currentFrameNum, maxFrameNum);
+            int rightPicNum = GetFrameNumWrap(
+                right.FrameNum, currentFrameNum, maxFrameNum);
+
+            return rightPicNum.CompareTo(leftPicNum);
+        });
 
         List<H264ReferencePicture> longTerm = pictures
             .Where(picture => picture.IsLongTerm)
@@ -49,13 +53,12 @@ public sealed class H264ReferencePictureListBuilder
             .ToList();
 
         List<H264ReferencePicture> result = shortTerm
-            .Select(item => item.Picture)
             .Concat(longTerm)
             .ToList();
 
         if (modifications is { Count: > 0 })
             ApplyModifications(result, shortTerm, longTerm, modifications,
-                CurrentPicNum, MaxPicNum, activeReferenceCount);
+                currentFrameNum, maxFrameNum, activeReferenceCount);
 
         if (result.Count < activeReferenceCount)
             throw new FormatException("The decoded reference picture set contains fewer pictures than the active list requires.");
@@ -63,9 +66,17 @@ public sealed class H264ReferencePictureListBuilder
         return result.Take(activeReferenceCount).ToArray();
     }
 
+    private static int GetFrameNumWrap(
+        int frameNum,
+        int currentFrameNum,
+        int maxFrameNum) =>
+        frameNum > currentFrameNum
+            ? frameNum - maxFrameNum
+            : frameNum;
+
     private static void ApplyModifications(
         List<H264ReferencePicture> result,
-        List<(H264ReferencePicture Picture, int PicNum)> shortTerm,
+        List<H264ReferencePicture> shortTerm,
         List<H264ReferencePicture> longTerm,
         IReadOnlyList<H264ReferenceListModification> modifications,
         int currentPicNum,
@@ -111,7 +122,8 @@ public sealed class H264ReferencePictureListBuilder
                 picNumPred = picNumNoWrap;
 
                 selected = shortTerm
-                    .FirstOrDefault(item => item.PicNum == picNum).Picture
+                    .FirstOrDefault(picture =>
+                        GetFrameNumWrap(picture.FrameNum, currentPicNum, maxPicNum) == picNum)
                     ?? throw new FormatException($"Reference-list modification selects unavailable short-term PicNum {picNum}.");
             }
             else if (idc == 2)
