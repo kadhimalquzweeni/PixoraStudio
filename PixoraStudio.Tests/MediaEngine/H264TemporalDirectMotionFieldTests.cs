@@ -46,6 +46,23 @@ public sealed class H264TemporalDirectMotionFieldTests
     }
 
     [Fact]
+    public void GetContext_WhenReferenceIsNotInCurrentList0_ShouldRetainCollocatedMetadataWithUnmappedIndex()
+    {
+        H264MotionVectorPictureState l0 = new(1, 1);
+        H264MotionVectorPictureState l1 = new(1, 1);
+        l0.RecordInterPartition(0, 0, 1, 1, 0, 0, new H264MotionVector(4, 2));
+        H264TemporalDirectMotionField field = new(
+            l0, l1, [new H264ReferencePicture(0, -2)], [], 0,
+            collocatedPictureIsShortTerm: true);
+
+        H264TemporalDirectPredictionContext context =
+            field.GetContext(0, 0, 1, 1, 5, [new H264ReferencePicture(1, 7)])!;
+
+        Assert.Equal(-1, context.MappedReferenceIndexL0);
+        Assert.Equal(-2, context.CollocatedReferencePictureOrderCount);
+    }
+
+    [Fact]
     public void GetContext_WhenCollocatedBlockHasNoInterMotion_ShouldReturnNull()
     {
         H264TemporalDirectMotionField field = new(
