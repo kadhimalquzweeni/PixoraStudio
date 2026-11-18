@@ -79,6 +79,16 @@ public sealed class H264CabacIntraResidualMacroblockReader
             sequenceParameterSet.ChromaFormatIdc is not (1 or 2))
             throw new NotSupportedException(
                 "CABAC intra residual decoding supports frame-only 8-bit non-separate 4:2:0 and 4:2:2.");
+        uint pictureWidthInMacroblocks = checked(sequenceParameterSet.PicWidthInMbsMinus1 + 1);
+        uint pictureHeightInMacroblocks = checked(sequenceParameterSet.PicHeightInMapUnitsMinus1 + 1);
+        if ((uint)macroblockX >= pictureWidthInMacroblocks ||
+            (uint)macroblockY >= pictureHeightInMacroblocks)
+            throw new ArgumentOutOfRangeException(nameof(macroblockX),
+                "The macroblock coordinate is outside the SPS picture dimensions.");
+        uint expectedAddress = checked((uint)macroblockY * pictureWidthInMacroblocks + (uint)macroblockX);
+        if (macroblockHeader.MacroblockAddress != expectedAddress)
+            throw new FormatException("The CABAC macroblock header address does not match its picture coordinate.");
+
         if (macroblockSyntax.CodedBlockPattern.ChromaArrayType != sequenceParameterSet.ChromaFormatIdc ||
             macroblockSyntax.CodedBlockPattern.Luma > 15 ||
             macroblockSyntax.CodedBlockPattern.Chroma > 2)
