@@ -75,6 +75,8 @@ public sealed class H264AvcDecoderConfigurationReader
                 (lumaDepth & 0xF8) != 0xF8 ||
                 (chromaDepth & 0xF8) != 0xF8)
                 throw new FormatException("The avcC high-profile reserved bits must all be one.");
+            if ((lumaDepth & 0x07) > 6 || (chromaDepth & 0x07) > 6)
+                throw new FormatException("The avcC bit-depth-minus-eight values must be in the range 0..6.");
 
             chromaFormat = (byte)(chroma & 0x03);
             bitDepthLumaMinus8 = (byte)(lumaDepth & 0x07);
