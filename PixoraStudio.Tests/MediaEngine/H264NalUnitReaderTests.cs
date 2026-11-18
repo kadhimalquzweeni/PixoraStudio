@@ -78,6 +78,18 @@ public sealed class H264NalUnitReaderTests
     }
 
     [Fact]
+    public void ReadLengthPrefixed_ShouldRejectInvalidEbspEvenWhenNalIsNotDecoded()
+    {
+        Assert.Throws<FormatException>(() =>
+            _reader.ReadLengthPrefixed(
+                new byte[] { 4, 0x65, 0x00, 0x00, 0x01 }, 1));
+
+        Assert.Throws<FormatException>(() =>
+            _reader.ReadAnnexB(
+                new byte[] { 0x00, 0x00, 0x01, 0x65, 0x00, 0x00, 0x02 }));
+    }
+
+    [Fact]
     public void ReadAnnexB_ShouldRejectForbiddenBit()
     {
         Assert.Throws<FormatException>(() => _reader.ReadAnnexB(new byte[] { 0, 0, 1, 0xE5 }));
