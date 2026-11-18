@@ -17,10 +17,10 @@ public sealed class H264BTemporalDirectMotionVectorDeriver
             throw new FormatException("The collocated reference picture is not present in the current RefPicList0.");
         H264MotionVector collocated = H264MotionVectorRange.Clip(context.CollocatedMotionVector);
 
-        int td = Clip((long)context.CollocatedReferencePictureOrderCount -
-            context.CollocatedPictureOrderCount, -128, 127);
+        int td = Clip((long)context.CollocatedPictureOrderCount -
+            context.CollocatedReferencePictureOrderCount, -128, 127);
         int tb = Clip((long)context.CurrentPictureOrderCount -
-            context.CollocatedPictureOrderCount, -128, 127);
+            context.CollocatedReferencePictureOrderCount, -128, 127);
 
         if (context.CollocatedReferenceIsLongTerm || td == 0)
         {
