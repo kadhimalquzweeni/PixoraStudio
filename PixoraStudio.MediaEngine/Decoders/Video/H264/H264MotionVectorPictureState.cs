@@ -129,9 +129,9 @@ public sealed class H264MotionVectorPictureState
             candidates.Left, candidates.Above, candidates.AboveRight,
             candidates.AboveLeft, referenceIndex, partitionShape, partitionIndex);
 
-        H264MotionVector reconstructed = H264MotionVectorRange.Clip(new(
-            checked(predicted.Horizontal + motionVectorDifference.Horizontal),
-            checked(predicted.Vertical + motionVectorDifference.Vertical)));
+        H264MotionVector reconstructed = H264MotionVectorRange.Clip(
+            (long)predicted.Horizontal + motionVectorDifference.Horizontal,
+            (long)predicted.Vertical + motionVectorDifference.Vertical);
 
         RecordInterPartition(x, y, width, height, sliceId,
             referenceIndex, reconstructed);
