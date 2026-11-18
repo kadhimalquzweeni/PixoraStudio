@@ -29,4 +29,34 @@ public sealed class H264InverseTransformTests
     {
         Assert.Throws<ArgumentException>(() => H264InverseTransform.Inverse4x4(new int[15]));
     }
+
+    [Fact]
+    public void Inverse8x8_ShouldReturnZeroBlockForZeroInput()
+    {
+        Assert.Equal(new int[64], H264InverseTransform.Inverse8x8(new int[64]));
+    }
+
+    [Fact]
+    public void Inverse8x8_ShouldDistributeDcCoefficientAcrossEntireBlock()
+    {
+        int[] input = new int[64];
+        input[0] = 64;
+
+        Assert.Equal(Enumerable.Repeat(1, 64), H264InverseTransform.Inverse8x8(input));
+    }
+
+    [Fact]
+    public void Inverse8x8_ShouldDistributeNegativeDcCoefficientAcrossEntireBlock()
+    {
+        int[] input = new int[64];
+        input[0] = -64;
+
+        Assert.Equal(Enumerable.Repeat(-1, 64), H264InverseTransform.Inverse8x8(input));
+    }
+
+    [Fact]
+    public void Inverse8x8_ShouldRejectWrongCoefficientCount()
+    {
+        Assert.Throws<ArgumentException>(() => H264InverseTransform.Inverse8x8(new int[63]));
+    }
 }
