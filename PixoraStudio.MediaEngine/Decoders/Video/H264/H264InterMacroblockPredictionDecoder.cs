@@ -40,7 +40,8 @@ public sealed class H264InterMacroblockPredictionDecoder
         H264MotionVectorPictureState motionVectorState,
         int macroblockX,
         int macroblockY,
-        int sliceId)
+        int sliceId,
+        H264PredictionWeightTable? predictionWeights = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(macroblockHeader);
@@ -65,6 +66,9 @@ public sealed class H264InterMacroblockPredictionDecoder
                 checked(partition.Width * 4),
                 checked(partition.Height * 4),
                 partition.MotionVector);
+            prediction = H264WeightedPrediction.ApplyList0(
+                prediction, predictionWeights, partition.ReferenceIndex,
+                reference.ChromaFormatIdc);
             predictions.Add(new H264InterMacroblockPrediction(partition, prediction));
         }
 
@@ -81,7 +85,8 @@ public sealed class H264InterMacroblockPredictionDecoder
         H264MotionVectorPictureState motionVectorState,
         int macroblockX,
         int macroblockY,
-        int sliceId)
+        int sliceId,
+        H264PredictionWeightTable? predictionWeights = null)
     {
         ArgumentNullException.ThrowIfNull(macroblockHeader);
         ArgumentNullException.ThrowIfNull(referenceList0);
@@ -99,6 +104,9 @@ public sealed class H264InterMacroblockPredictionDecoder
             checked(partition.Height * 4),
             partition.MotionVector);
 
+        prediction = H264WeightedPrediction.ApplyList0(
+            prediction, predictionWeights, partition.ReferenceIndex,
+            referenceList0[0].ChromaFormatIdc);
         return new H264InterMacroblockPrediction(partition, prediction);
     }
 
