@@ -95,8 +95,9 @@ public sealed class H264ScalingMatrixResolverTests
     public void Resolve4x4_ShouldApplyPpsOverridesAndSpsFallbacks()
     {
         IReadOnlyList<int>[] spsLists = EmptyLists(8);
-        int[] spsCb = Enumerable.Repeat(22, 16).ToArray();
-        spsLists[1] = spsCb;
+        spsLists[0] = Enumerable.Repeat(22, 16).ToArray();
+        spsLists[1] = Enumerable.Repeat(55, 16).ToArray();
+        spsLists[3] = Enumerable.Repeat(44, 16).ToArray();
         H264SequenceParameterSet sps = CreateSps() with
         {
             ScalingMatrixPresentFlag = true,
@@ -117,11 +118,13 @@ public sealed class H264ScalingMatrixResolverTests
         int[][] result = H264ScalingMatrixResolver.Resolve4x4(sps, pps);
 
         Assert.Equal(ppsIntra, H264CoefficientScanner.ToScanOrder(result[0]));
-        Assert.Equal(22, Assert.Single(result[1].Distinct()));
+        // PPS list 1 chains from its PPS list 0, not the SPS list 1.
+        Assert.Equal(31, Assert.Single(result[1].Distinct()));
         Assert.Equal(result[1], result[2]);
-        Assert.Equal(DefaultInter, result[3]);
-        Assert.Equal(DefaultInter, result[4]);
-        Assert.Equal(DefaultInter, result[5]);
+        // PPS list 3 uses the SPS-level inter anchor (index 3).
+        Assert.Equal(44, Assert.Single(result[3].Distinct()));
+        Assert.Equal(result[3], result[4]);
+        Assert.Equal(result[3], result[5]);
     }
 
     [Fact]
