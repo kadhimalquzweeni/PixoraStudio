@@ -156,6 +156,30 @@ public sealed class H264DecodedPictureBufferTests
     }
 
     [Fact]
+    public void BuildBLists_ShouldReturnPocOrderedSurfacesForBothLists()
+    {
+        H264DecodedPictureBuffer dpb = new();
+        H264DecodedPictureSurface pastNearest = Surface(80);
+        H264DecodedPictureSurface pastOlder = Surface(60);
+        H264DecodedPictureSurface future = Surface(100);
+        dpb.StoreDecodedPicture(pastOlder, new H264ReferencePicture(1, 4),
+            true, 4, 1, 16, Adaptive(false));
+        dpb.StoreDecodedPicture(pastNearest, new H264ReferencePicture(2, 8),
+            true, 4, 2, 16, Adaptive(false));
+        dpb.StoreDecodedPicture(future, new H264ReferencePicture(3, 12),
+            true, 4, 3, 16, Adaptive(false));
+
+        var lists = dpb.BuildBLists(4, 16, 10, 3, 3);
+
+        Assert.Same(pastNearest, lists.List0[0]);
+        Assert.Same(pastOlder, lists.List0[1]);
+        Assert.Same(future, lists.List0[2]);
+        Assert.Same(future, lists.List1[0]);
+        Assert.Same(pastNearest, lists.List1[1]);
+        Assert.Same(pastOlder, lists.List1[2]);
+    }
+
+    [Fact]
     public void StoreDecodedPicture_NonReferencePictureShouldNotEnterDpb()
     {
         H264DecodedPictureBuffer dpb = new();
