@@ -97,11 +97,16 @@ public sealed class H264BInterSliceDataDecoder
             slice.RefPicList0Modifications, slice.RefPicList1Modifications);
         if (!slice.DirectSpatialMvPredFlag && temporalContextProvider is null)
         {
-            if (referencePictures.List1.Count == 0)
-                throw new FormatException("Temporal direct prediction requires RefPicList1[0] as the collocated picture.");
-            H264TemporalDirectMotionField collocatedField =
-                decodedPictureBuffer.CreateTemporalDirectMotionField(referencePictures.List1[0]);
-            temporalContextProvider = collocatedField.AsProvider(currentPictureOrderCount);
+            H264TemporalDirectMotionField? collocatedField = null;
+            temporalContextProvider = (x, y, width, height) =>
+            {
+                if (referencePictures.List1.Count == 0)
+                    throw new FormatException("Temporal direct prediction requires RefPicList1[0] as the collocated picture.");
+                collocatedField ??= decodedPictureBuffer.CreateTemporalDirectMotionField(
+                    referencePictures.List1[0]);
+                return collocatedField.GetContext(
+                    x, y, width, height, currentPictureOrderCount);
+            };
         }
         IReadOnlyList<H264DecodedPictureSurface> referenceList0 =
             MapSurfaces(referencePictures.List0, decodedPictureBuffer);
