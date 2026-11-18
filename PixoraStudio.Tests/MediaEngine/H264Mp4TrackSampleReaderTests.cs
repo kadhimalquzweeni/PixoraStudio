@@ -26,6 +26,10 @@ public sealed class H264Mp4TrackSampleReaderTests
 
         Assert.Equal(42u, result.TrackId);
         Assert.Equal(7u, result.SampleNumber);
+        Assert.Equal(1000UL, result.DecodeTimeTicks);
+        Assert.Equal(1020L, result.PresentationTimeTicks);
+        Assert.Equal(40u, result.DurationTicks);
+        Assert.Equal(1000u, result.Timescale);
         Assert.Equal(1.0, result.DecodeTimeSeconds, 6);
         Assert.Equal(1.02, result.PresentationTimeSeconds, 6);
         Assert.Equal(0.04, result.DurationSeconds, 6);
