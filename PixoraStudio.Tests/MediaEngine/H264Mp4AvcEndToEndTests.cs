@@ -54,7 +54,7 @@ public sealed class H264Mp4AvcEndToEndTests
             new H264IntraSliceDataDecoder(surface).Decode(
                 Assert.Single(mp4Sample.NalUnits), sps, pps, sliceId: 0);
 
-        Assert.Equal(1, decodeResult.DecodedMacroblockCount);
+        Assert.Equal(1, decodeResult.MacroblocksDecoded);
         Assert.True(surface.IsComplete);
         Assert.True(surface.HasCompleteDeblockingMetadata);
         Assert.Equal(16u, sps.FrameWidth);
