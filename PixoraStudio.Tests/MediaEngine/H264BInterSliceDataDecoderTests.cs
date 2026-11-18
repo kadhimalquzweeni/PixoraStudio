@@ -78,6 +78,28 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_BSkipRun_TemporalDirect_ShouldUseCollocatedMotionProvider()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264DecodedPictureSurface reference = Reference(sps, 41);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader(directSpatial: false);
+        bits.Ue(1); // one B_Skip macroblock
+        bits.TrailingBits();
+
+        H264BInterSliceDecodeResult result = Decoder(destination).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0,
+            (_, _, _, _) => new H264TemporalDirectPredictionContext(
+                new H264MotionVector(2, -2), 0, 0, 0, false));
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.True(Assert.Single(result.InterMacroblocks).IsSkipped);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.Equal((byte)41, destination.GetLumaSample(0, 0));
+    }
+
+    [Fact]
     public void Decode_BSliceWithIntraNxNMacroblock_ShouldUseSharedIntraReconstruction()
     {
         H264SequenceParameterSet sps = Sps();
@@ -173,7 +195,7 @@ public sealed class H264BInterSliceDataDecoderTests
         return dpb;
     }
 
-    private static BitWriter WriteBSliceHeader(uint sliceType = 1)
+    private static BitWriter WriteBSliceHeader(uint sliceType = 1, bool directSpatial = true)
     {
         BitWriter bits = new();
         bits.Ue(0); // first_mb_in_slice
@@ -181,7 +203,7 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.Ue(0); // pic_parameter_set_id
         bits.Bits(1, 4); // frame_num
         bits.Bits(0, 4); // pic_order_cnt_lsb
-        bits.Flag(true); // direct_spatial_mv_pred_flag
+        bits.Flag(directSpatial); // direct_spatial_mv_pred_flag
         bits.Flag(false); // num_ref_idx_active_override_flag
         bits.Flag(false); // ref_pic_list_modification_flag_l0
         bits.Flag(false); // ref_pic_list_modification_flag_l1
