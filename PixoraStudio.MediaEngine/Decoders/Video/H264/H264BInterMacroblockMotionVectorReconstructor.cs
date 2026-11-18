@@ -10,16 +10,21 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 public sealed class H264BInterMacroblockMotionVectorReconstructor
 {
     private readonly H264MotionVectorPredictor _predictor;
+    private readonly H264BSpatialDirectMotionVectorDeriver _directDeriver;
 
     public H264BInterMacroblockMotionVectorReconstructor()
-        : this(new H264MotionVectorPredictor())
+        : this(new H264MotionVectorPredictor(), new H264BSpatialDirectMotionVectorDeriver())
     {
     }
 
-    public H264BInterMacroblockMotionVectorReconstructor(H264MotionVectorPredictor predictor)
+    public H264BInterMacroblockMotionVectorReconstructor(
+        H264MotionVectorPredictor predictor,
+        H264BSpatialDirectMotionVectorDeriver directDeriver)
     {
         ArgumentNullException.ThrowIfNull(predictor);
+        ArgumentNullException.ThrowIfNull(directDeriver);
         _predictor = predictor;
+        _directDeriver = directDeriver;
     }
 
     public IReadOnlyList<H264ReconstructedBInterSubPartition> Reconstruct(
@@ -30,7 +35,9 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
         int macroblockY,
         int sliceId,
         int activeReferenceCountL0,
-        int activeReferenceCountL1)
+        int activeReferenceCountL1,
+        bool directSpatialPrediction = false,
+        bool direct8x8InferenceFlag = true)
     {
         ArgumentNullException.ThrowIfNull(syntax);
         ArgumentNullException.ThrowIfNull(motionVectorStateL0);
@@ -78,7 +85,16 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
             {
                 H264BSubPartition sub = partition.SubPartitions[subIndex];
                 if (sub.Direction == H264BPredictionDirection.Direct)
-                    throw new NotSupportedException("B_Direct and direct B sub-macroblocks require spatial/temporal direct derivation.");
+                {
+                    if (!directSpatialPrediction)
+                        throw new NotSupportedException("Temporal direct prediction requires collocated-picture motion metadata; spatial direct was not selected.");
+                    result.AddRange(_directDeriver.Derive(
+                        motionVectorStateL0, motionVectorStateL1,
+                        macroblockX, macroblockY,
+                        sub.X, sub.Y, sub.Width, sub.Height,
+                        partitionIndex, sliceId, direct8x8InferenceFlag));
+                    continue;
+                }
                 if (sub.Direction != partition.Direction)
                     throw new FormatException("A B sub-partition direction must match its parent 8x8 partition.");
                 int x = checked(macroblockBlockX + sub.X / 4);
