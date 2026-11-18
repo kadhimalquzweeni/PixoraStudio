@@ -6,6 +6,37 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264SliceHeaderReaderTests
 {
     [Fact]
+    public void ReadLeadingIdentifiers_ShouldResolvePpsBeforeFullHeaderParsing()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(12);
+        bits.WriteUe(1); // B slice
+        bits.WriteUe(7); // PPS id
+
+        var identifiers = new H264SliceHeaderReader()
+            .ReadLeadingIdentifiers(new H264NalUnit(0x41, bits.ToArray()));
+
+        Assert.Equal(12u, identifiers.FirstMacroblockInSlice);
+        Assert.Equal(1u, identifiers.SliceTypeCode);
+        Assert.Equal(7u, identifiers.PictureParameterSetId);
+    }
+
+    [Theory]
+    [InlineData(10u, 0u)]
+    [InlineData(0u, 256u)]
+    public void ReadLeadingIdentifiers_ShouldRejectOutOfRangeSyntax(uint sliceType, uint ppsId)
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(sliceType);
+        bits.WriteUe(ppsId);
+
+        Assert.Throws<FormatException>(() =>
+            new H264SliceHeaderReader().ReadLeadingIdentifiers(
+                new H264NalUnit(0x41, bits.ToArray())));
+    }
+
+    [Fact]
     public void Read_ShouldParseIdrISlicePictureOrderAndReferenceMarking()
     {
         BitWriter bits = new();
