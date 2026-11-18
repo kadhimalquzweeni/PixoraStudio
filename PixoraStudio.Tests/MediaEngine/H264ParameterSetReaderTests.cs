@@ -348,6 +348,28 @@ public sealed class H264ParameterSetReaderTests
         Assert.Empty(result.ScalingLists[1]);
     }
 
+    [Fact]
+    public void ReadPps_ShouldRejectScalingListDeltaOutsidePermittedRange()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(0);
+        bits.WriteFlag(false);
+        bits.WriteFlag(false);
+        bits.WriteUe(0);
+        WritePpsTail(bits, includeTrailingBits: false);
+        bits.WriteFlag(false);
+        bits.WriteFlag(true);
+        bits.WriteFlag(true);
+        bits.WriteSe(-129);
+        WriteRbspTrailingBits(bits);
+
+        Assert.Throws<FormatException>(() =>
+            new H264PictureParameterSetReader().Read(
+                new H264NalUnit(0x68, bits.ToArray()),
+                CreateBaselineSpsForPpsExtension()));
+    }
+
     private static H264SequenceParameterSet CreateBaselineSpsForPpsExtension() =>
         new(0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
             39, 22, true, true, 640, 368, false);
