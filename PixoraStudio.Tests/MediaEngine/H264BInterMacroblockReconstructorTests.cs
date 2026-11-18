@@ -122,7 +122,7 @@ public sealed class H264BInterMacroblockReconstructorTests
     }
 
     private static H264MacroblockHeader Header(uint type) =>
-        new(type, 0, false, 0, false, false, null, null, null, false);
+        new(0, type, false, 0, false, false, null, null, null, false);
 
     private static H264SequenceParameterSet CreateSps() => new(
         0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
