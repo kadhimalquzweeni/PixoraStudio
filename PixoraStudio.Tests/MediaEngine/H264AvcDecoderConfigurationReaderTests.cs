@@ -143,6 +143,16 @@ public sealed class H264AvcDecoderConfigurationReaderTests
     }
 
     [Fact]
+    public void Read_ShouldRejectOutOfRangeHighProfileBitDepth()
+    {
+        List<byte> data = CreateBasicRecord(lengthSizeMinusOne: 3, profile: 100).ToList();
+        data.AddRange([0xFD, 0xFF, 0xF8, 0]);
+
+        Assert.Throws<FormatException>(() =>
+            new H264AvcDecoderConfigurationReader().Read(data.ToArray()));
+    }
+
+    [Fact]
     public void Read_ShouldRejectMalformedHighProfileReservedBitsAndUnexpectedTrailingData()
     {
         List<byte> data = CreateBasicRecord(lengthSizeMinusOne: 3, profile: 100).ToList();
