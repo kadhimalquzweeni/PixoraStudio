@@ -136,9 +136,15 @@ public sealed class H264InterResidualMacroblockReaderTests
         Assert.Throws<ArgumentException>(() => _reader.Read(
             Bits(""), Header(), Pattern(0, 0, 1), Sps(1),
             0, 0, 1, shared, shared, new()));
-        Assert.Throws<NotSupportedException>(() => _reader.Read(
-            Bits(""), Header(), Pattern(0, 0, 1), Sps(1),
-            0, 0, 1, new(), new(), new(), transformSize8x8Flag: true));
+        H264InterResidualMacroblock transform8x8 = _reader.Read(
+            Bits("1111"), Header(), Pattern(1, 0, 1), Sps(1),
+            0, 0, 1, new(), new(), new(), transformSize8x8Flag: true);
+        Assert.True(transform8x8.TransformSize8X8Flag);
+        Assert.Empty(transform8x8.LumaBlocks);
+        Assert.Equal(4, transform8x8.Luma8x8Blocks.Count);
+        Assert.True(transform8x8.Luma8x8Blocks[0].IsCoded);
+        Assert.Equal(64, transform8x8.Luma8x8Blocks[0].CoefficientsInScanOrder.Count);
+        Assert.All(transform8x8.Luma8x8Blocks.Skip(1), block => Assert.False(block.IsCoded));
         Assert.Throws<NotSupportedException>(() => _reader.Read(
             Bits(""), Header(), Pattern(0, 0, 1), Sps(1) with { FrameMbsOnlyFlag = false },
             0, 0, 1, new(), new(), new()));
