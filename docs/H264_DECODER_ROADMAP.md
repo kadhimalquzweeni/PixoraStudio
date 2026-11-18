@@ -108,3 +108,5 @@ For a P picture, persist the P decoder's motion state as list 0, use an empty li
 - POC conformance review tightened type 0/1/2 state handling: MMCO 5 now normalizes the current picture's top/bottom field order counts to a new POC epoch, type 1/2 frame-number history advances across non-reference pictures, type 0 reference POC history remains reference-only, and frame/POC syntax is checked against SPS bit widths. Regression tests cover MMCO 5 and frame-number wrap across non-reference pictures.
 
 - Reference-picture insertion and presentation output now reject partially reconstructed surfaces. The surface exposes an `IsComplete` marker, DPB insertion snapshots motion grids/reference lists defensively, and output scheduling validates POC syntax before mutating the pending output queue. Tests cover incomplete surfaces, immutable DPB metadata snapshots, and malformed IDR input.
+
+- MMCO 5 POC state now retains the current picture's syntax `frame_num` while resetting `FrameNumOffset` for the following picture, as required by the POC type 1/2 derivation. Regression coverage checks wraparound after MMCO 5 as well as after non-reference pictures.
