@@ -77,6 +77,8 @@ public sealed class H264DecodedPictureOutputScheduler
         int? fallback)
     {
         H264VuiParameters? vui = sps.VuiParameters;
+        if (sps.VuiParametersPresentFlag && vui is null)
+            throw new FormatException("The SPS signals VUI parameters but no parsed VUI payload is available.");
         if (vui is { BitstreamRestrictionFlag: true })
         {
             if (vui.MaxNumReorderFrames is not uint reorderFrames ||
