@@ -30,8 +30,7 @@ public static class H264IntraChromaResidualReconstructor
         int qpY,
         byte componentId,
         H264SequenceParameterSet sps,
-        H264PictureParameterSetHeader pps,
-        int? scalingListIndexOverride = null)
+        H264PictureParameterSetHeader pps)
     {
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(pps);
@@ -62,7 +61,8 @@ public static class H264IntraChromaResidualReconstructor
         H264IntraChromaResidualComponent component,
         int qpY,
         H264SequenceParameterSet sps,
-        H264PictureParameterSetHeader pps)
+        H264PictureParameterSetHeader pps,
+        int? scalingListIndexOverride = null)
     {
         ArgumentNullException.ThrowIfNull(prediction);
         ArgumentNullException.ThrowIfNull(component);
