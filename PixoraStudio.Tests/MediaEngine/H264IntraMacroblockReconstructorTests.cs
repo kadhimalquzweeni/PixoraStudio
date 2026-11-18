@@ -15,6 +15,7 @@ public sealed class H264IntraMacroblockReconstructorTests
         var pps = CreatePps();
         var surface = new H264DecodedPictureSurface(sps);
         var reconstructor = new H264IntraMacroblockReconstructor(surface);
+        reconstructor.SetDeblockingSliceParameters(new H264DeblockingSliceParameters(2, -2, 3));
         var header = CreateHeader(0, 2);
         var syntax = CreateSyntax(0, format);
         var residual = CreateResidualMacroblock(0, format);
@@ -23,6 +24,15 @@ public sealed class H264IntraMacroblockReconstructorTests
             0, 0, 0, header, syntax, residual, 24, sps, pps);
 
         Assert.True(surface.IsMacroblockDecoded(0, 0));
+        H264DeblockingMacroblockMetadata deblocking =
+            surface.GetDeblockingMetadata(0, 0)!;
+        Assert.Equal(24, deblocking.QpY);
+        Assert.Equal(2, deblocking.DisableDeblockingFilterIdc);
+        Assert.Equal(-2, deblocking.AlphaOffsetDiv2);
+        Assert.Equal(3, deblocking.BetaOffsetDiv2);
+        Assert.Equal(16, deblocking.LumaBlocks.Count);
+        Assert.Equal(format == 1 ? 4 : 8, deblocking.ChromaCbBlocks.Count);
+        Assert.All(deblocking.LumaBlocks, block => Assert.True(block.IsIntra));
 
         // The SPS describes a 2x2 macroblock picture. This call reconstructs
         // only macroblock (0, 0), so assert its 16x16 luma and format-specific
