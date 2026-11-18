@@ -24,7 +24,7 @@ public sealed class H264TemporalDirectMotionField
         IReadOnlyList<H264ReferencePicture> referencesL0,
         IReadOnlyList<H264ReferencePicture> referencesL1,
         int collocatedPictureOrderCount,
-        bool collocatedPictureIsShortTerm = true)
+        bool collocatedPictureIsShortTerm)
     {
         ArgumentNullException.ThrowIfNull(motionL0);
         ArgumentNullException.ThrowIfNull(motionL1);
