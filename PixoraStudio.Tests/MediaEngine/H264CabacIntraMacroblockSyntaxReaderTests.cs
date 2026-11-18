@@ -12,7 +12,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReaderTests
         [
             0, // mb_type: I_NxN
             1, // transform_size_8x8_flag
-            .. Enumerable.Repeat(1, 16), // previous intra prediction modes
+            .. Enumerable.Repeat(1, 4), // previous intra prediction modes
             0, // intra_chroma_pred_mode
             1, 0, 1, 1, // luma coded block pattern
             1, 0, // chroma coded block pattern
