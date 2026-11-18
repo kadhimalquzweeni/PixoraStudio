@@ -145,6 +145,47 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
+    public void Apply_ShouldDerive420ChromaBoundaryStrengthFromCorrespondingLumaEdge()
+    {
+        H264DecodedPictureSurface surface = Surface(0, 0, 1);
+        byte[] luma = Enumerable.Repeat((byte)128, 256).ToArray();
+        byte[] cb = new byte[64];
+        byte[] cr = new byte[64];
+        for (int y = 0; y < 8; y++)
+        {
+            byte[] samples = [108, 109, 110, 110, 112, 112, 113, 114];
+            Array.Copy(samples, 0, cb, y * 8, 8);
+            Array.Copy(samples, 0, cr, y * 8, 8);
+        }
+        WriteMacroblock(surface, 0, 0, 0, 1, luma);
+        // The chroma vertical edge at x=4 maps to the luma edge between
+        // columns 1 and 2. Only the first corresponding luma block row is intra.
+        H264DeblockingBlockMetadata inter = new(false, false, null, null, null, null);
+        H264DeblockingBlockMetadata intra = IntraBlock();
+        H264DeblockingBlockMetadata[] lumaBlocks =
+            Enumerable.Repeat(inter, 16).ToArray();
+        lumaBlocks[1] = intra;
+        lumaBlocks[2] = intra;
+        surface.WriteMacroblock(0, 0, 0, false, luma, cb, cr);
+        surface.SetDeblockingMetadata(0, 0,
+            new H264DeblockingMacroblockMetadata(
+                40, 40, 40, 0, 0, 0, false,
+                lumaBlocks,
+                Enumerable.Repeat(inter, 4).ToArray(),
+                Enumerable.Repeat(inter, 4).ToArray()));
+
+        H264DeblockingPictureFilter.Apply(surface);
+
+        Assert.Equal((byte)111, surface.GetChromaSample(1, 3, 0));
+        Assert.Equal((byte)111, surface.GetChromaSample(1, 4, 0));
+        Assert.Equal((byte)111, surface.GetChromaSample(2, 3, 0));
+        Assert.Equal((byte)111, surface.GetChromaSample(2, 4, 0));
+        // The next 4x4 chroma segment maps to luma block row 2, which has bS=0.
+        Assert.Equal((byte)110, surface.GetChromaSample(1, 3, 4));
+        Assert.Equal((byte)112, surface.GetChromaSample(1, 4, 4));
+    }
+
+    [Fact]
     public void Apply_WithEightByEightTransform_ShouldSkipInternalFourByFourLumaEdges()
     {
         H264DecodedPictureSurface surface = Surface(0, 0, 1);
