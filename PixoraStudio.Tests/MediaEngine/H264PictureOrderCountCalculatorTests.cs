@@ -244,7 +244,7 @@ public sealed class H264PictureOrderCountCalculatorTests
         bool bottom = false,
         H264DecodedReferenceMarking? marking = null) =>
         new(0, H264SliceType.I, 0, 0, frameNum, field, bottom,
-            idr ? 0u : null, pocLsb, deltaBottom, null, null, null,
+            idr ? 0u : null, pocLsb, deltaBottom, 0, null, null,
             false, false, 0, 0, [], [], null, marking, null, 0, false, null,
             null, null, null, null);
 
