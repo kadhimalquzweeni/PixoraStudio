@@ -71,7 +71,7 @@ public sealed class H264DeblockingPictureFilterTests
     [Fact]
     public void Apply_ShouldTraverseFourTwoTwoChromaGeometry()
     {
-        H264DecodedPictureSurface surface = Surface(1, 2, 2);
+        H264DecodedPictureSurface surface = Surface(0, 1, 2);
         for (int y = 0; y < 2; y++)
         {
             WriteMacroblock(surface, 0, y, 0, 2);
