@@ -20,6 +20,15 @@ public sealed class H264RbspTests
         Assert.Throws<FormatException>(() => H264Rbsp.FromEbsp(ebsp));
     }
 
+    [Theory]
+    [InlineData(new byte[] { 0x00, 0x00, 0x00 })]
+    [InlineData(new byte[] { 0x00, 0x00, 0x01 })]
+    [InlineData(new byte[] { 0x00, 0x00, 0x02 })]
+    public void FromEbsp_ShouldRejectUnescapedStartCodeEmulationSequences(byte[] ebsp)
+    {
+        Assert.Throws<FormatException>(() => H264Rbsp.FromEbsp(ebsp));
+    }
+
     [Fact]
     public void FromEbsp_ShouldReturnEmptyForEmptyPayload()
     {
