@@ -284,6 +284,75 @@ public sealed class H264ParameterSetReaderTests
     }
 
     [Fact]
+    public void ReadSps_ShouldRetainScalingListUseDefaultSyntax()
+    {
+        BitWriter bits = new();
+        bits.WriteBits(100, 8); // High profile
+        bits.WriteBits(0, 8);
+        bits.WriteBits(40, 8);
+        bits.WriteUe(0); // SPS id
+        bits.WriteUe(1); // 4:2:0
+        bits.WriteUe(0); // luma bit depth
+        bits.WriteUe(0); // chroma bit depth
+        bits.WriteFlag(false); // qpprime_y_zero_transform_bypass_flag
+        bits.WriteFlag(true); // seq_scaling_matrix_present_flag
+        bits.WriteFlag(true); // first 4x4 list present
+        bits.WriteSe(-8); // nextScale becomes zero: use default matrix
+        for (int i = 1; i < 8; i++) bits.WriteFlag(false);
+
+        bits.WriteUe(0); // log2_max_frame_num_minus4
+        bits.WriteUe(0); // pic_order_cnt_type
+        bits.WriteUe(0); // log2_max_pic_order_cnt_lsb_minus4
+        bits.WriteUe(1); // max_num_ref_frames
+        bits.WriteFlag(false);
+        bits.WriteUe(39);
+        bits.WriteUe(22);
+        bits.WriteFlag(true);
+        bits.WriteFlag(true);
+        bits.WriteFlag(false);
+        bits.WriteFlag(false);
+
+        H264SequenceParameterSet result = new H264SequenceParameterSetReader()
+            .Read(new H264NalUnit(0x67, bits.ToArray()));
+
+        Assert.True(result.ScalingMatrixPresentFlag);
+        Assert.Equal(8, result.ScalingLists.Count);
+        Assert.True(result.ScalingListUseDefault[0]);
+        Assert.Empty(result.ScalingLists[1]);
+    }
+
+    [Fact]
+    public void ReadPps_ShouldRetainScalingListUseDefaultSyntax()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(0);
+        bits.WriteFlag(false);
+        bits.WriteFlag(false);
+        bits.WriteUe(0);
+        WritePpsTail(bits, includeTrailingBits: false);
+        bits.WriteFlag(false); // transform_8x8_mode_flag
+        bits.WriteFlag(true); // pic_scaling_matrix_present_flag
+        bits.WriteFlag(true); // first 4x4 list present
+        bits.WriteSe(-8); // use default matrix
+        for (int i = 1; i < 6; i++) bits.WriteFlag(false);
+        bits.WriteSe(0); // second_chroma_qp_index_offset
+        WriteRbspTrailingBits(bits);
+
+        H264SequenceParameterSet sps = CreateBaselineSpsForPpsExtension();
+        H264PictureParameterSetHeader result = new H264PictureParameterSetReader()
+            .Read(new H264NalUnit(0x68, bits.ToArray()), sps);
+
+        Assert.True(result.PicScalingMatrixPresentFlag);
+        Assert.True(result.ScalingListUseDefault[0]);
+        Assert.Empty(result.ScalingLists[1]);
+    }
+
+    private static H264SequenceParameterSet CreateBaselineSpsForPpsExtension() =>
+        new(0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
+            39, 22, true, true, 640, 368, false);
+
+    [Fact]
     public void ReadPps_ShouldRejectWrongNalType()
     {
         Assert.Throws<FormatException>(() =>
