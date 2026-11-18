@@ -61,6 +61,8 @@ public sealed class H264BInterMacroblockReconstructor
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(header);
+        if (pps.EntropyCodingModeFlag)
+            throw new NotSupportedException("CABAC B inter syntax must be decoded before reconstruction.");
         ValidateContext(destination, macroblockX, macroblockY, sliceId, previousQpY, sps, pps);
         if (header.IsSkipped || header.IsIntra || header.IsPcm)
             throw new ArgumentException("A coded inter B macroblock header is required.", nameof(header));
@@ -125,6 +127,117 @@ public sealed class H264BInterMacroblockReconstructor
             referencePictureLists, residual, qpY,
             macroblockX, macroblockY, sps, pps,
             deblockingParameters ?? new H264DeblockingSliceParameters(0, 0, 0));
+        return new H264BInterMacroblockReconstructionResult(
+            header.MacroblockAddress, qpY, residualSyntax.CodedBlockPattern,
+            false, partitions, prediction, reconstructed);
+    }
+
+    /// <summary>
+    /// Reconstructs a CABAC B inter macroblock from already-decoded prediction
+    /// and residual syntax, sharing the existing motion compensation,
+    /// inverse-transform, surface commit and deblocking pipeline.
+    /// </summary>
+    public H264BInterMacroblockReconstructionResult ReconstructCabac(
+        H264MacroblockHeader header,
+        H264BMacroblockSyntax syntax,
+        H264InterMacroblockResidualSyntax residualSyntax,
+        H264InterResidualMacroblock residual,
+        IReadOnlyList<H264DecodedPictureSurface> referenceList0,
+        IReadOnlyList<H264DecodedPictureSurface> referenceList1,
+        H264BReferencePictureLists referencePictureLists,
+        H264MotionVectorPictureState motionVectorStateL0,
+        H264MotionVectorPictureState motionVectorStateL1,
+        H264DecodedPictureSurface destination,
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        int previousQpY,
+        int currentPictureOrderCount,
+        bool directSpatialPrediction,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps,
+        H264PredictionWeightTable? predictionWeights = null,
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null,
+        H264DeblockingSliceParameters? deblockingParameters = null)
+    {
+        ArgumentNullException.ThrowIfNull(header);
+        ArgumentNullException.ThrowIfNull(syntax);
+        ArgumentNullException.ThrowIfNull(residualSyntax);
+        ArgumentNullException.ThrowIfNull(residual);
+        ArgumentNullException.ThrowIfNull(referenceList0);
+        ArgumentNullException.ThrowIfNull(referenceList1);
+        ArgumentNullException.ThrowIfNull(referencePictureLists);
+        ArgumentNullException.ThrowIfNull(motionVectorStateL0);
+        ArgumentNullException.ThrowIfNull(motionVectorStateL1);
+        ArgumentNullException.ThrowIfNull(destination);
+        ArgumentNullException.ThrowIfNull(sps);
+        ArgumentNullException.ThrowIfNull(pps);
+
+        if (!pps.EntropyCodingModeFlag)
+            throw new ArgumentException("The PPS must enable CABAC.", nameof(pps));
+        ValidateContext(destination, macroblockX, macroblockY, sliceId, previousQpY, sps, pps);
+        if (header.IsSkipped || header.IsIntra || header.IsPcm)
+            throw new ArgumentException("A coded inter B macroblock header is required.", nameof(header));
+        if (header.MbTypeCode != syntax.MacroblockType)
+            throw new FormatException("The parsed B macroblock syntax type does not match its header.");
+        if (referenceList0.Count != referencePictureLists.List0.Count ||
+            referenceList1.Count != referencePictureLists.List1.Count)
+            throw new ArgumentException("Decoded B reference surfaces must match the reference-picture metadata lists.");
+        if (referenceList0.Count == 0 || referenceList1.Count == 0)
+            throw new ArgumentException("Both active B reference lists must be non-empty.");
+        if (pps.WeightedBipredIdc == 1 && predictionWeights is null)
+            throw new ArgumentNullException(nameof(predictionWeights));
+        if (collocatedContextProvider is null &&
+            syntax.Partitions.SelectMany(partition => partition.SubPartitions)
+                .Any(sub => sub.Direction == H264BPredictionDirection.Direct))
+            throw new NotSupportedException("Direct B prediction requires a collocated-picture metadata provider.");
+        if (residual.MacroblockAddress != header.MacroblockAddress)
+            throw new FormatException("The residual macroblock address does not match its header.");
+        if (residual.TransformSize8X8Flag != residualSyntax.TransformSize8X8Flag)
+            throw new FormatException("The residual transform-size flag does not match its syntax.");
+        if (destination.IsMacroblockDecoded(macroblockX, macroblockY))
+            throw new InvalidOperationException("The destination macroblock has already been decoded.");
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> partitions =
+            _motionReconstructor.Reconstruct(
+                syntax, motionVectorStateL0, motionVectorStateL1,
+                macroblockX, macroblockY, sliceId,
+                referenceList0.Count, referenceList1.Count,
+                directSpatialPrediction, sps.Direct8X8InferenceFlag, collocatedContextProvider);
+        IReadOnlyList<H264BInterMacroblockPrediction> predictions =
+            _predictionDecoder.DecodeAndPredict(
+                partitions, referenceList0, referenceList1, referencePictureLists,
+                sps.ChromaFormatIdc, currentPictureOrderCount,
+                pps.WeightedBipredIdc, predictionWeights);
+        H264BInterMacroblockPrediction[] macroblockLocalPredictions = predictions
+            .Select(item => item with
+            {
+                Partition = item.Partition with
+                {
+                    X = item.Partition.X - (macroblockX * 4),
+                    Y = item.Partition.Y - (macroblockY * 4)
+                }
+            })
+            .ToArray();
+        H264MotionCompensatedBlock prediction =
+            H264BInterMacroblockPredictionDecoder.Assemble(
+                macroblockLocalPredictions, sps.ChromaFormatIdc);
+        int qpY = residualSyntax.MacroblockQpDelta is int delta
+            ? UpdateQpY(previousQpY, delta)
+            : previousQpY;
+        H264MotionCompensatedBlock reconstructed =
+            H264InterMacroblockResidualReconstructor.Reconstruct(
+                prediction, residual, qpY, sps, pps);
+
+        destination.WriteMacroblock(
+            macroblockX, macroblockY, sliceId, false,
+            reconstructed.Luma, reconstructed.Cb, reconstructed.Cr);
+        AttachDeblockingMetadata(
+            destination, motionVectorStateL0, motionVectorStateL1,
+            referencePictureLists, residual, qpY,
+            macroblockX, macroblockY, sps, pps,
+            deblockingParameters ?? new H264DeblockingSliceParameters(0, 0, 0));
+
         return new H264BInterMacroblockReconstructionResult(
             header.MacroblockAddress, qpY, residualSyntax.CodedBlockPattern,
             false, partitions, prediction, reconstructed);
