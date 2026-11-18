@@ -26,8 +26,22 @@ public static class H264CabacResidualBlockContext
     /// Creates context-index maps for ctxBlockCat 0..5. Categories 0..4
     /// use scan-position increments; category 5 uses the special 8x8 maps.
     /// </summary>
-    public static H264CabacResidualBlockContextMap Create(int contextBlockCategory)
+    public static H264CabacResidualBlockContextMap Create(
+        int contextBlockCategory, bool chroma422 = false)
     {
+        if (chroma422 && contextBlockCategory != 3)
+            throw new ArgumentException(
+                "The 4:2:2 DC context map applies only to chroma DC category 3.",
+                nameof(chroma422));
+
+        if (contextBlockCategory == 3 && chroma422)
+        {
+            int[] increments422 = [0, 0, 1, 1, 2, 2, 2];
+            return new H264CabacResidualBlockContextMap(
+                8, 0, 3, 97, 149, 210, 257,
+                increments422, increments422.ToArray(), false, 1);
+        }
+
         return contextBlockCategory switch
         {
             0 => CreateLinear(0, 16, 85, 105, 166, 227, 0),
@@ -37,7 +51,7 @@ public static class H264CabacResidualBlockContext
             4 => CreateLinear(4, 15, 101, 152, 213, 266, 0),
             5 => new H264CabacResidualBlockContextMap(
                 64, 0, 5, null, 402, 417, 426,
-                Significant8X8.ToArray(), LastSignificant8X8.ToArray(), true),
+                Significant8X8.ToArray(), LastSignificant8X8.ToArray(), true, 0),
             _ => throw new ArgumentOutOfRangeException(nameof(contextBlockCategory),
                 "Only frame-coded residual categories 0..5 are supported.")
         };
@@ -57,7 +71,7 @@ public static class H264CabacResidualBlockContext
         return new H264CabacResidualBlockContextMap(
             maximumCoefficients, startIndex, category,
             codedBlockFlagOffset, significantOffset, lastSignificantOffset, absoluteLevelOffset,
-            increments, increments.ToArray(), false);
+            increments, increments.ToArray(), false, 0);
     }
 }
 
@@ -72,4 +86,5 @@ public sealed record H264CabacResidualBlockContextMap(
     int AbsoluteLevelContextOffset,
     IReadOnlyList<int> SignificantContextIncrements,
     IReadOnlyList<int> LastSignificantContextIncrements,
-    bool HasImplicitCodedBlockFlag);
+    bool HasImplicitCodedBlockFlag,
+    int AbsoluteLevelContextAdjust);
