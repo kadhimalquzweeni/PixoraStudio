@@ -195,24 +195,11 @@ public sealed class H264CabacResidualBlockReader
             return 0;
         }
 
-        nodeContextState = transitionAfterGreaterThanOne[nodeContextState];
-        int absoluteLevel = 2;
+        int previousState = nodeContextState;
         int greaterThanOneContext = contextOffset +
-            levelGreaterThanOneContextIncrements[
-                transitionAfterGreaterThanOne[nodeContextState == 4 ? 0 : 0]];
-
-        // The greater-than-one context is selected from the node state before
-        // its transition, so derive it from the previous state explicitly.
-        int previousState = nodeContextState switch
-        {
-            4 => 0,
-            5 => 4,
-            6 => 5,
-            7 => 6,
-            _ => 0
-        };
-        greaterThanOneContext = contextOffset +
             levelGreaterThanOneContextIncrements[previousState];
+        nodeContextState = transitionAfterGreaterThanOne[previousState];
+        int absoluteLevel = 2;
 
         while (absoluteLevel < 15)
         {
