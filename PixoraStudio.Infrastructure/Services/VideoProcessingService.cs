@@ -1,7 +1,5 @@
-﻿
+
 using System.Diagnostics;
-using System.Globalization;
-using System.Text.Json;
 using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
 
@@ -35,9 +33,8 @@ public class VideoProcessingService : IVideoProcessingService
         startInfo.ArgumentList.Add("-select_streams");
         startInfo.ArgumentList.Add("v:0");
         startInfo.ArgumentList.Add("-show_entries");
-        startInfo.ArgumentList.Add("stream=width,height,r_frame_rate");
-        startInfo.ArgumentList.Add("-show_entries");
-        startInfo.ArgumentList.Add("format=duration");
+        startInfo.ArgumentList.Add(
+            "stream=codec_type,width,height,avg_frame_rate,r_frame_rate,duration,duration_ts,time_base:format=duration");
         startInfo.ArgumentList.Add("-of");
         startInfo.ArgumentList.Add("json");
         startInfo.ArgumentList.Add(filePath);
@@ -69,28 +66,7 @@ public class VideoProcessingService : IVideoProcessingService
         if (process.ExitCode != 0)
             throw new InvalidOperationException($"FFprobe failed: {error}");
 
-        using var document = JsonDocument.Parse(output);
-        var root = document.RootElement;
-
-        var stream = root.GetProperty("streams")[0];
-        var format = root.GetProperty("format");
-
-        double duration = double.Parse(
-            format.GetProperty("duration").GetString()!,
-            CultureInfo.InvariantCulture);
-
-        double frameRate = ParseFrameRate(
-            stream.GetProperty("r_frame_rate").GetString()!);
-
-        return new VideoInfo
-        {
-            FilePath = filePath,
-            FileName = Path.GetFileName(filePath),
-            Duration = TimeSpan.FromSeconds(duration),
-            Width = stream.GetProperty("width").GetInt32(),
-            Height = stream.GetProperty("height").GetInt32(),
-            FramesPerSecond = frameRate
-        };
+        return FFprobeOutputParser.Parse(output, filePath);
     }
 
     public async Task<string> GenerateThumbnailAsync(
