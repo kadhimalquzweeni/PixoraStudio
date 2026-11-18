@@ -69,6 +69,34 @@ public sealed class H264Mp4TrackSampleReaderTests
     }
 
     [Fact]
+    public void Read_ShouldRejectSampleDataLengthThatDisagreesWithSampleTable()
+    {
+        Mp4EncodedSample sample = new(
+            new Mp4SampleLocation(1, 1, 0, 5, 0, 40, true)
+            {
+                SampleDescriptionIndex = 1
+            },
+            [0, 2, 0x65, 0x80]);
+
+        Assert.Throws<FormatException>(() =>
+            new H264Mp4TrackSampleReader().Read(Track(), sample));
+    }
+
+    [Fact]
+    public void Read_ShouldRejectUnrepresentablePresentationTimestamp()
+    {
+        Mp4EncodedSample sample = new(
+            new Mp4SampleLocation(1, 1, 0, 4, ulong.MaxValue, 40, true)
+            {
+                SampleDescriptionIndex = 1
+            },
+            [0, 2, 0x65, 0x80]);
+
+        Assert.Throws<FormatException>(() =>
+            new H264Mp4TrackSampleReader().Read(Track(), sample));
+    }
+
+    [Fact]
     public void Read_ShouldRejectTrackWithoutTimescale()
     {
         Mp4Track track = new(
