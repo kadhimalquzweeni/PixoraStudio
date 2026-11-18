@@ -124,7 +124,7 @@ public sealed class H264IntraMacroblockReconstructorTests
     }
 
     [Fact]
-    public void ReconstructIntra16x16_ShouldRejectI4x4PcmAndCabacPaths()
+    public void ReconstructIntra16x16_ShouldRejectI4x4AndPcmButAllowCabac()
     {
         var sps = CreateSps(1);
         var surface = new H264DecodedPictureSurface(sps);
@@ -137,9 +137,12 @@ public sealed class H264IntraMacroblockReconstructorTests
         Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
             0, 0, 0, CreateHeader(0, 2) with { IsPcm = true },
             CreateSyntax(0, 1), residual, 24, sps, CreatePps()));
-        Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
+        var cabacSurface = new H264DecodedPictureSurface(sps);
+        var cabacReconstructor = new H264IntraMacroblockReconstructor(cabacSurface);
+        cabacReconstructor.ReconstructIntra16x16(
             0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1), residual, 24,
-            sps, CreatePps() with { EntropyCodingModeFlag = true }));
+            sps, CreatePps() with { EntropyCodingModeFlag = true });
+        Assert.True(cabacSurface.IsMacroblockDecoded(0, 0));
     }
 
     [Fact]
