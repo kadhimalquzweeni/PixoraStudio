@@ -50,6 +50,7 @@ public sealed class H264DecodedPictureSurface
     public int MacroblockWidth { get; }
     public int MacroblockHeight { get; }
     public uint ChromaFormatIdc { get; }
+    public bool IsComplete => _decoded.All(decoded => decoded);
 
     public byte[] CopyLumaPlane() => (byte[])_luma.Clone();
     public byte[] CopyCbPlane() => (byte[])_cb.Clone();
