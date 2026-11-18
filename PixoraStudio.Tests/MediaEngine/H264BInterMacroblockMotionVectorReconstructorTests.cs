@@ -203,6 +203,51 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_TemporalDirectWithoutInferenceFlag_ShouldDeriveSixteen4x4Regions()
+    {
+        H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
+            new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
+        List<(int X, int Y, int Width, int Height)> lookups = [];
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
+                syntax,
+                new H264MotionVectorPictureState(1, 1),
+                new H264MotionVectorPictureState(1, 1),
+                0, 0, 0, 1, 1,
+                directSpatialPrediction: false,
+                direct8x8InferenceFlag: false,
+                collocatedContextProvider: (x, y, width, height) =>
+                {
+                    lookups.Add((x, y, width, height));
+                    return new H264TemporalDirectPredictionContext(
+                        new H264MotionVector(8, -4), 6, 0, 4, false,
+                        MappedReferenceIndexL0: 0);
+                });
+
+        Assert.Equal(16, result.Count);
+        Assert.Equal(16, lookups.Count);
+        Assert.All(lookups, lookup =>
+        {
+            Assert.Equal(1, lookup.Width);
+            Assert.Equal(1, lookup.Height);
+        });
+        Assert.Equal(
+            Enumerable.Range(0, 4)
+                .SelectMany(y => Enumerable.Range(0, 4).Select(x => (x, y, 1, 1))),
+            lookups);
+        Assert.All(result, partition =>
+        {
+            Assert.Equal(1, partition.Width);
+            Assert.Equal(1, partition.Height);
+            Assert.Equal(new H264MotionVector(4, -2), partition.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(-4, 2), partition.MotionVectorL1);
+            Assert.Equal((int?)0, partition.ReferenceIndexL0);
+            Assert.Equal((int?)0, partition.ReferenceIndexL1);
+        });
+    }
+
+    [Fact]
     public void Reconstruct_SpatialDirect_ShouldApplyCollocatedColZeroFlag()
     {
         H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
