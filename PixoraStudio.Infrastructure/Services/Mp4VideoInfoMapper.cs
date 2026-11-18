@@ -1,6 +1,7 @@
 using PixoraStudio.Core.Models;
 using PixoraStudio.MediaEngine.Models.General;
 using PixoraStudio.MediaEngine.Models;
+using PixoraStudio.MediaEngine.Models.Video;
 
 namespace PixoraStudio.Infrastructure.Services;
 
@@ -22,6 +23,13 @@ public static class Mp4VideoInfoMapper
             .Select(description => description.Video)
             .FirstOrDefault(entry => entry is not null)
             ?? throw new NotSupportedException("The MP4 video track has no supported visual sample description.");
+
+        if (videoEntry.Codec != Mp4VideoCodec.Avc ||
+            videoEntry.Format is not ("avc1" or "avc3"))
+        {
+            throw new NotSupportedException(
+                $"The native video editor currently supports AVC/H.264 MP4 video, not {videoEntry.Format}.");
+        }
 
         double durationSeconds = track.Track.DurationSeconds;
         if (durationSeconds <= 0 || !double.IsFinite(durationSeconds))
