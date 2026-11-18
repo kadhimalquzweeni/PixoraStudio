@@ -75,6 +75,73 @@ public sealed class H264CabacSyntaxElementReaderTests
             reader.ReadMacroblockQpDelta(increment));
     }
 
+
+    [Fact]
+    public void ReadPreviousIntraPredictionModeFlag_ShouldUseContext68()
+    {
+        ScriptedCabacReader bins = new(1);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.True(reader.ReadPreviousIntraPredictionModeFlag());
+        Assert.Equal(new[] { 68 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadRemainingIntraPredictionMode_ShouldReadThreeBinsFromContext69()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(5, reader.ReadRemainingIntraPredictionMode());
+        Assert.Equal(new[] { 69, 69, 69 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadTransformSize8x8Flag_ShouldUseContext399()
+    {
+        ScriptedCabacReader bins = new(1);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.True(reader.ReadTransformSize8x8Flag());
+        Assert.Equal(new[] { 399 }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(new[] { 0 }, 0, 0)]
+    [InlineData(new[] { 1, 0 }, 1, 1)]
+    [InlineData(new[] { 1, 1, 0 }, 2, 2)]
+    [InlineData(new[] { 1, 1, 1 }, 2, 3)]
+    public void ReadIntraChromaPredictionMode_ShouldDecodeTruncatedUnary(
+        int[] encodedBins, int contextIncrement, int expectedMode)
+    {
+        ScriptedCabacReader bins = new(encodedBins);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(expectedMode, reader.ReadIntraChromaPredictionMode(contextIncrement));
+        Assert.Equal(encodedBins.Length, bins.ContextIndices.Count);
+    }
+
+    [Fact]
+    public void ReadIntraChromaPredictionMode_ShouldUseLastContextForRemainingBins()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(2, reader.ReadIntraChromaPredictionMode(1));
+        Assert.Equal(new[] { 65, 66, 66 }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(3)]
+    public void ReadIntraChromaPredictionMode_ShouldRejectInvalidContextIncrement(int increment)
+    {
+        H264CabacSyntaxElementReader reader = new(new ScriptedCabacReader(0));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            reader.ReadIntraChromaPredictionMode(increment));
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _bins;
