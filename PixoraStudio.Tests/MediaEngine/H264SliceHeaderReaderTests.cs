@@ -146,6 +146,27 @@ public sealed class H264SliceHeaderReaderTests
     }
 
     [Fact]
+    public void Read_ShouldParsePocTypeTwoWithoutPocSliceFields()
+    {
+        H264SequenceParameterSet sps = CreateSps() with { PicOrderCntType = 2 };
+        BitWriter bits = new();
+        bits.WriteUe(0);
+        bits.WriteUe(2); // I slice
+        bits.WriteUe(0);
+        bits.WriteBits(6, 4); // frame_num; POC type 2 has no slice POC fields
+        bits.WriteSe(0); // QP delta
+        bits.WriteUe(1); // deblocking disabled
+
+        H264SliceHeader result = new H264SliceHeaderReader().Read(
+            new H264NalUnit(0x01, bits.ToArray()), sps, CreatePps());
+
+        Assert.Equal(6u, result.FrameNum);
+        Assert.Null(result.PicOrderCntLsb);
+        Assert.Null(result.DeltaPicOrderCnt0);
+        Assert.Null(result.DeltaPicOrderCntBottom);
+    }
+
+    [Fact]
     public void Read_ShouldParseSpSliceCabacAndSwitchQuantiserSyntax()
     {
         BitWriter bits = new();
