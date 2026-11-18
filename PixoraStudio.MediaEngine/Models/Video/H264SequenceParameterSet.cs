@@ -22,4 +22,10 @@ public sealed record H264SequenceParameterSet(
     bool VuiParametersPresentFlag)
 {
     public H264VuiParameters? VuiParameters { get; init; }
+    public bool GapsInFrameNumValueAllowedFlag { get; init; }
+    public bool MbAdaptiveFrameFieldFlag { get; init; }
+    public bool DeltaPicOrderAlwaysZeroFlag { get; init; }
+    public int OffsetForNonRefPic { get; init; }
+    public int OffsetForTopToBottomField { get; init; }
+    public IReadOnlyList<int> OffsetForRefFrame { get; init; } = [];
 }
