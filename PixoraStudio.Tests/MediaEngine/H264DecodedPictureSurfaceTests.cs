@@ -64,7 +64,7 @@ public sealed class H264DecodedPictureSurfaceTests
         Assert.Throws<NotSupportedException>(() => new H264DecodedPictureSurface(
             CreateSps(3, 0, 0)));
         Assert.Throws<NotSupportedException>(() => new H264DecodedPictureSurface(
-            CreateSps(1, 0, 1)));
+            CreateSps(1, 0, 0) with { BitDepthLumaMinus8 = 1 }));
         Assert.Throws<NotSupportedException>(() => new H264DecodedPictureSurface(
             CreateSps(1, 1, 0) with { FrameMbsOnlyFlag = false }));
     }
