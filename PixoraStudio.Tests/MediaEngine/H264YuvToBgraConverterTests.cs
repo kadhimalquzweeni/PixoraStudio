@@ -80,9 +80,10 @@ public sealed class H264YuvToBgraConverterTests
         H264BgraFrame frame420 = converter.Convert(surface420, sps420);
         H264BgraFrame frame422 = converter.Convert(surface422, sps422);
 
-        Assert.Equal(frame420.Pixels[(8 * frame420.Stride)..(8 * frame420.Stride + 4)],
-            frame422.Pixels[(8 * frame422.Stride)..(8 * frame422.Stride + 4)]);
-        Assert.NotEqual(frame420.Pixels[..4], frame420.Pixels[(8 * frame420.Stride)..(8 * frame420.Stride + 4)]);
+        Assert.True(frame420.Pixels.AsSpan(8 * frame420.Stride, 4)
+            .SequenceEqual(frame422.Pixels.AsSpan(8 * frame422.Stride, 4)));
+        Assert.False(frame420.Pixels.AsSpan(0, 4)
+            .SequenceEqual(frame420.Pixels.AsSpan(8 * frame420.Stride, 4)));
     }
 
     [Fact]
