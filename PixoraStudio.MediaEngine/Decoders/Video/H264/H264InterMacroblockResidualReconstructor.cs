@@ -4,7 +4,7 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Adds decoded inter residual coefficients to a complete 16x16 macroblock
-/// prediction. The caller assembles motion-compensated partitions into one
+/// prediction, supporting 4x4 and 8x8 luma transforms. The caller assembles motion-compensated partitions into one
 /// macroblock prediction before invoking this stage.
 /// </summary>
 public static class H264InterMacroblockResidualReconstructor
