@@ -99,10 +99,12 @@ public sealed class H264Mp4AvcEndToEndTests
             BuildNal(0x65, CreateIdrPcmSliceRbsp(luma: 80, cb: 96, cr: 160)));
         H264Mp4VideoSample futurePSample = ReadSample(
             track, 2, 40, false,
-            BuildNal(0x61, CreatePcmPSliceRbsp(luma: 120, cb: 140, cr: 200)));
+            BuildNal(0x61, CreatePcmPSliceRbsp(luma: 120, cb: 140, cr: 200)),
+            presentationTimeTicks: 80);
         H264Mp4VideoSample bSample = ReadSample(
             track, 3, 80, false,
-            BuildNal(0x01, CreateBDirectSliceRbsp()));
+            BuildNal(0x01, CreateBDirectSliceRbsp()),
+            presentationTimeTicks: 40);
 
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
@@ -121,6 +123,7 @@ public sealed class H264Mp4AvcEndToEndTests
         H264Mp4DecodedVideoFrame firstOutput = Assert.Single(bResult.ReadyFrames);
         Assert.Equal(1u, firstOutput.SampleNumber);
         Assert.Equal(0, firstOutput.PictureOrderCount);
+        Assert.Equal(0L, firstOutput.PresentationTimeTicks);
         Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
         Assert.All(bResult.Surface.CopyLumaPlane(), sample => Assert.Equal((byte)100, sample));
         Assert.All(bResult.Surface.CopyCbPlane(), sample => Assert.Equal((byte)118, sample));
@@ -129,6 +132,7 @@ public sealed class H264Mp4AvcEndToEndTests
         IReadOnlyList<H264Mp4DecodedVideoFrame> remaining = decoder.Flush();
         Assert.Equal(new[] { 3u, 2u }, remaining.Select(frame => frame.SampleNumber));
         Assert.Equal(new[] { 2, 4 }, remaining.Select(frame => frame.PictureOrderCount));
+        Assert.Equal(new long[] { 40, 80 }, remaining.Select(frame => frame.PresentationTimeTicks));
         Assert.Equal(2, decoder.DecodedPictureBuffer.Count);
     }
 
@@ -246,7 +250,8 @@ public sealed class H264Mp4AvcEndToEndTests
         uint sampleNumber,
         ulong decodeTimeTicks,
         bool isSync,
-        byte[] nal)
+        byte[] nal,
+        long? presentationTimeTicks = null)
     {
         List<byte> sampleData = [];
         AddLengthPrefixedNal(sampleData, nal);
@@ -255,7 +260,10 @@ public sealed class H264Mp4AvcEndToEndTests
                 sampleNumber, 1, 0, (uint)sampleData.Count,
                 decodeTimeTicks, 40, isSync)
             {
-                SampleDescriptionIndex = 1
+                SampleDescriptionIndex = 1,
+                CompositionOffsetTicks = checked((int)(
+                    (presentationTimeTicks ?? checked((long)decodeTimeTicks)) -
+                    checked((long)decodeTimeTicks)))
             },
             sampleData.ToArray());
         return new H264Mp4TrackSampleReader().Read(track, encoded);
