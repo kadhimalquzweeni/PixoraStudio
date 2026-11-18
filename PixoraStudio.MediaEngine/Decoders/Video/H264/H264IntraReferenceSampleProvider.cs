@@ -78,6 +78,29 @@ public sealed class H264IntraReferenceSampleProvider
             hasTop, hasLeft, hasTopLeft);
     }
 
+    /// <summary>
+    /// Gathers the eight top-right samples used by the top-right Intra8x8
+    /// block from the macroblock above-right, when that macroblock is available.
+    /// </summary>
+    public (byte[] Samples, bool Available) GatherLumaTopRight8(
+        int macroblockX, int macroblockY, int sliceId, bool constrainedIntraPrediction)
+    {
+        ValidateRequest(macroblockX, macroblockY, sliceId);
+        byte[] samples = new byte[8];
+        int neighbourX = macroblockX + 1;
+        int neighbourY = macroblockY - 1;
+        if (neighbourX >= _surface.MacroblockWidth || neighbourY < 0 ||
+            !_surface.IsMacroblockAvailable(
+                neighbourX, neighbourY, sliceId, constrainedIntraPrediction))
+            return (samples, false);
+
+        int sampleX = neighbourX * 16;
+        int sampleY = macroblockY * 16 - 1;
+        for (int i = 0; i < 8; i++)
+            samples[i] = _surface.GetLumaSample(sampleX + i, sampleY);
+        return (samples, true);
+    }
+
     private void ValidateRequest(int x, int y, int sliceId)
     {
         if (sliceId < 0)

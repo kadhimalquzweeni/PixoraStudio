@@ -79,19 +79,13 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
     }
 
     [Fact]
-    public void ReconstructIntraNxN4x4_ShouldRejectIntra8x8AndMissingModes()
+    public void ReconstructIntraNxN4x4_ShouldRejectMissingModesAndTransformMismatch()
     {
         H264SequenceParameterSet sps = CreateSps(1);
         H264DecodedPictureSurface surface = new(sps);
         H264IntraMacroblockReconstructor reconstructor = new(surface);
         H264IntraMacroblockSyntax validSyntax = CreateSyntax(1);
         H264IntraLumaResidualMacroblock residual = CreateResidual(0, 1);
-
-        Assert.Throws<NotSupportedException>(() =>
-            reconstructor.ReconstructIntraNxN4x4(
-                0, 0, 0, CreateHeader(0),
-                validSyntax with { TransformSize8X8Flag = true },
-                residual, 24, sps, CreatePps() with { Transform8X8ModeFlag = true }));
 
         Assert.Throws<FormatException>(() =>
             reconstructor.ReconstructIntraNxN4x4(

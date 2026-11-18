@@ -62,6 +62,16 @@ public sealed class H264Intra4x4PredictionContext
         return resolved;
     }
 
+    /// <summary>Returns a recorded mode when the block belongs to the requested slice.</summary>
+    public uint? GetRecordedMode(int x, int y, int sliceId)
+    {
+        ValidateCoordinates(x, y);
+        if (sliceId < 0) throw new ArgumentOutOfRangeException(nameof(sliceId));
+        return _blocks.TryGetValue((x, y), out BlockState state) && state.SliceId == sliceId
+            ? state.PredictionMode
+            : null;
+    }
+
     private bool TryGetMode((int X, int Y) coordinate, int sliceId, out uint mode)
     {
         if (_blocks.TryGetValue(coordinate, out BlockState state) &&

@@ -84,6 +84,16 @@ public sealed class H264BitReader
         return (codeNum & 1) == 0 ? -magnitude : magnitude;
     }
 
+    /// <summary>Consumes pcm_alignment_zero_bit values until the next byte boundary.</summary>
+    public void AlignToByteAndValidateZero()
+    {
+        while (!IsByteAligned)
+        {
+            if (ReadFlag())
+                throw new FormatException("PCM alignment bits must be zero.");
+        }
+    }
+
     public void SkipBits(int count)
     {
         if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));

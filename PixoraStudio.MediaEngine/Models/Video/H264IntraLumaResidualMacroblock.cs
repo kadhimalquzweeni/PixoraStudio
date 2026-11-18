@@ -10,6 +10,7 @@ public sealed record H264IntraLumaResidualMacroblock(
     IReadOnlyList<H264IntraLumaResidualBlock> Blocks)
 {
     public IReadOnlyList<H264IntraChromaResidualComponent> ChromaComponents { get; init; } = [];
+    public IReadOnlyList<H264Intra8x8LumaResidualBlock> Intra8x8Blocks { get; init; } = [];
 }
 
 /// <summary>
@@ -35,3 +36,10 @@ public sealed record H264IntraChromaResidualBlock(
     int BlockY,
     bool IsCoded,
     H264CavlcResidualBlock Residual);
+
+/// <summary>One CAVLC-decoded 8x8 luma transform block in 8x8 scan order.</summary>
+public sealed record H264Intra8x8LumaResidualBlock(
+    int BlockX,
+    int BlockY,
+    bool IsCoded,
+    IReadOnlyList<int> CoefficientsInScanOrder);

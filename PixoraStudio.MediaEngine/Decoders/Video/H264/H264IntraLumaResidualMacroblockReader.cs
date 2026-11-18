@@ -4,8 +4,8 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Reads CAVLC luma and 4:2:0/4:2:2 chroma residual payloads for
-/// frame-only I_NxN and I_16x16 macroblocks using picture-relative state.
-/// Intra8x8 transform residual syntax remains unsupported.
+/// frame-only I_NxN and I_16x16 macroblocks using picture-relative state,
+/// including the four-list CAVLC representation of each Intra8x8 block.
 /// </summary>
 public sealed class H264IntraLumaResidualMacroblockReader
 {
@@ -118,10 +118,17 @@ public sealed class H264IntraLumaResidualMacroblockReader
                     "Luma, Cb and Cr residuals require independent neighbour contexts.");
         }
 
-        if (macroblockSyntax.LumaPredictionModes?.Uses8X8Transform == true ||
-            macroblockSyntax.TransformSize8X8Flag == true)
-            throw new NotSupportedException(
-                "Intra8x8 transform residual decoding is not implemented.");
+        bool use8x8 = !macroblockHeader.IsIntra16x16 &&
+            macroblockSyntax.TransformSize8X8Flag == true;
+        if (macroblockHeader.IsIntra16x16 && macroblockSyntax.TransformSize8X8Flag.HasValue)
+            throw new FormatException("I_16x16 macroblocks cannot contain transform_size_8x8_flag.");
+        H264IntraPredictionModeSyntax? predictionModes = macroblockSyntax.LumaPredictionModes;
+        if (use8x8 &&
+            (predictionModes is null || !predictionModes.Uses8X8Transform ||
+             predictionModes.Modes.Count != 4))
+            throw new FormatException("Intra8x8 residual syntax requires four Intra8x8 prediction-mode entries.");
+        if (!use8x8 && macroblockSyntax.LumaPredictionModes?.Uses8X8Transform == true)
+            throw new FormatException("Intra8x8 prediction-mode syntax requires transform_size_8x8_flag.");
 
         H264CavlcResidualBlock? intra16x16Dc = null;
         if (macroblockHeader.IsIntra16x16)
@@ -135,7 +142,53 @@ public sealed class H264IntraLumaResidualMacroblockReader
         int macroblockBlockY = checked(macroblockY * 4);
         uint codedPattern = macroblockSyntax.CodedBlockPattern.Luma;
         List<H264IntraLumaResidualBlock> blocks = new(16);
+        List<H264Intra8x8LumaResidualBlock> blocks8x8 = new(4);
 
+        if (use8x8)
+        {
+            if (macroblockSyntax.LumaPredictionModes?.Modes.Count != 4)
+                throw new FormatException("An Intra8x8 macroblock must contain four prediction-mode entries.");
+
+            (int X, int Y)[] blockPositions = [(0, 0), (1, 0), (0, 1), (1, 1)];
+            for (int blockIndex = 0; blockIndex < 4; blockIndex++)
+            {
+                (int blockX, int blockY) = blockPositions[blockIndex];
+                bool isCoded = (codedPattern & (1u << blockIndex)) != 0;
+                int[] combinedScan = new int[64];
+
+                for (int subBlock = 0; subBlock < 4; subBlock++)
+                {
+                    int subX = subBlock & 1;
+                    int subY = subBlock >> 1;
+                    int localX = blockX * 2 + subX;
+                    int localY = blockY * 2 + subY;
+                    int pictureX = checked(macroblockBlockX + localX);
+                    int pictureY = checked(macroblockBlockY + localY);
+
+                    H264CavlcResidualBlock subResidual;
+                    if (isCoded)
+                    {
+                        subResidual = neighbourContext.ReadBlock(
+                            reader, pictureX, pictureY, sliceId, 16);
+                    }
+                    else
+                    {
+                        subResidual = new H264CavlcResidualBlock(16, 0, 0, 0, new int[16]);
+                        neighbourContext.RecordBlock(pictureX, pictureY, sliceId, 0);
+                    }
+
+                    // CAVLC represents an 8x8 block as four 4x4 coefficient
+                    // lists. Every list contributes every fourth 8x8 scan level.
+                    for (int coefficient = 0; coefficient < 16; coefficient++)
+                        combinedScan[4 * coefficient + subBlock] =
+                            subResidual.Coefficients[coefficient];
+                }
+
+                blocks8x8.Add(new H264Intra8x8LumaResidualBlock(
+                    blockX, blockY, isCoded, combinedScan));
+            }
+        }
+        else
         foreach ((int localX, int localY) in LumaBlockScan)
         {
             int group = (localX >> 1) + ((localY >> 1) << 1);
@@ -201,7 +254,8 @@ public sealed class H264IntraLumaResidualMacroblockReader
             intra16x16Dc,
             blocks)
         {
-            ChromaComponents = chromaComponents
+            ChromaComponents = chromaComponents,
+            Intra8x8Blocks = blocks8x8
         };
     }
     private static H264IntraChromaResidualComponent ReadChromaAcComponent(

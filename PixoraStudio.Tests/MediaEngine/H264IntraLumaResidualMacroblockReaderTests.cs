@@ -111,16 +111,108 @@ public sealed class H264IntraLumaResidualMacroblockReaderTests
     }
 
     [Fact]
-    public void Read_ShouldRejectIntra8x8TransformResiduals()
+    public void Read_IntraNxN8x8_ShouldRejectMismatchedPredictionModeSyntax()
     {
-        H264IntraMacroblockSyntax syntax = CreateSyntax(0) with
-        {
-            TransformSize8X8Flag = true
-        };
+        H264IntraMacroblockSyntax syntax = new(
+            true,
+            new H264IntraPredictionModeSyntax(false,
+                Enumerable.Range(0, 16)
+                    .Select(_ => new H264IntraPredictionModeEntry(true, null))
+                    .ToArray()),
+            null,
+            new H264CodedBlockPattern(0, 0, 0, 0),
+            null);
 
-        Assert.Throws<NotSupportedException>(() => _reader.Read(
+        Assert.Throws<FormatException>(() => _reader.Read(
             CreateReader(""), CreateIntraNxNHeader(), syntax,
             CreateMonochromeSps(), 0, 0, 1, new H264CavlcNeighbourContext()));
+    }
+
+    [Fact]
+    public void Read_IntraNxN8x8_ShouldParseFourGroupsOfFourCavlcBlocks()
+    {
+        H264IntraMacroblockSyntax syntax = new(
+            true,
+            new H264IntraPredictionModeSyntax(true,
+                Enumerable.Range(0, 4)
+                    .Select(_ => new H264IntraPredictionModeEntry(true, null))
+                    .ToArray()),
+            null,
+            new H264CodedBlockPattern(0, 15, 0, 0),
+            null);
+        H264BitReader bits = CreateReader(new string('1', 16));
+        H264CavlcNeighbourContext neighbours = new();
+
+        H264IntraLumaResidualMacroblock result = _reader.Read(
+            bits, CreateIntraNxNHeader(), syntax,
+            CreateMonochromeSps(), 0, 0, 1, neighbours);
+
+        Assert.Empty(result.Blocks);
+        Assert.Equal(4, result.Intra8x8Blocks.Count);
+        Assert.Equal(new[] { (0, 0), (1, 0), (0, 1), (1, 1) },
+            result.Intra8x8Blocks.Select(block => (block.BlockX, block.BlockY)));
+        Assert.All(result.Intra8x8Blocks, block =>
+        {
+            Assert.True(block.IsCoded);
+            Assert.Equal(64, block.CoefficientsInScanOrder.Count);
+            Assert.All(block.CoefficientsInScanOrder, coefficient => Assert.Equal(0, coefficient));
+        });
+        Assert.Equal(0, bits.RemainingBits);
+    }
+
+    [Fact]
+    public void Read_IntraNxN8x8_ShouldInterleaveFourCavlcListsIntoOneEightByEightScan()
+    {
+        H264IntraMacroblockSyntax syntax = new(
+            true,
+            new H264IntraPredictionModeSyntax(true,
+                Enumerable.Range(0, 4)
+                    .Select(_ => new H264IntraPredictionModeEntry(true, null))
+                    .ToArray()),
+            null,
+            new H264CodedBlockPattern(0, 1, 0, 0),
+            null);
+        // Three zero coeff_token values followed by one positive trailing one
+        // in the fourth 4x4 CAVLC list of the top-left 8x8 transform block.
+        H264BitReader bits = CreateReader("1110101");
+
+        H264IntraLumaResidualMacroblock result = _reader.Read(
+            bits, CreateIntraNxNHeader(), syntax,
+            CreateMonochromeSps(), 0, 0, 1, new H264CavlcNeighbourContext());
+
+        Assert.Equal(1, result.Intra8x8Blocks[0].CoefficientsInScanOrder[3]);
+        Assert.Equal(0, result.Intra8x8Blocks[0].CoefficientsInScanOrder[0]);
+        Assert.All(result.Intra8x8Blocks.Skip(1),
+            block => Assert.All(block.CoefficientsInScanOrder, value => Assert.Equal(0, value)));
+        Assert.Equal(0, bits.RemainingBits);
+    }
+
+    [Fact]
+    public void Read_IntraNxN8x8_ShouldRecordUncodedSubBlocksAsZero()
+    {
+        H264IntraMacroblockSyntax syntax = new(
+            true,
+            new H264IntraPredictionModeSyntax(true,
+                Enumerable.Range(0, 4)
+                    .Select(_ => new H264IntraPredictionModeEntry(true, null))
+                    .ToArray()),
+            null,
+            new H264CodedBlockPattern(0, 0, 0, 0),
+            null);
+        H264CavlcNeighbourContext neighbours = new();
+
+        H264IntraLumaResidualMacroblock result = _reader.Read(
+            CreateReader(""), CreateIntraNxNHeader(), syntax,
+            CreateMonochromeSps(), 0, 0, 1, neighbours);
+
+        Assert.Equal(4, result.Intra8x8Blocks.Count);
+        Assert.All(result.Intra8x8Blocks, block =>
+        {
+            Assert.False(block.IsCoded);
+            Assert.All(block.CoefficientsInScanOrder, coefficient => Assert.Equal(0, coefficient));
+        });
+        Assert.Equal(0, neighbours.GetPredictedNonZeroCount(1, 0, 1));
+        Assert.Equal(0, neighbours.GetPredictedNonZeroCount(0, 1, 1));
     }
 
     [Fact]
