@@ -5,6 +5,23 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// <summary>Parses the complete PPS syntax, including FMO maps and optional scaling matrices.</summary>
 public sealed class H264PictureParameterSetReader
 {
+    /// <summary>
+    /// Reads only the leading PPS and SPS identifiers. This permits callers
+    /// to resolve the SPS context before parsing optional scaling-list syntax.
+    /// </summary>
+    public (uint PictureParameterSetId, uint SequenceParameterSetId)
+        ReadParameterSetIdentifiers(H264NalUnit nalUnit)
+    {
+        ArgumentNullException.ThrowIfNull(nalUnit);
+        if (nalUnit.NalUnitType != 8)
+            throw new FormatException("The NAL unit is not a PPS.");
+
+        H264BitReader reader = new(nalUnit.Rbsp);
+        uint ppsId = ReadBoundedUe(reader, 255, "pic_parameter_set_id");
+        uint spsId = ReadBoundedUe(reader, 31, "seq_parameter_set_id");
+        return (ppsId, spsId);
+    }
+
     public H264PictureParameterSetHeader Read(
         H264NalUnit nalUnit,
         H264SequenceParameterSet? sequenceParameterSet = null)
