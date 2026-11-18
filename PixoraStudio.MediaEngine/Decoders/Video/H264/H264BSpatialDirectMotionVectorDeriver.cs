@@ -108,14 +108,10 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         return minimum == int.MaxValue ? 0 : minimum;
     }
 
-    private static bool AllReferencesAreZero(H264MotionVectorNeighbourCandidates candidates)
-    {
-        H264MotionVectorCandidate? c = candidates.AboveRight ?? candidates.AboveLeft;
-        return IsZeroOrUnavailable(candidates.Left) &&
-            IsZeroOrUnavailable(candidates.Above) &&
-            IsZeroOrUnavailable(c);
-    }
+    private static bool AllReferencesUnavailable(H264MotionVectorNeighbourCandidates candidates) =>
+        candidates.Left is null &&
+        candidates.Above is null &&
+        candidates.AboveRight is null &&
+        candidates.AboveLeft is null;
 
-    private static bool cIsUnavailable(H264MotionVectorNeighbourCandidates candidates) =>
-        candidates.AboveRight is null && candidates.AboveLeft is null;
 }
