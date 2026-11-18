@@ -278,7 +278,7 @@ public static class H264IntraPrediction
         if (hasTopRight)
         {
             for (int i = 4; i < 9; i++)
-                result[i] = i < source.Count ? source[i] : source[3];
+                result[i] = i < source.Count ? source[i] : source[^1];
         }
         else
         {
