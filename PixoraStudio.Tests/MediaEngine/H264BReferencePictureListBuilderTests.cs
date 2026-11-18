@@ -27,6 +27,24 @@ public sealed class H264BReferencePictureListBuilderTests
     }
 
     [Fact]
+    public void BuildLists_ShouldPlaceEqualPocPicturesInTheRemainingList1Group()
+    {
+        H264ReferencePicture[] references =
+        [
+            new(1, 4),
+            new(2, 10),
+            new(3, 10),
+            new(4, 12)
+        ];
+
+        H264BReferencePictureLists lists = _builder.BuildLists(
+            references, 5, 16, 10, 4, 4);
+
+        Assert.Equal(new[] { 1, 2, 3, 4 }, lists.List0.Select(picture => picture.FrameNum));
+        Assert.Equal(new[] { 4, 2, 3, 1 }, lists.List1.Select(picture => picture.FrameNum));
+    }
+
+    [Fact]
     public void BuildLists_WhenDefaultListsAreIdentical_ShouldSwapFirstTwoList1Entries()
     {
         H264ReferencePicture[] references =
