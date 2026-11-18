@@ -59,8 +59,8 @@ public sealed class H264InterResidualMacroblockReader
 
         if (header.IsIntra || header.IsSkipped || header.IsPcm)
             throw new ArgumentException("The macroblock header must describe a coded inter macroblock.", nameof(header));
-        if (transformSize8x8Flag)
-            throw new NotSupportedException("Inter transform_size_8x8_flag residual decoding is not implemented.");
+        if (transformSize8x8Flag && sps.ChromaFormatIdc is not (1 or 2))
+            throw new NotSupportedException("Inter 8x8 transform residual decoding supports 4:2:0 and 4:2:2 only.");
         if (!sps.FrameMbsOnlyFlag || sps.SeparateColourPlaneFlag ||
             sps.BitDepthLumaMinus8 != 0 || sps.BitDepthChromaMinus8 != 0 ||
             sps.ChromaFormatIdc is not (1 or 2))
@@ -92,7 +92,40 @@ public sealed class H264InterResidualMacroblockReader
         int lumaOriginX = checked(macroblockX * 4);
         int lumaOriginY = checked(macroblockY * 4);
         List<H264IntraLumaResidualBlock> lumaBlocks = new(16);
+        List<H264Intra8x8LumaResidualBlock> luma8x8Blocks = new(4);
 
+        if (transformSize8x8Flag)
+        {
+            for (int blockIndex = 0; blockIndex < 4; blockIndex++)
+            {
+                int blockX = blockIndex & 1;
+                int blockY = blockIndex >> 1;
+                bool isCoded = (codedBlockPattern.Luma & (1u << blockIndex)) != 0;
+                int[] combinedScan = new int[64];
+                for (int subBlock = 0; subBlock < 4; subBlock++)
+                {
+                    int localX = blockX * 2 + (subBlock & 1);
+                    int localY = blockY * 2 + (subBlock >> 1);
+                    int pictureX = checked(lumaOriginX + localX);
+                    int pictureY = checked(lumaOriginY + localY);
+                    H264CavlcResidualBlock subResidual;
+                    if (isCoded)
+                        subResidual = lumaNeighbours.ReadBlock(
+                            reader, pictureX, pictureY, sliceId, 16);
+                    else
+                    {
+                        subResidual = EmptyBlock(16);
+                        lumaNeighbours.RecordBlock(pictureX, pictureY, sliceId, 0);
+                    }
+                    for (int coefficient = 0; coefficient < 16; coefficient++)
+                        combinedScan[4 * coefficient + subBlock] =
+                            subResidual.Coefficients[coefficient];
+                }
+                luma8x8Blocks.Add(new H264Intra8x8LumaResidualBlock(
+                    blockX, blockY, isCoded, combinedScan));
+            }
+        }
+        else
         foreach ((int localX, int localY) in LumaBlockScan)
         {
             int group = (localX >> 1) + ((localY >> 1) << 1);
@@ -134,7 +167,11 @@ public sealed class H264InterResidualMacroblockReader
             reader, 2, crDc, codedBlockPattern.Chroma,
             chromaBlocksHigh, chromaOriginX, chromaOriginY, sliceId, chromaCrNeighbours);
 
-        return new H264InterResidualMacroblock(header.MacroblockAddress, lumaBlocks, [cb, cr]);
+        return new H264InterResidualMacroblock(header.MacroblockAddress, lumaBlocks, [cb, cr])
+        {
+            TransformSize8X8Flag = transformSize8x8Flag,
+            Luma8x8Blocks = luma8x8Blocks
+        };
     }
 
     private static H264IntraChromaResidualComponent ReadChromaComponent(
