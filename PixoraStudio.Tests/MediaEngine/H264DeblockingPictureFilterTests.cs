@@ -69,6 +69,23 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
+    public void Apply_ShouldTraverseFourTwoTwoChromaGeometry()
+    {
+        H264DecodedPictureSurface surface = Surface(1, 2, 2);
+        for (int y = 0; y < 2; y++)
+        {
+            WriteMacroblock(surface, 0, y, 0, 2);
+            surface.SetDeblockingMetadata(0, y, Metadata(0, 8, transform8x8: false));
+        }
+
+        H264DeblockingPictureFilter.Apply(surface);
+
+        Assert.True(surface.IsDeblockingFilterApplied);
+        Assert.Equal((byte)0, surface.GetChromaSample(1, 0, 15));
+        Assert.Equal((byte)0, surface.GetChromaSample(2, 7, 16));
+    }
+
+    [Fact]
     public void Apply_WithEightByEightTransform_ShouldSkipInternalFourByFourLumaEdges()
     {
         H264DecodedPictureSurface surface = Surface(1, 1, 1);
