@@ -86,6 +86,7 @@ public sealed class H264PictureParameterSetReader
         bool hasExtension = MoreRbspData(reader);
         bool transform8x8 = false, scalingPresent = false;
         List<IReadOnlyList<int>> scalingLists = [];
+        List<bool> scalingListUseDefault = [];
         int? secondChromaOffset = null;
         if (hasExtension)
         {
@@ -99,12 +100,14 @@ public sealed class H264PictureParameterSetReader
                 {
                     if (reader.ReadFlag())
                     {
-                        int[] list = ReadScalingList(reader, i < 6 ? 16 : 64);
+                        int[] list = ReadScalingList(reader, i < 6 ? 16 : 64, out bool useDefault);
                         scalingLists.Add(list);
+                        scalingListUseDefault.Add(useDefault);
                     }
                     else
                     {
                         scalingLists.Add([]);
+                        scalingListUseDefault.Add(false);
                     }
                 }
             }
@@ -135,6 +138,7 @@ public sealed class H264PictureParameterSetReader
             Transform8X8ModeFlag = transform8x8,
             PicScalingMatrixPresentFlag = scalingPresent,
             ScalingLists = scalingLists,
+            ScalingListUseDefault = scalingListUseDefault,
             SecondChromaQpIndexOffset = secondChromaOffset
         };
     }
@@ -155,14 +159,16 @@ public sealed class H264PictureParameterSetReader
         return false;
     }
 
-    private static int[] ReadScalingList(H264BitReader reader, int size)
+    private static int[] ReadScalingList(H264BitReader reader, int size, out bool useDefault)
     {
         int[] values = new int[size];
         int lastScale = 8, nextScale = 8;
+        useDefault = false;
         for (int i = 0; i < size; i++)
         {
             if (nextScale != 0)
                 nextScale = (int)(((long)lastScale + reader.ReadSignedExpGolomb() + 256) % 256);
+            if (i == 0 && nextScale == 0) useDefault = true;
             int scale = nextScale == 0 ? lastScale : nextScale;
             values[i] = scale;
             lastScale = scale;
