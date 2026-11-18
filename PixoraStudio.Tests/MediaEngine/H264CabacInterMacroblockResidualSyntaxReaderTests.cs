@@ -46,7 +46,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
     [Fact]
     public void Read_WithSmallSubPartitions_ShouldNotConsumeTransformFlag()
     {
-        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0, 1, 0 });
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0, 0 });
         H264CabacIntraMacroblockNeighbourContext neighbours = new();
         H264CabacInterMacroblockResidualSyntaxReader reader =
             new(new H264CabacSyntaxElementReader(bins), neighbours);
@@ -57,7 +57,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
 
         Assert.False(result.TransformSize8X8Flag);
         Assert.Equal(0, result.MacroblockQpDelta);
-        Assert.Equal(8, bins.ContextIndices.Count);
+        Assert.Equal(7, bins.ContextIndices.Count);
     }
 
     private static H264SequenceParameterSet Sps() =>
