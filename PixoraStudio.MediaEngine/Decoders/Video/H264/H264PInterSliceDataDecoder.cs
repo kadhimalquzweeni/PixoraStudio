@@ -3,8 +3,8 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Traverses and reconstructs CAVLC P slices containing P_L0 inter macroblocks
-/// and P_Skip runs. P-slice intra macroblocks, CABAC, FMO, field coding,
+/// Traverses and reconstructs CAVLC P slices containing P_L0 inter macroblocks,
+/// P_Skip runs and supported intra/PCM macroblocks. CABAC, FMO, field coding,
 /// separate planes and unsupported chroma/bit-depth modes are rejected.
 /// The caller supplies the active, already-modified RefPicList0 surfaces.
 /// </summary>
