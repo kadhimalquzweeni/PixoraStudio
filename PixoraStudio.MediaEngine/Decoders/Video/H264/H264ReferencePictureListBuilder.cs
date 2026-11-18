@@ -35,10 +35,12 @@ public sealed class H264ReferencePictureListBuilder
 
         List<(H264ReferencePicture Picture, int PicNum)> shortTerm = pictures
             .Where(picture => !picture.IsLongTerm)
-            .Select(picture => (picture, picture.FrameNum > CurrentPicNum
-                ? picture.FrameNum - MaxPicNum
-                : picture.FrameNum))
-            .OrderByDescending(item => item.Item2)
+            .Select(picture => (
+                Picture: picture,
+                PicNum: picture.FrameNum > CurrentPicNum
+                    ? picture.FrameNum - MaxPicNum
+                    : picture.FrameNum))
+            .OrderByDescending(item => item.PicNum)
             .ToList();
 
         List<H264ReferencePicture> longTerm = pictures
