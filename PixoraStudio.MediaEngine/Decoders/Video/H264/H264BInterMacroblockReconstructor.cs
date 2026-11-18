@@ -126,7 +126,8 @@ public sealed class H264BInterMacroblockReconstructor
         int currentPictureOrderCount,
         bool directSpatialPrediction,
         H264SequenceParameterSet sps,
-        H264PictureParameterSetHeader pps)
+        H264PictureParameterSetHeader pps,
+        H264PredictionWeightTable? predictionWeights = null)
     {
         ArgumentNullException.ThrowIfNull(header);
         ValidateContext(destination, macroblockX, macroblockY, sliceId, currentQpY, sps, pps);
@@ -136,6 +137,8 @@ public sealed class H264BInterMacroblockReconstructor
             throw new FormatException("The B_Skip header address does not match its picture coordinates.");
         if (!directSpatialPrediction)
             throw new NotSupportedException("Temporal B_Skip prediction requires collocated-picture motion metadata.");
+        if (pps.WeightedBipredIdc == 1 && predictionWeights is null)
+            throw new ArgumentNullException(nameof(predictionWeights));
         if (destination.IsMacroblockDecoded(macroblockX, macroblockY))
             throw new InvalidOperationException("The destination macroblock has already been decoded.");
 
@@ -155,7 +158,7 @@ public sealed class H264BInterMacroblockReconstructor
             _predictionDecoder.DecodeAndPredict(
                 partitions, referenceList0, referenceList1, referencePictureLists,
                 sps.ChromaFormatIdc, currentPictureOrderCount,
-                pps.WeightedBipredIdc);
+                pps.WeightedBipredIdc, predictionWeights);
         H264MotionCompensatedBlock prediction =
             H264BInterMacroblockPredictionDecoder.Assemble(predictions, sps.ChromaFormatIdc);
         destination.WriteMacroblock(
