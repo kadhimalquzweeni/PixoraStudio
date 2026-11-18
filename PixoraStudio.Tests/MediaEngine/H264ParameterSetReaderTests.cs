@@ -462,15 +462,16 @@ public sealed class H264ParameterSetReaderTests
 
         public byte[] ToArray(bool appendTrailingBits = true)
         {
+            List<bool> outputBits = [.. _bits];
             if (appendTrailingBits)
             {
-                _bits.Add(true); // rbsp_stop_one_bit
-                while (_bits.Count % 8 != 0) _bits.Add(false);
+                outputBits.Add(true); // rbsp_stop_one_bit
+                while (outputBits.Count % 8 != 0) outputBits.Add(false);
             }
 
-            byte[] result = new byte[(_bits.Count + 7) / 8];
-            for (int i = 0; i < _bits.Count; i++)
-                if (_bits[i]) result[i / 8] |= (byte)(1 << (7 - (i % 8)));
+            byte[] result = new byte[(outputBits.Count + 7) / 8];
+            for (int i = 0; i < outputBits.Count; i++)
+                if (outputBits[i]) result[i / 8] |= (byte)(1 << (7 - (i % 8)));
             return result;
         }
     }
