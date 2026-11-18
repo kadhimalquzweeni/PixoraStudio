@@ -11,6 +11,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
 {
     private readonly H264MotionVectorPredictor _predictor;
     private readonly H264BSpatialDirectMotionVectorDeriver _directDeriver;
+    private readonly H264BTemporalDirectMotionVectorDeriver _temporalDeriver = new();
 
     public H264BInterMacroblockMotionVectorReconstructor()
         : this(new H264MotionVectorPredictor(), new H264BSpatialDirectMotionVectorDeriver())
@@ -42,7 +43,8 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
         int activeReferenceCountL0,
         int activeReferenceCountL1,
         bool directSpatialPrediction = false,
-        bool direct8x8InferenceFlag = true)
+        bool direct8x8InferenceFlag = true,
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? temporalContextProvider = null)
     {
         ArgumentNullException.ThrowIfNull(syntax);
         ArgumentNullException.ThrowIfNull(motionVectorStateL0);
@@ -95,13 +97,44 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
                         partition.ReferenceIndexL0 is not null ||
                         partition.ReferenceIndexL1 is not null)
                         throw new FormatException("Direct B sub-partitions must belong to a direct parent partition and carry no explicit reference indices.");
-                    if (!directSpatialPrediction)
-                        throw new NotSupportedException("Temporal direct prediction requires collocated-picture motion metadata; spatial direct was not selected.");
-                    result.AddRange(_directDeriver.Derive(
-                        motionVectorStateL0, motionVectorStateL1,
-                        macroblockX, macroblockY,
-                        sub.X / 4, sub.Y / 4, sub.Width / 4, sub.Height / 4,
-                        partitionIndex, sliceId, direct8x8InferenceFlag));
+                    if (directSpatialPrediction)
+                    {
+                        result.AddRange(_directDeriver.Derive(
+                            motionVectorStateL0, motionVectorStateL1,
+                            macroblockX, macroblockY,
+                            sub.X / 4, sub.Y / 4, sub.Width / 4, sub.Height / 4,
+                            partitionIndex, sliceId, direct8x8InferenceFlag));
+                    }
+                    else
+                    {
+                        if (temporalContextProvider is null)
+                            throw new NotSupportedException("Temporal direct prediction requires a collocated-picture metadata provider.");
+                        int originX = checked(macroblockBlockX + sub.X / 4);
+                        int originY = checked(macroblockBlockY + sub.Y / 4);
+                        int regionWidth = sub.Width / 4;
+                        int regionHeight = sub.Height / 4;
+                        int step = direct8x8InferenceFlag ? 2 : 1;
+                        int temporalSubIndex = 0;
+                        for (int offsetY = 0; offsetY < regionHeight; offsetY += step)
+                        for (int offsetX = 0; offsetX < regionWidth; offsetX += step)
+                        {
+                            int x = originX + offsetX;
+                            int y = originY + offsetY;
+                            H264TemporalDirectPredictionContext? context =
+                                temporalContextProvider(x, y, step, step);
+                            H264TemporalDirectMotionVectorResult vectors = context is null
+                                ? new H264TemporalDirectMotionVectorResult(
+                                    new H264MotionVector(0, 0), new H264MotionVector(0, 0), 256)
+                                : _temporalDeriver.Derive(context);
+                            motionVectorStateL0.RecordInterPartition(
+                                x, y, step, step, sliceId, 0, vectors.MotionVectorL0);
+                            motionVectorStateL1.RecordInterPartition(
+                                x, y, step, step, sliceId, 0, vectors.MotionVectorL1);
+                            result.Add(new H264ReconstructedBInterSubPartition(
+                                partitionIndex, temporalSubIndex++, x, y, step, step,
+                                0, 0, vectors.MotionVectorL0, vectors.MotionVectorL1));
+                        }
+                    }
                     continue;
                 }
                 if (partition.Direction == H264BPredictionDirection.Direct ||
