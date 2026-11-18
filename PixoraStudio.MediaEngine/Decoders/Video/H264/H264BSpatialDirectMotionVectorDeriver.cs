@@ -73,8 +73,12 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
 
             int referenceIndex0 = MinimumReferenceIndex(candidates0);
             int referenceIndex1 = MinimumReferenceIndex(candidates1);
-            bool directZeroPrediction = AllReferencesUnavailable(candidates0) &&
-                AllReferencesUnavailable(candidates1);
+            bool directZeroPrediction = referenceIndex0 < 0 && referenceIndex1 < 0;
+            if (directZeroPrediction)
+            {
+                referenceIndex0 = 0;
+                referenceIndex1 = 0;
+            }
 
             bool colZeroFlag = colZeroFlagProvider?.Invoke(regionX, regionY, step, step) ?? false;
             H264MotionVector vector0 = directZeroPrediction ||
@@ -109,13 +113,8 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         if (candidates.Left is { } left) minimum = Math.Min(minimum, left.ReferenceIndex);
         if (candidates.Above is { } above) minimum = Math.Min(minimum, above.ReferenceIndex);
         if (c is { } aboveCandidate) minimum = Math.Min(minimum, aboveCandidate.ReferenceIndex);
-        return minimum == int.MaxValue ? 0 : minimum;
+        return minimum == int.MaxValue ? -1 : minimum;
     }
 
-    private static bool AllReferencesUnavailable(H264MotionVectorNeighbourCandidates candidates) =>
-        candidates.Left is null &&
-        candidates.Above is null &&
-        candidates.AboveRight is null &&
-        candidates.AboveLeft is null;
 
 }
