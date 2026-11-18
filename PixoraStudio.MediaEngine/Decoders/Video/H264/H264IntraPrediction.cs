@@ -250,11 +250,11 @@ public static class H264IntraPrediction
 
     private static void RequireReferences(uint mode, bool hasTop, bool hasLeft, bool hasTopLeft)
     {
-        if (mode is 0 or 3 or 7 && !hasTop)
+        if ((mode is 0 or 3 or 7) && !hasTop)
             throw new FormatException("The selected Intra4x4 mode requires top reference samples.");
-        if (mode is 1 or 8 && !hasLeft)
+        if ((mode is 1 or 8) && !hasLeft)
             throw new FormatException("The selected Intra4x4 mode requires left reference samples.");
-        if (mode is 4 or 5 or 6 && (!hasTop || !hasLeft || !hasTopLeft))
+        if ((mode is 4 or 5 or 6) && (!hasTop || !hasLeft || !hasTopLeft))
             throw new FormatException("The selected directional Intra4x4 mode requires top, left and top-left samples.");
     }
 
