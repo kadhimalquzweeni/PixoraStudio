@@ -82,6 +82,15 @@ public sealed class H264DecodedPictureSurface
         return _deblockingMetadata[GetMacroblockIndex(macroblockX, macroblockY)]?.Clone();
     }
 
+    internal H264DeblockingMacroblockMetadata GetDeblockingMetadataForFiltering(
+        int macroblockX,
+        int macroblockY)
+    {
+        ValidateMacroblock(macroblockX, macroblockY);
+        return _deblockingMetadata[GetMacroblockIndex(macroblockX, macroblockY)] ??
+            throw new InvalidOperationException("Deblocking metadata is missing for the requested macroblock.");
+    }
+
     internal Span<byte> GetLumaPlaneSpan() => _luma;
     internal int GetMacroblockSliceId(int x, int y)
     {
