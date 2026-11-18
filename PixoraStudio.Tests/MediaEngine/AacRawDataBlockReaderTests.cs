@@ -69,7 +69,7 @@ public sealed class AacRawDataBlockReaderTests
     }
 
     [Fact]
-    public void ReadSingleChannelElement_ShouldRejectNonZeroAccessUnitPadding()
+    public void ReadSingleChannelElement_ShouldAcceptNonZeroAccessUnitPadding()
     {
         byte[] accessUnit = BuildBitsWithTrailingPadding(
             1,
@@ -79,13 +79,10 @@ public sealed class AacRawDataBlockReaderTests
             (0, 1), (0, 1), (0, 1),
             (7, 3));
 
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            new AacRawDataBlockReader()
-                .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4));
+        AacSingleChannelElement result = new AacRawDataBlockReader()
+            .ReadSingleChannelElement(accessUnit, samplingFrequencyIndex: 4);
 
-        Assert.Equal(
-            "AAC raw_data_block access-unit padding bits must be zero.",
-            exception.Message);
+        Assert.Equal(5, result.ElementInstanceTag);
     }
 
     [Fact]
