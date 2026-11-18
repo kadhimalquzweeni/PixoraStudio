@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using PixoraStudio.Core.Interfaces;
@@ -293,9 +293,10 @@ public partial class VideoEditorViewModel : ObservableObject
             return;
         }
 
-        if (TrimEnd <= TrimStart)
+        if (TotalMilliseconds <= 0 || TrimEnd <= TrimStart)
         {
-            ErrorMessage = "The trim end must be after the trim start.";
+            ErrorMessage = "Video metadata is not ready. Please wait for the duration and timeline to load before exporting.";
+            ExportStatus = "Export unavailable: video duration is unknown.";
             return;
         }
 
