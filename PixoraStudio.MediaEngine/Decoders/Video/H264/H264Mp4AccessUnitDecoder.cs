@@ -57,8 +57,10 @@ public sealed class H264Mp4AccessUnitDecoder
             throw new InvalidOperationException("One decoder instance cannot switch MP4 tracks.");
         if (_timescale is uint activeTimescale && activeTimescale != sample.Timescale)
             throw new FormatException("The MP4 track timescale changed during decoding.");
-        if (_lastSampleNumber is uint previousSample && sample.SampleNumber <= previousSample)
-            throw new FormatException("MP4 AVC samples must be supplied in increasing decode order.");
+        if (_lastSampleNumber is uint previousSample &&
+            (previousSample == uint.MaxValue || sample.SampleNumber != previousSample + 1))
+            throw new FormatException(
+                "MP4 AVC samples must be supplied contiguously in decode order; reset before seeking.");
         if (_lastDecodeTimeTicks is ulong previousDecodeTime &&
             sample.DecodeTimeTicks < previousDecodeTime)
             throw new FormatException("MP4 AVC sample decode timestamps must be non-decreasing.");
