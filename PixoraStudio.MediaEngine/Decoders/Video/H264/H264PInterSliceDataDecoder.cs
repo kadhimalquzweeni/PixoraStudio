@@ -70,11 +70,16 @@ public sealed class H264PInterSliceDataDecoder
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(pps);
         ArgumentNullException.ThrowIfNull(decodedPictureBuffer);
+        if (sliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(sliceId));
+        ValidateConfiguration(sps, pps);
 
         H264SliceHeader slice = new H264SliceHeaderReader().Read(
             new H264BitReader(nalUnit.Rbsp), nalUnit, sps, pps);
         if (slice.SliceType != H264SliceType.P)
             throw new NotSupportedException("This decoder accepts P slices only.");
+        if (slice.FieldPicFlag || slice.ColourPlaneId != 0 || slice.RedundantPicCnt is > 0)
+            throw new NotSupportedException("Field, separate-plane and redundant P slices are not supported.");
 
         int maxFrameNum = 1 << checked((int)sps.Log2MaxFrameNumMinus4 + 4);
         int activeCount = checked((int)(slice.NumRefIdxL0ActiveMinus1 + 1));
