@@ -86,6 +86,9 @@ public sealed class H264DecodedPictureOutputScheduler
         H264PictureOrderCount pictureOrderCount,
         int maxNumReorderFrames)
     {
+        if (surface.HasCompleteDeblockingMetadata && !surface.IsDeblockingFilterApplied)
+            H264DeblockingPictureFilter.Apply(surface);
+
         IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
         if (slice.IdrPicId.HasValue)
         {
