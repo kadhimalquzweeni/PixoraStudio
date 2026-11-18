@@ -123,6 +123,7 @@ public sealed class H264AvcDecoderConfigurationReader
             ReadOnlySpan<byte> bytes = data.Slice(position, length);
             byte header = bytes[0];
             H264NalUnit unit = new(header, bytes[1..]);
+            _ = unit.Rbsp; // Validate EBSP even when callers only inspect configuration metadata.
             if (unit.NalUnitType != expectedNalType)
                 throw new FormatException(
                     $"The avcC {description} array contains NAL unit type {unit.NalUnitType}, expected {expectedNalType}.");
