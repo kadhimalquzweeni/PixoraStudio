@@ -458,8 +458,6 @@ public sealed class H264BInterMacroblockReconstructor
             throw new ArgumentOutOfRangeException(nameof(sliceId));
         if (qpY is < 0 or > 51)
             throw new ArgumentOutOfRangeException(nameof(qpY));
-        if (pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("CABAC B-slice reconstruction is not implemented.");
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
         if (!sps.FrameMbsOnlyFlag || sps.SeparateColourPlaneFlag ||
