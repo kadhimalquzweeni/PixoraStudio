@@ -137,7 +137,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReaderTests
         Assert.Equal((uint)0, result.CodedBlockPattern.Chroma);
         Assert.Equal(new[] { 4 }, binReader.ContextIndices.Take(1));
         Assert.Equal(65, binReader.ContextIndices[17]);
-        Assert.Equal(new[] { 75, 76, 75, 76, 78, 61 },
+        Assert.Equal(new[] { 75, 75, 73, 76, 78, 61 },
             binReader.ContextIndices.Skip(18));
     }
 
