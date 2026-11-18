@@ -51,7 +51,7 @@ public sealed class H264Intra4x4MacroblockLumaReconstructorTests
 
         Assert.Throws<FormatException>(() => reconstructor.Reconstruct(
             0, 0, 0, new byte[16], new byte[16], 0,
-            false, false, false, CreateModes(0), CreateResiduals(),
+            false, false, false, CreateModes(0, false), CreateResiduals(),
             new H264Intra4x4PredictionContext(), 24, CreateSps(), CreatePps()));
     }
 
@@ -73,9 +73,9 @@ public sealed class H264Intra4x4MacroblockLumaReconstructorTests
             CreateResiduals(), context, 24, CreateSps(), CreatePps()));
     }
 
-    private static H264IntraPredictionModeSyntax CreateModes(uint remainder = 1) =>
+    private static H264IntraPredictionModeSyntax CreateModes(uint remainder = 1, bool previousModeFlag = true) =>
         new(false, Enumerable.Range(0, 16)
-            .Select(_ => new H264IntraPredictionModeEntry(false, remainder)).ToArray());
+            .Select(_ => new H264IntraPredictionModeEntry(previousModeFlag, remainder)).ToArray());
 
     private static H264IntraLumaResidualBlock[] CreateResiduals()
     {
