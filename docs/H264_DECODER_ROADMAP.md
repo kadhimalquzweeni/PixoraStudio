@@ -18,12 +18,12 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Bitstream validation | SPS/PPS readers validate RBSP trailing bits; signed Exp-Golomb decoding covers the full representable Int32 range |
 | Motion-vector arithmetic | Predictor-plus-MVD uses widened intermediates before normative signed 16-bit clipping |
 | Output scheduling | Surface/deblocking preflight occurs before the stateful POC calculator advances |
-| MP4 AVC ingestion | avcC parsing extracts SPS/PPS NAL units, validates record fields and PPS-to-SPS links, and reads length-prefixed AVC sample NAL units |
+| MP4 AVC ingestion | avcC parsing extracts SPS/PPS NAL units and validates PPS-to-SPS links; MP4 track sample parsing resolves sample descriptions, splits length-prefixed NAL units and preserves DTS/PTS/duration/sync metadata |
 | Automated tests | Regression tests cover the above cases; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
 
-**Still unsupported:** CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces. The deblocking filter is implemented for the supported frame-coded 8-bit 4:2:0/4:2:2 subset, and reference insertion/presentation now require complete metadata and filtered samples; comprehensive real-stream conformance validation remains outstanding. MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are also not yet connected.
+**Still unsupported:** CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces. The deblocking filter is implemented for the supported frame-coded 8-bit 4:2:0/4:2:2 subset, and reference insertion/presentation now require complete metadata and filtered samples; comprehensive real-stream conformance validation remains outstanding. MP4 AVC samples now retain decode and presentation timestamps through NAL extraction, but POC-to-container output scheduling, field pairing, seeking and end-to-end playback integration are not yet connected.
 
 The detailed bullets below record implementation history; where they say a feature remains outstanding, this current-status section takes precedence.
 
