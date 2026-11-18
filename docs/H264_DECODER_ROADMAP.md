@@ -8,7 +8,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 |---|---|
 | Slice traversal | Frame-coded CAVLC I, P and B paths are implemented for the supported subset |
 | P macroblocks | P_L0 partitions, P_8x8 sub-macroblocks, P_Skip, I_NxN, I_16x16 and I_PCM |
-| B macroblocks | B inter types 0–22, B_8x8 sub-macroblocks, B_Skip, spatial direct, I_NxN, I_16x16 and I_PCM |
+| B macroblocks | B inter types 0–22, B_8x8 sub-macroblocks, B_Skip, spatial and temporal direct (temporal metadata supplied through a caller callback), I_NxN, I_16x16 and I_PCM |
 | Motion compensation | List 0 and list 1; luma fractional interpolation and 4:2:0/4:2:2 chroma interpolation |
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
@@ -18,7 +18,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
 
-**Still unsupported:** temporal direct prediction (including B_Skip when temporal direct is selected), CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces, but MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are not yet connected.
+**Still unsupported:** automatic extraction/storage of collocated motion metadata from DPB reference pictures (temporal direct is available when the caller supplies that metadata), CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces, but MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are not yet connected.
 
 The detailed bullets below record implementation history; where they say a feature remains outstanding, this current-status section takes precedence.
 
@@ -83,3 +83,5 @@ The roadmap is complete only when the implemented feature set is backed by autom
 - Inter `transform_size_8x8_flag` is now retained instead of rejected. The CAVLC inter residual reader decodes each coded 8x8 luma transform as four ordered 4x4 coefficient lists and interleaves them into the 64-level scan sequence; uncoded 8x8 regions still update all four neighbour TotalCoeff entries. Inter residual reconstruction applies the 8x8 inverse quantiser/transform with the inter 8x8 scaling matrix and writes the reconstructed block into its macroblock region. Both P and B macroblock orchestrators now pass the parsed transform flag through this path.
 
 - A decoded-picture output scheduler now connects the stateful POC calculator to the presentation-order queue. It reads `max_num_reorder_frames` from VUI bitstream restrictions, validates it against `max_dec_frame_buffering`, accepts an explicit fallback when VUI does not signal the restriction, and applies IDR `no_output_of_prior_pics_flag` by flushing or discarding prior pending pictures before queuing the IDR frame. The queue still operates on decoded frame surfaces; MP4 sample timestamps, field pairing and end-to-end playback integration remain container responsibilities.
+
+- Temporal direct motion-vector distance scaling is implemented, including `td`/`tb` clipping, distance-scale clipping, long-term collocated-reference handling, zero-vector fallback when the collocated reference is unavailable, and L0/L1 vector derivation. The B motion-vector reconstructor, B macroblock reconstruction (including B_Skip), and B-slice traversal now accept a region-based collocated-metadata provider. Automatic collocated motion-field persistence in the DPB is still required before the playback pipeline can provide this callback without external assistance.
