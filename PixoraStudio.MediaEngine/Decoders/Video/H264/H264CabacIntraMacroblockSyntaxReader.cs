@@ -23,7 +23,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         return ReadCore(
             reader, macroblockHeader, sequenceParameterSet, pictureParameterSet,
             chromaPredictionContextIncrement, lumaCbpContextIncrements,
-            chromaCbpContextIncrements, qpDeltaContextIncrement, null);
+            chromaCbpContextIncrements, qpDeltaContextIncrement, 0, null);
     }
 
     /// <summary>
@@ -64,6 +64,8 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
 
         int qpDeltaIncrement = neighbourContext.GetQpDeltaContextIncrement(
             previousMacroblockAddress, sliceId);
+        int transformSizeContextIncrement = neighbourContext.GetTransformSize8x8ContextIncrement(
+            macroblockX, macroblockY, sliceId);
         Func<int, uint, int>? lumaCbpContextProvider = null;
         if (!macroblockHeader.IsIntra16x16)
         {
@@ -75,7 +77,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         return ReadCore(
             reader, macroblockHeader, sequenceParameterSet, pictureParameterSet,
             chromaPredictionIncrement, null, chromaCbpIncrements,
-            qpDeltaIncrement, lumaCbpContextProvider);
+            qpDeltaIncrement, transformSizeContextIncrement, lumaCbpContextProvider);
     }
 
     private H264IntraMacroblockSyntax ReadCore(
@@ -87,6 +89,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         IReadOnlyList<int>? lumaCbpContextIncrements,
         IReadOnlyList<int>? chromaCbpContextIncrements,
         int qpDeltaContextIncrement,
+        int transformSizeContextIncrement,
         Func<int, uint, int>? lumaCbpContextProvider)
     {
         ArgumentNullException.ThrowIfNull(reader);
@@ -134,8 +137,10 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
 
         if (chromaArrayType != 0 && (chromaPredictionContextIncrement is < 0 or > 2))
             throw new ArgumentOutOfRangeException(nameof(chromaPredictionContextIncrement));
-        if (qpDeltaContextIncrement is < 0 or > 2)
+        if (qpDeltaContextIncrement is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(qpDeltaContextIncrement));
+        if (transformSizeContextIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(transformSizeContextIncrement));
         uint intra16LumaCbp = 0;
         uint intra16ChromaCbp = 0;
         if (macroblockHeader.IsIntra16x16)
@@ -153,7 +158,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         if (isIntraNxN)
         {
             if (pictureParameterSet.Transform8X8ModeFlag)
-                transform8X8 = reader.ReadTransformSize8x8Flag();
+                transform8X8 = reader.ReadTransformSize8x8Flag(transformSizeContextIncrement);
 
             predictionModes = _predictionModeReader.Read(
                 reader, transform8X8 == true);
