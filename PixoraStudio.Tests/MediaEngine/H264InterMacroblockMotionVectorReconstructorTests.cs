@@ -101,10 +101,10 @@ public sealed class H264InterMacroblockMotionVectorReconstructorTests
     }
 
     [Theory]
-    [InlineData(0, 4)]
-    [InlineData(1, 8)]
-    [InlineData(2, 8)]
-    [InlineData(3, 16)]
+    [InlineData(0u, 4)]
+    [InlineData(1u, 8)]
+    [InlineData(2u, 8)]
+    [InlineData(3u, 16)]
     public void Reconstruct_P8x8_ShouldSupportEverySubMacroblockShape(
         uint subMacroblockType, int expectedSubPartitionCount)
     {
