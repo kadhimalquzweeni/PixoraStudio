@@ -109,6 +109,27 @@ public sealed class H264BitReaderTests
     }
 
     [Fact]
+    public void ConsumeRbspTrailingBitsAndZeroPadding_ShouldAcceptCompleteZeroBytesAfterTrailingBits()
+    {
+        H264BitReader reader = new(new byte[] { 0b1000_0000, 0x00 });
+
+        reader.ConsumeRbspTrailingBitsAndZeroPadding();
+
+        Assert.Equal(0, reader.RemainingBits);
+    }
+
+    [Fact]
+    public void ConsumeRbspTrailingBitsAndZeroPadding_ShouldRejectNonZeroPadding()
+    {
+        H264BitReader reader = new(new byte[] { 0b1000_0000, 0x01 });
+
+        FormatException exception = Assert.Throws<FormatException>(
+            () => reader.ConsumeRbspTrailingBitsAndZeroPadding());
+
+        Assert.Contains("Trailing SPS padding bytes must be zero", exception.Message);
+    }
+
+    [Fact]
     public void ReadBits_ShouldRejectTruncatedInput()
     {
         H264BitReader reader = new(new byte[] { 0x80 }, 1);
