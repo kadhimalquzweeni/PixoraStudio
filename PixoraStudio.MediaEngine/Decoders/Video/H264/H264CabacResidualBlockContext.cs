@@ -30,13 +30,13 @@ public static class H264CabacResidualBlockContext
     {
         return contextBlockCategory switch
         {
-            0 => CreateLinear(16, 105, 166, 227, 0),
-            1 => CreateLinear(15, 120, 181, 237, 0),
-            2 => CreateLinear(16, 134, 195, 247, 0),
-            3 => CreateLinear(4, 149, 210, 257, 0),
-            4 => CreateLinear(15, 152, 213, 266, 0),
+            0 => CreateLinear(0, 16, 85, 105, 166, 227),
+            1 => CreateLinear(1, 15, 89, 120, 181, 237),
+            2 => CreateLinear(2, 16, 93, 134, 195, 247),
+            3 => CreateLinear(3, 4, 97, 149, 210, 257),
+            4 => CreateLinear(4, 15, 101, 152, 213, 266),
             5 => new H264CabacResidualBlockContextMap(
-                64, 0, 402, 417, 426,
+                64, 0, null, 402, 417, 426,
                 Significant8X8.ToArray(), LastSignificant8X8.ToArray(), true),
             _ => throw new ArgumentOutOfRangeException(nameof(contextBlockCategory),
                 "Only frame-coded residual categories 0..5 are supported.")
@@ -44,7 +44,9 @@ public static class H264CabacResidualBlockContext
     }
 
     private static H264CabacResidualBlockContextMap CreateLinear(
+        int category,
         int maximumCoefficients,
+        int codedBlockFlagOffset,
         int significantOffset,
         int lastSignificantOffset,
         int absoluteLevelOffset,
@@ -53,8 +55,8 @@ public static class H264CabacResidualBlockContext
         int mapLength = maximumCoefficients - 1 - startIndex;
         int[] increments = Enumerable.Range(startIndex, mapLength).ToArray();
         return new H264CabacResidualBlockContextMap(
-            maximumCoefficients, startIndex,
-            significantOffset, lastSignificantOffset, absoluteLevelOffset,
+            maximumCoefficients, startIndex, category,
+            codedBlockFlagOffset, significantOffset, lastSignificantOffset, absoluteLevelOffset,
             increments, increments.ToArray(), false);
     }
 }
@@ -63,6 +65,8 @@ public static class H264CabacResidualBlockContext
 public sealed record H264CabacResidualBlockContextMap(
     int MaximumCoefficients,
     int StartIndex,
+    int ContextBlockCategory,
+    int? CodedBlockFlagContextOffset,
     int SignificantContextOffset,
     int LastSignificantContextOffset,
     int AbsoluteLevelContextOffset,
