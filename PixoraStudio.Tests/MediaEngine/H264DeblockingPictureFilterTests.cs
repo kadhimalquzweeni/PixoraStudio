@@ -8,7 +8,7 @@ public sealed class H264DeblockingPictureFilterTests
     [Fact]
     public void Apply_ShouldRequireCompletePictureAndDeblockingMetadata()
     {
-        H264DecodedPictureSurface surface = Surface(2, 1, 1);
+        H264DecodedPictureSurface surface = Surface(1, 0, 1);
 
         Assert.Throws<InvalidOperationException>(() =>
             H264DeblockingPictureFilter.Apply(surface));
@@ -88,7 +88,7 @@ public sealed class H264DeblockingPictureFilterTests
     [Fact]
     public void Apply_WithEightByEightTransform_ShouldSkipInternalFourByFourLumaEdges()
     {
-        H264DecodedPictureSurface surface = Surface(1, 1, 1);
+        H264DecodedPictureSurface surface = Surface(0, 0, 1);
         byte[] luma = Enumerable.Repeat((byte)100, 256).ToArray();
         for (int y = 0; y < 16; y++)
         {
@@ -116,7 +116,7 @@ public sealed class H264DeblockingPictureFilterTests
         int leftDisableIdc,
         int rightDisableIdc)
     {
-        H264DecodedPictureSurface surface = Surface(2, 1, 1);
+        H264DecodedPictureSurface surface = Surface(1, 0, 1);
         byte[] left = Enumerable.Repeat((byte)100, 256).ToArray();
         byte[] right = Enumerable.Repeat((byte)100, 256).ToArray();
         for (int y = 0; y < 16; y++)
