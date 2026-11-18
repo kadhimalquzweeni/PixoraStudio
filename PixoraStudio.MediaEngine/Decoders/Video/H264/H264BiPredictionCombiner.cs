@@ -174,11 +174,16 @@ public static class H264BiPredictionCombiner
         ArgumentNullException.ThrowIfNull(p1);
         if (chromaFormatIdc is not (1 or 2))
             throw new NotSupportedException("B bi-prediction supports 4:2:0 and 4:2:2 only.");
-        if (p0.LumaWidth != p1.LumaWidth || p0.LumaHeight != p1.LumaHeight ||
+        if (p0.LumaWidth <= 0 || p0.LumaHeight <= 0 ||
+            p0.ChromaWidth <= 0 || p0.ChromaHeight <= 0 ||
+            p0.Luma.Count != checked(p0.LumaWidth * p0.LumaHeight) ||
+            p0.Cb.Count != checked(p0.ChromaWidth * p0.ChromaHeight) ||
+            p0.Cr.Count != p0.Cb.Count ||
+            p0.LumaWidth != p1.LumaWidth || p0.LumaHeight != p1.LumaHeight ||
             p0.ChromaWidth != p1.ChromaWidth || p0.ChromaHeight != p1.ChromaHeight ||
             p0.Luma.Count != p1.Luma.Count || p0.Cb.Count != p1.Cb.Count ||
-            p0.Cr.Count != p1.Cr.Count || p0.Cb.Count != p0.Cr.Count)
-            throw new ArgumentException("List-0 and list-1 prediction planes must have identical geometry.");
+            p0.Cr.Count != p1.Cr.Count)
+            throw new ArgumentException("List-0 and list-1 prediction planes must have identical, internally consistent geometry.");
     }
 
     private static int Clip(int value, int minimum, int maximum) =>
