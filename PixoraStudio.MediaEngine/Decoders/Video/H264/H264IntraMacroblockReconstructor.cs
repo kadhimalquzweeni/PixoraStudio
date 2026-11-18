@@ -17,6 +17,14 @@ public sealed class H264IntraMacroblockReconstructor
     private readonly H264Intra8x8PredictionContext _intra8x8Modes = new();
     private readonly H264Intra4x4MacroblockLumaReconstructor _intra4x4Luma = new();
     private readonly H264Intra8x8MacroblockLumaReconstructor _intra8x8Luma = new();
+    private H264DeblockingSliceParameters _deblockingParameters = new(0, 0, 0);
+
+    public void SetDeblockingSliceParameters(H264DeblockingSliceParameters parameters)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+        parameters.Validate();
+        _deblockingParameters = parameters;
+    }
 
     public H264IntraMacroblockReconstructor(H264DecodedPictureSurface surface)
     {
@@ -98,6 +106,7 @@ public sealed class H264IntraMacroblockReconstructor
 
         _surface.WriteIntraMacroblock(macroblockX, macroblockY, sliceId, luma, cb, cr);
         RecordIntra16x16Modes(macroblockX, macroblockY, sliceId);
+        AttachIntraDeblockingMetadata(macroblockX, macroblockY, qpY, false, sps, pps);
     }
 
     /// <summary>
@@ -163,6 +172,7 @@ public sealed class H264IntraMacroblockReconstructor
 
         _surface.WriteIntraMacroblock(macroblockX, macroblockY, sliceId, luma, cb, cr);
         RecordIntra4x4MacroblockModesAs8x8(macroblockX, macroblockY, sliceId);
+        AttachIntraDeblockingMetadata(macroblockX, macroblockY, qpY, false, sps, pps);
     }
 
     /// <summary>
@@ -235,6 +245,7 @@ public sealed class H264IntraMacroblockReconstructor
         byte[] cr = ReconstructChroma(2, macroblockX, macroblockY, sliceId,
             syntax.IntraChromaPredictionMode.Value, residual, qpY, sps, pps);
         _surface.WriteIntraMacroblock(macroblockX, macroblockY, sliceId, luma, cb, cr);
+        AttachIntraDeblockingMetadata(macroblockX, macroblockY, qpY, true, sps, pps);
     }
 
     /// <summary>
@@ -249,7 +260,8 @@ public sealed class H264IntraMacroblockReconstructor
         int macroblockY,
         int sliceId,
         H264SequenceParameterSet sps,
-        H264PictureParameterSetHeader pps)
+        H264PictureParameterSetHeader pps,
+        int? qpY = null)
     {
         ArgumentNullException.ThrowIfNull(header);
         ArgumentNullException.ThrowIfNull(pcm);
@@ -290,6 +302,8 @@ public sealed class H264IntraMacroblockReconstructor
         _surface.WriteMacroblock(macroblockX, macroblockY, sliceId, true,
             pcm.LumaSamples, pcm.CbSamples, pcm.CrSamples);
         RecordIntra16x16Modes(macroblockX, macroblockY, sliceId);
+        if (qpY.HasValue)
+            AttachIntraDeblockingMetadata(macroblockX, macroblockY, qpY.Value, false, sps, pps);
     }
 
     /// <summary>Clears neighbour-derived mode state at a new picture boundary.</summary>
@@ -297,6 +311,33 @@ public sealed class H264IntraMacroblockReconstructor
     {
         _intra4x4Modes.Reset();
         _intra8x8Modes.Reset();
+    }
+
+    private void AttachIntraDeblockingMetadata(
+        int macroblockX,
+        int macroblockY,
+        int qpY,
+        bool transformSize8x8Flag,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps)
+    {
+        int qpCb = H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(
+            qpY, 1, sps, pps);
+        int qpCr = H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(
+            qpY, 2, sps, pps);
+        H264DeblockingBlockMetadata intraBlock =
+            new(true, false, null, null, null, null);
+        int chromaBlockCount = sps.ChromaFormatIdc == 1 ? 4 : 8;
+        _surface.SetDeblockingMetadata(macroblockX, macroblockY,
+            new H264DeblockingMacroblockMetadata(
+                qpY, qpCb, qpCr,
+                _deblockingParameters.DisableDeblockingFilterIdc,
+                _deblockingParameters.AlphaOffsetDiv2,
+                _deblockingParameters.BetaOffsetDiv2,
+                transformSize8x8Flag,
+                Enumerable.Repeat(intraBlock, 16).ToArray(),
+                Enumerable.Repeat(intraBlock, chromaBlockCount).ToArray(),
+                Enumerable.Repeat(intraBlock, chromaBlockCount).ToArray()));
     }
 
     private void RecordIntra16x16Modes(int macroblockX, int macroblockY, int sliceId)
