@@ -163,7 +163,9 @@ public sealed class H264ReferencePictureListBuilderTests
         Assert.Throws<ArgumentOutOfRangeException>(() => _builder.BuildList0([], -1, 16, 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => _builder.BuildList0([], 16, 16, 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => _builder.BuildList0([], 0, 0, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _builder.BuildList0([], 0, 12, 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => _builder.BuildList0([], 0, 16, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _builder.BuildList0([], 0, 16, 33));
     }
 }
 
