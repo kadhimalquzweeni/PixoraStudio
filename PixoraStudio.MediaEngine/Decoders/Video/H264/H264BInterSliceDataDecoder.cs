@@ -70,7 +70,7 @@ public sealed class H264BInterSliceDataDecoder
         H264DecodedPictureBuffer decodedPictureBuffer,
         int currentPictureOrderCount,
         int sliceId,
-        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? temporalContextProvider = null)
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null)
     {
         ArgumentNullException.ThrowIfNull(nalUnit);
         ArgumentNullException.ThrowIfNull(sps);
@@ -95,17 +95,18 @@ public sealed class H264BInterSliceDataDecoder
             checked((int)slice.FrameNum), maxFrameNum, currentPictureOrderCount,
             activeCountL0, activeCountL1,
             slice.RefPicList0Modifications, slice.RefPicList1Modifications);
-        if (!slice.DirectSpatialMvPredFlag && temporalContextProvider is null)
+        if (collocatedContextProvider is null)
         {
             H264TemporalDirectMotionField? collocatedField = null;
-            temporalContextProvider = (x, y, width, height) =>
+            collocatedContextProvider = (x, y, width, height) =>
             {
                 if (referencePictures.List1.Count == 0)
-                    throw new FormatException("Temporal direct prediction requires RefPicList1[0] as the collocated picture.");
+                    throw new FormatException("Direct prediction requires RefPicList1[0] as the collocated picture.");
                 collocatedField ??= decodedPictureBuffer.CreateTemporalDirectMotionField(
                     referencePictures.List1[0]);
                 return collocatedField.GetContext(
-                    x, y, width, height, currentPictureOrderCount);
+                    x, y, width, height, currentPictureOrderCount,
+                    referencePictures.List0);
             };
         }
         IReadOnlyList<H264DecodedPictureSurface> referenceList0 =
@@ -150,7 +151,7 @@ public sealed class H264BInterSliceDataDecoder
                         _motionVectorStateL0, _motionVectorStateL1,
                         _destination, x, y, sliceId, qpY,
                         currentPictureOrderCount, slice.DirectSpatialMvPredFlag, sps, pps,
-                        slice.PredictionWeights, temporalContextProvider));
+                        slice.PredictionWeights, collocatedContextProvider));
                     RecordZeroResidualContexts(x, y, sliceId, sps);
                 }
                 decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
@@ -210,7 +211,7 @@ public sealed class H264BInterSliceDataDecoder
                         qpY, currentPictureOrderCount,
                         slice.DirectSpatialMvPredFlag,
                         sps, pps, _lumaNeighbours, _cbNeighbours, _crNeighbours,
-                        slice.PredictionWeights, temporalContextProvider);
+                        slice.PredictionWeights, collocatedContextProvider);
                 qpY = result.QpY;
                 interResults.Add(result);
             }
