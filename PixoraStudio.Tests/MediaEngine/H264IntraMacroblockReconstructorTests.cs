@@ -130,6 +130,32 @@ public sealed class H264IntraMacroblockReconstructorTests
             24, sps, CreatePps()));
     }
 
+    [Fact]
+    public void ReconstructIntra16x16_ShouldRejectInconsistentChromaSyntaxAndDuplicateComponents()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+        var residual = CreateResidualMacroblock(0, 1);
+
+        Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 2),
+            residual, 24, sps, CreatePps()));
+
+        H264IntraLumaResidualMacroblock duplicateCr = residual with
+        {
+            ChromaComponents =
+            [
+                residual.ChromaComponents[0],
+                residual.ChromaComponents[0]
+            ]
+        };
+        Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1),
+            duplicateCr, 24, sps, CreatePps()));
+        Assert.False(surface.IsMacroblockDecoded(0, 0));
+    }
+
     private static H264SequenceParameterSet CreateSps(uint format) =>
         new(0, 66, 30, format, false, 0, 0, 0, 0, 0, 1,
             1, 1, true, true, 32, 32, false);
