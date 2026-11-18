@@ -1,8 +1,9 @@
 namespace PixoraStudio.MediaEngine.Models.Video;
 
 /// <summary>
-/// Temporal direct prediction inputs for one collocated 4x4 region.
-/// All picture-order counts are in the same POC domain and refer to frame pictures.
+/// Temporal/spatial direct metadata for one collocated 4x4 region. The
+/// collocated picture is RefPicList1[0]; its referenced picture is pic0.
+/// All POCs are in the same frame-picture POC domain.
 /// </summary>
 public sealed record H264TemporalDirectPredictionContext(
     H264MotionVector CollocatedMotionVector,
