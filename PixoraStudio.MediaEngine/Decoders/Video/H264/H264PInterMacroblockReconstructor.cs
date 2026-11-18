@@ -88,8 +88,18 @@ public sealed class H264PInterMacroblockReconstructor
             lumaNeighbours, chromaCbNeighbours, chromaCrNeighbours,
             transformSize8x8Flag: residualSyntax.TransformSize8X8Flag);
 
+        H264InterMacroblockPrediction[] macroblockLocalPredictions = partitions
+            .Select(item => item with
+            {
+                Partition = item.Partition with
+                {
+                    X = item.Partition.X - (macroblockX * 4),
+                    Y = item.Partition.Y - (macroblockY * 4)
+                }
+            })
+            .ToArray();
         H264MotionCompensatedBlock prediction = H264InterPredictionAssembler.Assemble(
-            partitions, sps.ChromaFormatIdc);
+            macroblockLocalPredictions, sps.ChromaFormatIdc);
         H264MotionCompensatedBlock reconstructed =
             H264InterMacroblockResidualReconstructor.Reconstruct(
                 prediction, residual, qpY, sps, pps);
@@ -151,8 +161,16 @@ public sealed class H264PInterMacroblockReconstructor
             _predictionDecoder.DecodeSkippedAndPredict(
                 header, referenceList0, motionVectorState,
                 macroblockX, macroblockY, sliceId, predictionWeights);
+        H264InterMacroblockPrediction macroblockLocalPrediction = partition with
+        {
+            Partition = partition.Partition with
+            {
+                X = partition.Partition.X - (macroblockX * 4),
+                Y = partition.Partition.Y - (macroblockY * 4)
+            }
+        };
         H264MotionCompensatedBlock prediction = H264InterPredictionAssembler.Assemble(
-            [partition], sps.ChromaFormatIdc);
+            [macroblockLocalPrediction], sps.ChromaFormatIdc);
 
         destination.WriteMacroblock(
             macroblockX, macroblockY, sliceId, false,
