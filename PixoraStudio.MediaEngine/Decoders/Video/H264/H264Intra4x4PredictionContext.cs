@@ -35,8 +35,9 @@ public sealed class H264Intra4x4PredictionContext
         ValidateCoordinates(x, y);
         if (sliceId < 0) throw new ArgumentOutOfRangeException(nameof(sliceId));
 
-        bool hasLeft = x > 0 && TryGetMode((x - 1, y), sliceId, out uint left);
-        bool hasTop = y > 0 && TryGetMode((x, y - 1), sliceId, out uint top);
+        uint left = 0, top = 0;
+        bool hasLeft = x > 0 && TryGetMode((x - 1, y), sliceId, out left);
+        bool hasTop = y > 0 && TryGetMode((x, y - 1), sliceId, out top);
 
         uint modeA = hasLeft ? left : 2;
         uint modeB = hasTop ? top : 2;
