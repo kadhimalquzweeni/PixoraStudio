@@ -64,7 +64,7 @@ public sealed class H264AvcParameterSetCollectionReaderTests
     {
         H264AvcDecoderConfiguration configuration = new(
             66, 0, 30, 4,
-            [new H264NalUnit(0x67, CreateSps(0))],
+            [new H264NalUnit(0x67, CreateSps(0)[1..])],
             [], [])
         {
             ChromaFormat = 2
