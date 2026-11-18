@@ -131,7 +131,6 @@ public sealed class H264SliceHeaderReaderTests
         bits.WriteFlag(true); // field_pic_flag
         bits.WriteFlag(true); // bottom_field_flag
         bits.WriteSe(-2); // delta_pic_order_cnt[0]
-        bits.WriteFlag(false); // adaptive marking absent (NAL ref idc = 0, so not consumed)
         bits.WriteSe(3); // slice_qp_delta
         bits.WriteUe(1); // deblocking disabled
 
