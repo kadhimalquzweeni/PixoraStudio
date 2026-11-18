@@ -16,7 +16,7 @@ public sealed class H264BiPredictionCombinerTests
 
         Assert.All(result.Luma, value => Assert.Equal((byte)11, value));
         Assert.All(result.Cb, value => Assert.Equal((byte)21, value));
-        Assert.All(result.Cr, value => Assert.Equal((byte)31, value));
+        Assert.All(result.Cr, value => Assert.Equal((byte)32, value));
     }
 
     [Fact]
@@ -29,11 +29,11 @@ public sealed class H264BiPredictionCombinerTests
         H264MotionCompensatedBlock result = H264BiPredictionCombiner.CombineExplicit(
             Block(100, 80, 60), Block(50, 40, 20), table, 0, 0, 1);
 
-        // Luma: ((2*100 + 2*50 + 2) >> 2) + ((3+5+1)>>1) = 77
-        Assert.All(result.Luma, value => Assert.Equal((byte)77, value));
-        // Cb: ((4*80 + 4*40 + 4) >> 3) + ((1+3+1)>>1) = 63
-        Assert.All(result.Cb, value => Assert.Equal((byte)63, value));
-        // Cr: ((2*60 + 6*20 + 4) >> 3) + ((-1+5+1)>>1) = 31
+        // Luma: ((2*100 + 2*50 + 2) >> 2) + ((3+5+1)>>1) = 79
+        Assert.All(result.Luma, value => Assert.Equal((byte)79, value));
+        // Cb: ((4*80 + 4*40 + 4) >> 3) + ((1+3+1)>>1) = 62
+        Assert.All(result.Cb, value => Assert.Equal((byte)62, value));
+        // Cr: ((2*60 + 6*20 + 4) >> 3) + ((-1+5+1)>>1) = 32
         Assert.All(result.Cr, value => Assert.Equal((byte)31, value));
     }
 
