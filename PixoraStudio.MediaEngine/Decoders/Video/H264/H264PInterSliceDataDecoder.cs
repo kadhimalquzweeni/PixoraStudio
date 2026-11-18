@@ -139,6 +139,11 @@ public sealed class H264PInterSliceDataDecoder
             throw new ArgumentException(
                 "The supplied RefPicList0 must contain exactly the active, non-null reference surfaces.",
                 nameof(activeReferenceList0));
+        if (referencePictureList0 is not null &&
+            referencePictureList0.Count != activeReferenceCount)
+            throw new ArgumentException(
+                "The supplied reference-picture metadata must match the active RefPicList0.",
+                nameof(referencePictureList0));
 
         uint pictureWidth = checked(sps.PicWidthInMbsMinus1 + 1);
         uint pictureHeight = checked(sps.PicHeightInMapUnitsMinus1 + 1);
@@ -179,7 +184,7 @@ public sealed class H264PInterSliceDataDecoder
                         oneSkipped, activeReferenceList0, _motionVectorState,
                         _destination, x, y, sliceId, qpY, sps,
                         slice.PredictionWeights, referencePictureList0,
-                        deblockingParameters));
+                        deblockingParameters, pps));
                     RecordZeroResidualContexts(x, y, sliceId, sps);
                 }
                 decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
