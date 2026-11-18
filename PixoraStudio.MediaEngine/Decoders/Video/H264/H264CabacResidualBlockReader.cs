@@ -75,7 +75,8 @@ public sealed class H264CabacResidualBlockReader
             contextMap.LastSignificantContextOffset,
             contextMap.AbsoluteLevelContextOffset,
             contextMap.SignificantContextIncrements,
-            contextMap.LastSignificantContextIncrements);
+            contextMap.LastSignificantContextIncrements,
+            contextMap.AbsoluteLevelContextAdjust);
 
         int totalCoefficients = coefficients.Count(value => value != 0);
         return new PixoraStudio.MediaEngine.Models.Video.H264CavlcResidualBlock(
