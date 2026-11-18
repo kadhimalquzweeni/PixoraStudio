@@ -109,6 +109,11 @@ public sealed class H264BInterMacroblockReconstructor
         destination.WriteMacroblock(
             macroblockX, macroblockY, sliceId, false,
             reconstructed.Luma, reconstructed.Cb, reconstructed.Cr);
+        AttachDeblockingMetadata(
+            destination, motionVectorStateL0, motionVectorStateL1,
+            referencePictureLists, residual, qpY,
+            macroblockX, macroblockY, sps, pps,
+            deblockingParameters ?? new H264DeblockingSliceParameters(0, 0, 0));
         return new H264BInterMacroblockReconstructionResult(
             header.MacroblockAddress, qpY, residualSyntax.CodedBlockPattern,
             false, partitions, prediction, reconstructed);
