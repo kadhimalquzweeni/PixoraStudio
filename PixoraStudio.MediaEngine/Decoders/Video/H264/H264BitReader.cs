@@ -41,7 +41,17 @@ public sealed class H264BitReader
     }
 
     /// <summary>Consumes and validates rbsp_stop_one_bit and alignment zero bits.</summary>
-    public void ConsumeRbspTrailingBits()
+    public void ConsumeRbspTrailingBits() => ConsumeRbspTrailingBitsCore(allowTrailingZeroBytes: false);
+
+    /// <summary>
+    /// Consumes rbsp_trailing_bits and permits complete zero bytes after them.
+    /// Some MP4 AVC configuration records include this byte-stream padding
+    /// inside the length-delimited SPS NAL unit.
+    /// </summary>
+    public void ConsumeRbspTrailingBitsAndZeroPadding() =>
+        ConsumeRbspTrailingBitsCore(allowTrailingZeroBytes: true);
+
+    private void ConsumeRbspTrailingBitsCore(bool allowTrailingZeroBytes)
     {
         if (RemainingBits == 0 || !ReadFlag())
             throw CreateTrailingBitsException("RBSP trailing bits must begin with rbsp_stop_one_bit.");
@@ -50,8 +60,21 @@ public sealed class H264BitReader
             if (ReadFlag())
                 throw CreateTrailingBitsException("RBSP alignment bits must be zero.");
         }
-        if (RemainingBits != 0)
-            throw CreateTrailingBitsException("Unexpected data remains after rbsp_trailing_bits.");
+
+        if (RemainingBits == 0)
+            return;
+
+        if (allowTrailingZeroBytes && RemainingBits % 8 == 0)
+        {
+            while (RemainingBits > 0)
+            {
+                if (ReadBits(8) != 0)
+                    throw CreateTrailingBitsException("Trailing SPS padding bytes must be zero.");
+            }
+            return;
+        }
+
+        throw CreateTrailingBitsException("Unexpected data remains after rbsp_trailing_bits.");
     }
 
     private FormatException CreateTrailingBitsException(string reason)
