@@ -41,7 +41,7 @@ public sealed class H264CabacInterMacroblockNeighbourContext
             state => state.IsSkipped ? 0 : 1);
         int top = GetNeighbour(macroblockX, macroblockY - 1, sliceId,
             state => state.IsSkipped ? 0 : 1);
-        return left + (2 * top);
+        return left + top;
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public sealed class H264CabacInterMacroblockNeighbourContext
             state => state.IsDirect ? 0 : 1);
         int top = GetNeighbour(macroblockX, macroblockY - 1, sliceId,
             state => state.IsDirect ? 0 : 1);
-        return left + top;
+        return left + (2 * top);
     }
 
     private int GetNeighbour(
