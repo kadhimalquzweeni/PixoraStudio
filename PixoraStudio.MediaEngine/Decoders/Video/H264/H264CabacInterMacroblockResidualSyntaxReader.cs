@@ -41,7 +41,8 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReader
             throw new ArgumentOutOfRangeException(nameof(macroblockY));
         if (sliceId < 0)
             throw new ArgumentOutOfRangeException(nameof(sliceId));
-        if (sps.ChromaArrayType is not (1 or 2))
+        uint chromaArrayType = sps.SeparateColourPlaneFlag ? 0u : sps.ChromaFormatIdc;
+        if (chromaArrayType is not (1 or 2))
             throw new NotSupportedException("CABAC inter residual syntax currently supports 4:2:0 and 4:2:2 chroma.");
 
         Func<int, uint, int> lumaContextProvider = (binIndex, decodedPattern) =>
@@ -52,7 +53,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReader
                 macroblockX, macroblockY, sliceId);
 
         H264CodedBlockPattern codedBlockPattern = _syntaxReader.ReadIntraCodedBlockPattern(
-            lumaContextProvider, chromaContextIncrements, sps.ChromaArrayType);
+            lumaContextProvider, chromaContextIncrements, chromaArrayType);
 
         bool transformSize8x8Flag = false;
         if (pps.Transform8X8ModeFlag &&
@@ -67,9 +68,9 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReader
         int? qpDelta = null;
         if (codedBlockPattern.Luma != 0 || codedBlockPattern.Chroma != 0)
         {
-            int previousAddress = macroblockAddress == 0
-                ? -1
-                : checked((int)macroblockAddress - 1);
+            uint? previousAddress = macroblockAddress == 0
+                ? null
+                : macroblockAddress - 1;
             int qpContextIncrement = _neighbours.GetQpDeltaContextIncrement(
                 previousAddress, sliceId);
             qpDelta = _syntaxReader.ReadMacroblockQpDelta(qpContextIncrement);
