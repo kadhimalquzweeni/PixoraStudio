@@ -29,6 +29,10 @@ public sealed class H264SequenceParameterSetReader
         uint bitDepthLumaMinus8 = 0;
         uint bitDepthChromaMinus8 = 0;
 
+        bool scalingMatrixPresent = false;
+        List<IReadOnlyList<int>> scalingLists = [];
+        List<bool> scalingListUseDefault = [];
+
         if (ExtendedProfiles.Contains(profileIdc))
         {
             chromaFormatIdc = ReadBoundedUe(reader, 3, "chroma_format_idc");
@@ -38,11 +42,24 @@ public sealed class H264SequenceParameterSetReader
             bitDepthLumaMinus8 = ReadBoundedUe(reader, 6, "bit_depth_luma_minus8");
             bitDepthChromaMinus8 = ReadBoundedUe(reader, 6, "bit_depth_chroma_minus8");
             _ = reader.ReadFlag();
-            if (reader.ReadFlag())
+            scalingMatrixPresent = reader.ReadFlag();
+            if (scalingMatrixPresent)
             {
                 int scalingListCount = chromaFormatIdc == 3 ? 12 : 8;
                 for (int i = 0; i < scalingListCount; i++)
-                    if (reader.ReadFlag()) SkipScalingList(reader, i < 6 ? 16 : 64);
+                {
+                    if (reader.ReadFlag())
+                    {
+                        int[] list = ReadScalingList(reader, i < 6 ? 16 : 64, out bool useDefault);
+                        scalingLists.Add(list);
+                        scalingListUseDefault.Add(useDefault);
+                    }
+                    else
+                    {
+                        scalingLists.Add([]);
+                        scalingListUseDefault.Add(false);
+                    }
+                }
             }
         }
 
@@ -112,7 +129,10 @@ public sealed class H264SequenceParameterSetReader
             DeltaPicOrderAlwaysZeroFlag = deltaPicOrderAlwaysZero,
             OffsetForNonRefPic = offsetForNonRefPic,
             OffsetForTopToBottomField = offsetForTopToBottomField,
-            OffsetForRefFrame = offsetForRefFrame
+            OffsetForRefFrame = offsetForRefFrame,
+            ScalingMatrixPresentFlag = scalingMatrixPresent,
+            ScalingLists = scalingLists,
+            ScalingListUseDefault = scalingListUseDefault
         };
     }
 
@@ -221,9 +241,11 @@ public sealed class H264SequenceParameterSetReader
         return value;
     }
 
-    private static void SkipScalingList(H264BitReader reader, int size)
+    private static int[] ReadScalingList(H264BitReader reader, int size, out bool useDefault)
     {
+        int[] values = new int[size];
         int lastScale = 8, nextScale = 8;
+        useDefault = false;
         for (int i = 0; i < size; i++)
         {
             if (nextScale != 0)
@@ -231,7 +253,11 @@ public sealed class H264SequenceParameterSetReader
                 int deltaScale = reader.ReadSignedExpGolomb();
                 nextScale = (int)(((long)lastScale + deltaScale + 256) % 256);
             }
-            lastScale = nextScale == 0 ? lastScale : nextScale;
+            if (i == 0 && nextScale == 0) useDefault = true;
+            int scale = nextScale == 0 ? lastScale : nextScale;
+            values[i] = scale;
+            lastScale = scale;
         }
+        return values;
     }
 }
