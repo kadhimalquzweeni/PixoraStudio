@@ -38,6 +38,30 @@ public sealed class H264IntraPredictionModeReader
     }
 
     /// <summary>
+    /// Reads CABAC-coded prev_intra*_pred_mode_flag and rem_intra*_pred_mode
+    /// entries for an I_NxN macroblock.
+    /// </summary>
+    public H264IntraPredictionModeSyntax Read(
+        H264CabacSyntaxElementReader reader,
+        bool transformSize8X8Flag)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        int modeCount = transformSize8X8Flag ? 4 : 16;
+        H264IntraPredictionModeEntry[] modes = new H264IntraPredictionModeEntry[modeCount];
+        for (int i = 0; i < modeCount; i++)
+        {
+            bool previousModeFlag = reader.ReadPreviousIntraPredictionModeFlag();
+            uint? remainderMode = previousModeFlag
+                ? null
+                : (uint)reader.ReadRemainingIntraPredictionMode();
+            modes[i] = new H264IntraPredictionModeEntry(previousModeFlag, remainderMode);
+        }
+
+        return new H264IntraPredictionModeSyntax(transformSize8X8Flag, modes);
+    }
+
+    /// <summary>
     /// Resolves rem_intra*_pred_mode against the predicted mode derived from
     /// neighbouring blocks, as specified by the H.264 mode-remapping rule.
     /// </summary>
