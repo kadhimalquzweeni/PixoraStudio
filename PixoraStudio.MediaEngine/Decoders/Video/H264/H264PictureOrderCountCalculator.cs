@@ -33,6 +33,8 @@ public sealed class H264PictureOrderCountCalculator
             throw new NotSupportedException($"pic_order_cnt_type {sps.PicOrderCntType} is not supported.");
         if (nalRefIdc > 3)
             throw new ArgumentOutOfRangeException(nameof(nalRefIdc));
+        if (sps.Log2MaxFrameNumMinus4 > 12)
+            throw new FormatException("log2_max_frame_num_minus4 exceeds the supported H.264 range.");
         if (slice.FrameNum >= (1u << checked((int)sps.Log2MaxFrameNumMinus4 + 4)))
             throw new FormatException("frame_num exceeds the range declared by the SPS.");
 
@@ -114,7 +116,11 @@ public sealed class H264PictureOrderCountCalculator
         if (slice.PicOrderCntLsb is null)
             throw new FormatException("POC type 0 requires pic_order_cnt_lsb.");
 
+        if (sps.Log2MaxPicOrderCntLsbMinus4 > 12)
+            throw new FormatException("log2_max_pic_order_cnt_lsb_minus4 exceeds the supported H.264 range.");
         int maxLsb = 1 << checked((int)sps.Log2MaxPicOrderCntLsbMinus4 + 4);
+        if (slice.PicOrderCntLsb.Value >= maxLsb)
+            throw new FormatException("pic_order_cnt_lsb exceeds the range declared by the SPS.");
         int lsb = checked((int)slice.PicOrderCntLsb.Value);
         int previousMsb = idr ? 0 : _previousPicOrderCntMsb;
         int previousLsb = idr ? 0 : _previousPicOrderCntLsb;
