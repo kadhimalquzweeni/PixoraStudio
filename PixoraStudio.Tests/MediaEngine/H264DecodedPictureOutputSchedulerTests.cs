@@ -11,15 +11,6 @@ public sealed class H264DecodedPictureOutputSchedulerTests
         H264SequenceParameterSet sps = SpsWithReorderLimit(0);
         H264DecodedPictureOutputScheduler scheduler = new();
         H264DecodedPictureSurface surface = Surface(sps, 1);
-        H264DeblockingBlockMetadata intra =
-            new(true, false, null, null, null, null);
-        H264DeblockingMacroblockMetadata metadata = new(
-            30, 30, 30, 0, 0, 0, true,
-            Enumerable.Repeat(intra, 16).ToArray(),
-            Enumerable.Repeat(intra, 4).ToArray(),
-            Enumerable.Repeat(intra, 4).ToArray());
-        surface.SetDeblockingMetadata(0, 0, metadata);
-
         H264DecodedPictureOutput output = Assert.Single(scheduler.Enqueue(
             surface, sps, Slice(0, 0, idr: true), 3));
 
@@ -235,6 +226,14 @@ public sealed class H264DecodedPictureOutputSchedulerTests
             Enumerable.Repeat(value, 256).ToArray(),
             Enumerable.Repeat(value, 64).ToArray(),
             Enumerable.Repeat(value, 64).ToArray());
+        H264DeblockingBlockMetadata intra =
+            new(true, false, null, null, null, null);
+        surface.SetDeblockingMetadata(0, 0,
+            new H264DeblockingMacroblockMetadata(
+                30, 30, 30, 0, 0, 0, true,
+                Enumerable.Repeat(intra, 16).ToArray(),
+                Enumerable.Repeat(intra, 4).ToArray(),
+                Enumerable.Repeat(intra, 4).ToArray()));
         return surface;
     }
 
