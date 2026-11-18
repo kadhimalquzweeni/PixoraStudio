@@ -17,7 +17,7 @@ public sealed class H264BInterMacroblockReconstructorTests
         BitWriter bits = new();
         bits.Se(0); bits.Se(0); // MVD x/y
         bits.Ue(0); // inter coded_block_pattern = 0
-        H264MacroblockHeader header = Header(0);
+        H264MacroblockHeader header = Header(1);
 
         H264BInterMacroblockReconstructionResult result =
             new H264BInterMacroblockReconstructor().DecodeAndReconstruct(
@@ -122,7 +122,7 @@ public sealed class H264BInterMacroblockReconstructorTests
     }
 
     private static H264MacroblockHeader Header(uint type) =>
-        new(type, type, false, 0, false, false, null, null, null, false);
+        new(type, 0, false, 0, false, false, null, null, null, false);
 
     private static H264SequenceParameterSet CreateSps() => new(
         0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
