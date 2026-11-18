@@ -46,6 +46,19 @@ public sealed class H264AvcParameterSetCollectionReaderTests
             new H264AvcParameterSetCollectionReader().Read(configuration));
     }
 
+    [Theory]
+    [InlineData(1, 77)]
+    [InlineData(2, 1)]
+    [InlineData(3, 31)]
+    public void Read_ShouldRejectAvccProfileFieldsThatDisagreeWithSps(int fieldIndex, byte value)
+    {
+        byte[] data = CreateConfiguration(CreateSps(0), CreatePps(0, 0));
+        data[fieldIndex] = value;
+
+        Assert.Throws<FormatException>(() =>
+            new H264AvcParameterSetCollectionReader().Read(data));
+    }
+
     [Fact]
     public void Read_ShouldRejectAvccChromaFormatThatDisagreesWithSps()
     {
