@@ -40,7 +40,7 @@ public sealed class H264ReferencePictureListBuilderTests
         IReadOnlyList<H264ReferencePicture> result =
             _builder.BuildList0(references, 2, 16, 3);
 
-        Assert.Equal(new[] { 14, 5, 3 }, result.Select(picture => picture.FrameNum));
+        Assert.Equal(new[] { 5, 3, 14 }, result.Select(picture => picture.FrameNum));
     }
 
     [Fact]
