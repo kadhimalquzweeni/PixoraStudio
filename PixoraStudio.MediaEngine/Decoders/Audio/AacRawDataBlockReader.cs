@@ -35,7 +35,7 @@ public sealed class AacRawDataBlockReader
         AacIndividualChannelStreamData channelStream =
             _channelStreamReader.Read(reader, samplingFrequencyIndex);
 
-        ReadEndMarkerAndValidatePadding(reader);
+        ReadEndMarkerAndConsumePadding(reader);
         return new AacSingleChannelElement(instanceTag, channelStream);
     }
 
@@ -55,7 +55,7 @@ public sealed class AacRawDataBlockReader
         AacChannelPairElement pair =
             _channelPairReader.ReadAfterElementId(reader, samplingFrequencyIndex);
 
-        ReadEndMarkerAndValidatePadding(reader);
+        ReadEndMarkerAndConsumePadding(reader);
         return pair;
     }
 
@@ -105,9 +105,7 @@ public sealed class AacRawDataBlockReader
 
     private static void SkipDataStreamElementPayload(AacBitReader reader)
     {
-        // data_stream_element(): element_instance_tag, align flag, byte count,
-        // optional escaped byte count, optional byte alignment, then payload.
-        _ = reader.ReadBits(4); // element_instance_tag
+        _ = reader.ReadBits(4);
         bool byteAlign = reader.ReadBits(1) != 0;
         int count = (int)reader.ReadBits(8);
 
@@ -129,10 +127,9 @@ public sealed class AacRawDataBlockReader
 
     private static void SkipProgramConfigElementPayload(AacBitReader reader)
     {
-        // program_config_element() fields preceding the optional mixdown data.
-        _ = reader.ReadBits(4); // element_instance_tag
-        _ = reader.ReadBits(2); // object_type
-        _ = reader.ReadBits(4); // sampling_frequency_index
+        _ = reader.ReadBits(4);
+        _ = reader.ReadBits(2);
+        _ = reader.ReadBits(4);
 
         int frontElementCount = (int)reader.ReadBits(4);
         int sideElementCount = (int)reader.ReadBits(4);
@@ -142,13 +139,13 @@ public sealed class AacRawDataBlockReader
         int validCcElementCount = (int)reader.ReadBits(4);
 
         if (reader.ReadBits(1) != 0)
-            _ = reader.ReadBits(4); // mono_mixdown_element_number
+            _ = reader.ReadBits(4);
 
         if (reader.ReadBits(1) != 0)
-            _ = reader.ReadBits(4); // stereo_mixdown_element_number
+            _ = reader.ReadBits(4);
 
         if (reader.ReadBits(1) != 0)
-            _ = reader.ReadBits(3); // matrix_mixdown_idx and pseudo_surround
+            _ = reader.ReadBits(3);
 
         SkipChannelElementDescriptions(reader, frontElementCount);
         SkipChannelElementDescriptions(reader, sideElementCount);
@@ -157,9 +154,6 @@ public sealed class AacRawDataBlockReader
         reader.SkipBits(checked(lfeElementCount * 4));
         reader.SkipBits(checked(associatedDataElementCount * 4));
         reader.SkipBits(checked(validCcElementCount * 5));
-
-        // byte_alignment() is relative to the beginning of the raw_data_block.
-        // The alignment bit values are not constrained, so skip them without validation.
         reader.AlignToByte();
 
         int commentFieldBytes = (int)reader.ReadBits(8);
@@ -184,12 +178,12 @@ public sealed class AacRawDataBlockReader
     {
         for (int i = 0; i < elementCount; i++)
         {
-            _ = reader.ReadBits(1); // is_cpe
-            _ = reader.ReadBits(4); // tag_select
+            _ = reader.ReadBits(1);
+            _ = reader.ReadBits(4);
         }
     }
 
-    private static void ReadEndMarkerAndValidatePadding(AacBitReader reader)
+    private static void ReadEndMarkerAndConsumePadding(AacBitReader reader)
     {
         while (true)
         {
@@ -221,14 +215,8 @@ public sealed class AacRawDataBlockReader
             throw new InvalidDataException(
                 "AAC raw_data_block contains data after its end marker.");
 
-        // MPEG-4 access units are octet-aligned by appending zero-valued
-        // padding bits after raw_data_block(). These bits are outside the
-        // raw_data_block syntax and must not be confused with PCE/DSE alignment.
-        while (reader.RemainingBits > 0)
-        {
-            if (reader.ReadBits(1) != 0)
-                throw new InvalidDataException(
-                    "AAC raw_data_block access-unit padding bits must be zero.");
-        }
+        // MP4 sample payloads are byte-sized. The final unused bits after ID_END
+        // are transport padding, not AAC syntax, so do not interpret their values.
+        reader.SkipBits(reader.RemainingBits);
     }
 }
