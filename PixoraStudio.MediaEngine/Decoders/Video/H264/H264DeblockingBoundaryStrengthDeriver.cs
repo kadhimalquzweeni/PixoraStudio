@@ -47,7 +47,10 @@ public static class H264DeblockingBoundaryStrengthDeriver
             return pReference is null && qReference is null &&
                 pMotion is null && qMotion is null;
 
-        if (pReference.PictureOrderCount != qReference.PictureOrderCount ||
+        // Reference identity is not determined by POC alone: distinct
+        // short-/long-term pictures can share a POC while remaining different
+        // entries in the decoded reference-picture set.
+        if (pReference != qReference ||
             pMotion is not H264MotionVector pVector ||
             qMotion is not H264MotionVector qVector)
             return false;
