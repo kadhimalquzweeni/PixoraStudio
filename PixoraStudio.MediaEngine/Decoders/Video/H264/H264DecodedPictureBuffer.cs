@@ -18,7 +18,16 @@ public sealed class H264DecodedPictureBuffer
     public int Count => _entries.Count;
     public int? MaxLongTermFrameIndex =>
         _maxLongTermFrameIndex < 0 ? null : _maxLongTermFrameIndex;
-    public IReadOnlyList<H264DecodedPictureBufferEntry> Entries => _entries.ToArray();
+    public IReadOnlyList<H264DecodedPictureBufferEntry> Entries =>
+        _entries.Select(entry => entry with
+        {
+            MotionVectorStateL0 = entry.MotionVectorStateL0?.Clone(),
+            MotionVectorStateL1 = entry.MotionVectorStateL1?.Clone(),
+            ReferenceList0 = entry.ReferenceList0 is null
+                ? null : Array.AsReadOnly(entry.ReferenceList0.ToArray()),
+            ReferenceList1 = entry.ReferenceList1 is null
+                ? null : Array.AsReadOnly(entry.ReferenceList1.ToArray())
+        }).ToArray();
 
     public void Reset()
     {
