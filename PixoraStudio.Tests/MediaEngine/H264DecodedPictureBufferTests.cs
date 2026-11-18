@@ -352,6 +352,14 @@ public sealed class H264DecodedPictureBufferTests
             Enumerable.Repeat(value, 256).ToArray(),
             Enumerable.Repeat(value, 64).ToArray(),
             Enumerable.Repeat(value, 64).ToArray());
+        H264DeblockingBlockMetadata intra =
+            new(true, false, null, null, null, null);
+        surface.SetDeblockingMetadata(0, 0,
+            new H264DeblockingMacroblockMetadata(
+                30, 30, 30, 0, 0, 0, true,
+                Enumerable.Repeat(intra, 16).ToArray(),
+                Enumerable.Repeat(intra, 4).ToArray(),
+                Enumerable.Repeat(intra, 4).ToArray()));
         return surface;
     }
 }
