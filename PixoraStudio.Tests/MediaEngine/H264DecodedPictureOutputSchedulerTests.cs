@@ -194,6 +194,30 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
+    public void Enqueue_WhenDeblockingMetadataIsMissing_ShouldNotAdvancePocHistory()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(0) with
+        {
+            PicOrderCntType = 2
+        };
+        H264DecodedPictureOutputScheduler scheduler = new();
+        H264DecodedPictureSurface invalid = new(sps);
+        invalid.WriteMacroblock(0, 0, 0, false,
+            new byte[256], new byte[64], new byte[64]);
+
+        // This non-reference picture would advance frame_num history to 15
+        // if POC were calculated before the missing metadata was rejected.
+        Assert.Throws<InvalidOperationException>(() =>
+            scheduler.Enqueue(invalid, sps, Slice(15, 0), 0));
+
+        H264DecodedPictureOutput output = Assert.Single(scheduler.Enqueue(
+            Surface(sps, 22), sps, Slice(0, 0), 1));
+
+        // With untouched history, frame_num 0 remains in the initial epoch.
+        Assert.Equal(0, output.PictureOrderCount);
+    }
+
+    [Fact]
     public void Enqueue_ShouldRejectIncompletePictureSurfaces()
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(0);
