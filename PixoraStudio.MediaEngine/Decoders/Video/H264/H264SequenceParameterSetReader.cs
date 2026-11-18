@@ -146,14 +146,20 @@ public sealed class H264SequenceParameterSetReader
 
     private static H264VuiParameters ReadVui(H264BitReader reader)
     {
-        uint aspectRatioIdc = reader.ReadBits(8);
+        // aspect_ratio_info_present_flag precedes aspect_ratio_idc in VUI syntax.
+        // An absent aspect-ratio declaration is represented by idc 0 (unspecified).
+        uint aspectRatioIdc = 0;
         uint? sarWidth = null, sarHeight = null;
-        if (aspectRatioIdc == 255)
+        if (reader.ReadFlag())
         {
-            sarWidth = reader.ReadBits(16);
-            sarHeight = reader.ReadBits(16);
-            if (sarWidth == 0 || sarHeight == 0)
-                throw new FormatException("Extended sample aspect ratio must be non-zero.");
+            aspectRatioIdc = reader.ReadBits(8);
+            if (aspectRatioIdc == 255)
+            {
+                sarWidth = reader.ReadBits(16);
+                sarHeight = reader.ReadBits(16);
+                if (sarWidth == 0 || sarHeight == 0)
+                    throw new FormatException("Extended sample aspect ratio must be non-zero.");
+            }
         }
 
         bool overscanAppropriate = false;
