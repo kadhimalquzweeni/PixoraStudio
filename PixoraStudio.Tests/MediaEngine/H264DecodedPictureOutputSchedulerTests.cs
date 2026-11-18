@@ -80,6 +80,17 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
+    public void Enqueue_ShouldRejectIncompletePictureSurfaces()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(0);
+        H264DecodedPictureSurface incomplete = new(sps);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new H264DecodedPictureOutputScheduler().Enqueue(
+                incomplete, sps, Slice(0, 0), 1));
+    }
+
+    [Fact]
     public void Enqueue_ShouldRequireFallbackWhenVuiDoesNotSignalReorderLimit()
     {
         H264SequenceParameterSet sps = new(
