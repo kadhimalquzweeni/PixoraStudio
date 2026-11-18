@@ -112,6 +112,40 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
+    public void Apply_ShouldFilterAllInternalHorizontalChromaEdgesIn422()
+    {
+        H264DecodedPictureSurface surface = Surface(0, 0, 2);
+        byte[] luma = Enumerable.Repeat((byte)100, 256).ToArray();
+        byte[] cb = new byte[128];
+        byte[] cr = new byte[128];
+
+        for (int y = 0; y < 16; y++)
+        for (int x = 0; x < 8; x++)
+        {
+            byte value = y < 4 ? (byte)110
+                : y < 8 ? (byte)112
+                : y < 12 ? (byte)114
+                : (byte)116;
+            cb[y * 8 + x] = value;
+            cr[y * 8 + x] = value;
+        }
+
+        WriteMacroblock(surface, 0, 0, 0, 2, luma);
+        surface.SetDeblockingMetadata(0, 0, Metadata(0, 4, transform8x8: false));
+
+        H264DeblockingPictureFilter.Apply(surface);
+
+        // 4:2:2 has internal horizontal chroma edges at y=4, 8 and 12.
+        // Each edge inherits bS from its corresponding luma edge.
+        Assert.Equal((byte)111, surface.GetChromaSample(1, 0, 3));
+        Assert.Equal((byte)111, surface.GetChromaSample(1, 0, 4));
+        Assert.Equal((byte)113, surface.GetChromaSample(1, 0, 7));
+        Assert.Equal((byte)113, surface.GetChromaSample(1, 0, 8));
+        Assert.Equal((byte)115, surface.GetChromaSample(2, 0, 11));
+        Assert.Equal((byte)115, surface.GetChromaSample(2, 0, 12));
+    }
+
+    [Fact]
     public void Apply_ShouldFilterVerticalEdgesBeforeHorizontalEdgesWithinEachMacroblock()
     {
         H264DecodedPictureSurface surface = Surface(0, 0, 1);
