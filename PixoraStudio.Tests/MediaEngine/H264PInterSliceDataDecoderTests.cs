@@ -33,6 +33,32 @@ public sealed class H264PInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_PInterSlice_WithInter8x8Transform_ShouldDecodeAndCommitResidualLayout()
+    {
+        H264SequenceParameterSet sps = Sps(1);
+        H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WritePSliceHeader();
+        bits.WriteUe(0); // mb_skip_run
+        bits.WriteUe(0); // P_L0_16x16
+        bits.WriteSe(0); bits.WriteSe(0); // motion-vector difference
+        bits.WriteUe(2); // coded_block_pattern: luma group 0
+        bits.WriteFlag(true); // transform_size_8x8_flag
+        bits.WriteSe(0); // mb_qp_delta
+        for (int i = 0; i < 4; i++) bits.WriteFlag(true); // four zero coeff_token values
+        bits.WriteRbspTrailingBits();
+
+        H264PInterSliceDecodeResult result = new H264PInterSliceDataDecoder(
+            destination, new H264MotionVectorPictureState(1, 1)).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps,
+            Pps() with { Transform8X8ModeFlag = true }, [reference], 2);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.All(destination.CopyLumaPlane(), sample => Assert.Equal((byte)70, sample));
+    }
+
+    [Fact]
     public void Decode_PSkipRun_ShouldReconstructEverySkippedMacroblock()
     {
         H264SequenceParameterSet sps = Sps(2);
