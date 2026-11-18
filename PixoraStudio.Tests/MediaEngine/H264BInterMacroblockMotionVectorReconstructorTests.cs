@@ -151,6 +151,34 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_TemporalDirect_ShouldResolveCollocatedMotionFieldAndScaleIt()
+    {
+        H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
+            new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
+        H264MotionVectorPictureState collocatedL0 = new(1, 1);
+        H264MotionVectorPictureState collocatedL1 = new(1, 1);
+        collocatedL0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(16, -16));
+        H264TemporalDirectMotionField field = new(
+            collocatedL0, collocatedL1,
+            [new H264ReferencePicture(0, 10)], [], 0);
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
+                syntax, new H264MotionVectorPictureState(1, 1),
+                new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1,
+                directSpatialPrediction: false,
+                direct8x8InferenceFlag: true,
+                temporalContextProvider: field.AsProvider(5));
+
+        Assert.Equal(4, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(new H264MotionVector(8, -8), item.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(8, -8), item.MotionVectorL1);
+        });
+    }
+
+    [Fact]
     public void Reconstruct_TemporalDirectWithUnavailableCollocatedReference_ShouldUseZeroVectors()
     {
         H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
