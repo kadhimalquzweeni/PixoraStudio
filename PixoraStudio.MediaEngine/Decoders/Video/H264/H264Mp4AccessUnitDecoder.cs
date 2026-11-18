@@ -169,10 +169,6 @@ public sealed class H264Mp4AccessUnitDecoder
             H264PInterSliceDataDecoder? pDecoder = null;
             H264BInterSliceDataDecoder? bDecoder = null;
 
-            if (activePps.EntropyCodingModeFlag && firstSlice.SliceType == H264SliceType.B)
-                throw new NotSupportedException(
-                    "CABAC B-slice macroblock decoding is not yet integrated.");
-
             if (firstSlice.SliceType == H264SliceType.P)
             {
                 motionStateL0 = new H264MotionVectorPictureState(
