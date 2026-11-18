@@ -150,7 +150,7 @@ public sealed class H264CabacInterResidualMacroblockReader
                 }
 
                 lumaBlocks.Add(new H264IntraLumaResidualBlock(
-                    localX, localY, residual.TotalCoefficients != 0, residual));
+                    localX, localY, isGroupCoded, residual));
                 neighbourContext.RecordBlock(
                     0, pictureX, pictureY, sliceId,
                     residual.TotalCoefficients != 0);
@@ -206,7 +206,7 @@ public sealed class H264CabacInterResidualMacroblockReader
                 }
 
                 acBlocks.Add(new H264IntraChromaResidualBlock(
-                    blockX, blockY, residual.TotalCoefficients != 0, residual));
+                    blockX, blockY, isGroupCoded, residual));
                 neighbourContext.RecordBlock(
                     plane, pictureX, pictureY, sliceId,
                     residual.TotalCoefficients != 0);
