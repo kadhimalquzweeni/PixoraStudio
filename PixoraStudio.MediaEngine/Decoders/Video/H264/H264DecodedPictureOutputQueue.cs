@@ -37,6 +37,13 @@ public sealed class H264DecodedPictureOutputQueue
         return ready;
     }
 
+    /// <summary>Discards pending frames and resets stable decode-order tie breaking.</summary>
+    public void Reset()
+    {
+        _pending.Clear();
+        _nextSequence = 0;
+    }
+
     /// <summary>Outputs all remaining frames in ascending POC order.</summary>
     public IReadOnlyList<H264DecodedPictureOutput> Flush()
     {
