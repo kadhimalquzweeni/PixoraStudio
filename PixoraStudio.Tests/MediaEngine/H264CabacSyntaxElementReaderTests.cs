@@ -385,5 +385,6 @@ public sealed class H264CabacSyntaxElementReaderTests
 
         public int DecodeBypass() => _bins.Dequeue();
         public int DecodeTerminate() => _bins.Dequeue();
+        public void MarkTerminated() { }
     }
 }
