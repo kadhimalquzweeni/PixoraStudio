@@ -97,7 +97,7 @@ public sealed class H264PInterSliceDataDecoder
         IReadOnlyList<H264ReferencePicture> referenceMetadata = activeList0
             .Select(surface => entries.Single(entry => ReferenceEquals(entry.Surface, surface)).Picture)
             .ToArray();
-        return Decode(nalUnit, sps, pps, activeList0, sliceId) with
+        return Decode(nalUnit, sps, pps, activeList0, sliceId, referenceMetadata) with
         {
             ReferenceList0 = referenceMetadata
         };
@@ -108,7 +108,8 @@ public sealed class H264PInterSliceDataDecoder
         H264SequenceParameterSet sps,
         H264PictureParameterSetHeader pps,
         IReadOnlyList<H264DecodedPictureSurface> activeReferenceList0,
-        int sliceId)
+        int sliceId,
+        IReadOnlyList<H264ReferencePicture>? referencePictureList0 = null)
     {
         ArgumentNullException.ThrowIfNull(nalUnit);
         ArgumentNullException.ThrowIfNull(sps);
@@ -120,8 +121,9 @@ public sealed class H264PInterSliceDataDecoder
 
         H264BitReader reader = new(nalUnit.Rbsp);
         H264SliceHeader slice = _sliceHeaderReader.Read(reader, nalUnit, sps, pps);
-        _intraReconstructor.SetDeblockingSliceParameters(
-            H264DeblockingSliceParameters.FromSliceHeader(slice));
+        H264DeblockingSliceParameters deblockingParameters =
+            H264DeblockingSliceParameters.FromSliceHeader(slice);
+        _intraReconstructor.SetDeblockingSliceParameters(deblockingParameters);
         if (slice.SliceType != H264SliceType.P)
             throw new NotSupportedException("This decoder accepts P slices only.");
         if (slice.FieldPicFlag)
@@ -176,7 +178,8 @@ public sealed class H264PInterSliceDataDecoder
                     results.Add(_macroblockReconstructor.DecodeSkippedAndReconstruct(
                         oneSkipped, activeReferenceList0, _motionVectorState,
                         _destination, x, y, sliceId, qpY, sps,
-                        slice.PredictionWeights));
+                        slice.PredictionWeights, referencePictureList0,
+                        deblockingParameters));
                     RecordZeroResidualContexts(x, y, sliceId, sps);
                 }
                 decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
@@ -231,7 +234,8 @@ public sealed class H264PInterSliceDataDecoder
                         activeReferenceList0, _motionVectorState, _destination,
                         macroblockX, macroblockY, sliceId, qpY, sps, pps,
                         _lumaNeighbours, _cbNeighbours, _crNeighbours,
-                        slice.PredictionWeights);
+                        slice.PredictionWeights, referencePictureList0,
+                        deblockingParameters);
                 qpY = reconstructed.QpY;
                 results.Add(reconstructed);
             }
@@ -246,7 +250,8 @@ public sealed class H264PInterSliceDataDecoder
         return new H264PInterSliceDecodeResult(
             slice, decodedCount, qpY, reader.PositionBits, results)
         {
-            IntraMacroblockAddresses = intraAddresses
+            IntraMacroblockAddresses = intraAddresses,
+            ReferenceList0 = referencePictureList0 ?? []
         };
     }
 
