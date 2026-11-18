@@ -73,7 +73,7 @@ public sealed class H264MotionVectorPictureState
     /// Derives the spatial predictor, adds the parsed MVD, and records the
     /// reconstructed vector immediately. Call in H.264 partition decoding
     /// order so later partitions can use earlier vectors from this macroblock.
-    /// Values are not clipped or wrapped to the normative MV range yet.
+    /// The reconstructed components are clipped to the normative signed 16-bit quarter-sample range.
     /// </summary>
     public H264MotionVector ReconstructAndRecord(
         H264MotionVectorPredictor predictor,
@@ -94,9 +94,9 @@ public sealed class H264MotionVectorPictureState
             candidates.Left, candidates.Above, candidates.AboveRight,
             candidates.AboveLeft, referenceIndex, partitionShape, partitionIndex);
 
-        H264MotionVector reconstructed = new(
+        H264MotionVector reconstructed = H264MotionVectorRange.Clip(new(
             checked(predicted.Horizontal + motionVectorDifference.Horizontal),
-            checked(predicted.Vertical + motionVectorDifference.Vertical));
+            checked(predicted.Vertical + motionVectorDifference.Vertical)));
 
         RecordInterPartition(x, y, width, height, sliceId,
             referenceIndex, reconstructed);
