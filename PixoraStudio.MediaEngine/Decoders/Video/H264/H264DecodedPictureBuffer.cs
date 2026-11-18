@@ -85,8 +85,8 @@ public sealed class H264DecodedPictureBuffer
             if (referenceList0!.Any(item => item is null) ||
                 referenceList1!.Any(item => item is null))
                 throw new ArgumentException("Stored collocated reference lists cannot contain null entries.");
-            referenceList0 = Array.AsReadOnly(referenceList0.ToArray());
-            referenceList1 = Array.AsReadOnly(referenceList1.ToArray());
+            referenceList0 = Array.AsReadOnly(referenceList0!.ToArray());
+            referenceList1 = Array.AsReadOnly(referenceList1!.ToArray());
         }
         if (marking is null)
             throw new ArgumentNullException(nameof(marking),
