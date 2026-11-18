@@ -188,6 +188,50 @@ public sealed class H264CabacSyntaxElementReaderTests
         Assert.Equal(expected, reader.ReadEndOfSliceFlag());
     }
 
+
+    [Fact]
+    public void ReadReferenceIndex_ShouldDecodeTruncatedUnary()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(2, reader.ReadReferenceIndex(1, 5));
+        Assert.Equal(new[] { 55, 56, 57 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadReferenceIndex_ShouldReturnMaximumWithoutTerminatingZero()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(3, reader.ReadReferenceIndex(0, 3));
+        Assert.Equal(new[] { 54, 55, 56 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadReferenceIndex_ShouldNotConsumeBinsWhenOnlyOneReferenceIsAvailable()
+    {
+        ScriptedCabacReader bins = new();
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(0, reader.ReadReferenceIndex(0, 0));
+        Assert.Empty(bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(-1, 2)]
+    [InlineData(3, 2)]
+    [InlineData(0, -1)]
+    [InlineData(0, 32)]
+    public void ReadReferenceIndex_ShouldRejectInvalidLimits(int increment, int maximum)
+    {
+        H264CabacSyntaxElementReader reader = new(new ScriptedCabacReader());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            reader.ReadReferenceIndex(increment, maximum));
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _bins;
