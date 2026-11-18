@@ -13,7 +13,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
 | Reference management | Frame DPB, short/long-term marking, MMCO 1–6, P/B reference-list construction |
-| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation, validated metadata storage and picture traversal implemented; reconstruction pipeline does not yet populate the metadata automatically |
+| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation and picture traversal implemented; I/P/B intra and PCM paths populate metadata automatically, inter metadata population remains outstanding |
 | Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
@@ -123,3 +123,5 @@ For a P picture, persist the P decoder's motion state as list 0, use an empty li
 - A caller can now attach defensive, validated per-macroblock deblocking metadata to a completed surface and run `H264DeblockingPictureFilter.Apply`. The picture pass handles 4:2:0/4:2:2 luma/chroma edges, `disable_deblocking_filter_idc` slice-boundary rules, and suppression of internal luma 4x4 edges inside 8x8 transforms. The filter is a one-time terminal surface operation. Automatic metadata production from I/P/B reconstruction remains the next integration task.
 
 - When complete deblocking metadata is attached, both DPB reference insertion and the decoded-picture output scheduler automatically run the picture filter before retaining or presenting the surface. If metadata is absent, the current decoder still permits the pre-deblocking surface; automatic metadata generation remains outstanding, so full-stream conformance is not yet claimed.
+
+- I-slice, P-slice and B-slice intra/PCM reconstruction now attaches deblocking metadata using the current QP, mapped chroma QPs, transform mode and slice-level filter controls. Inter macroblock paths still need to attach their per-4x4 reference/MV and residual metadata before a mixed I/P/B picture can be filtered automatically.
