@@ -44,6 +44,13 @@ public sealed class H264SliceHeaderReader
         }
 
         bool idr = nalUnit.NalUnitType == 5;
+        if (idr && nalUnit.NalRefIdc == 0)
+            throw new FormatException("An IDR slice must have a non-zero nal_ref_idc.");
+        uint pictureSizeInMbs = checked((sequenceParameterSet.PicWidthInMbsMinus1 + 1) *
+            (sequenceParameterSet.PicHeightInMapUnitsMinus1 + 1) *
+            (sequenceParameterSet.FrameMbsOnlyFlag || fieldPic ? 1u : 2u));
+        if (firstMb >= pictureSizeInMbs)
+            throw new FormatException("first_mb_in_slice exceeds the picture macroblock count.");
         uint? idrPicId = idr ? ReadBoundedUe(reader, 65535, "idr_pic_id") : null;
 
         uint? picOrderCntLsb = null;
