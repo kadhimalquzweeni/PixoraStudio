@@ -93,7 +93,10 @@ public sealed class H264DecodedPictureBuffer
                 "Reference pictures require decoded reference marking syntax.");
         if (!idrPicture)
             ValidateSurfaceCompatibility(surface);
-        if (surface.HasCompleteDeblockingMetadata && !surface.IsDeblockingFilterApplied)
+        if (!surface.HasCompleteDeblockingMetadata)
+            throw new InvalidOperationException(
+                "A reference picture must have complete deblocking metadata before DPB insertion.");
+        if (!surface.IsDeblockingFilterApplied)
             H264DeblockingPictureFilter.Apply(surface);
 
         H264ReferencePicture current = picture;
