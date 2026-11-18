@@ -57,18 +57,20 @@ public sealed class H264IntraReferenceSampleProviderTests
         var surface = new H264DecodedPictureSurface(CreateSps(1));
         surface.WriteIntraMacroblock(0, 0, 4, new byte[256],
             new byte[64], new byte[64]);
+        surface.WriteMacroblock(0, 1, 4, false, new byte[256],
+            new byte[64], new byte[64]);
         surface.WriteIntraMacroblock(1, 0, 5, new byte[256],
             new byte[64], new byte[64]);
         var provider = new H264IntraReferenceSampleProvider(surface);
 
-        var otherSlice = provider.GatherLuma16x16(1, 0, 4, false);
-        Assert.False(otherSlice.HasLeft);
+        var otherSlice = provider.GatherLuma16x16(1, 1, 4, false);
+        Assert.False(otherSlice.HasTop);
+        Assert.True(otherSlice.HasLeft);
+        Assert.True(otherSlice.HasTopLeft);
 
-        // A decoded inter macroblock cannot be represented as intra through
-        // this surface API; constrained-intra therefore retains only intra
-        // macroblocks that have been committed by WriteIntraMacroblock.
-        var constrained = provider.GatherLuma16x16(1, 0, 5, true);
+        var constrained = provider.GatherLuma16x16(1, 1, 4, true);
         Assert.False(constrained.HasLeft);
+        Assert.True(constrained.HasTopLeft);
     }
 
     [Fact]
