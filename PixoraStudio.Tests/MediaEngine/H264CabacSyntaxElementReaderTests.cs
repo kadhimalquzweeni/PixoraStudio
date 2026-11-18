@@ -510,18 +510,24 @@ public sealed class H264CabacSyntaxElementReaderTests
         }
     }
 
-    [Theory]
-    [InlineData(new[] { 0 }, 0)]
-    [InlineData(new[] { 1, 0, 0 }, 1)]
-    [InlineData(new[] { 1, 0, 1 }, 2)]
-    [InlineData(new[] { 1, 1, 0, 0, 0 }, 3)]
-    [InlineData(new[] { 1, 1, 1, 0, 0 }, 7)]
-    public void ReadBSubMacroblockType_ShouldDecodePartitionShape(
-        int[] encodedBins, int expectedType)
+    [Fact]
+    public void ReadBSubMacroblockType_ShouldDecodePartitionShapes()
     {
-        ScriptedCabacReader bins = new(encodedBins);
-        Assert.Equal(expectedType,
-            new H264CabacSyntaxElementReader(bins).ReadBSubMacroblockType());
+        (int[] Bins, int Expected)[] cases =
+        [
+            (new[] { 0 }, 0),
+            (new[] { 1, 0, 0 }, 1),
+            (new[] { 1, 0, 1 }, 2),
+            (new[] { 1, 1, 0, 0, 0 }, 3),
+            (new[] { 1, 1, 1, 0, 0 }, 7)
+        ];
+
+        foreach ((int[] encoded, int expected) in cases)
+        {
+            ScriptedCabacReader bins = new(encoded);
+            Assert.Equal(expected,
+                new H264CabacSyntaxElementReader(bins).ReadBSubMacroblockType());
+        }
     }
 
     private sealed class ScriptedCabacReader : IH264CabacBinReader
