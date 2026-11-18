@@ -69,23 +69,29 @@ public sealed class H264TemporalDirectMotionField
         if (_motionL0.TryGetStoredMotionVector(x, y, out H264MotionVectorCandidate list0))
         {
             H264ReferencePicture reference = ResolveReference(_referencesL0, list0.ReferenceIndex, "list 0");
+            int mappedIndex = MapReferenceToCurrentList0(reference, currentReferenceList0);
+            bool isLongTerm = mappedIndex >= 0
+                ? currentReferenceList0[mappedIndex].IsLongTerm
+                : reference.IsLongTerm;
             return new H264TemporalDirectPredictionContext(
                 list0.MotionVector, currentPictureOrderCount,
                 _collocatedPictureOrderCount, reference.PictureOrderCount,
-                reference.IsLongTerm, list0.ReferenceIndex,
-                _collocatedPictureIsShortTerm,
-                MapReferenceToCurrentList0(reference, currentReferenceList0));
+                isLongTerm, list0.ReferenceIndex,
+                _collocatedPictureIsShortTerm, mappedIndex);
         }
 
         if (_motionL1.TryGetStoredMotionVector(x, y, out H264MotionVectorCandidate list1))
         {
             H264ReferencePicture reference = ResolveReference(_referencesL1, list1.ReferenceIndex, "list 1");
+            int mappedIndex = MapReferenceToCurrentList0(reference, currentReferenceList0);
+            bool isLongTerm = mappedIndex >= 0
+                ? currentReferenceList0[mappedIndex].IsLongTerm
+                : reference.IsLongTerm;
             return new H264TemporalDirectPredictionContext(
                 list1.MotionVector, currentPictureOrderCount,
                 _collocatedPictureOrderCount, reference.PictureOrderCount,
-                reference.IsLongTerm, list1.ReferenceIndex,
-                _collocatedPictureIsShortTerm,
-                MapReferenceToCurrentList0(reference, currentReferenceList0));
+                isLongTerm, list1.ReferenceIndex,
+                _collocatedPictureIsShortTerm, mappedIndex);
         }
 
         return null;
