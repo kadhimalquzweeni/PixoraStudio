@@ -50,6 +50,18 @@ public sealed class H264IntraMacroblockReconstructor
             throw new FormatException("I_16x16 macroblocks cannot carry I_NxN luma prediction modes.");
         if (syntax.IntraChromaPredictionMode is null or > 3)
             throw new FormatException("The chroma prediction mode must be present and in the range 0..3.");
+        if (syntax.CodedBlockPattern.ChromaArrayType != sps.ChromaFormatIdc ||
+            syntax.CodedBlockPattern.Luma > 15 ||
+            syntax.CodedBlockPattern.Chroma > 2)
+            throw new FormatException("The intra macroblock coded-block-pattern does not match the active chroma format.");
+        if (header.CodedBlockPatternLuma != syntax.CodedBlockPattern.Luma ||
+            header.CodedBlockPatternChroma != syntax.CodedBlockPattern.Chroma)
+            throw new FormatException("I_16x16 macroblock header and parsed coded-block-pattern values disagree.");
+        if (residual.ChromaComponents.Count != 2 ||
+            residual.ChromaComponents.Select(component => component.ComponentId).Distinct().Count() != 2 ||
+            !residual.ChromaComponents.Any(component => component.ComponentId == 1) ||
+            !residual.ChromaComponents.Any(component => component.ComponentId == 2))
+            throw new FormatException("I_16x16 residual data must contain exactly one Cb and one Cr component.");
         H264CavlcResidualBlock dcResidual = residual.Intra16x16Dc
             ?? throw new FormatException("I_16x16 residual data must contain a DC block.");
         if (residual.Blocks.Count != 16)
