@@ -790,10 +790,8 @@ public partial class VideoEditorView : UserControl
         VideoEditorViewModel vm,
         double width)
     {
-        double position = Math.Clamp(
-            x / width * vm.TotalMilliseconds,
-            0,
-            vm.TotalMilliseconds);
+        double position = VideoTimelineMath.GetPosition(
+            x, width, vm.TotalMilliseconds);
 
         vm.PlaybackPosition = position;
 
