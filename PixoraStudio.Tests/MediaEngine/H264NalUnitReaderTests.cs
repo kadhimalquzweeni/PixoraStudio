@@ -80,18 +80,18 @@ public sealed class H264NalUnitReaderTests
     [Fact]
     public void ReadAnnexB_ShouldRejectForbiddenBit()
     {
-        Assert.Throws<FormatException>(() => _reader.ReadAnnexB([0, 0, 1, 0xE5]));
+        Assert.Throws<FormatException>(() => _reader.ReadAnnexB(new byte[] { 0, 0, 1, 0xE5 }));
     }
 
     [Fact]
     public void ReadAnnexB_ShouldRejectReservedNalType()
     {
-        Assert.Throws<FormatException>(() => _reader.ReadAnnexB([0, 0, 1, 0x60]));
+        Assert.Throws<FormatException>(() => _reader.ReadAnnexB(new byte[] { 0, 0, 1, 0x60 }));
     }
 
     [Fact]
     public void ReadAnnexB_ShouldRejectMissingStartCode()
     {
-        Assert.Throws<FormatException>(() => _reader.ReadAnnexB([0x67, 0x11]));
+        Assert.Throws<FormatException>(() => _reader.ReadAnnexB(new byte[] { 0x67, 0x11 }));
     }
 }
