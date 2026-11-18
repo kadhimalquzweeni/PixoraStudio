@@ -44,8 +44,11 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
             throw new ArgumentOutOfRangeException(nameof(intraChromaPredictionMode));
         if (macroblockQpDelta is < -26 or > 25)
             throw new ArgumentOutOfRangeException(nameof(macroblockQpDelta));
-        if (isPcm && (macroblockQpDelta.HasValue || intraChromaPredictionMode.HasValue))
-            throw new ArgumentException("I_PCM macroblocks do not carry intra prediction or QP-delta syntax.");
+        if (isPcm && (macroblockQpDelta.HasValue || intraChromaPredictionMode.HasValue ||
+                      transformSize8x8Flag))
+            throw new ArgumentException("I_PCM macroblocks do not carry intra prediction, transform-size or QP-delta syntax.");
+        if (isIntra16x16 && transformSize8x8Flag)
+            throw new ArgumentException("I_16x16 macroblocks cannot use the 8x8 transform.");
 
         MacroblockState state = new(
             address, sliceId, isIntraNxN, isIntra16x16, isPcm,
