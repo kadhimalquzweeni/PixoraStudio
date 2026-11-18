@@ -166,7 +166,7 @@ public sealed class H264BInterSliceDataDecoderTests
         Assert.Equal(2, result.ReferencePictureLists!.List0.Count);
         Assert.Single(result.ReferencePictureLists.List1);
         H264ReconstructedBInterSubPartition first = skipped.Partitions[0];
-        Assert.Equal(1, first.ReferenceIndexL0);
+        Assert.Equal((int?)1, first.ReferenceIndexL0);
         Assert.Equal(new H264MotionVector(1, -1), first.MotionVectorL0);
         Assert.Equal(new H264MotionVector(-1, 1), first.MotionVectorL1);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
