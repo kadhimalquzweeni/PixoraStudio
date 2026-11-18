@@ -61,6 +61,8 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         }
         if (chromaArrayType != 0 && (chromaPredictionContextIncrement is < 0 or > 2))
             throw new ArgumentOutOfRangeException(nameof(chromaPredictionContextIncrement));
+        if (qpDeltaContextIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(qpDeltaContextIncrement));
         if (macroblockHeader.IsIntra16x16 &&
             (macroblockHeader.CodedBlockPatternLuma is null ||
              macroblockHeader.CodedBlockPatternChroma is null))
