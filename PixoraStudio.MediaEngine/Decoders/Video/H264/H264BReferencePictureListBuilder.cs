@@ -30,17 +30,25 @@ public sealed class H264BReferencePictureListBuilder
             .Where(picture => !picture.IsLongTerm && picture.PictureOrderCount < currentPictureOrderCount)
             .OrderByDescending(picture => picture.PictureOrderCount)
             .ToList();
-        List<H264ReferencePicture> future = pictures
+        List<H264ReferencePicture> futureOrEqual = pictures
             .Where(picture => !picture.IsLongTerm && picture.PictureOrderCount >= currentPictureOrderCount)
             .OrderBy(picture => picture.PictureOrderCount)
+            .ToList();
+        List<H264ReferencePicture> future = pictures
+            .Where(picture => !picture.IsLongTerm && picture.PictureOrderCount > currentPictureOrderCount)
+            .OrderBy(picture => picture.PictureOrderCount)
+            .ToList();
+        List<H264ReferencePicture> pastOrEqual = pictures
+            .Where(picture => !picture.IsLongTerm && picture.PictureOrderCount <= currentPictureOrderCount)
+            .OrderByDescending(picture => picture.PictureOrderCount)
             .ToList();
         List<H264ReferencePicture> longTerm = pictures
             .Where(picture => picture.IsLongTerm)
             .OrderBy(picture => picture.LongTermFrameIndex)
             .ToList();
 
-        List<H264ReferencePicture> list0 = past.Concat(future).Concat(longTerm).ToList();
-        List<H264ReferencePicture> list1 = future.Concat(past).Concat(longTerm).ToList();
+        List<H264ReferencePicture> list0 = past.Concat(futureOrEqual).Concat(longTerm).ToList();
+        List<H264ReferencePicture> list1 = future.Concat(pastOrEqual).Concat(longTerm).ToList();
 
         if (list0.SequenceEqual(list1) && list1.Count > 1)
             (list1[0], list1[1]) = (list1[1], list1[0]);
