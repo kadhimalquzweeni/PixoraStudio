@@ -35,6 +35,12 @@ public sealed class H264BInterMacroblockReconstructorTests
         Assert.Equal(26, result.QpY);
         Assert.Equal((byte)73, destination.GetLumaSample(0, 0));
         Assert.True(destination.IsMacroblockDecoded(0, 0));
+        H264DeblockingMacroblockMetadata metadata =
+            destination.GetDeblockingMetadata(0, 0)!;
+        Assert.Equal(26, metadata.QpY);
+        Assert.Equal(16, metadata.LumaBlocks.Count);
+        Assert.Equal(new H264ReferencePicture(0, 0), metadata.LumaBlocks[0].ReferencePictureL0);
+        Assert.Null(metadata.LumaBlocks[0].ReferencePictureL1);
     }
 
     [Fact]
@@ -61,6 +67,11 @@ public sealed class H264BInterMacroblockReconstructorTests
         Assert.Equal(26, result.QpY);
         Assert.Equal((byte)91, destination.GetLumaSample(0, 0));
         Assert.True(destination.IsMacroblockDecoded(0, 0));
+        H264DeblockingMacroblockMetadata metadata =
+            destination.GetDeblockingMetadata(0, 0)!;
+        Assert.Equal(26, metadata.QpY);
+        Assert.Equal(16, metadata.LumaBlocks.Count);
+        Assert.True(metadata.LumaBlocks.All(block => block.IsIntra == false));
     }
 
     [Fact]
