@@ -36,11 +36,11 @@ public sealed class H264PictureOrderCountCalculatorTests
     public void Calculate_TypeZero_ShouldCalculateBottomFieldOnly()
     {
         H264PictureOrderCount result = new H264PictureOrderCountCalculator().Calculate(
-            CreateSps(), CreateSlice(frameNum: 0, pocLsb: 9, idr: true, field: true, bottom: true), 3);
+            CreateSps(), CreateSlice(frameNum: 0, pocLsb: 7, idr: true, field: true, bottom: true), 3);
 
         Assert.False(result.HasTopField);
         Assert.True(result.HasBottomField);
-        Assert.Equal(9, result.PictureOrderCount);
+        Assert.Equal(7, result.PictureOrderCount);
         Assert.Equal(int.MaxValue, result.TopFieldOrderCount);
     }
 
