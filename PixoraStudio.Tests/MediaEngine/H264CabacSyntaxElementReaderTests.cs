@@ -519,7 +519,7 @@ public sealed class H264CabacSyntaxElementReaderTests
             (new[] { 1, 0, 0 }, 1),
             (new[] { 1, 0, 1 }, 2),
             (new[] { 1, 1, 0, 0, 0 }, 3),
-            (new[] { 1, 1, 1, 0, 0 }, 7)
+            (new[] { 1, 1, 1, 0, 0, 0 }, 7)
         ];
 
         foreach ((int[] encoded, int expected) in cases)
