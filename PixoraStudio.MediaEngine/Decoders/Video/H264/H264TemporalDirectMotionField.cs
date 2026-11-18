@@ -46,13 +46,20 @@ public sealed class H264TemporalDirectMotionField
     }
 
     public Func<int, int, int, int, H264TemporalDirectPredictionContext?> AsProvider(
-        int currentPictureOrderCount) =>
-        (x, y, width, height) =>
-            GetContext(x, y, width, height, currentPictureOrderCount);
+        int currentPictureOrderCount,
+        IReadOnlyList<H264ReferencePicture> currentReferenceList0)
+    {
+        ArgumentNullException.ThrowIfNull(currentReferenceList0);
+        H264ReferencePicture[] currentReferences = currentReferenceList0.ToArray();
+        return (x, y, width, height) =>
+            GetContext(x, y, width, height, currentPictureOrderCount, currentReferences);
+    }
 
     public H264TemporalDirectPredictionContext? GetContext(
-        int x, int y, int width, int height, int currentPictureOrderCount)
+        int x, int y, int width, int height, int currentPictureOrderCount,
+        IReadOnlyList<H264ReferencePicture> currentReferenceList0)
     {
+        ArgumentNullException.ThrowIfNull(currentReferenceList0);
         if (x < 0 || y < 0 || width <= 0 || height <= 0 ||
             x >= _motionL0.BlockWidth || y >= _motionL0.BlockHeight ||
             width > _motionL0.BlockWidth - x || height > _motionL0.BlockHeight - y)
@@ -66,7 +73,8 @@ public sealed class H264TemporalDirectMotionField
                 list0.MotionVector, currentPictureOrderCount,
                 _collocatedPictureOrderCount, reference.PictureOrderCount,
                 reference.IsLongTerm, list0.ReferenceIndex,
-                _collocatedPictureIsShortTerm);
+                _collocatedPictureIsShortTerm,
+                MapReferenceToCurrentList0(reference, currentReferenceList0));
         }
 
         if (_motionL1.TryGetStoredMotionVector(x, y, out H264MotionVectorCandidate list1))
@@ -76,10 +84,29 @@ public sealed class H264TemporalDirectMotionField
                 list1.MotionVector, currentPictureOrderCount,
                 _collocatedPictureOrderCount, reference.PictureOrderCount,
                 reference.IsLongTerm, list1.ReferenceIndex,
-                _collocatedPictureIsShortTerm);
+                _collocatedPictureIsShortTerm,
+                MapReferenceToCurrentList0(reference, currentReferenceList0));
         }
 
         return null;
+    }
+
+    private static int MapReferenceToCurrentList0(
+        H264ReferencePicture collocatedReference,
+        IReadOnlyList<H264ReferencePicture> currentReferenceList0)
+    {
+        for (int i = 0; i < currentReferenceList0.Count; i++)
+        {
+            // A reference can be re-marked short-term/long-term after the
+            // collocated picture was decoded. POC identifies the same frame
+            // across that marking transition for the supported frame-only path.
+            if (currentReferenceList0[i].PictureOrderCount ==
+                collocatedReference.PictureOrderCount)
+                return i;
+        }
+
+        throw new FormatException(
+            "The collocated reference picture is not present in the current RefPicList0.");
     }
 
     private static H264ReferencePicture ResolveReference(
