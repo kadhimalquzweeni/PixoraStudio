@@ -123,13 +123,42 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
             int blockY = macroblockY * 2 + (blockIndex >> 1);
             int left = GetLumaCbpNeighbourCondition(
                 blockX - 1, blockY, macroblockX, macroblockY,
-                previouslyDecodedCodedBlockPattern, sliceId);
+                previouslyDecodedCodedBlockPattern, 4, sliceId);
             int top = GetLumaCbpNeighbourCondition(
                 blockX, blockY - 1, macroblockX, macroblockY,
                 previouslyDecodedCodedBlockPattern, sliceId);
             increments[blockIndex] = left + (2 * top);
         }
         return increments;
+    }
+
+    /// <summary>
+    /// Derives one luma CBP context increment using the bins already decoded
+    /// for the current macroblock. This is the incremental form required by
+    /// CABAC because right/bottom CBP bins depend on earlier bins in this MB.
+    /// </summary>
+    public int GetLumaCodedBlockPatternContextIncrement(
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        int binIndex,
+        uint previouslyDecodedCodedBlockPattern)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        if (binIndex is < 0 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(binIndex));
+        if (previouslyDecodedCodedBlockPattern > 15)
+            throw new ArgumentOutOfRangeException(nameof(previouslyDecodedCodedBlockPattern));
+
+        int blockX = macroblockX * 2 + (binIndex & 1);
+        int blockY = macroblockY * 2 + (binIndex >> 1);
+        int left = GetLumaCbpNeighbourCondition(
+            blockX - 1, blockY, macroblockX, macroblockY,
+            previouslyDecodedCodedBlockPattern, binIndex, sliceId);
+        int top = GetLumaCbpNeighbourCondition(
+            blockX, blockY - 1, macroblockX, macroblockY,
+            previouslyDecodedCodedBlockPattern, binIndex, sliceId);
+        return left + (2 * top);
     }
 
     /// <summary>
@@ -163,6 +192,7 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
         int currentMacroblockX,
         int currentMacroblockY,
         uint previouslyDecodedCodedBlockPattern,
+        int currentBinIndex,
         int sliceId)
     {
         if (blockX < 0 || blockY < 0)
@@ -174,6 +204,8 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
             macroblockY == currentMacroblockY)
         {
             int currentBlockIndex = ((blockY & 1) * 2) + (blockX & 1);
+            if (currentBlockIndex >= currentBinIndex)
+                return 0;
             return (previouslyDecodedCodedBlockPattern & (1u << currentBlockIndex)) == 0 ? 1 : 0;
         }
         if (!TryGetMacroblock(macroblockX, macroblockY, sliceId, out MacroblockState state) ||
