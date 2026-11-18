@@ -160,7 +160,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
         collocatedL0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(16, -16));
         H264TemporalDirectMotionField field = new(
             collocatedL0, collocatedL1,
-            [new H264ReferencePicture(0, 10)], [], 0);
+            [new H264ReferencePicture(0, 10)], [], 0, collocatedPictureIsShortTerm: true);
 
         IReadOnlyList<H264ReconstructedBInterSubPartition> result =
             new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
