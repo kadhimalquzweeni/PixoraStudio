@@ -256,6 +256,28 @@ public sealed class H264CabacResidualBlockReaderTests
         Assert.Equal(new[] { 105, 166, 228, 232, 231 }, bins.ContextIndices);
     }
 
+
+    [Fact]
+    public void ReadBlock_ShouldUseSpecial422ChromaDcGreaterThanOneContextAtHighNodeState()
+    {
+        int[] decisions =
+        [
+            1, 0, 1, 0, 1, 0, 1, 0, 0, 0, // significance and last flags
+            1, 0, 1, 0, 1, 0, 1, 0, 1, 0 // five coefficient levels
+        ];
+        ScriptedCabacReader bins = new(
+            decisionBins: decisions,
+            bypassBins: new[] { 0, 0, 0, 0, 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        int[] coefficients = reader.ReadBlock(
+            bins, H264CabacResidualBlockContext.Create(3, chroma422: true),
+            codedBlockFlag: true).Coefficients.ToArray();
+
+        Assert.Equal(new[] { 2, 2, 2, 2, 0, 0, 0, 2 }, coefficients);
+        Assert.Equal(265, bins.ContextIndices[^1]);
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _decisionBins;
