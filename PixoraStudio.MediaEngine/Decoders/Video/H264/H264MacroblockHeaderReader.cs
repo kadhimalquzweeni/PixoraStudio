@@ -52,7 +52,7 @@ public sealed class H264MacroblockHeaderReader
         return DecodeIntraMacroblockType(macroblockAddress, mbTypeCode - 5, mbTypeCode);
     }
 
-    private static H264MacroblockHeader DecodeIntraMacroblockType(
+    internal static H264MacroblockHeader DecodeIntraMacroblockType(
         uint address,
         uint intraTypeCode,
         uint? originalTypeCode = null)
