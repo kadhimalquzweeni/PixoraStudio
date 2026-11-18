@@ -61,6 +61,8 @@ public sealed class H264DecodedPictureBuffer
             return null;
         if (!surface.IsComplete)
             throw new InvalidOperationException("A reference picture must be fully reconstructed before DPB insertion.");
+        if (surface.HasCompleteDeblockingMetadata && !surface.IsDeblockingFilterApplied)
+            H264DeblockingPictureFilter.Apply(surface);
         if (maxNumRefFrames is 0 or > 16)
             throw new ArgumentOutOfRangeException(nameof(maxNumRefFrames),
                 "A reference picture requires max_num_ref_frames in the range 1..16.");
