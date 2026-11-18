@@ -165,8 +165,13 @@ public sealed class H264Mp4AccessUnitDecoder
                 activeSps, firstSlice, firstNal.NalRefIdc);
 
             H264IntraSliceDataDecoder? intraDecoder = null;
+            H264CabacIntraSliceDataDecoder? cabacIntraDecoder = null;
             H264PInterSliceDataDecoder? pDecoder = null;
             H264BInterSliceDataDecoder? bDecoder = null;
+
+            if (activePps.EntropyCodingModeFlag && firstSlice.SliceType is H264SliceType.P or H264SliceType.B)
+                throw new NotSupportedException(
+                    "CABAC P- and B-slice macroblock decoding is not yet integrated.");
 
             if (firstSlice.SliceType == H264SliceType.P)
             {
@@ -187,7 +192,15 @@ public sealed class H264Mp4AccessUnitDecoder
             }
             else if (firstSlice.SliceType == H264SliceType.I)
             {
-                intraDecoder = new H264IntraSliceDataDecoder(surface);
+                if (activePps.EntropyCodingModeFlag)
+                {
+                    cabacIntraDecoder = new H264CabacIntraSliceDataDecoder(surface);
+                    cabacIntraDecoder.ResetPictureContexts();
+                }
+                else
+                {
+                    intraDecoder = new H264IntraSliceDataDecoder(surface);
+                }
             }
             else
             {
@@ -203,7 +216,12 @@ public sealed class H264Mp4AccessUnitDecoder
                 switch (header.SliceType)
                 {
                     case H264SliceType.I:
-                        _ = intraDecoder!.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                        if (cabacIntraDecoder is not null)
+                            _ = cabacIntraDecoder.Decode(
+                                nalUnit, activeSps, activePps, currentSliceId);
+                        else
+                            _ = intraDecoder!.Decode(
+                                nalUnit, activeSps, activePps, currentSliceId);
                         break;
 
                     case H264SliceType.P:
