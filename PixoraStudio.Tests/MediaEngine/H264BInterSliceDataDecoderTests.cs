@@ -268,11 +268,24 @@ public sealed class H264BInterSliceDataDecoderTests
     {
         H264DecodedPictureSurface surface = new(sps);
         for (int x = 0; x < surface.MacroblockWidth; x++)
+        {
             surface.WriteMacroblock(x, 0, 0, false,
                 Enumerable.Repeat(value, 256).ToArray(),
                 Enumerable.Repeat(value, 64).ToArray(),
                 Enumerable.Repeat(value, 64).ToArray());
+            surface.SetDeblockingMetadata(x, 0, ReferenceDeblockingMetadata());
+        }
         return surface;
+    }
+
+    private static H264DeblockingMacroblockMetadata ReferenceDeblockingMetadata()
+    {
+        H264DeblockingBlockMetadata inter = new(false, false, null, null, null, null);
+        return new H264DeblockingMacroblockMetadata(
+            26, 26, 26, 1, 0, 0, false,
+            Enumerable.Repeat(inter, 16).ToArray(),
+            Enumerable.Repeat(inter, 4).ToArray(),
+            Enumerable.Repeat(inter, 4).ToArray());
     }
 
     private static H264DecodedPictureBuffer Dpb(H264DecodedPictureSurface surface)
