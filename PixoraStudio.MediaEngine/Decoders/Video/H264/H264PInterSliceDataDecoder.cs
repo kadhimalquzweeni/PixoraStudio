@@ -93,7 +93,14 @@ public sealed class H264PInterSliceDataDecoder
             decodedPictureBuffer.BuildList0(
                 checked((int)slice.FrameNum), maxFrameNum, activeCount,
                 slice.RefPicList0Modifications);
-        return Decode(nalUnit, sps, pps, activeList0, sliceId);
+        H264DecodedPictureBufferEntry[] entries = decodedPictureBuffer.Entries.ToArray();
+        IReadOnlyList<H264ReferencePicture> referenceMetadata = activeList0
+            .Select(surface => entries.Single(entry => ReferenceEquals(entry.Surface, surface)).Picture)
+            .ToArray();
+        return Decode(nalUnit, sps, pps, activeList0, sliceId) with
+        {
+            ReferenceList0 = referenceMetadata
+        };
     }
 
     public H264PInterSliceDecodeResult Decode(
