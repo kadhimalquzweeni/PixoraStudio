@@ -21,6 +21,8 @@ public sealed class H264CabacResidualBlockContextTests
         Assert.Equal(significant, map.SignificantContextOffset);
         Assert.Equal(last, map.LastSignificantContextOffset);
         Assert.Equal(level, map.AbsoluteLevelContextOffset);
+        Assert.Equal(category == 5 ? null : 85 + category * 4,
+            map.CodedBlockFlagContextOffset);
     }
 
     [Theory]
