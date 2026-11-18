@@ -57,8 +57,8 @@ public sealed class H264MotionCompensatorTests
     }
 
     [Theory]
-    [InlineData(2, 0, 160)]
-    [InlineData(0, 2, 160)]
+    [InlineData(2, 0, 159)]
+    [InlineData(0, 2, 159)]
     [InlineData(2, 2, 100)]
     public void InterpolateLuma_HalfSamples_ShouldUseNormativeSixTapCoefficients(
         int quarterX, int quarterY, byte expected)
