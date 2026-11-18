@@ -201,6 +201,31 @@ public sealed class H264BInterMacroblockReconstructorTests
         return new H264InterResidualMacroblock(address, luma, chroma);
     }
 
+
+    [Fact]
+    public void DecodeAndReconstruct_ShouldRejectCabacBeforeCavlcSyntaxParsing()
+    {
+        H264SequenceParameterSet sps = CreateSps();
+        H264PictureParameterSetHeader pps = CreatePps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = CreateSurface(sps, 73);
+        H264MacroblockHeader header = Header(1);
+
+        Assert.Throws<NotSupportedException>(() =>
+            new H264BInterMacroblockReconstructor().DecodeAndReconstruct(
+                new BitWriter().Reader(), header, 0, 0,
+                [reference], [reference],
+                new H264BReferencePictureLists(
+                    [new H264ReferencePicture(0, 0)], [new H264ReferencePicture(1, 2)]),
+                new H264MotionVectorPictureState(1, 1),
+                new H264MotionVectorPictureState(1, 1),
+                new H264DecodedPictureSurface(sps), 0, 0, 0, 26, 1, true,
+                sps, pps,
+                new H264CavlcNeighbourContext(),
+                new H264CavlcNeighbourContext(),
+                new H264CavlcNeighbourContext()));
+    }
+
+
     private static H264MacroblockHeader Header(uint type) =>
         new(0, type, false, 0, false, false, null, null, null, false);
 
