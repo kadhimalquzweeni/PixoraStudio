@@ -1,4 +1,4 @@
-namespace PixoraStudio.MediaEngine.Models.Video;
+namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Parameter-set NAL units and framing metadata extracted from an AVC
