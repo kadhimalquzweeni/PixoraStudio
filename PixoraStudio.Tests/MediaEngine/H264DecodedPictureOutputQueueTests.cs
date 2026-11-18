@@ -25,10 +25,10 @@ public sealed class H264DecodedPictureOutputQueueTests
         H264DecodedPictureSurface poc2 = Surface(20);
         H264DecodedPictureSurface poc6 = Surface(60);
 
-        queue.Enqueue(poc4, Poc(4), 1);
-        queue.Enqueue(poc2, Poc(2), 1);
+        queue.Enqueue(poc4, Poc(4), 2);
+        queue.Enqueue(poc2, Poc(2), 2);
         IReadOnlyList<H264DecodedPictureOutput> ready =
-            queue.Enqueue(poc6, Poc(6), 1);
+            queue.Enqueue(poc6, Poc(6), 2);
 
         H264DecodedPictureOutput output = Assert.Single(ready);
         Assert.Same(poc2, output.Surface);
