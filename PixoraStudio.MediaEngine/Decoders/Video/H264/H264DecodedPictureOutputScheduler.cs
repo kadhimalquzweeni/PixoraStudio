@@ -40,6 +40,7 @@ public sealed class H264DecodedPictureOutputScheduler
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(slice);
 
+        int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
         IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
         if (slice.IdrPicId.HasValue)
         {
@@ -47,7 +48,6 @@ public sealed class H264DecodedPictureOutputScheduler
             priorOutputs = _outputQueue.HandleIdr(noOutput);
         }
 
-        int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
         H264PictureOrderCount poc = _pocCalculator.Calculate(sps, slice, nalRefIdc);
         IReadOnlyList<H264DecodedPictureOutput> ready =
             _outputQueue.Enqueue(surface, poc, maxNumReorderFrames);
@@ -73,6 +73,8 @@ public sealed class H264DecodedPictureOutputScheduler
         {
             if (reorderFrames > 16)
                 throw new FormatException("VUI max_num_reorder_frames exceeds the supported frame buffer limit.");
+            if (vui.MaxDecFrameBuffering is uint buffering && reorderFrames > buffering)
+                throw new FormatException("VUI max_num_reorder_frames cannot exceed max_dec_frame_buffering.");
             return checked((int)reorderFrames);
         }
 
