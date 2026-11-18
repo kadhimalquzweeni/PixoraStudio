@@ -100,7 +100,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReaderTests
 
         Assert.Throws<ArgumentException>(() =>
             new H264CabacIntraMacroblockSyntaxReader().Read(
-                syntax, header, CreateSps(), CreatePps(entropyCoding: false),
+                syntax, header, CreateSps(), CreatePps(false, entropyCoding: false),
                 0, new[] { 0, 0, 0, 0 }, new[] { 0, 0 }, 0));
     }
 
