@@ -14,4 +14,7 @@ public sealed record H264PInterSliceDecodeResult(
     IReadOnlyList<H264InterMacroblockReconstructionResult> Macroblocks)
 {
     public IReadOnlyList<uint> IntraMacroblockAddresses { get; init; } = [];
+
+    /// <summary>Ordered reference metadata used by this slice when decoded through the DPB overload.</summary>
+    public IReadOnlyList<H264ReferencePicture>? ReferenceList0 { get; init; }
 }
