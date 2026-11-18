@@ -66,7 +66,7 @@ public sealed class H264CavlcVlcDecoderTests
     [InlineData(2, "1", 0)]
     [InlineData(2, "01", 1)]
     [InlineData(2, "00", 2)]
-    [InlineData(7, "000", 7)]
+    [InlineData(7, "0001", 7)]
     public void DecodeRunBefore_ShouldUseZerosLeftTable(int zerosLeft, string code, int expected)
     {
         Assert.Equal(expected, _decoder.DecodeRunBefore(CreateReader(code), zerosLeft));
