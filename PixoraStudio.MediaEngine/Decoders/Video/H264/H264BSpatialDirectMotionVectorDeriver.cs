@@ -34,7 +34,7 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         int macroblockPartitionIndex,
         int sliceId,
         bool direct8x8InferenceFlag,
-        bool colZeroFlag = false)
+        Func<int, int, int, int, bool>? colZeroFlagProvider = null)
     {
         ArgumentNullException.ThrowIfNull(motionVectorStateL0);
         ArgumentNullException.ThrowIfNull(motionVectorStateL1);
@@ -76,6 +76,7 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
             bool directZeroPrediction = AllReferencesUnavailable(candidates0) &&
                 AllReferencesUnavailable(candidates1);
 
+            bool colZeroFlag = colZeroFlagProvider?.Invoke(regionX, regionY, step, step) ?? false;
             H264MotionVector vector0 = directZeroPrediction ||
                 (referenceIndex0 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
