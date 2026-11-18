@@ -79,7 +79,7 @@ public sealed class H264Mp4VideoSeekPlanner
         Mp4SampleLocation? precedingSync = randomAccessSamples
             .Where(sample => sample.PresentationTimeTicks <= targetTicks)
             .OrderByDescending(sample => sample.PresentationTimeTicks)
-            .ThenByDescending(sample => sample.SampleNumber)
+            .ThenBy(sample => sample.SampleNumber)
             .FirstOrDefault();
 
         // A target before the first sync picture must still start at a valid
