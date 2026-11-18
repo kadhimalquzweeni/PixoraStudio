@@ -1,3 +1,4 @@
+using PixoraStudio.MediaEngine.Containers.Mp4;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
 using PixoraStudio.MediaEngine.Models.General;
 
@@ -143,17 +144,28 @@ public sealed class H264Mp4VideoSeekPlannerTests
         Assert.Throws<ArgumentOutOfRangeException>(() => _planner.Plan(track, target));
     }
 
+    private static Mp4MediaTrack CreateTrack(params Mp4SampleLocation[] samples) =>
+        CreateTrack(Mp4HandlerType.Video, 1000, samples);
+
     private static Mp4MediaTrack CreateTrack(
-        IEnumerable<Mp4SampleLocation> samples,
+        Mp4SampleLocation sample,
         Mp4HandlerType handlerType = Mp4HandlerType.Video,
-        uint timescale = 1000)
+        uint timescale = 1000) =>
+        CreateTrack(handlerType, timescale, [sample]);
+
+    private static Mp4MediaTrack CreateTrack(
+        Mp4HandlerType handlerType,
+        uint timescale,
+        params Mp4SampleLocation[] samples)
     {
         Mp4Track track = new(
             7, 1920, 1080, timescale, 0, handlerType, []);
 
-        Mp4SampleTable table = new([], [],
+        Mp4SampleTable table = new(
+            [], [],
             new Mp4SampleSizeTable(1, 0, []),
-            new Mp4ChunkOffsetTable([]), null);
+            new Mp4ChunkOffsetTable([]),
+            null);
 
         return new Mp4MediaTrack(
             track,
