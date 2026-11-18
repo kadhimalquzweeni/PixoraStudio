@@ -1,3 +1,5 @@
+using PixoraStudio.MediaEngine.Models.Video;
+
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
@@ -68,7 +70,7 @@ public sealed class H264CavlcContextState
     /// then records TotalCoeff. Chroma DC blocks use their dedicated VLC
     /// tables and must continue to be decoded through ReadBlock directly.
     /// </summary>
-    public Models.Video.H264CavlcResidualBlock ReadBlock(
+    public H264CavlcResidualBlock ReadBlock(
         H264CavlcResidualBlockReader reader,
         H264BitReader bitReader,
         int blockX,
