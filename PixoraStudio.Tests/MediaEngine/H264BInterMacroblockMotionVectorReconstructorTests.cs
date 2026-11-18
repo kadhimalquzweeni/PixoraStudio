@@ -136,7 +136,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
                 direct8x8InferenceFlag: true,
                 temporalContextProvider: (_, _, _, _) =>
                     new H264TemporalDirectPredictionContext(
-                        new H264MotionVector(16, -16), 10, 0, -10, false));
+                        new H264MotionVector(16, -16), 5, 0, 10, false));
 
         Assert.Equal(4, result.Count);
         Assert.All(result, item =>
