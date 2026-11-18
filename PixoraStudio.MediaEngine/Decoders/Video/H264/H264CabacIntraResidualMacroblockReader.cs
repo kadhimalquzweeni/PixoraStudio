@@ -112,8 +112,11 @@ public sealed class H264CabacIntraResidualMacroblockReader
         {
             H264CabacResidualBlockContextMap dcMap =
                 H264CabacResidualBlockContext.Create(0);
+            int dcContextIncrement = neighbourContext.GetContextIndexIncrement(
+                3, macroblockX, macroblockY, 1, 1, sliceId,
+                currentMacroblockIsIntra: true);
             intra16x16Dc = _residualReader.ReadBlockWithCodedBlockFlag(
-                binReader, dcMap, contextIndexIncrement: 0);
+                binReader, dcMap, dcContextIncrement);
             neighbourContext.RecordBlock(
                 3, macroblockX, macroblockY, sliceId,
                 intra16x16Dc.TotalCoefficients != 0);
