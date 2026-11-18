@@ -6,8 +6,8 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264IntraMacroblockReconstructorTests
 {
     [Theory]
-    [InlineData(1, 64)]
-    [InlineData(2, 128)]
+    [InlineData(1, 256)]
+    [InlineData(2, 512)]
     public void ReconstructIntra16x16_ShouldWriteLumaAndBothChromaPlanes(
         uint format, int chromaCount)
     {
