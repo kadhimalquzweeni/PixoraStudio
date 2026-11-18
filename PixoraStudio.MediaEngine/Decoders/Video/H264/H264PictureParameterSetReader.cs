@@ -114,6 +114,8 @@ public sealed class H264PictureParameterSetReader
             secondChromaOffset = ReadBoundedSe(reader, -12, 12, "second_chroma_qp_index_offset");
         }
 
+        reader.ConsumeRbspTrailingBits();
+
         return new H264PictureParameterSetHeader(
             ppsId, spsId, entropy, bottomFieldPoc, groupsMinus1)
         {
