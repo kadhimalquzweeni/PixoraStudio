@@ -396,8 +396,16 @@ public sealed class H264ParameterSetReaderTests
         byte[] rbsp = bits.ToArray();
         rbsp[^1] = 0;
 
-        Assert.Throws<FormatException>(() =>
+        FormatException exception = Assert.Throws<FormatException>(() =>
             new H264SequenceParameterSetReader().Read(new H264NalUnit(0x67, rbsp)));
+
+        Assert.Contains("Failed to validate SPS rbsp_trailing_bits", exception.Message);
+        Assert.Contains("NAL header: 0x67", exception.Message);
+        Assert.Contains("profile_idc: 66", exception.Message);
+        Assert.Contains("SPS EBSP payload hex:", exception.Message);
+        Assert.Contains("SPS RBSP hex:", exception.Message);
+        Assert.Contains("Bit position:", exception.Message);
+        Assert.NotNull(exception.InnerException);
     }
 
     [Fact]
