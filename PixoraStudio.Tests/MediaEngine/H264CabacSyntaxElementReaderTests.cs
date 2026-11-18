@@ -148,6 +148,46 @@ public sealed class H264CabacSyntaxElementReaderTests
             reader.ReadIntraChromaPredictionMode(increment));
     }
 
+
+    [Theory]
+    [InlineData(false, 0, 11)]
+    [InlineData(false, 1, 12)]
+    [InlineData(false, 2, 13)]
+    [InlineData(true, 0, 24)]
+    [InlineData(true, 1, 25)]
+    [InlineData(true, 2, 26)]
+    public void ReadMacroblockSkipFlag_ShouldSelectSliceAndNeighbourContext(
+        bool isBSlice, int increment, int expectedContext)
+    {
+        ScriptedCabacReader bins = new(1);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.True(reader.ReadMacroblockSkipFlag(isBSlice, increment));
+        Assert.Equal(new[] { expectedContext }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(3)]
+    public void ReadMacroblockSkipFlag_ShouldRejectInvalidContextIncrement(int increment)
+    {
+        H264CabacSyntaxElementReader reader = new(new ScriptedCabacReader(0));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            reader.ReadMacroblockSkipFlag(false, increment));
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    public void ReadEndOfSliceFlag_ShouldDecodeTerminatingBin(int bin, bool expected)
+    {
+        ScriptedCabacReader bins = new(bin);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(expected, reader.ReadEndOfSliceFlag());
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _bins;
