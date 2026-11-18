@@ -11,4 +11,7 @@ public sealed record H264PInterSliceDecodeResult(
     int MacroblocksDecoded,
     int FinalQpY,
     int BitsConsumed,
-    IReadOnlyList<H264InterMacroblockReconstructionResult> Macroblocks);
+    IReadOnlyList<H264InterMacroblockReconstructionResult> Macroblocks)
+{
+    public IReadOnlyList<uint> IntraMacroblockAddresses { get; init; } = [];
+}
