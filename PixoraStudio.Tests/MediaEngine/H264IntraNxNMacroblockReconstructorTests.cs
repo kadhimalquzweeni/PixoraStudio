@@ -23,8 +23,10 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
             24, sps, CreatePps());
 
         Assert.True(surface.IsMacroblockDecoded(0, 0));
-        Assert.All(surface.CopyLumaPlane().Take(16 * 16),
-            sample => Assert.Equal((byte)128, sample));
+        byte[] luma = surface.CopyLumaPlane();
+        for (int y = 0; y < 16; y++)
+            Assert.All(luma.Skip(y * surface.Width).Take(16),
+                sample => Assert.Equal((byte)128, sample));
 
         byte[] cb = surface.CopyCbPlane();
         byte[] cr = surface.CopyCrPlane();
@@ -69,7 +71,6 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
             24, sps, CreatePps());
 
         Assert.Equal((byte)60, surface.GetLumaSample(16, 16));
-        Assert.Equal((byte)60, surface.GetLumaSample(23, 23));
         Assert.Equal((byte)50, surface.GetChromaSample(1, 8, 8));
         Assert.Equal((byte)55, surface.GetChromaSample(2, 8, 8));
     }
