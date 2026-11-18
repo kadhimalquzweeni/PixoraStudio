@@ -16,7 +16,7 @@ public sealed class H264IntraMacroblockReconstructorTests
         var surface = new H264DecodedPictureSurface(sps);
         var reconstructor = new H264IntraMacroblockReconstructor(surface);
         var header = CreateHeader(0, 2);
-        var syntax = CreateSyntax(0);
+        var syntax = CreateSyntax(0, format);
         var residual = CreateResidualMacroblock(0, format);
 
         reconstructor.ReconstructIntra16x16(
@@ -41,12 +41,12 @@ public sealed class H264IntraMacroblockReconstructorTests
         reconstructor.ReconstructIntra16x16(0, 0, 0, CreateHeader(0, 2),
             CreateSyntax(0), CreateResidualMacroblock(0, 1), 24, sps, CreatePps());
         reconstructor.ReconstructIntra16x16(1, 0, 0, CreateHeader(1, 2),
-            CreateSyntax(0), CreateResidualMacroblock(1, 1), 24, sps, CreatePps());
+            CreateSyntax(0, 1), CreateResidualMacroblock(1, 1), 24, sps, CreatePps());
         reconstructor.ReconstructIntra16x16(0, 1, 0, CreateHeader(2, 2),
-            CreateSyntax(0), CreateResidualMacroblock(2, 1), 24, sps, CreatePps());
+            CreateSyntax(0, 1), CreateResidualMacroblock(2, 1), 24, sps, CreatePps());
 
         reconstructor.ReconstructIntra16x16(1, 1, 0, CreateHeader(3, 2),
-            CreateSyntax(0), CreateResidualMacroblock(3, 1), 24, sps, CreatePps());
+            CreateSyntax(0, 1), CreateResidualMacroblock(3, 1), 24, sps, CreatePps());
 
         Assert.True(surface.IsMacroblockDecoded(1, 1));
         Assert.Equal((byte)128, surface.GetLumaSample(16, 16));
@@ -72,7 +72,7 @@ public sealed class H264IntraMacroblockReconstructorTests
             Enumerable.Repeat((byte)91, chromaCount).ToArray());
 
         new H264IntraMacroblockReconstructor(surface).ReconstructIntra16x16(
-            1, 1, 0, CreateHeader(3, 0), CreateSyntax(2),
+            1, 1, 0, CreateHeader(3, 0), CreateSyntax(2, 1),
             CreateResidualMacroblock(3, 1), 24, sps, CreatePps());
 
         Assert.All(surface.CopyLumaPlane().Skip(16 * 32 + 16).Take(16),
@@ -90,7 +90,7 @@ public sealed class H264IntraMacroblockReconstructorTests
         var reconstructor = new H264IntraMacroblockReconstructor(surface);
 
         Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
-            0, 0, 0, CreateHeader(0, 3), CreateSyntax(0),
+            0, 0, 0, CreateHeader(0, 3), CreateSyntax(0, 1),
             CreateResidualMacroblock(0, 1), 24, sps, CreatePps()));
         Assert.False(surface.IsMacroblockDecoded(0, 0));
     }
@@ -105,12 +105,12 @@ public sealed class H264IntraMacroblockReconstructorTests
 
         Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
             0, 0, 0, CreateHeader(0, 0) with { IsIntra16x16 = false },
-            CreateSyntax(0), residual, 24, sps, CreatePps()));
+            CreateSyntax(0, 1), residual, 24, sps, CreatePps()));
         Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
             0, 0, 0, CreateHeader(0, 2) with { IsPcm = true },
             CreateSyntax(0), residual, 24, sps, CreatePps()));
         Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
-            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0), residual, 24,
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1), residual, 24,
             sps, CreatePps() with { EntropyCodingModeFlag = true }));
     }
 
@@ -140,8 +140,9 @@ public sealed class H264IntraMacroblockReconstructorTests
     private static H264MacroblockHeader CreateHeader(uint address, uint mode) =>
         new(address, 0, false, 0, true, true, mode, 0, 0, false);
 
-    private static H264IntraMacroblockSyntax CreateSyntax(uint chromaMode) =>
-        new(null, null, chromaMode, new H264CodedBlockPattern(0, 0, 0, 1), 0);
+    private static H264IntraMacroblockSyntax CreateSyntax(uint chromaMode, uint chromaFormat) =>
+        new(null, null, chromaMode,
+            new H264CodedBlockPattern(0, 0, 0, chromaFormat), 0);
 
     private static H264IntraLumaResidualMacroblock CreateResidualMacroblock(
         uint address, uint format)
