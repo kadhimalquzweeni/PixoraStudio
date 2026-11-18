@@ -199,6 +199,13 @@ public sealed class H264SliceHeaderReaderTests
     }
 
     [Fact]
+    public void Read_ShouldRejectTruncatedSliceHeader()
+    {
+        Assert.Throws<EndOfStreamException>(() => new H264SliceHeaderReader().Read(
+            new H264NalUnit(0x41, [0x80]), CreateSps(), CreatePps()));
+    }
+
+    [Fact]
     public void Read_ShouldRejectMismatchedPpsAndUnsupportedNalTypes()
     {
         BitWriter bits = new();
