@@ -149,12 +149,12 @@ public sealed class H264CabacSyntaxElementReader
         uint chromaPattern = 0;
         if (chromaArrayType is 1 or 2)
         {
-            int firstBin = _reader.DecodeBin(77 + chromaContextIncrements[0]);
+            int firstBin = _reader.DecodeBin(77 + chromaContextIncrements![0]);
             if (firstBin is not (0 or 1))
                 throw new FormatException("CABAC decision bins must be zero or one.");
             if (firstBin == 1)
             {
-                int secondBin = _reader.DecodeBin(81 + chromaContextIncrements[1]);
+                int secondBin = _reader.DecodeBin(81 + chromaContextIncrements![1]);
                 if (secondBin is not (0 or 1))
                     throw new FormatException("CABAC decision bins must be zero or one.");
                 chromaPattern = secondBin == 0 ? 1u : 2u;
