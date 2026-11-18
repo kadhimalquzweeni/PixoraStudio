@@ -3,9 +3,9 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Implements frame-picture temporal direct derivation, including colZeroFlag,
-/// long-term/equal-POC handling, distance scaling and clipping. Selection and
-/// storage of the collocated picture/partition are supplied by the caller.
+/// Implements frame-picture temporal direct derivation, including long-term/
+/// equal-POC handling, distance scaling and clipping. The caller supplies the
+/// collocated partition and its mapped current list-0 reference index.
 /// </summary>
 public sealed class H264BTemporalDirectMotionVectorDeriver
 {
@@ -20,20 +20,10 @@ public sealed class H264BTemporalDirectMotionVectorDeriver
         int tb = Clip((long)context.CurrentPictureOrderCount -
             context.CollocatedPictureOrderCount, -128, 127);
 
-        bool colZeroFlag = context.CollocatedPictureIsShortTerm &&
-            context.CollocatedReferenceIndex == 0 &&
-            collocated.Horizontal is >= -1 and <= 1 &&
-            collocated.Vertical is >= -1 and <= 1;
-        if (colZeroFlag)
-        {
-            return new H264TemporalDirectMotionVectorResult(
-                new H264MotionVector(0, 0), new H264MotionVector(0, 0), 256);
-        }
-
         if (context.CollocatedReferenceIsLongTerm || td == 0)
         {
             return new H264TemporalDirectMotionVectorResult(
-                collocated, new H264MotionVector(0, 0), 256);
+                collocated, new H264MotionVector(0, 0), 256, context.MappedReferenceIndexL0);
         }
 
         int tx = (16384 + Math.Abs(td / 2)) / td;
@@ -45,7 +35,7 @@ public sealed class H264BTemporalDirectMotionVectorDeriver
             list0.Horizontal - collocated.Horizontal,
             list0.Vertical - collocated.Vertical));
 
-        return new H264TemporalDirectMotionVectorResult(list0, list1, scale);
+        return new H264TemporalDirectMotionVectorResult(list0, list1, scale, context.MappedReferenceIndexL0);
     }
 
     private static int Clip(long value, int minimum, int maximum) =>
