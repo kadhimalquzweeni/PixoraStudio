@@ -63,7 +63,7 @@ public sealed class H264BMacroblockSyntaxReaderTests
     public void Read_B8x8_ShouldParseMixedDirectionSubMacroblocks()
     {
         BitWriter bits = new();
-        bits.Ue(0); bits.Ue(1); bits.Ue(2); bits.Ue(3);
+        bits.Ue(0); bits.Ue(1); bits.Ue(2); bits.Ue(12);
         // Both active lists contain one entry, so ref_idx syntax is omitted.
         // list0 MVDs for one 8x8 subpartition and four 4x4 subpartitions.
         for (int i = 0; i < 5; i++) { bits.Se(i); bits.Se(-i); }
