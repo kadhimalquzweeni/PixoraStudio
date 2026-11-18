@@ -111,5 +111,8 @@ public sealed class H264Intra8x8ResidualReconstructorTests
         39, 22, true, true, 640, 368, false);
 
     private static H264PictureParameterSetHeader CreatePps() =>
-        new(0, 0, false, false, 0) with { Transform8X8ModeFlag = true };
+        new H264PictureParameterSetHeader(0, 0, false, false, 0)
+        {
+            Transform8X8ModeFlag = true
+        };
 }

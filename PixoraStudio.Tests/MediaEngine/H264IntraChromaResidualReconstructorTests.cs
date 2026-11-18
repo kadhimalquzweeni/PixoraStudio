@@ -139,6 +139,20 @@ public sealed class H264IntraChromaResidualReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_ShouldUseComponentAsParameterNameForNullAcBlock()
+    {
+        H264IntraChromaResidualBlock[] blocks = CreateBlocks(4).ToArray();
+        blocks[0] = null!;
+        var component = new H264IntraChromaResidualComponent(1, null, blocks);
+
+        ArgumentException exception = Assert.Throws<ArgumentException>(() =>
+            H264IntraChromaResidualReconstructor.Reconstruct(
+                new byte[64], component, 24, CreateSps(1), CreatePps()));
+
+        Assert.Equal("component", exception.ParamName);
+    }
+
+    [Fact]
     public void Reconstruct_ShouldRejectMalformedResidualAndUnsupportedFormats()
     {
         var invalid = new H264IntraChromaResidualComponent(

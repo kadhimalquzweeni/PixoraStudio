@@ -96,7 +96,7 @@ public static class H264IntraChromaResidualReconstructor
         for (int blockIndex = 0; blockIndex < blockCount; blockIndex++)
         {
             H264IntraChromaResidualBlock block = component.Blocks[blockIndex]
-                ?? throw new ArgumentException("A chroma AC block cannot be null.", nameof(component.Blocks));
+                ?? throw new ArgumentException("A chroma AC block cannot be null.", nameof(component));
             if (block.BlockX != blockIndex % 2 || block.BlockY != blockIndex / 2)
                 throw new FormatException("Chroma AC blocks must be supplied in raster block order.");
             ValidateResidual(block.Residual, 15, $"component.Blocks[{blockIndex}]");

@@ -202,7 +202,7 @@ public sealed class H264Intra16x16ResidualReconstructorTests
                 0, CreateSps(), CreatePps()));
     }
 
-    private static IReadOnlyList<H264CavlcResidualBlock> CreateAcBlocks() =>
+    private static H264CavlcResidualBlock[] CreateAcBlocks() =>
         Enumerable.Range(0, 16).Select(_ => CreateResidual(15, new int[15])).ToArray();
 
     private static H264CavlcResidualBlock CreateResidual(int maximum, int[] coefficients) =>
