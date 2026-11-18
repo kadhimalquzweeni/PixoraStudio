@@ -14,7 +14,9 @@ public sealed class H264IntraChromaResidualMacroblockReaderTests
         uint chromaFormat, int expectedDcCoefficients, int expectedBlocksHigh)
     {
         int blockCount = 2 * expectedBlocksHigh;
-        H264BitReader bits = CreateReader(new string('1', 2 + blockCount * 2));
+        string dcZeroToken = chromaFormat == 1 ? "01" : "1";
+        string bitstream = dcZeroToken + dcZeroToken + new string('1', blockCount * 2);
+        H264BitReader bits = CreateReader(bitstream);
         H264CavlcNeighbourContext cb = new();
         H264CavlcNeighbourContext cr = new();
 
@@ -47,7 +49,8 @@ public sealed class H264IntraChromaResidualMacroblockReaderTests
     public void Read_ShouldDecodeChromaDcOnlyWhenCodedPatternIsOne(
         uint chromaFormat, int expectedDcCoefficients, int expectedBlocksHigh)
     {
-        H264BitReader bits = CreateReader("11");
+        string dcZeroToken = chromaFormat == 1 ? "01" : "1";
+        H264BitReader bits = CreateReader(dcZeroToken + dcZeroToken);
         H264IntraLumaResidualMacroblock result = _reader.Read(
             bits, CreateHeader(), CreateSyntax(chromaFormat, 1),
             CreateSps(chromaFormat), 0, 0, 2,

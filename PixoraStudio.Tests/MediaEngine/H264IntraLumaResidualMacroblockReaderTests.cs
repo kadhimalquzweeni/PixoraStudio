@@ -111,20 +111,6 @@ public sealed class H264IntraLumaResidualMacroblockReaderTests
     }
 
     [Fact]
-    public void Read_ShouldRejectChromaResidualsUntilChromaLayoutIsSupported()
-    {
-        H264IntraMacroblockSyntax syntax = CreateSyntax(0) with
-        {
-            CodedBlockPattern = new H264CodedBlockPattern(0, 0, 1, 1)
-        };
-
-        Assert.Throws<NotSupportedException>(() => _reader.Read(
-            CreateReader(""), CreateIntraNxNHeader(), syntax,
-            CreateMonochromeSps() with { ChromaFormatIdc = 1 },
-            0, 0, 1, new H264CavlcNeighbourContext()));
-    }
-
-    [Fact]
     public void Read_ShouldRejectIntra8x8TransformResiduals()
     {
         H264IntraMacroblockSyntax syntax = CreateSyntax(0) with
