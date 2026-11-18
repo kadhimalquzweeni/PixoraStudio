@@ -203,6 +203,39 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_SpatialDirect_ShouldApplyCollocatedColZeroFlag()
+    {
+        H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
+            new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
+        var state0 = new H264MotionVectorPictureState(2, 2);
+        var state1 = new H264MotionVectorPictureState(2, 2);
+        foreach (H264MotionVectorPictureState state in new[] { state0, state1 })
+        {
+            state.RecordInterPartition(3, 5, 1, 1, 0, 0, new H264MotionVector(10, 0));
+            state.RecordInterPartition(5, 3, 1, 1, 0, 0, new H264MotionVector(20, 0));
+            state.RecordInterPartition(6, 3, 1, 1, 0, 0, new H264MotionVector(30, 0));
+        }
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
+                syntax, state0, state1, 1, 1, 0, 1, 1,
+                directSpatialPrediction: true,
+                direct8x8InferenceFlag: true,
+                collocatedContextProvider: (_, _, _, _) =>
+                    new H264TemporalDirectPredictionContext(
+                        new H264MotionVector(1, -1), 2, 0, -2, false,
+                        CollocatedReferenceIndex: 0,
+                        CollocatedPictureIsShortTerm: true));
+
+        Assert.Equal(4, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL1);
+        });
+    }
+
+    [Fact]
     public void SpatialDirect_ShouldSelectMinimumReferenceFromA_B_AndCAndIgnoreDWhenCExists()
     {
         var state0 = new H264MotionVectorPictureState(2, 2);
