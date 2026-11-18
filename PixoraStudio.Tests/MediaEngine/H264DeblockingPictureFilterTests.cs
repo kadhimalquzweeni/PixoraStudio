@@ -43,11 +43,11 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
-    public void Apply_WithDisableIdcTwoAcrossSliceBoundary_ShouldSkipExternalEdge()
+    public void Apply_WithDisableIdcTwoOnCurrentSliceAcrossSliceBoundary_ShouldSkipExternalEdge()
     {
         H264DecodedPictureSurface surface = CreateTwoMacroblockEdge(
             leftSliceId: 0, rightSliceId: 1,
-            leftDisableIdc: 2, rightDisableIdc: 0);
+            leftDisableIdc: 0, rightDisableIdc: 2);
 
         H264DeblockingPictureFilter.Apply(surface);
 
@@ -56,11 +56,37 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
-    public void Apply_WithDisableIdcOneOnEitherSide_ShouldSkipExternalEdge()
+    public void Apply_WithDisableIdcTwoOnlyOnPreviousSlice_ShouldStillFilterCurrentSliceEdge()
     {
         H264DecodedPictureSurface surface = CreateTwoMacroblockEdge(
-            leftSliceId: 0, rightSliceId: 0,
+            leftSliceId: 0, rightSliceId: 1,
+            leftDisableIdc: 2, rightDisableIdc: 0);
+
+        H264DeblockingPictureFilter.Apply(surface);
+
+        Assert.Equal((byte)111, surface.GetLumaSample(15, 0));
+        Assert.Equal((byte)111, surface.GetLumaSample(16, 0));
+    }
+
+    [Fact]
+    public void Apply_WithDisableIdcOneOnPreviousSlice_ShouldStillFilterCurrentSliceEdge()
+    {
+        H264DecodedPictureSurface surface = CreateTwoMacroblockEdge(
+            leftSliceId: 0, rightSliceId: 1,
             leftDisableIdc: 1, rightDisableIdc: 0);
+
+        H264DeblockingPictureFilter.Apply(surface);
+
+        Assert.Equal((byte)111, surface.GetLumaSample(15, 0));
+        Assert.Equal((byte)111, surface.GetLumaSample(16, 0));
+    }
+
+    [Fact]
+    public void Apply_WithDisableIdcOneOnCurrentSlice_ShouldSkipItsExternalEdge()
+    {
+        H264DecodedPictureSurface surface = CreateTwoMacroblockEdge(
+            leftSliceId: 0, rightSliceId: 1,
+            leftDisableIdc: 0, rightDisableIdc: 1);
 
         H264DeblockingPictureFilter.Apply(surface);
 
