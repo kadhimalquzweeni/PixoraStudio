@@ -126,7 +126,7 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
                 previouslyDecodedCodedBlockPattern, 4, sliceId);
             int top = GetLumaCbpNeighbourCondition(
                 blockX, blockY - 1, macroblockX, macroblockY,
-                previouslyDecodedCodedBlockPattern, sliceId);
+                previouslyDecodedCodedBlockPattern, 4, sliceId);
             increments[blockIndex] = left + (2 * top);
         }
         return increments;
