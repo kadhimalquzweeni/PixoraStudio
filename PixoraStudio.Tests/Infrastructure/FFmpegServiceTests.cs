@@ -46,7 +46,7 @@ public sealed class FFmpegServiceTests : IDisposable
     [Fact]
     public void EnsureFFmpegAvailable_ShouldExplainHowToInstallMissingDependency()
     {
-        var service = new FFmpegService(_root, null);
+        var service = new FFmpegService(_root, string.Empty);
 
         FileNotFoundException exception = Assert.Throws<FileNotFoundException>(
             service.EnsureFFmpegAvailable);
