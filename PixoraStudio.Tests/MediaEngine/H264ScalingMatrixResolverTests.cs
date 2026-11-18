@@ -186,6 +186,109 @@ public sealed class H264ScalingMatrixResolverTests
             }));
     }
 
+
+    private static readonly int[] DefaultIntra8x8 =
+    [
+        6,10,13,16,18,23,25,27, 10,11,16,18,23,25,27,29,
+        13,16,18,23,25,27,29,31, 16,18,23,25,27,29,31,33,
+        18,23,25,27,29,31,33,36, 23,25,27,29,31,33,36,38,
+        25,27,29,31,33,36,38,40, 27,29,31,33,36,38,40,42
+    ];
+
+    private static readonly int[] DefaultInter8x8 =
+    [
+        9,13,15,17,19,21,22,24, 13,13,17,19,21,22,24,25,
+        15,17,19,21,22,24,25,27, 17,19,21,22,24,25,27,28,
+        19,21,22,24,25,27,28,30, 21,22,24,25,27,28,30,32,
+        22,24,25,27,28,30,32,33, 24,25,27,28,30,32,33,35
+    ];
+
+    [Fact]
+    public void Resolve8x8_ShouldReturnFlatMatricesWhenScalingMatricesAreAbsent()
+    {
+        var pps = CreatePps() with { Transform8X8ModeFlag = true };
+        int[][] result = H264ScalingMatrixResolver.Resolve8x8(CreateSps(), pps);
+        Assert.Equal(2, result.Length);
+        Assert.All(result, matrix => Assert.Equal(Enumerable.Repeat(16, 64), matrix));
+    }
+
+    [Fact]
+    public void Resolve8x8_ShouldUseNormativeDefaultMatricesWhenPpsSignalsUseDefault()
+    {
+        IReadOnlyList<int>[] lists = EmptyLists(8);
+        lists[6] = Enumerable.Repeat(8, 64).ToArray();
+        lists[7] = Enumerable.Repeat(9, 64).ToArray();
+        bool[] useDefault = new bool[8];
+        useDefault[6] = useDefault[7] = true;
+        var pps = CreatePps() with
+        {
+            Transform8X8ModeFlag = true, PicScalingMatrixPresentFlag = true,
+            ScalingLists = lists, ScalingListUseDefault = useDefault
+        };
+        int[][] result = H264ScalingMatrixResolver.Resolve8x8(CreateSps(), pps);
+        Assert.Equal(DefaultIntra8x8, result[0]);
+        Assert.Equal(DefaultInter8x8, result[1]);
+    }
+
+    [Fact]
+    public void Resolve8x8_ShouldConvertExplicitPpsListsFromScanToRasterOrder()
+    {
+        IReadOnlyList<int>[] lists = EmptyLists(8);
+        int[] scan = Enumerable.Range(1, 64).ToArray();
+        lists[6] = scan;
+        var pps = CreatePps() with
+        {
+            Transform8X8ModeFlag = true, PicScalingMatrixPresentFlag = true,
+            ScalingLists = lists, ScalingListUseDefault = new bool[8]
+        };
+        int[][] result = H264ScalingMatrixResolver.Resolve8x8(CreateSps(), pps);
+        Assert.Equal(H264CoefficientScanner.ToRasterOrder(scan), result[0]);
+        Assert.Equal(DefaultInter8x8, result[1]);
+    }
+
+    [Fact]
+    public void Resolve8x8_ShouldInheritSequenceListsForMissingPpsLists()
+    {
+        IReadOnlyList<int>[] lists = EmptyLists(8);
+        lists[6] = Enumerable.Repeat(37, 64).ToArray();
+        lists[7] = Enumerable.Repeat(53, 64).ToArray();
+        var sps = CreateSps() with
+        {
+            ScalingMatrixPresentFlag = true, ScalingLists = lists,
+            ScalingListUseDefault = new bool[8]
+        };
+        var pps = CreatePps() with
+        {
+            Transform8X8ModeFlag = true, PicScalingMatrixPresentFlag = true,
+            ScalingLists = EmptyLists(8), ScalingListUseDefault = new bool[8]
+        };
+        int[][] result = H264ScalingMatrixResolver.Resolve8x8(sps, pps);
+        Assert.Equal(37, Assert.Single(result[0].Distinct()));
+        Assert.Equal(53, Assert.Single(result[1].Distinct()));
+    }
+
+    [Fact]
+    public void Resolve8x8_ShouldResolveSixMatricesForChromaFormat444()
+    {
+        var sps = CreateSps() with { ChromaFormatIdc = 3 };
+        var pps = CreatePps() with
+        {
+            Transform8X8ModeFlag = true, PicScalingMatrixPresentFlag = true,
+            ScalingLists = EmptyLists(12), ScalingListUseDefault = new bool[12]
+        };
+        int[][] result = H264ScalingMatrixResolver.Resolve8x8(sps, pps);
+        Assert.Equal(6, result.Length);
+        for (int i = 0; i < result.Length; i++)
+            Assert.Equal((i & 1) == 0 ? DefaultIntra8x8 : DefaultInter8x8, result[i]);
+    }
+
+    [Fact]
+    public void Resolve8x8_ShouldRejectWhenTransform8x8ModeIsDisabled()
+    {
+        Assert.Throws<FormatException>(() =>
+            H264ScalingMatrixResolver.Resolve8x8(CreateSps(), CreatePps()));
+    }
+
     private static H264SequenceParameterSet CreateSps() => new(
         0, 100, 40, 1, false, 0, 0, 0, 0, 0, 4,
         39, 22, true, true, 640, 368, false);
