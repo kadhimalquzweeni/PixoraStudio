@@ -84,7 +84,7 @@ public sealed class H264CabacInterMacroblockSyntaxReader
                 reader, neighbourContext, 0, shapes[i], macroblockX, macroblockY,
                 sliceId, numRefIdxL0ActiveMinus1, isBSlice: true);
             RecordPartition(neighbourContext, 0, shapes[i], macroblockX, macroblockY,
-                sliceId, referencesL0[i]!.Value, isDirect: false, 0, 0);
+                sliceId, checked((int)referencesL0[i]!.Value), isDirect: false, 0, 0);
         }
         for (int i = 0; i < shapes.Length; i++)
         {
@@ -95,7 +95,7 @@ public sealed class H264CabacInterMacroblockSyntaxReader
                 reader, neighbourContext, 1, shapes[i], macroblockX, macroblockY,
                 sliceId, numRefIdxL1ActiveMinus1, isBSlice: true);
             RecordPartition(neighbourContext, 1, shapes[i], macroblockX, macroblockY,
-                sliceId, referencesL1[i]!.Value, isDirect: false, 0, 0);
+                sliceId, checked((int)referencesL1[i]!.Value), isDirect: false, 0, 0);
         }
 
         H264MotionVectorDifference?[] mvdL0 = new H264MotionVectorDifference?[shapes.Length];
@@ -359,7 +359,7 @@ public sealed class H264CabacInterMacroblockSyntaxReader
                 mvd0[i][j] = ReadMvd(reader, context, 0, shape,
                     macroblockX, macroblockY, sliceId);
                 RecordPartition(context, 0, shape, macroblockX, macroblockY,
-                    sliceId, refs0[i]!.Value, isDirect: false,
+                    sliceId, checked((int)refs0[i]!.Value), isDirect: false,
                     mvd0[i][j]!.Horizontal, mvd0[i][j]!.Vertical);
             }
         }
@@ -374,7 +374,7 @@ public sealed class H264CabacInterMacroblockSyntaxReader
                 mvd1[i][j] = ReadMvd(reader, context, 1, shape,
                     macroblockX, macroblockY, sliceId);
                 RecordPartition(context, 1, shape, macroblockX, macroblockY,
-                    sliceId, refs1[i]!.Value, isDirect: false,
+                    sliceId, checked((int)refs1[i]!.Value), isDirect: false,
                     mvd1[i][j]!.Horizontal, mvd1[i][j]!.Vertical);
             }
         }
