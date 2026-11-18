@@ -12,7 +12,6 @@ public sealed class H264CabacSyntaxElementReaderTests
     [InlineData(4, -2)]
     [InlineData(49, 25)]
     [InlineData(50, -25)]
-    [InlineData(51, 26)]
     [InlineData(52, -26)]
     public void ReadMacroblockQpDelta_ShouldMapUnaryCodeNumberToSignedDelta(
         int codeNum, int expectedDelta)
@@ -44,7 +43,16 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(2, reader.ReadMacroblockQpDelta(1));
-        Assert.Equal(new[] { 61, 62, 62, 62 }, bins.ContextIndices);
+        Assert.Equal(new[] { 61, 62, 63, 63 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadMacroblockQpDelta_ShouldRejectPositiveDeltaAbove25()
+    {
+        ScriptedCabacReader bins = new(Enumerable.Repeat(1, 51).Append(0));
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Throws<FormatException>(() => reader.ReadMacroblockQpDelta(0));
     }
 
     [Fact]
