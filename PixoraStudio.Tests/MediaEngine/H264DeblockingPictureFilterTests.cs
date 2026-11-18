@@ -150,6 +150,48 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
+    public void Apply_ShouldMapVertical422ChromaEdgesToTheMatchingLumaBlockRow()
+    {
+        H264DecodedPictureSurface surface = Surface(0, 0, 2);
+        byte[] luma = Enumerable.Repeat((byte)128, 256).ToArray();
+        byte[] cb = new byte[128];
+        byte[] cr = new byte[128];
+        byte[] samples = [108, 109, 110, 110, 112, 112, 113, 114];
+
+        for (int y = 0; y < 16; y++)
+        {
+            Array.Copy(samples, 0, cb, y * 8, samples.Length);
+            Array.Copy(samples, 0, cr, y * 8, samples.Length);
+        }
+
+        surface.WriteMacroblock(0, 0, 0, false, luma, cb, cr);
+
+        H264DeblockingBlockMetadata inter = new(false, false, null, null, null, null);
+        H264DeblockingBlockMetadata intra = IntraBlock();
+        H264DeblockingBlockMetadata[] lumaBlocks =
+            Enumerable.Repeat(inter, 16).ToArray();
+        lumaBlocks[2 * 4 + 1] = intra;
+        lumaBlocks[2 * 4 + 2] = intra;
+
+        surface.SetDeblockingMetadata(0, 0,
+            new H264DeblockingMacroblockMetadata(
+                40, 40, 40, 0, 0, 0, false,
+                lumaBlocks,
+                Enumerable.Repeat(inter, 8).ToArray(),
+                Enumerable.Repeat(inter, 8).ToArray()));
+
+        H264DeblockingPictureFilter.Apply(surface);
+
+        // The third 4:2:2 chroma block row maps to luma block row 2.
+        Assert.Equal((byte)110, surface.GetChromaSample(1, 3, 4));
+        Assert.Equal((byte)112, surface.GetChromaSample(1, 4, 4));
+        Assert.Equal((byte)111, surface.GetChromaSample(1, 3, 8));
+        Assert.Equal((byte)111, surface.GetChromaSample(1, 4, 8));
+        Assert.Equal((byte)111, surface.GetChromaSample(2, 3, 8));
+        Assert.Equal((byte)111, surface.GetChromaSample(2, 4, 8));
+    }
+
+    [Fact]
     public void Apply_ShouldFilterVerticalEdgesBeforeHorizontalEdgesWithinEachMacroblock()
     {
         H264DecodedPictureSurface surface = Surface(0, 0, 1);
