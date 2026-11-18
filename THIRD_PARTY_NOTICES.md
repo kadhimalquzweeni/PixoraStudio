@@ -4,7 +4,7 @@
 
 The H.264 CABAC context-initialisation constants and arithmetic/state-transition table values in
 `PixoraStudio.MediaEngine/Decoders/Video/H264/H264CabacContextInitializer.cs` and
-`H264CabacTables.cs` were cross-checked against the table data in
+`H264CabacTables.cs` were transcribed from the normative table data reproduced in
 [h26forge](https://github.com/h26forge/h26forge), copyright 2023 Willy R. Vasquez.
 The numerical values correspond to normative H.264 specification tables 9-12 through 9-32
 and tables 9-44 through 9-45.
