@@ -67,6 +67,104 @@ public sealed class H264ParameterSetReaderTests
     }
 
     [Fact]
+    public void ReadSps_ShouldParseVuiAspectRatioTimingAndBitstreamRestrictions()
+    {
+        BitWriter bits = CreateBaselineSpsPrefix();
+        bits.WriteFlag(true); // vui_parameters_present_flag
+        bits.WriteBits(255, 8); // extended SAR
+        bits.WriteBits(4, 16);
+        bits.WriteBits(3, 16);
+        bits.WriteFlag(false); // overscan_info_present_flag
+        bits.WriteFlag(false); // video_signal_type_present_flag
+        bits.WriteFlag(false); // chroma_loc_info_present_flag
+        bits.WriteFlag(true);  // timing_info_present_flag
+        bits.WriteBits(1001, 32);
+        bits.WriteBits(60000, 32);
+        bits.WriteFlag(true);  // fixed_frame_rate_flag
+        bits.WriteFlag(false); // nal_hrd_parameters_present_flag
+        bits.WriteFlag(false); // vcl_hrd_parameters_present_flag
+        bits.WriteFlag(false); // pic_struct_present_flag
+        bits.WriteFlag(true);  // bitstream_restriction_flag
+        bits.WriteFlag(true);  // motion_vectors_over_pic_boundaries_flag
+        bits.WriteUe(2);
+        bits.WriteUe(1);
+        bits.WriteUe(16);
+        bits.WriteUe(16);
+        bits.WriteUe(2);
+        bits.WriteUe(4);
+
+        var result = new H264SequenceParameterSetReader().Read(
+            new H264NalUnit(0x67, bits.ToArray()));
+
+        Assert.NotNull(result.VuiParameters);
+        Assert.Equal(255u, result.VuiParameters.AspectRatioIdc);
+        Assert.Equal(4u, result.VuiParameters.SarWidth);
+        Assert.Equal(3u, result.VuiParameters.SarHeight);
+        Assert.Equal(1001u, result.VuiParameters.NumUnitsInTick);
+        Assert.Equal(60000u, result.VuiParameters.TimeScale);
+        Assert.True(result.VuiParameters.FixedFrameRateFlag);
+        Assert.Equal(2u, result.VuiParameters.MaxNumReorderFrames);
+        Assert.Equal(4u, result.VuiParameters.MaxDecFrameBuffering);
+    }
+
+    [Fact]
+    public void ReadSps_ShouldParseNalHrdParameters()
+    {
+        BitWriter bits = CreateBaselineSpsPrefix();
+        bits.WriteFlag(true);  // VUI present
+        bits.WriteBits(1, 8);   // square pixels
+        bits.WriteFlag(false); // overscan
+        bits.WriteFlag(false); // video signal
+        bits.WriteFlag(false); // chroma location
+        bits.WriteFlag(false); // timing
+        bits.WriteFlag(true);  // NAL HRD present
+        bits.WriteUe(0);        // cpb_cnt_minus1
+        bits.WriteBits(0, 4);   // bit_rate_scale
+        bits.WriteBits(0, 4);   // cpb_size_scale
+        bits.WriteUe(10);
+        bits.WriteUe(20);
+        bits.WriteFlag(true);
+        bits.WriteBits(23, 5);
+        bits.WriteBits(23, 5);
+        bits.WriteBits(23, 5);
+        bits.WriteBits(0, 5);
+        bits.WriteFlag(false); // VCL HRD absent
+        bits.WriteFlag(true);  // low_delay_hrd_flag
+        bits.WriteFlag(false); // pic_struct_present_flag
+        bits.WriteFlag(false); // bitstream_restriction_flag
+
+        var result = new H264SequenceParameterSetReader().Read(
+            new H264NalUnit(0x67, bits.ToArray()));
+
+        Assert.NotNull(result.VuiParameters?.NalHrd);
+        Assert.Equal(1u, result.VuiParameters.NalHrd.CpbCount);
+        Assert.Equal(10u, result.VuiParameters.NalHrd.Entries[0].BitRateValueMinus1);
+        Assert.Equal(20u, result.VuiParameters.NalHrd.Entries[0].CpbSizeValueMinus1);
+        Assert.True(result.VuiParameters.NalHrd.Entries[0].CbrFlag);
+        Assert.True(result.VuiParameters.LowDelayHrdFlag);
+    }
+
+    private static BitWriter CreateBaselineSpsPrefix()
+    {
+        BitWriter bits = new();
+        bits.WriteBits(66, 8);
+        bits.WriteBits(0, 8);
+        bits.WriteBits(30, 8);
+        bits.WriteUe(0);
+        bits.WriteUe(0);
+        bits.WriteUe(0);
+        bits.WriteUe(0);
+        bits.WriteUe(1);
+        bits.WriteFlag(false);
+        bits.WriteUe(39);
+        bits.WriteUe(22);
+        bits.WriteFlag(true);
+        bits.WriteFlag(true);
+        bits.WriteFlag(false);
+        return bits;
+    }
+
+    [Fact]
     public void ReadSps_ShouldRejectWrongNalType()
     {
         Assert.Throws<FormatException>(() =>
