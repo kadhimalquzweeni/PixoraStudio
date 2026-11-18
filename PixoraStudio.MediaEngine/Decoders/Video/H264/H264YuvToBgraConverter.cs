@@ -34,7 +34,7 @@ public sealed class H264YuvToBgraConverter
         bool fullRange = sps.VuiParameters?.VideoFullRangeFlag == true;
         uint matrix = sps.VuiParameters?.MatrixCoefficients ?? 6;
         (double redCr, double greenCb, double greenCr, double blueCb) =
-            GetMatrixCoefficients(matrix, fullRange);
+            GetMatrixCoefficients(matrix);
 
         double yScale = fullRange ? 1.0 : 255.0 / 219.0;
         double chromaScale = fullRange ? 1.0 : 255.0 / 224.0;
@@ -69,25 +69,15 @@ public sealed class H264YuvToBgraConverter
     }
 
     private static (double RedCr, double GreenCb, double GreenCr, double BlueCb)
-        GetMatrixCoefficients(uint matrix, bool fullRange)
+        GetMatrixCoefficients(uint matrix)
     {
         if (matrix == 1)
-        {
-            return fullRange
-                ? (1.5748, -0.187324, -0.468124, 1.8556)
-                : (1.792741, -0.213249, -0.532909, 2.112402);
-        }
+            return (1.5748, -0.187324, -0.468124, 1.8556);
 
         if (matrix == 9 || matrix == 10)
-        {
-            return fullRange
-                ? (1.4746, -0.164553, -0.571353, 1.8814)
-                : (1.678674, -0.187326, -0.650424, 2.141772);
-        }
+            return (1.4746, -0.164553, -0.571353, 1.8814);
 
-        return fullRange
-            ? (1.402, -0.344136, -0.714136, 1.772)
-            : (1.596027, -0.391762, -0.812968, 2.017232);
+        return (1.402, -0.344136, -0.714136, 1.772);
     }
 
     private static byte Clip(double value) =>
