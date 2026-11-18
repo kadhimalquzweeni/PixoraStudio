@@ -48,7 +48,7 @@ public sealed class H264SliceHeaderReader
             throw new FormatException("An IDR slice must have a non-zero nal_ref_idc.");
         uint pictureSizeInMbs = checked((sequenceParameterSet.PicWidthInMbsMinus1 + 1) *
             (sequenceParameterSet.PicHeightInMapUnitsMinus1 + 1) *
-            (sequenceParameterSet.FrameMbsOnlyFlag || fieldPic ? 1u : 2u));
+            (sequenceParameterSet.FrameMbsOnlyFlag || fieldPic || sequenceParameterSet.MbAdaptiveFrameFieldFlag ? 1u : 2u));
         if (firstMb >= pictureSizeInMbs)
             throw new FormatException("first_mb_in_slice exceeds the picture macroblock count.");
         uint? idrPicId = idr ? ReadBoundedUe(reader, 65535, "idr_pic_id") : null;
@@ -143,7 +143,9 @@ public sealed class H264SliceHeaderReader
         {
             uint picSizeInMapUnits = checked((sequenceParameterSet.PicWidthInMbsMinus1 + 1) *
                 (sequenceParameterSet.PicHeightInMapUnitsMinus1 + 1));
-            uint changeRate = checked(pictureParameterSet.SliceGroupChangeRateMinus1!.Value + 1);
+            if (pictureParameterSet.SliceGroupChangeRateMinus1 is null)
+                throw new FormatException("FMO slice group change rate is missing from the PPS.");
+            uint changeRate = checked(pictureParameterSet.SliceGroupChangeRateMinus1.Value + 1);
             uint maxCycle = picSizeInMapUnits / changeRate;
             int cycleBits = CeilLog2(maxCycle + 1);
             sliceGroupChangeCycle = reader.ReadBits(cycleBits);
