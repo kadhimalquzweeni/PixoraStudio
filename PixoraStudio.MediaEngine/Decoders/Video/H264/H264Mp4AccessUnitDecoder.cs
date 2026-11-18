@@ -169,7 +169,7 @@ public sealed class H264Mp4AccessUnitDecoder
             H264PInterSliceDataDecoder? pDecoder = null;
             H264BInterSliceDataDecoder? bDecoder = null;
 
-            if (activePps.EntropyCodingModeFlag && firstSlice.SliceType is H264SliceType.P or H264SliceType.B)
+            if (activePps.EntropyCodingModeFlag && (firstSlice.SliceType is H264SliceType.P or H264SliceType.B))
                 throw new NotSupportedException(
                     "CABAC P- and B-slice macroblock decoding is not yet integrated.");
 
