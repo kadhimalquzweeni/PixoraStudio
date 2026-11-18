@@ -59,7 +59,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
                     "Two chroma CBP context increments in the range 0..3 are required.",
                     nameof(chromaCbpContextIncrements));
         }
-        if (chromaArrayType != 0 && chromaPredictionContextIncrement is < 0 or > 2)
+        if (chromaArrayType != 0 && (chromaPredictionContextIncrement is < 0 or > 2))
             throw new ArgumentOutOfRangeException(nameof(chromaPredictionContextIncrement));
         if (macroblockHeader.IsIntra16x16 &&
             (macroblockHeader.CodedBlockPatternLuma is null ||
