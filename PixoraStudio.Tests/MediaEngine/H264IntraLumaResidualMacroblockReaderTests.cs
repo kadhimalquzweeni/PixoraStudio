@@ -160,6 +160,34 @@ public sealed class H264IntraLumaResidualMacroblockReaderTests
             CreateMonochromeSps(), 0, 0, -1, new H264CavlcNeighbourContext()));
     }
 
+
+    [Fact]
+    public void Read_ShouldRejectCodedBlockPatternOutsideLumaRange()
+    {
+        H264IntraMacroblockSyntax syntax = CreateSyntax(16);
+
+        Assert.Throws<FormatException>(() => _reader.Read(
+            CreateReader(""), CreateIntraNxNHeader(), syntax,
+            CreateMonochromeSps(), 0, 0, 1, new H264CavlcNeighbourContext()));
+    }
+
+    [Fact]
+    public void Read_ShouldRejectMacroblockOutsidePictureBounds()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => _reader.Read(
+            CreateReader(""), CreateIntraNxNHeader(), CreateSyntax(0),
+            CreateMonochromeSps(), 1, 0, 1, new H264CavlcNeighbourContext()));
+    }
+
+    [Fact]
+    public void Read_ShouldRejectFieldCodedPicturesUntilFieldBlockAddressingIsSupported()
+    {
+        Assert.Throws<NotSupportedException>(() => _reader.Read(
+            CreateReader(""), CreateIntraNxNHeader(), CreateSyntax(0),
+            CreateMonochromeSps() with { FrameMbsOnlyFlag = false },
+            0, 0, 1, new H264CavlcNeighbourContext()));
+    }
+
     private static H264MacroblockHeader CreateIntraNxNHeader(uint address = 0) =>
         new(address, 0, false, 0, true, false, null, null, null, false);
 
