@@ -180,6 +180,18 @@ public sealed class H264DecodedPictureBufferTests
     }
 
     [Fact]
+    public void StoreDecodedPicture_ShouldRejectIncompleteReferenceSurface()
+    {
+        H264DecodedPictureBuffer dpb = new();
+        H264SequenceParameterSet sps = new(0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
+            0, 0, true, true, 16, 16, false);
+
+        Assert.Throws<InvalidOperationException>(() => dpb.StoreDecodedPicture(
+            new H264DecodedPictureSurface(sps), new H264ReferencePicture(0, 0),
+            true, 4, 0, 16, Adaptive(false)));
+    }
+
+    [Fact]
     public void CreateTemporalDirectMotionField_ShouldRestoreStoredCollocatedMotionAndReferenceLists()
     {
         H264DecodedPictureBuffer dpb = new();
