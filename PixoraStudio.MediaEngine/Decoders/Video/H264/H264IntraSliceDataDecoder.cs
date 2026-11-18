@@ -58,6 +58,8 @@ public sealed class H264IntraSliceDataDecoder
 
         H264BitReader reader = new(nalUnit.Rbsp);
         H264SliceHeader slice = _sliceHeaderReader.Read(reader, nalUnit, sps, pps);
+        _reconstructor.SetDeblockingSliceParameters(
+            H264DeblockingSliceParameters.FromSliceHeader(slice));
         if (slice.SliceType != H264SliceType.I)
             throw new NotSupportedException("This decoder currently accepts I slices only.");
         if (slice.FieldPicFlag)
@@ -92,7 +94,7 @@ public sealed class H264IntraSliceDataDecoder
             {
                 H264PcmMacroblock pcm = _pcmReader.Read(reader, header, sps, pps);
                 _reconstructor.ReconstructPcm(
-                    header, pcm, macroblockX, macroblockY, sliceId, sps, pps);
+                    header, pcm, macroblockX, macroblockY, sliceId, sps, pps, qpY: qpY);
                 RecordPcmNeighbourCounts(macroblockX, macroblockY, sliceId, sps);
             }
             else
