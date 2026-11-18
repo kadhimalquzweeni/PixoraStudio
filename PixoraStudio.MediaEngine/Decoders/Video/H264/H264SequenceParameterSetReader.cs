@@ -125,6 +125,7 @@ public sealed class H264SequenceParameterSetReader
             direct8X8Inference, checked((uint)(codedWidth - cropWidth)),
             checked((uint)(codedHeight - cropHeight)), vuiPresent)
         {
+            ProfileCompatibility = constraints,
             VuiParameters = vui,
             GapsInFrameNumValueAllowedFlag = gapsInFrameNumAllowed,
             MbAdaptiveFrameFieldFlag = mbAdaptiveFrameField,
