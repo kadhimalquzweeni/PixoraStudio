@@ -136,10 +136,17 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
             throw new ArgumentOutOfRangeException(nameof(chromaPredictionContextIncrement));
         if (qpDeltaContextIncrement is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(qpDeltaContextIncrement));
-        if (macroblockHeader.IsIntra16x16 &&
-            (macroblockHeader.CodedBlockPatternLuma is null ||
-             macroblockHeader.CodedBlockPatternChroma is null))
-            throw new FormatException("I_16x16 macroblock header is missing its coded block pattern.");
+        uint intra16LumaCbp = 0;
+        uint intra16ChromaCbp = 0;
+        if (macroblockHeader.IsIntra16x16)
+        {
+            if (macroblockHeader.CodedBlockPatternLuma is not uint lumaCbp ||
+                macroblockHeader.CodedBlockPatternChroma is not uint chromaCbp)
+                throw new FormatException("I_16x16 macroblock header is missing its coded block pattern.");
+
+            intra16LumaCbp = lumaCbp;
+            intra16ChromaCbp = chromaCbp;
+        }
 
         bool? transform8X8 = null;
         H264IntraPredictionModeSyntax? predictionModes = null;
@@ -164,8 +171,8 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         {
             codedBlockPattern = new H264CodedBlockPattern(
                 macroblockHeader.MbTypeCode,
-                macroblockHeader.CodedBlockPatternLuma.Value,
-                macroblockHeader.CodedBlockPatternChroma.Value,
+                intra16LumaCbp,
+                intra16ChromaCbp,
                 chromaArrayType);
         }
         else if (lumaCbpContextProvider is not null)
