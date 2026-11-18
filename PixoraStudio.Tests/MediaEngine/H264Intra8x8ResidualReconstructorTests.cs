@@ -25,9 +25,10 @@ public sealed class H264Intra8x8ResidualReconstructorTests
         byte[] result = H264Intra8x8ResidualReconstructor.Reconstruct(
             Prediction, coefficients, 0, CreateSps(), CreatePps());
 
-        // Default 8x8 intra scaling list, QP 0: the DC level dequantises
-        // to 2 and the inverse transform contributes one to each sample.
-        Assert.All(result, sample => Assert.Equal((byte)129, sample));
+        // Default 8x8 intra scaling list, QP 0: coefficient 32 dequantises
+        // to 160. The two-pass inverse 8x8 transform rounds this to a
+        // residual of 3 at every sample.
+        Assert.All(result, sample => Assert.Equal((byte)131, sample));
     }
 
     [Fact]
