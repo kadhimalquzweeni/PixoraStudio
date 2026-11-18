@@ -48,6 +48,26 @@ public static class H264InverseQuantizer
     }
 
     /// <summary>
+    /// Applies H.264 4x4 inverse scaling using the effective scaling matrix resolved from SPS/PPS.
+    /// scalingListIndex is 0-2 for intra lists and 3-5 for inter lists.
+    /// </summary>
+    public static int[] Dequantize4x4(
+        IReadOnlyList<int> coefficients,
+        int qpPrimeY,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps,
+        int scalingListIndex = 0)
+    {
+        ArgumentNullException.ThrowIfNull(sps);
+        ArgumentNullException.ThrowIfNull(pps);
+        if (scalingListIndex is < 0 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(scalingListIndex));
+
+        int[][] scalingMatrices = H264ScalingMatrixResolver.Resolve4x4(sps, pps);
+        return Dequantize4x4(coefficients, qpPrimeY, scalingMatrices[scalingListIndex]);
+    }
+
+    /// <summary>
     /// Applies H.264 4x4 inverse scaling. qpPrimeY is QPY-prime (SliceQPY + QpBdOffsetY).
     /// scalingListRasterOrder is the effective, already-resolved 16-entry matrix in raster order.
     /// </summary>
