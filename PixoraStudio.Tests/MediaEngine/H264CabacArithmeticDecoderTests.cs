@@ -85,6 +85,26 @@ public sealed class H264CabacArithmeticDecoderTests
     }
 
     [Fact]
+    public void DecodeDecision_ShouldUseNormativeMpsTransitionAtState63()
+    {
+        H264CabacArithmeticDecoder decoder = CreateDecoder(0);
+        H264CabacContextModel context = new(63, 0);
+
+        Assert.Equal(0, decoder.DecodeDecision(ref context));
+        Assert.Equal(new H264CabacContextModel(63, 0), context);
+    }
+
+    [Fact]
+    public void DecodeDecision_ShouldUseNormativeLpsTransitionAtState63()
+    {
+        H264CabacArithmeticDecoder decoder = CreateDecoder(509);
+        H264CabacContextModel context = new(63, 0);
+
+        Assert.Equal(1, decoder.DecodeDecision(ref context));
+        Assert.Equal(new H264CabacContextModel(63, 0), context);
+    }
+
+    [Fact]
     public void DecodeDecision_ShouldRejectInvalidContextState()
     {
         H264CabacArithmeticDecoder decoder = CreateDecoder(0);
@@ -96,8 +116,7 @@ public sealed class H264CabacArithmeticDecoderTests
     private static H264CabacArithmeticDecoder CreateDecoder(int offset)
     {
         byte[] bytes = { (byte)(offset >> 1), (byte)((offset & 1) << 7) };
-        return new H264CabacArithmeticDecoder(new H264BitReader(bytes, 16),
-            RangeLps, TransMps, TransLps);
+        return new H264CabacArithmeticDecoder(new H264BitReader(bytes, 16));
     }
 
     private static byte[,] CreateRangeTable()
