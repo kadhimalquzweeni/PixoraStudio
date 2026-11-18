@@ -99,6 +99,21 @@ public sealed class H264DecodedPictureSurface
         int sliceId,
         IReadOnlyList<byte> luma,
         IReadOnlyList<byte> cb,
+        IReadOnlyList<byte> cr) =>
+        WriteMacroblock(macroblockX, macroblockY, sliceId, true, luma, cb, cr);
+
+    /// <summary>
+    /// Stores a decoded macroblock and records whether it was intra-coded.
+    /// This distinction is required by constrained_intra_pred_flag when
+    /// reference samples are gathered for later macroblocks.
+    /// </summary>
+    public void WriteMacroblock(
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        bool isIntra,
+        IReadOnlyList<byte> luma,
+        IReadOnlyList<byte> cb,
         IReadOnlyList<byte> cr)
     {
         ValidateMacroblock(macroblockX, macroblockY);
@@ -122,7 +137,7 @@ public sealed class H264DecodedPictureSurface
 
         int index = GetMacroblockIndex(macroblockX, macroblockY);
         _sliceIds[index] = sliceId;
-        _intra[index] = true;
+        _intra[index] = isIntra;
         _decoded[index] = true;
     }
 
