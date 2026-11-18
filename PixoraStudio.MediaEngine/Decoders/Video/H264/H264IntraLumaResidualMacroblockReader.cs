@@ -3,10 +3,9 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Reads the CAVLC luma residual payload for monochrome I_NxN and I_16x16
-/// macroblocks using picture-relative neighbour state.
-/// Chroma residuals and Intra8x8 transform residual syntax are deliberately
-/// rejected until their dedicated layouts are implemented.
+/// Reads CAVLC luma and 4:2:0/4:2:2 chroma residual payloads for
+/// frame-only I_NxN and I_16x16 macroblocks using picture-relative state.
+/// Intra8x8 transform residual syntax remains unsupported.
 /// </summary>
 public sealed class H264IntraLumaResidualMacroblockReader
 {
@@ -46,7 +45,9 @@ public sealed class H264IntraLumaResidualMacroblockReader
         int macroblockX,
         int macroblockY,
         int sliceId,
-        H264CavlcNeighbourContext neighbourContext)
+        H264CavlcNeighbourContext neighbourContext,
+        H264CavlcNeighbourContext? chromaCbNeighbourContext = null,
+        H264CavlcNeighbourContext? chromaCrNeighbourContext = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(macroblockHeader);
@@ -83,12 +84,39 @@ public sealed class H264IntraLumaResidualMacroblockReader
         if (macroblockSyntax.CodedBlockPattern.Luma > 15)
             throw new FormatException("The luma coded-block-pattern value must be in the range 0..15.");
 
-        if (sequenceParameterSet.ChromaFormatIdc != 0 ||
-            sequenceParameterSet.SeparateColourPlaneFlag ||
-            macroblockSyntax.CodedBlockPattern.Chroma != 0 ||
-            macroblockSyntax.CodedBlockPattern.ChromaArrayType != 0)
+        if (sequenceParameterSet.SeparateColourPlaneFlag)
             throw new NotSupportedException(
-                "This residual reader currently supports monochrome luma residuals only.");
+                "Separate-colour-plane residual decoding is not implemented.");
+
+        uint chromaArrayType = sequenceParameterSet.ChromaFormatIdc;
+        if (chromaArrayType is not (0 or 1 or 2))
+            throw new NotSupportedException(
+                "This residual reader supports monochrome, 4:2:0 and 4:2:2 only.");
+
+        uint chromaPattern = macroblockSyntax.CodedBlockPattern.Chroma;
+        if (chromaArrayType == 0)
+        {
+            if (chromaPattern != 0 ||
+                macroblockSyntax.CodedBlockPattern.ChromaArrayType != 0)
+                throw new FormatException(
+                    "Monochrome macroblocks cannot contain chroma coded-block-pattern data.");
+        }
+        else
+        {
+            if (macroblockSyntax.CodedBlockPattern.ChromaArrayType != chromaArrayType)
+                throw new FormatException(
+                    "The coded-block-pattern ChromaArrayType does not match the SPS.");
+            if (chromaPattern > 2)
+                throw new FormatException(
+                    "The chroma coded-block-pattern value must be in the range 0..2.");
+            ArgumentNullException.ThrowIfNull(chromaCbNeighbourContext);
+            ArgumentNullException.ThrowIfNull(chromaCrNeighbourContext);
+            if (ReferenceEquals(neighbourContext, chromaCbNeighbourContext) ||
+                ReferenceEquals(neighbourContext, chromaCrNeighbourContext) ||
+                ReferenceEquals(chromaCbNeighbourContext, chromaCrNeighbourContext))
+                throw new ArgumentException(
+                    "Luma, Cb and Cr residuals require independent neighbour contexts.");
+        }
 
         if (macroblockSyntax.LumaPredictionModes?.Uses8X8Transform == true ||
             macroblockSyntax.TransformSize8X8Flag == true)
@@ -137,9 +165,82 @@ public sealed class H264IntraLumaResidualMacroblockReader
                 localX, localY, isCoded, residual));
         }
 
+        List<H264IntraChromaResidualComponent> chromaComponents = [];
+        if (chromaArrayType is 1 or 2)
+        {
+            int chromaBlocksHigh = chromaArrayType == 1 ? 2 : 4;
+            int chromaBlocksPerComponent = 2 * chromaBlocksHigh;
+            int maximumDcCoefficients = chromaArrayType == 1 ? 4 : 8;
+            int chromaMacroblockBlockX = checked(macroblockX * 2);
+            int chromaMacroblockBlockY = checked(macroblockY * chromaBlocksHigh);
+
+            chromaComponents.Add(ReadChromaComponent(
+                reader, 1, chromaPattern, maximumDcCoefficients,
+                chromaBlocksHigh, chromaBlocksPerComponent,
+                chromaMacroblockBlockX, chromaMacroblockBlockY,
+                sliceId, chromaCbNeighbourContext!));
+
+            chromaComponents.Add(ReadChromaComponent(
+                reader, 2, chromaPattern, maximumDcCoefficients,
+                chromaBlocksHigh, chromaBlocksPerComponent,
+                chromaMacroblockBlockX, chromaMacroblockBlockY,
+                sliceId, chromaCrNeighbourContext!));
+        }
+
         return new H264IntraLumaResidualMacroblock(
             macroblockHeader.MacroblockAddress,
             intra16x16Dc,
-            blocks);
+            blocks)
+        {
+            ChromaComponents = chromaComponents
+        };
     }
+    private H264IntraChromaResidualComponent ReadChromaComponent(
+        H264BitReader reader,
+        byte componentId,
+        uint chromaPattern,
+        int maximumDcCoefficients,
+        int blocksHigh,
+        int blocksPerComponent,
+        int macroblockBlockX,
+        int macroblockBlockY,
+        int sliceId,
+        H264CavlcNeighbourContext neighbourContext)
+    {
+        // Chroma DC uses its dedicated 2x2 (4:2:0) or 2x4 (4:2:2)
+        // coeff_token and total_zeros tables; it has no nC neighbour context.
+        H264CavlcResidualBlock? dc = chromaPattern == 0
+            ? null
+            : _residualReader.ReadBlock(reader, 0, maximumDcCoefficients);
+
+        List<H264IntraChromaResidualBlock> blocks = new(blocksPerComponent);
+        for (int y = 0; y < blocksHigh; y++)
+        {
+            for (int x = 0; x < 2; x++)
+            {
+                bool isCoded = chromaPattern == 2;
+                int pictureX = checked(macroblockBlockX + x);
+                int pictureY = checked(macroblockBlockY + y);
+                H264CavlcResidualBlock residual;
+
+                if (isCoded)
+                {
+                    residual = neighbourContext.ReadBlock(
+                        reader, pictureX, pictureY, sliceId, 15);
+                }
+                else
+                {
+                    residual = new H264CavlcResidualBlock(
+                        15, 0, 0, 0, new int[15]);
+                    neighbourContext.RecordBlock(pictureX, pictureY, sliceId, 0);
+                }
+
+                blocks.Add(new H264IntraChromaResidualBlock(
+                    x, y, isCoded, residual));
+            }
+        }
+
+        return new H264IntraChromaResidualComponent(componentId, dc, blocks);
+    }
+
 }
