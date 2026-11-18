@@ -51,7 +51,7 @@ public static class H264CabacResidualBlockContext
             4 => CreateLinear(4, 15, 101, 152, 213, 266, 0),
             5 => new H264CabacResidualBlockContextMap(
                 64, 0, 5, null, 402, 417, 426,
-                Significant8X8.ToArray(), LastSignificant8X8.ToArray(), true, 0),
+                Significant8X8.Take(63).ToArray(), LastSignificant8X8.Take(63).ToArray(), true, 0),
             _ => throw new ArgumentOutOfRangeException(nameof(contextBlockCategory),
                 "Only frame-coded residual categories 0..5 are supported.")
         };
