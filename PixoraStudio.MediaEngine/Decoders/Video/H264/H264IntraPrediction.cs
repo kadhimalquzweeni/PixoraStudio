@@ -29,7 +29,7 @@ public static class H264IntraPrediction
             throw new ArgumentOutOfRangeException(nameof(mode));
 
         RequireReferences(mode, hasTop, hasLeft, hasTopLeft);
-        if (hasTopRight && mode is 3 or 7 && top.Count < 8)
+        if (hasTopRight && (mode is 3 or 7) && top.Count < 8)
             throw new ArgumentException("This prediction mode requires all eight top reference samples when top-right is available.", nameof(top));
         byte[] t = ExtendTop(top, hasTopRight);
         byte[] l = ExtendLeft(left);
