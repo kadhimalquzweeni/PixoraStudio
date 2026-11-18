@@ -121,7 +121,8 @@ public sealed class H264PInterMacroblockReconstructor
         H264SequenceParameterSet sps,
         H264PredictionWeightTable? predictionWeights = null,
         IReadOnlyList<H264ReferencePicture>? referencePictureList0 = null,
-        H264DeblockingSliceParameters? deblockingParameters = null)
+        H264DeblockingSliceParameters? deblockingParameters = null,
+        H264PictureParameterSetHeader? pps = null)
     {
         ArgumentNullException.ThrowIfNull(header);
         ArgumentNullException.ThrowIfNull(referenceList0);
@@ -154,7 +155,7 @@ public sealed class H264PInterMacroblockReconstructor
             AttachDeblockingMetadata(
                 destination, motionVectorState, referencePictureList0,
                 null, currentQpY, macroblockX, macroblockY, sps,
-                pps: null, deblockingParameters ?? new H264DeblockingSliceParameters(0, 0, 0));
+                pps, deblockingParameters ?? new H264DeblockingSliceParameters(0, 0, 0));
 
         H264CodedBlockPattern emptyPattern = new(0, 0, 0, sps.ChromaFormatIdc);
         return new H264InterMacroblockReconstructionResult(
@@ -237,8 +238,10 @@ public sealed class H264PInterMacroblockReconstructor
             crBlocks[index] = luma with { HasNonZeroCoefficients = crNonZero[index] };
         }
 
-        int qpCb = H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(qpY, 1, sps, pps!);
-        int qpCr = H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(qpY, 2, sps, pps!);
+        int qpCb = pps is null ? qpY :
+            H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(qpY, 1, sps, pps);
+        int qpCr = pps is null ? qpY :
+            H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(qpY, 2, sps, pps);
         destination.SetDeblockingMetadata(macroblockX, macroblockY,
             new H264DeblockingMacroblockMetadata(
                 qpY, qpCb, qpCr,
@@ -253,9 +256,10 @@ public sealed class H264PInterMacroblockReconstructor
         H264IntraChromaResidualComponent component,
         bool[] flags)
     {
-        bool dcNonZero = component.Dc?.TotalCoefficients > 0;
+        bool dcNonZero = component.Dc is { TotalCoefficients: > 0 };
         for (int i = 0; i < component.Blocks.Count; i++)
-            flags[i] = dcNonZero || component.Blocks[i].Residual.TotalCoefficients > 0;
+            flags[i] = dcNonZero ||
+                component.Blocks[i] is { Residual.TotalCoefficients: > 0 };
     }
 
     private static void ValidateContext(
