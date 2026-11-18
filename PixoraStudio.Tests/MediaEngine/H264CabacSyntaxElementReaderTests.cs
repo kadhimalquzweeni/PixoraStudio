@@ -25,7 +25,7 @@ public sealed class H264CabacSyntaxElementReaderTests
     [Theory]
     [InlineData(0, 60)]
     [InlineData(1, 61)]
-    [InlineData(2, 62)]
+    
     public void ReadMacroblockQpDelta_ShouldApplyNeighbourContextIncrement(
         int increment, int expectedFirstContext)
     {
@@ -66,6 +66,7 @@ public sealed class H264CabacSyntaxElementReaderTests
 
     [Theory]
     [InlineData(-1)]
+    [InlineData(2)]
     [InlineData(3)]
     public void ReadMacroblockQpDelta_ShouldRejectInvalidNeighbourContextIncrement(int increment)
     {
@@ -134,7 +135,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(2, reader.ReadIntraChromaPredictionMode(1));
-        Assert.Equal(new[] { 65, 66, 66 }, bins.ContextIndices);
+        Assert.Equal(new[] { 65, 67, 67 }, bins.ContextIndices);
     }
 
     [Theory]
@@ -197,7 +198,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(2, reader.ReadReferenceIndex(1, 5));
-        Assert.Equal(new[] { 55, 56, 57 }, bins.ContextIndices);
+        Assert.Equal(new[] { 55, 58, 59 }, bins.ContextIndices);
     }
 
     [Fact]
@@ -207,7 +208,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(3, reader.ReadReferenceIndex(0, 3));
-        Assert.Equal(new[] { 54, 55, 56 }, bins.ContextIndices);
+        Assert.Equal(new[] { 54, 58, 59 }, bins.ContextIndices);
     }
 
     [Fact]
@@ -222,7 +223,7 @@ public sealed class H264CabacSyntaxElementReaderTests
 
     [Theory]
     [InlineData(-1, 2)]
-    [InlineData(3, 2)]
+    [InlineData(4, 2)]
     [InlineData(0, -1)]
     [InlineData(0, 32)]
     public void ReadReferenceIndex_ShouldRejectInvalidLimits(int increment, int maximum)
@@ -394,6 +395,90 @@ public sealed class H264CabacSyntaxElementReaderTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             reader.ReadIntraCodedBlockPattern(new[] { 0, 0, 0, 0 }, null, 4));
     }
+
+
+    [Fact]
+    public void ReadTransformSize8x8Flag_ShouldApplyNeighbourContextIncrement()
+    {
+        ScriptedCabacReader bins = new(1);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.True(reader.ReadTransformSize8x8Flag(2));
+        Assert.Equal(new[] { 401 }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(0, 40)]
+    [InlineData(1, 41)]
+    [InlineData(2, 42)]
+    public void ReadMotionVectorDifference_ShouldUseNeighbourContextIncrement(
+        int increment, int expectedContext)
+    {
+        ScriptedCabacReader bins = new(0);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(0, reader.ReadMotionVectorDifference(40, increment));
+        Assert.Equal(new[] { expectedContext }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadMotionVectorDifference_ShouldDecodeSignedUnaryValue()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 1, 1, 0 },
+            bypassBins: new[] { 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(-2, reader.ReadMotionVectorDifference(40, 0));
+        Assert.Equal(new[] { 40, 43, 44 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadMotionVectorDifference_ShouldDecodeBypassEscapeValue()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },
+            bypassBins: new[] { 0, 0, 0, 0, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(9, reader.ReadMotionVectorDifference(47, 0));
+        Assert.Equal(new[] { 47, 50, 51, 52, 53, 53, 53, 53, 53, 53 },
+            bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadPSliceMacroblockType_ShouldDecodeP8x8()
+    {
+        ScriptedCabacReader bins = new(new[] { 0, 0, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(3, reader.ReadPSliceMacroblockType());
+        Assert.Equal(new[] { 14, 15, 16 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadPSliceMacroblockType_ShouldDecodeIntra16x16Suffix()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1, 0, 0, 0, 0, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(6, reader.ReadPSliceMacroblockType());
+        Assert.Equal(new[] { 14, 17, 20, 21, 22, 22 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadBSliceMacroblockType_ShouldDecodeDirectAndIntraTypes()
+    {
+        ScriptedCabacReader directBins = new(0);
+        Assert.Equal(0, new H264CabacSyntaxElementReader(directBins)
+            .ReadBSliceMacroblockType(2));
+        Assert.Equal(new[] { 29 }, directBins.ContextIndices);
+
+        ScriptedCabacReader intraBins = new(new[] { 1, 1, 1, 1, 1, 1, 1, 0 });
+        Assert.Equal(23, new H264CabacSyntaxElementReader(intraBins)
+            .ReadBSliceMacroblockType(0));
+    }
+
 
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
