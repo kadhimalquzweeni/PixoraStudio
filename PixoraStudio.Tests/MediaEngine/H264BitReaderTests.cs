@@ -96,8 +96,7 @@ public sealed class H264BitReaderTests
     [Fact]
     public void ConsumeRbspTrailingBits_ShouldIncludeBitstreamDiagnosticsWhenUnexpectedDataRemains()
     {
-        H264BitReader reader = new(new byte[] { 0b1010_0000, 0b1100_0000 }, 10);
-        reader.SkipBits(1);
+        H264BitReader reader = new(new byte[] { 0b1000_0000, 0b1100_0000 }, 10);
 
         FormatException exception = Assert.Throws<FormatException>(
             () => reader.ConsumeRbspTrailingBits());
@@ -105,7 +104,8 @@ public sealed class H264BitReaderTests
         Assert.Contains("Bit position:", exception.Message);
         Assert.Contains("total RBSP bits: 10", exception.Message);
         Assert.Contains("remaining bits:", exception.Message);
-        Assert.Contains("RBSP hex: A0C0", exception.Message);
+        Assert.Contains("remaining bit sequence: 11", exception.Message);
+        Assert.Contains("RBSP hex: 80C0", exception.Message);
     }
 
     [Fact]
