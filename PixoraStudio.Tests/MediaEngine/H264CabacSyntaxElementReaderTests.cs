@@ -106,19 +106,25 @@ public sealed class H264CabacSyntaxElementReaderTests
         Assert.Equal(new[] { 399 }, bins.ContextIndices);
     }
 
-    [Theory]
-    [InlineData(new[] { 0 }, 0, 0)]
-    [InlineData(new[] { 1, 0 }, 1, 1)]
-    [InlineData(new[] { 1, 1, 0 }, 2, 2)]
-    [InlineData(new[] { 1, 1, 1 }, 2, 3)]
-    public void ReadIntraChromaPredictionMode_ShouldDecodeTruncatedUnary(
-        int[] encodedBins, int contextIncrement, int expectedMode)
+    [Fact]
+    public void ReadIntraChromaPredictionMode_ShouldDecodeTruncatedUnary()
     {
-        ScriptedCabacReader bins = new(encodedBins);
-        H264CabacSyntaxElementReader reader = new(bins);
+        (int[] Bins, int Increment, int Expected)[] cases =
+        [
+            (new[] { 0 }, 0, 0),
+            (new[] { 1, 0 }, 1, 1),
+            (new[] { 1, 1, 0 }, 2, 2),
+            (new[] { 1, 1, 1 }, 2, 3)
+        ];
 
-        Assert.Equal(expectedMode, reader.ReadIntraChromaPredictionMode(contextIncrement));
-        Assert.Equal(encodedBins.Length, bins.ContextIndices.Count);
+        foreach ((int[] encodedBins, int contextIncrement, int expectedMode) in cases)
+        {
+            ScriptedCabacReader bins = new(encodedBins);
+            H264CabacSyntaxElementReader reader = new(bins);
+
+            Assert.Equal(expectedMode, reader.ReadIntraChromaPredictionMode(contextIncrement));
+            Assert.Equal(encodedBins.Length, bins.ContextIndices.Count);
+        }
     }
 
     [Fact]
