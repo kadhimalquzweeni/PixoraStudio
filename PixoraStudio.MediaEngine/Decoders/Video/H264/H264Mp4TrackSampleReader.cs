@@ -66,9 +66,10 @@ public sealed class H264Mp4TrackSampleReader
         return new H264Mp4VideoSample(
             track.TrackId,
             location.SampleNumber,
-            (double)location.DecodeTimeTicks / track.Timescale,
-            (double)presentationTimeTicks / track.Timescale,
-            (double)location.DurationTicks / track.Timescale,
+            location.DecodeTimeTicks,
+            presentationTimeTicks,
+            location.DurationTicks,
+            track.Timescale,
             location.IsSyncSample,
             configuration,
             nalUnits);
