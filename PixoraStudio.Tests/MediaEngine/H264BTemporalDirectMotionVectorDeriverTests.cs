@@ -44,6 +44,18 @@ public sealed class H264BTemporalDirectMotionVectorDeriverTests
     }
 
     [Fact]
+    public void Derive_ShouldCalculateTbAndTdRelativeToMappedList0Reference()
+    {
+        H264TemporalDirectMotionVectorResult result = _deriver.Derive(
+            new H264TemporalDirectPredictionContext(
+                new H264MotionVector(4, 2), 8, 4, 0, false));
+
+        Assert.Equal(512, result.DistanceScaleFactor);
+        Assert.Equal(new H264MotionVector(8, 4), result.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(4, 2), result.MotionVectorL1);
+    }
+
+    [Fact]
     public void Derive_ShouldNotApplySpatialColZeroFlag()
     {
         H264TemporalDirectMotionVectorResult result = _deriver.Derive(
