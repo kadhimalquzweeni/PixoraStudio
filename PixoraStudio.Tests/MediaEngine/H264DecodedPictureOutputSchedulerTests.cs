@@ -6,6 +6,22 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264DecodedPictureOutputSchedulerTests
 {
     [Fact]
+    public void CalculatePocBeforeReconstruction_ShouldEnqueueTheSamePrecomputedPoc()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(0);
+        H264DecodedPictureOutputScheduler scheduler = new();
+        H264SliceHeader slice = Slice(0, 0, idr: true);
+
+        H264PictureOrderCount poc = scheduler.CalculatePictureOrderCount(sps, slice, 3);
+        H264DecodedPictureOutput output = Assert.Single(scheduler.Enqueue(
+            Surface(sps, 55), sps, slice, 3, poc));
+
+        Assert.Equal(0, poc.PictureOrderCount);
+        Assert.Equal(0, output.PictureOrderCount);
+        Assert.Equal((byte)55, output.Surface.CopyLumaPlane()[0]);
+    }
+
+    [Fact]
     public void Enqueue_ShouldDerivePocAndUseVuiReorderLimit()
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(1);
