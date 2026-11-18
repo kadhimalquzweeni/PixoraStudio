@@ -514,7 +514,7 @@ public sealed class H264CabacSyntaxElementReaderTests
             .ReadBSliceMacroblockType(0);
 
         Assert.Equal(expected, actual);
-        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32 }, bins.ContextIndices);
+        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32, 32 }, bins.ContextIndices);
     }
 
     [Theory]
@@ -528,7 +528,7 @@ public sealed class H264CabacSyntaxElementReaderTests
             .ReadBSliceMacroblockType(0);
 
         Assert.Equal(expected, actual);
-        Assert.Equal(new[] { 27, 30, 31, 32, 32 }, bins.ContextIndices);
+        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32 }, bins.ContextIndices);
     }
 
     [Theory]
@@ -549,7 +549,7 @@ public sealed class H264CabacSyntaxElementReaderTests
             .ReadBSliceMacroblockType(0);
 
         Assert.Equal(expected, actual);
-        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32 }, bins.ContextIndices);
+        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32, 32 }, bins.ContextIndices);
     }
 
     [Fact]
