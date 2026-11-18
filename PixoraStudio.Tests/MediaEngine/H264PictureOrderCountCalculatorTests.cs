@@ -96,15 +96,54 @@ public sealed class H264PictureOrderCountCalculatorTests
     }
 
     [Fact]
+    public void Calculate_TypeZeroMmcoFive_ShouldNormalizeCurrentFieldsAndPreviousLsb()
+    {
+        H264PictureOrderCountCalculator calculator = new();
+        H264SequenceParameterSet sps = CreateSps();
+        calculator.Calculate(sps, CreateSlice(frameNum: 0, pocLsb: 0, idr: true), 3);
+
+        H264PictureOrderCount mmco5 = calculator.Calculate(
+            sps, CreateSlice(1, 10, deltaBottom: -6, marking: CreateMmco5()), 3);
+        H264PictureOrderCount next = calculator.Calculate(
+            sps, CreateSlice(2, 1), 3);
+
+        Assert.Equal(0, mmco5.PictureOrderCount);
+        Assert.Equal(6, mmco5.TopFieldOrderCount);
+        Assert.Equal(0, mmco5.BottomFieldOrderCount);
+        Assert.Equal(1, next.PictureOrderCount);
+    }
+
+    [Fact]
+    public void Calculate_TypeOneMmcoFive_ShouldNormalizeCurrentFields()
+    {
+        H264SequenceParameterSet sps = CreateSps() with
+        {
+            PicOrderCntType = 1,
+            OffsetForTopToBottomField = 4,
+            OffsetForRefFrame = [2]
+        };
+        H264PictureOrderCountCalculator calculator = new();
+        H264PictureOrderCount result = calculator.Calculate(
+            sps, CreateSlice(1, null, marking: CreateMmco5()), 3);
+
+        Assert.Equal(0, result.PictureOrderCount);
+        Assert.Equal(0, result.TopFieldOrderCount);
+        Assert.Equal(4, result.BottomFieldOrderCount);
+    }
+
+    [Fact]
     public void Calculate_ShouldResetFrameNumberStateAfterMmcoFive()
     {
         H264PictureOrderCountCalculator calculator = new();
         H264SequenceParameterSet sps = CreateSps() with { PicOrderCntType = 2 };
         calculator.Calculate(sps, CreateSlice(0, null, idr: true), 3);
-        calculator.Calculate(sps, CreateSlice(7, null, marking: CreateMmco5()), 3);
-
+        H264PictureOrderCount mmco5 = calculator.Calculate(
+            sps, CreateSlice(7, null, marking: CreateMmco5()), 3);
         H264PictureOrderCount result = calculator.Calculate(sps, CreateSlice(1, null), 3);
 
+        Assert.Equal(0, mmco5.PictureOrderCount);
+        Assert.Equal(0, mmco5.TopFieldOrderCount);
+        Assert.Equal(0, mmco5.BottomFieldOrderCount);
         Assert.Equal(2, result.PictureOrderCount);
         Assert.Equal(0, result.FrameNumOffset);
     }
