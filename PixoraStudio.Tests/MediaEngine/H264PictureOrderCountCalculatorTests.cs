@@ -149,6 +149,40 @@ public sealed class H264PictureOrderCountCalculatorTests
     }
 
     [Fact]
+    public void Calculate_TypeTwo_ShouldTrackFrameNumWrapAfterNonReferencePicture()
+    {
+        H264PictureOrderCountCalculator calculator = new();
+        H264SequenceParameterSet sps = CreateSps() with { PicOrderCntType = 2 };
+        calculator.Calculate(sps, CreateSlice(0, null, idr: true), 3);
+        calculator.Calculate(sps, CreateSlice(15, null), 0);
+
+        H264PictureOrderCount wrapped = calculator.Calculate(
+            sps, CreateSlice(0, null), 3);
+
+        Assert.Equal(16, wrapped.FrameNumOffset);
+        Assert.Equal(32, wrapped.PictureOrderCount);
+    }
+
+    [Fact]
+    public void Calculate_TypeOne_ShouldTrackFrameNumWrapAfterNonReferencePicture()
+    {
+        H264PictureOrderCountCalculator calculator = new();
+        H264SequenceParameterSet sps = CreateSps() with
+        {
+            PicOrderCntType = 1,
+            OffsetForRefFrame = [2]
+        };
+        calculator.Calculate(sps, CreateSlice(0, null, idr: true), 3);
+        calculator.Calculate(sps, CreateSlice(15, null), 0);
+
+        H264PictureOrderCount wrapped = calculator.Calculate(
+            sps, CreateSlice(0, null), 3);
+
+        Assert.Equal(16, wrapped.FrameNumOffset);
+        Assert.Equal(32, wrapped.TopFieldOrderCount);
+    }
+
+    [Fact]
     public void Calculate_ShouldRejectMissingRequiredPocSyntax()
     {
         H264SequenceParameterSet sps = CreateSps();
