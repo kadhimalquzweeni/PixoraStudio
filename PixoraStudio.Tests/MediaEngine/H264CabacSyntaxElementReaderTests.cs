@@ -334,7 +334,7 @@ public sealed class H264CabacSyntaxElementReaderTests
 
         Assert.Equal((uint)2, pattern.Chroma);
         Assert.Equal(32u, pattern.CodeNum);
-        Assert.Equal(82, bins.ContextIndices[^1]);
+        Assert.Equal(84, bins.ContextIndices[^1]);
     }
 
     [Fact]
