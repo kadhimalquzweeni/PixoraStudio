@@ -28,6 +28,14 @@ public sealed class H264MotionVectorPictureState
     public int BlockWidth => _cells.GetLength(0);
     public int BlockHeight => _cells.GetLength(1);
 
+    /// <summary>Creates an independent snapshot of all decoded motion cells.</summary>
+    public H264MotionVectorPictureState Clone()
+    {
+        H264MotionVectorPictureState clone = new(MacroblockWidth, MacroblockHeight);
+        Array.Copy(_cells, clone._cells, _cells.Length);
+        return clone;
+    }
+
     /// <summary>
     /// Resolves A (left), B (above), C (above-right), and D (above-left)
     /// candidates for a current partition. Neighbours outside the picture,
