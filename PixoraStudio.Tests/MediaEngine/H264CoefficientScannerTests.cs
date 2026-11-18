@@ -52,4 +52,49 @@ public sealed class H264CoefficientScannerTests
     {
         Assert.Throws<ArgumentException>(() => H264CoefficientScanner.ToScanOrder(new int[15]));
     }
+
+    [Fact]
+    public void ToScanOrder8x8_ShouldStartWithNormativeZigZagPositions()
+    {
+        int[] raster = Enumerable.Range(0, 64).ToArray();
+
+        Assert.Equal(
+            new[] { 0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5 },
+            H264CoefficientScanner.ToScanOrder(raster));
+    }
+
+    [Fact]
+    public void ToScanOrder8x8_ShouldStartWithNormativeFieldPositions()
+    {
+        int[] raster = Enumerable.Range(0, 64).ToArray();
+
+        Assert.Equal(
+            new[] { 0, 8, 16, 1, 9, 24, 32, 17, 2, 25, 40, 48, 56, 33, 10, 3 },
+            H264CoefficientScanner.ToScanOrder(raster, fieldScan: true));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ScanConversions8x8_ShouldRoundTrip(bool fieldScan)
+    {
+        int[] raster = Enumerable.Range(-32, 64).ToArray();
+
+        int[] scan = H264CoefficientScanner.ToScanOrder(raster, fieldScan);
+        int[] reconstructed = H264CoefficientScanner.ToRasterOrder(scan, fieldScan);
+
+        Assert.Equal(raster, reconstructed);
+    }
+
+    [Fact]
+    public void ToRasterOrder8x8_ShouldRejectWrongLength()
+    {
+        Assert.Throws<ArgumentException>(() => H264CoefficientScanner.ToRasterOrder(new int[63]));
+    }
+
+    [Fact]
+    public void ToScanOrder8x8_ShouldRejectWrongLength()
+    {
+        Assert.Throws<ArgumentException>(() => H264CoefficientScanner.ToScanOrder(new int[63]));
+    }
 }
