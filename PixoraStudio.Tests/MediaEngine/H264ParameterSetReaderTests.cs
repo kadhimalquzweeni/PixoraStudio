@@ -72,6 +72,7 @@ public sealed class H264ParameterSetReaderTests
     {
         BitWriter bits = CreateBaselineSpsPrefix();
         bits.WriteFlag(true); // vui_parameters_present_flag
+        bits.WriteFlag(true);  // aspect_ratio_info_present_flag
         bits.WriteBits(255, 8); // extended SAR
         bits.WriteBits(4, 16);
         bits.WriteBits(3, 16);
@@ -113,6 +114,7 @@ public sealed class H264ParameterSetReaderTests
     {
         BitWriter bits = CreateBaselineSpsPrefix();
         bits.WriteFlag(true);  // VUI present
+        bits.WriteFlag(true);  // aspect_ratio_info_present_flag
         bits.WriteBits(1, 8);   // square pixels
         bits.WriteFlag(false); // overscan
         bits.WriteFlag(false); // video signal
