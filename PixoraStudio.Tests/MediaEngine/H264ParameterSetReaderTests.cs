@@ -240,7 +240,7 @@ public sealed class H264ParameterSetReaderTests
         WritePpsTail(bits);
 
         var result = new H264PictureParameterSetReader().Read(
-            new H264NalUnit(0x68, bits.ToArray()));
+            new H264NalUnit(0x68, bits.ToArray(appendTrailingBits: false)));
 
         Assert.Equal(mapType, result.SliceGroupMapType);
         if (mapType == 6)
@@ -341,7 +341,7 @@ public sealed class H264ParameterSetReaderTests
 
         H264SequenceParameterSet sps = CreateBaselineSpsForPpsExtension();
         H264PictureParameterSetHeader result = new H264PictureParameterSetReader()
-            .Read(new H264NalUnit(0x68, bits.ToArray()), sps);
+            .Read(new H264NalUnit(0x68, bits.ToArray(appendTrailingBits: false)), sps);
 
         Assert.True(result.PicScalingMatrixPresentFlag);
         Assert.True(result.ScalingListUseDefault[0]);
@@ -366,7 +366,7 @@ public sealed class H264ParameterSetReaderTests
 
         Assert.Throws<FormatException>(() =>
             new H264PictureParameterSetReader().Read(
-                new H264NalUnit(0x68, bits.ToArray()),
+                new H264NalUnit(0x68, bits.ToArray(appendTrailingBits: false)),
                 CreateBaselineSpsForPpsExtension()));
     }
 
