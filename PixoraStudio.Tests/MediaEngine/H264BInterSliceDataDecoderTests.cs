@@ -100,6 +100,40 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_BSkipRun_TemporalDirect_ShouldResolveCollocatedMotionFromDpbAutomatically()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264DecodedPictureSurface reference = Reference(sps, 41);
+        H264DecodedPictureBuffer dpb = new();
+        H264MotionVectorPictureState collocatedL0 = new(1, 1);
+        H264MotionVectorPictureState collocatedL1 = new(1, 1);
+        collocatedL0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(2, -2));
+        dpb.StoreDecodedPicture(
+            reference, new H264ReferencePicture(0, 0), true, 4, 0, 16,
+            new H264DecodedReferenceMarking(false, false, false, []),
+            motionVectorStateL0: collocatedL0,
+            motionVectorStateL1: collocatedL1,
+            referenceList0: [new H264ReferencePicture(0, -2)],
+            referenceList1: []);
+
+        BitWriter bits = WriteBSliceHeader(directSpatial: false);
+        bits.Ue(1);
+        bits.TrailingBits();
+        H264DecodedPictureSurface destination = new(sps);
+
+        H264BInterSliceDecodeResult result = Decoder(destination).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 2, 0);
+
+        H264BInterMacroblockReconstructionResult skipped =
+            Assert.Single(result.InterMacroblocks);
+        Assert.True(skipped.IsSkipped);
+        H264ReconstructedBInterSubPartition first = skipped.Partitions[0];
+        Assert.Equal(new H264MotionVector(-2, 2), first.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(-4, 4), first.MotionVectorL1);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+    }
+
+    [Fact]
     public void Decode_BSliceWithIntraNxNMacroblock_ShouldUseSharedIntraReconstruction()
     {
         H264SequenceParameterSet sps = Sps();
