@@ -104,13 +104,18 @@ public sealed class H264SliceHeaderReader
         if (pictureParameterSet.EntropyCodingModeFlag && sliceType is not (H264SliceType.I or H264SliceType.Si))
             cabacInitIdc = ReadBoundedUe(reader, 2, "cabac_init_idc");
 
-        int sliceQpDelta = ReadBoundedSe(reader, -87, 25, "slice_qp_delta");
+        int qpBdOffsetY = checked((int)(6 * sequenceParameterSet.BitDepthLumaMinus8));
+        int minSliceQpDelta = -26 - qpBdOffsetY - pictureParameterSet.PicInitQpMinus26;
+        int maxSliceQpDelta = 25 - pictureParameterSet.PicInitQpMinus26;
+        int sliceQpDelta = ReadBoundedSe(reader, minSliceQpDelta, maxSliceQpDelta, "slice_qp_delta");
         bool spForSwitch = false;
         uint? sliceQsDelta = null;
         if (sliceType is H264SliceType.Sp or H264SliceType.Si)
         {
             if (sliceType == H264SliceType.Sp) spForSwitch = reader.ReadFlag();
-            sliceQsDelta = ReadBoundedSe(reader, -26, 25, "slice_qs_delta");
+            int minSliceQsDelta = -26 - pictureParameterSet.PicInitQsMinus26;
+            int maxSliceQsDelta = 25 - pictureParameterSet.PicInitQsMinus26;
+            sliceQsDelta = ReadBoundedSe(reader, minSliceQsDelta, maxSliceQsDelta, "slice_qs_delta");
         }
 
         uint? disableDeblocking = null;
@@ -132,7 +137,7 @@ public sealed class H264SliceHeaderReader
             uint picSizeInMapUnits = checked((sequenceParameterSet.PicWidthInMbsMinus1 + 1) *
                 (sequenceParameterSet.PicHeightInMapUnitsMinus1 + 1));
             uint changeRate = checked(pictureParameterSet.SliceGroupChangeRateMinus1!.Value + 1);
-            uint maxCycle = (picSizeInMapUnits + changeRate - 1) / changeRate;
+            uint maxCycle = picSizeInMapUnits / changeRate;
             int cycleBits = CeilLog2(maxCycle + 1);
             sliceGroupChangeCycle = reader.ReadBits(cycleBits);
             if (sliceGroupChangeCycle > maxCycle)
