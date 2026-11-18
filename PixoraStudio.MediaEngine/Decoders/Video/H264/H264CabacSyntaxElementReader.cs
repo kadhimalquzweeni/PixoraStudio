@@ -11,6 +11,29 @@ public sealed class H264CabacSyntaxElementReader
         _reader = reader;
     }
 
+    /// <summary>
+    /// Decodes mb_skip_flag for P or B slices. The context increment is the
+    /// sum of the left and upper neighbour condTermFlag values.
+    /// </summary>
+    public bool ReadMacroblockSkipFlag(bool isBSlice, int contextIndexIncrement)
+    {
+        if (contextIndexIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
+        return ReadFlagAtContext((isBSlice ? 24 : 11) + contextIndexIncrement);
+    }
+
+    /// <summary>Decodes end_of_slice_flag using the CABAC terminating-bin process.</summary>
+    public bool ReadEndOfSliceFlag()
+    {
+        int bin = _reader.DecodeTerminate();
+        return bin switch
+        {
+            0 => false,
+            1 => true,
+            _ => throw new FormatException("CABAC terminating bins must be zero or one.")
+        };
+    }
+
     /// <summary>Decodes prev_intra4x4_pred_mode_flag or prev_intra8x8_pred_mode_flag (ctxIdx 68).</summary>
     public bool ReadPreviousIntraPredictionModeFlag() =>
         ReadFlagAtContext(68);
