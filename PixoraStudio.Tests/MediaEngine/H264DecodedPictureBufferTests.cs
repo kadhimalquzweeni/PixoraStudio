@@ -243,6 +243,10 @@ public sealed class H264DecodedPictureBufferTests
     public void CreateTemporalDirectMotionField_ShouldRestoreStoredCollocatedMotionAndReferenceLists()
     {
         H264DecodedPictureBuffer dpb = new();
+        dpb.StoreDecodedPicture(
+            Surface(), new H264ReferencePicture(0, 0), true, 4, 0, 16,
+            new H264DecodedReferenceMarking(false, true, false, []),
+            idrPicture: true);
         H264ReferencePicture collocated = new(1, 2);
         H264MotionVectorPictureState l0 = new(1, 1);
         H264MotionVectorPictureState l1 = new(1, 1);
@@ -314,7 +318,7 @@ public sealed class H264DecodedPictureBufferTests
         dpb.StoreDecodedPicture(
             Surface(), collocated, true, 4, 1, 16, Adaptive(false),
             motionVectorStateL0: l0, motionVectorStateL1: l1,
-            referenceList0: [new H264ReferencePicture(0, 0)],
+            referenceList0: [new H264ReferencePicture(0, 0, true, 0)],
             referenceList1: []);
         dpb.StoreDecodedPicture(
             Surface(), new H264ReferencePicture(2, 4), true, 4, 2, 16,
