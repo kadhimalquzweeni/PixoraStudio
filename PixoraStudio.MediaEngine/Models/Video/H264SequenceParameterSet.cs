@@ -19,4 +19,7 @@ public sealed record H264SequenceParameterSet(
     bool Direct8X8InferenceFlag,
     uint FrameWidth,
     uint FrameHeight,
-    bool VuiParametersPresentFlag);
+    bool VuiParametersPresentFlag)
+{
+    public H264VuiParameters? VuiParameters { get; init; }
+}
