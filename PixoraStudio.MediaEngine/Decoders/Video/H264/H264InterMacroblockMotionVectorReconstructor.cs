@@ -71,6 +71,11 @@ public sealed class H264InterMacroblockMotionVectorReconstructor
         for (int partitionIndex = 0; partitionIndex < syntax.Partitions.Count; partitionIndex++)
         {
             H264InterPredictionPartition partition = syntax.Partitions[partitionIndex];
+            (int expectedX, int expectedY, int expectedWidth, int expectedHeight) =
+                GetExpectedPartition(syntax.MacroblockType, partitionIndex);
+            if (partition.X != expectedX || partition.Y != expectedY ||
+                partition.Width != expectedWidth || partition.Height != expectedHeight)
+                throw new FormatException("An inter partition does not match its macroblock partition shape.");
             if (partition.ReferenceIndex >= activeReferenceCount)
                 throw new FormatException("The inter partition references an entry outside RefPicList0.");
             if (partition.SubPartitions.Count == 0)
@@ -82,9 +87,11 @@ public sealed class H264InterMacroblockMotionVectorReconstructor
                 if (sub.MotionVectorDifferences.Count != 1)
                     throw new FormatException("Each list-0 sub-partition must contain exactly one MVD pair.");
                 if ((sub.X | sub.Y | sub.Width | sub.Height) % 4 != 0 ||
-                    sub.X < 0 || sub.Y < 0 || sub.Width <= 0 || sub.Height <= 0 ||
-                    sub.X + sub.Width > 16 || sub.Y + sub.Height > 16)
-                    throw new FormatException("An inter sub-partition has invalid macroblock-relative geometry.");
+                    sub.X < partition.X || sub.Y < partition.Y ||
+                    sub.Width <= 0 || sub.Height <= 0 ||
+                    sub.X + sub.Width > partition.X + partition.Width ||
+                    sub.Y + sub.Height > partition.Y + partition.Height)
+                    throw new FormatException("An inter sub-partition has invalid partition-relative geometry.");
 
                 int x = checked(macroblockBlockX + sub.X / 4);
                 int y = checked(macroblockBlockY + sub.Y / 4);
@@ -144,6 +151,23 @@ public sealed class H264InterMacroblockMotionVectorReconstructor
         return new H264ReconstructedInterPartition(
             0, 0, x, y, 4, 4, 0, motionVector);
     }
+
+    private static (int X, int Y, int Width, int Height) GetExpectedPartition(
+        uint macroblockType,
+        int partitionIndex) =>
+        macroblockType switch
+        {
+            0 when partitionIndex == 0 => (0, 0, 16, 16),
+            1 when partitionIndex == 0 => (0, 0, 16, 8),
+            1 when partitionIndex == 1 => (0, 8, 16, 8),
+            2 when partitionIndex == 0 => (0, 0, 8, 16),
+            2 when partitionIndex == 1 => (8, 0, 8, 16),
+            3 or 4 when partitionIndex == 0 => (0, 0, 8, 8),
+            3 or 4 when partitionIndex == 1 => (8, 0, 8, 8),
+            3 or 4 when partitionIndex == 2 => (0, 8, 8, 8),
+            3 or 4 when partitionIndex == 3 => (8, 8, 8, 8),
+            _ => throw new FormatException("The inter macroblock partition index is invalid.")
+        };
 
     private static void ValidateMacroblock(
         H264MotionVectorPictureState state,
