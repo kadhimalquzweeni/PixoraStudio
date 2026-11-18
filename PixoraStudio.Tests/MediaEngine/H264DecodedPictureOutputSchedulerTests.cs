@@ -64,6 +64,22 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
+    public void Reset_ShouldClearPendingOutputAndPocHistory()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(2);
+        H264DecodedPictureOutputScheduler scheduler = new();
+        scheduler.Enqueue(Surface(sps, 10), sps, Slice(0, 0), 1);
+        Assert.Equal(1, scheduler.PendingCount);
+
+        scheduler.Reset();
+
+        Assert.Equal(0, scheduler.PendingCount);
+        scheduler.Enqueue(Surface(sps, 20), sps, Slice(0, 0), 1);
+        H264DecodedPictureOutput output = Assert.Single(scheduler.Flush());
+        Assert.Equal(0, output.PictureOrderCount);
+    }
+
+    [Fact]
     public void Enqueue_ShouldRequireFallbackWhenVuiDoesNotSignalReorderLimit()
     {
         H264SequenceParameterSet sps = new(
