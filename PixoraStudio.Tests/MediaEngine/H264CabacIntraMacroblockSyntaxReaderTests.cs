@@ -104,6 +104,43 @@ public sealed class H264CabacIntraMacroblockSyntaxReaderTests
                 0, new[] { 0, 0, 0, 0 }, new[] { 0, 0 }, 0));
     }
 
+
+    [Fact]
+    public void Read_ShouldDeriveAllNeighbourContextsFromPictureState()
+    {
+        H264CabacIntraMacroblockNeighbourContext neighbours = new();
+        neighbours.RecordMacroblock(
+            2, 0, 1, 7, false, true, false, 15, 2, 1, 2);
+        neighbours.RecordMacroblock(
+            1, 1, 0, 7, true, false, false, 0, 0, 0, 0);
+
+        int[] bins =
+        [
+            0, // I_NxN mb_type
+            .. Enumerable.Repeat(1, 16), // sixteen previous intra modes
+            0, // chroma prediction mode
+            1, 0, 0, 0, // luma CBP
+            0, // chroma CBP
+            0 // mb_qp_delta
+        ];
+        ScriptedCabacReader binReader = new(bins);
+        H264CabacSyntaxElementReader syntax = new(binReader);
+        H264MacroblockHeader header = new H264CabacMacroblockHeaderReader()
+            .ReadIntraSlice(syntax, 3, 1);
+
+        H264IntraMacroblockSyntax result =
+            new H264CabacIntraMacroblockSyntaxReader().Read(
+                syntax, header, CreateSps(), CreatePps(transform8x8: false),
+                neighbours, 1, 1, 7, previousMacroblockAddress: 2);
+
+        Assert.Equal((uint)1, result.CodedBlockPattern.Luma);
+        Assert.Equal((uint)0, result.CodedBlockPattern.Chroma);
+        Assert.Equal(new[] { 4 }, binReader.ContextIndices.Take(1));
+        Assert.Equal(65, binReader.ContextIndices[17]);
+        Assert.Equal(new[] { 75, 76, 75, 76, 78, 61 },
+            binReader.ContextIndices.Skip(18));
+    }
+
     private static H264SequenceParameterSet CreateSps() => new(
         0, 100, 42, 1, false, 0, 0, 0, 2, 0, 1, 1, 1,
         true, true, 32, 32, false);
@@ -120,7 +157,12 @@ public sealed class H264CabacIntraMacroblockSyntaxReaderTests
     {
         private readonly Queue<int> _bins;
         public ScriptedCabacReader(params int[] bins) => _bins = new Queue<int>(bins);
-        public int DecodeBin(int contextIndex) => _bins.Dequeue();
+        public List<int> ContextIndices { get; } = [];
+        public int DecodeBin(int contextIndex)
+        {
+            ContextIndices.Add(contextIndex);
+            return _bins.Dequeue();
+        }
         public int DecodeBypass() => _bins.Dequeue();
         public int DecodeTerminate() => _bins.Dequeue();
         public void MarkTerminated() { }
