@@ -143,6 +143,10 @@ public sealed class H264DeblockingPictureFilterTests
         Assert.Equal((byte)113, surface.GetChromaSample(1, 0, 8));
         Assert.Equal((byte)115, surface.GetChromaSample(2, 0, 11));
         Assert.Equal((byte)115, surface.GetChromaSample(2, 0, 12));
+        Assert.Equal((byte)111, surface.GetChromaSample(2, 0, 3));
+        Assert.Equal((byte)111, surface.GetChromaSample(2, 0, 4));
+        Assert.Equal((byte)113, surface.GetChromaSample(2, 0, 7));
+        Assert.Equal((byte)113, surface.GetChromaSample(2, 0, 8));
     }
 
     [Fact]
