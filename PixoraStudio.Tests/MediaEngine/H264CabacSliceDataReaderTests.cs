@@ -56,6 +56,25 @@ public sealed class H264CabacSliceDataReaderTests
         Assert.Throws<InvalidOperationException>(() => reader.DecodeTerminate());
     }
 
+
+    [Fact]
+    public void RestartAfterPcm_ShouldRequireByteAlignment()
+    {
+        H264BitReader bits = new(new byte[] { 0x00, 0x00, 0x00 });
+        H264CabacSliceDataReader reader = new(bits, 26, true, 0);
+        Assert.Throws<InvalidOperationException>(() => reader.RestartAfterPcm());
+    }
+
+    [Fact]
+    public void RestartAfterPcm_ShouldReadNewArithmeticOffsetWhenByteAligned()
+    {
+        H264BitReader bits = new(new byte[] { 0x00, 0x00, 0x00, 0x00 });
+        H264CabacSliceDataReader reader = new(bits, 26, true, 0);
+        bits.SkipBits(7);
+        reader.RestartAfterPcm();
+        Assert.Equal(25, bits.PositionBits);
+    }
+
     private static H264CabacSliceDataReader CreateReader(bool isIntra)
     {
         // The first nine bits after alignment are zero, so the initial offset is zero.
