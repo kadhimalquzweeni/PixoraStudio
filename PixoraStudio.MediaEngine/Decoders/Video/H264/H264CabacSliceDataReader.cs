@@ -7,7 +7,8 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// </summary>
 public sealed class H264CabacSliceDataReader
 {
-    private readonly H264CabacArithmeticDecoder _arithmeticDecoder;
+    private readonly H264BitReader _reader;
+    private H264CabacArithmeticDecoder _arithmeticDecoder;
     private readonly H264CabacContextModel[] _contexts = new H264CabacContextModel[460];
     private readonly bool[] _initialized = new bool[460];
     private bool _terminated;
@@ -23,6 +24,8 @@ public sealed class H264CabacSliceDataReader
             throw new ArgumentOutOfRangeException(nameof(sliceQpY));
         if (cabacInitIdc is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(cabacInitIdc));
+
+        _reader = reader;
 
         // cabac_alignment_one_bit consists of one bits up to the next byte boundary.
         while (!reader.IsByteAligned)
@@ -41,6 +44,18 @@ public sealed class H264CabacSliceDataReader
     }
 
     public bool IsTerminated => _terminated;
+
+    /// <summary>
+    /// Restarts the arithmetic engine after PCM samples. Probability contexts
+    /// remain unchanged. The caller must consume all PCM samples and byte-align.
+    /// </summary>
+    public void RestartAfterPcm()
+    {
+        EnsureNotTerminated();
+        if (!_reader.IsByteAligned)
+            throw new InvalidOperationException("The bit reader must be byte-aligned after PCM samples.");
+        _arithmeticDecoder = new H264CabacArithmeticDecoder(_reader);
+    }
 
     public int DecodeBin(int contextIndex)
     {
