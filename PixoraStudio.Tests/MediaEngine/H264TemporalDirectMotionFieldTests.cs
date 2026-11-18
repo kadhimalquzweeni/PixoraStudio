@@ -18,7 +18,7 @@ public sealed class H264TemporalDirectMotionFieldTests
             [new H264ReferencePicture(2, 8)], 6, collocatedPictureIsShortTerm: true);
 
         H264TemporalDirectPredictionContext context =
-            field.GetContext(0, 0, 1, 1, 10, [new H264ReferencePicture(8, 7), new H264ReferencePicture(9, -2)])!;
+            field.GetContext(0, 0, 1, 1, 10, [new H264ReferencePicture(8, 7), new H264ReferencePicture(1, -2)])!;
 
         Assert.Equal(new H264MotionVector(4, 5), context.CollocatedMotionVector);
         Assert.Equal(10, context.CurrentPictureOrderCount);
@@ -38,7 +38,7 @@ public sealed class H264TemporalDirectMotionFieldTests
             l0, l1, [], [new H264ReferencePicture(2, 3, true, 0)], 8, collocatedPictureIsShortTerm: true);
 
         H264TemporalDirectPredictionContext context =
-            field.GetContext(0, 0, 1, 1, 12, [new H264ReferencePicture(8, 3)])!;
+            field.GetContext(0, 0, 1, 1, 12, [new H264ReferencePicture(2, 3)])!;
 
         Assert.Equal(new H264MotionVector(-7, 9), context.CollocatedMotionVector);
         Assert.Equal(3, context.CollocatedReferencePictureOrderCount);
