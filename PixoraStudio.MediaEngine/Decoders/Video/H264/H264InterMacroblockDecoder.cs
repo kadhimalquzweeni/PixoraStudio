@@ -114,6 +114,13 @@ public sealed class H264InterMacroblockDecoder
             throw new ArgumentException(
                 "A skipped macroblock header with a skip count of one is required.",
                 nameof(macroblockHeader));
+        if (macroblockX < 0 || macroblockX >= pictureState.MacroblockWidth ||
+            macroblockY < 0 || macroblockY >= pictureState.MacroblockHeight ||
+            macroblockHeader.MacroblockAddress !=
+                (uint)(macroblockY * pictureState.MacroblockWidth + macroblockX))
+            throw new ArgumentException(
+                "The skipped macroblock coordinates do not match its parsed macroblock address.",
+                nameof(macroblockHeader));
 
         return _motionVectorReconstructor.ReconstructSkipped(
             pictureState, macroblockX, macroblockY, sliceId);
