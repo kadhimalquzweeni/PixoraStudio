@@ -169,6 +169,76 @@ public sealed class H264CabacResidualBlockReaderTests
         Assert.Empty(bins.ContextIndices);
     }
 
+
+    [Fact]
+    public void ReadBlockWithCodedBlockFlag_ShouldUseCategorySpecificContext()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        var block = reader.ReadBlockWithCodedBlockFlag(
+            bins, H264CabacResidualBlockContext.Create(2), contextIndexIncrement: 3);
+
+        Assert.Equal(new[] { 96 }, bins.ContextIndices);
+        Assert.Equal(0, block.TotalCoefficients);
+    }
+
+    [Fact]
+    public void ReadBlockWithCodedBlockFlag_ShouldNotReadResidualWhenFlagIsZero()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        var block = reader.ReadBlockWithCodedBlockFlag(
+            bins, H264CabacResidualBlockContext.Create(1), contextIndexIncrement: 2);
+
+        Assert.Equal(0, block.TotalCoefficients);
+        Assert.Equal(15, block.Coefficients.Count);
+        Assert.Equal(new[] { 91 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadBlockWithCodedBlockFlag_ShouldUseFixedContextForLumaDc()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        _ = reader.ReadBlockWithCodedBlockFlag(
+            bins, H264CabacResidualBlockContext.Create(0), contextIndexIncrement: 0);
+
+        Assert.Equal(new[] { 85 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadBlockWithCodedBlockFlag_ShouldRejectInvalidIncrementBeforeConsumingBins()
+    {
+        ScriptedCabacReader bins = new();
+        H264CabacResidualBlockReader reader = new();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            reader.ReadBlockWithCodedBlockFlag(
+                bins, H264CabacResidualBlockContext.Create(2), contextIndexIncrement: 4));
+        Assert.Empty(bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadBlockWithCodedBlockFlag_ShouldOmitFlagForLumaEightByEight()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 0 },
+            bypassBins: new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        var block = reader.ReadBlockWithCodedBlockFlag(
+            bins, H264CabacResidualBlockContext.Create(5), contextIndexIncrement: 0);
+
+        Assert.Equal(1, block.TotalCoefficients);
+        Assert.Empty(bins.ContextIndices);
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _decisionBins;
