@@ -43,6 +43,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
         uint? previousMacroblockAddress)
     {
         ArgumentNullException.ThrowIfNull(neighbourContext);
+        ArgumentNullException.ThrowIfNull(macroblockHeader);
         ArgumentNullException.ThrowIfNull(sequenceParameterSet);
 
         uint chromaArrayType = sequenceParameterSet.SeparateColourPlaneFlag
@@ -131,7 +132,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReader
                     nameof(chromaCbpContextIncrements));
         }
 
-        if (chromaArrayType != 0 && chromaPredictionContextIncrement is < 0 or > 2)
+        if (chromaArrayType != 0 && (chromaPredictionContextIncrement is < 0 or > 2))
             throw new ArgumentOutOfRangeException(nameof(chromaPredictionContextIncrement));
         if (qpDeltaContextIncrement is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(qpDeltaContextIncrement));
