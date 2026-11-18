@@ -86,6 +86,61 @@ public sealed class H264CodedBlockPatternReaderTests
             new H264CodedBlockPatternReader().ReadIntra(reader, 1));
     }
 
+    [Theory]
+    [InlineData(0, 0, 0, 0)]
+    [InlineData(1, 16, 0, 1)]
+    [InlineData(2, 1, 1, 0)]
+    [InlineData(12, 47, 15, 2)]
+    [InlineData(47, 41, 9, 2)]
+    public void MapInter_ShouldUse420422Table(
+        uint codeNum, uint expectedPattern, uint expectedLuma, uint expectedChroma)
+    {
+        var result = H264CodedBlockPatternReader.MapInter(codeNum, 1);
+
+        Assert.Equal(expectedPattern, (result.Chroma << 4) | result.Luma);
+        Assert.Equal(expectedLuma, result.Luma);
+        Assert.Equal(expectedChroma, result.Chroma);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(15, 9)]
+    public void MapInter_ShouldUseMonochromeAnd444Table(uint codeNum, uint expectedLuma)
+    {
+        var mono = H264CodedBlockPatternReader.MapInter(codeNum, 0);
+        var chroma444 = H264CodedBlockPatternReader.MapInter(codeNum, 3);
+
+        Assert.Equal(expectedLuma, mono.Luma);
+        Assert.Equal(0u, mono.Chroma);
+        Assert.Equal(expectedLuma, chroma444.Luma);
+        Assert.Equal(0u, chroma444.Chroma);
+    }
+
+    [Fact]
+    public void ReadInter_ShouldReadUnsignedExpGolombAndMap()
+    {
+        H264BitReader reader = CreateReader(WriteUe(12));
+
+        var result = new H264CodedBlockPatternReader().ReadInter(reader, 2);
+
+        Assert.Equal(12u, result.CodeNum);
+        Assert.Equal(15u, result.Luma);
+        Assert.Equal(2u, result.Chroma);
+        Assert.Equal(0, reader.RemainingBits);
+    }
+
+    [Fact]
+    public void ReadInter_ShouldRejectInvalidCodeNumAndChromaArrayType()
+    {
+        Assert.Throws<FormatException>(() =>
+            new H264CodedBlockPatternReader().ReadInter(CreateReader(WriteUe(48)), 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new H264CodedBlockPatternReader().ReadInter(CreateReader("1"), 4));
+        Assert.Throws<FormatException>(() =>
+            H264CodedBlockPatternReader.MapInter(16, 0));
+    }
+
     private static string WriteUe(uint value)
     {
         uint codeNum = checked(value + 1);
