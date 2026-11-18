@@ -1,8 +1,10 @@
+using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
 using PixoraStudio.MediaEngine.Exceptions;
 using PixoraStudio.MediaEngine.Models.General;
+using PixoraStudio.MediaEngine.Models.Video;
 using PixoraStudio.MediaEngine.Readers.Mp4;
 
 namespace PixoraStudio.App.Services;
