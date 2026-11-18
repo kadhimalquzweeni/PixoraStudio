@@ -181,6 +181,19 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
+    public void Enqueue_ShouldRejectCompletePixelsWithoutDeblockingMetadata()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(0);
+        H264DecodedPictureSurface surface = new(sps);
+        surface.WriteMacroblock(0, 0, 0, false,
+            new byte[256], new byte[64], new byte[64]);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new H264DecodedPictureOutputScheduler().Enqueue(
+                surface, sps, Slice(0, 0), 1));
+    }
+
+    [Fact]
     public void Enqueue_ShouldRejectIncompletePictureSurfaces()
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(0);
