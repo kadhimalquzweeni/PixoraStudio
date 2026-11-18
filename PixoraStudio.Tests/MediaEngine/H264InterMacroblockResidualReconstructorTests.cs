@@ -48,6 +48,41 @@ public sealed class H264InterMacroblockResidualReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_WithInter8x8Transform_ShouldUseInterScalingListAndPlaceBlocks()
+    {
+        H264SequenceParameterSet sps = Sps(1);
+        H264PictureParameterSetHeader pps = Pps() with { Transform8X8ModeFlag = true };
+        H264Intra8x8LumaResidualBlock[] blocks = Enumerable.Range(0, 4)
+            .Select(i => new H264Intra8x8LumaResidualBlock(
+                i % 2, i / 2, i == 0,
+                new int[64]))
+            .ToArray();
+        int[] levels = new int[64];
+        levels[0] = 1;
+        blocks[0] = blocks[0] with { CoefficientsInScanOrder = levels };
+        H264InterResidualMacroblock residual = Residual(1) with
+        {
+            TransformSize8X8Flag = true,
+            LumaBlocks = [],
+            Luma8x8Blocks = blocks
+        };
+
+        H264MotionCompensatedBlock result = H264InterMacroblockResidualReconstructor.Reconstruct(
+            Prediction(8), residual, 24, sps, pps);
+
+        byte[] expected = H264Intra8x8ResidualReconstructor.Reconstruct(
+            Enumerable.Repeat((byte)100, 64).ToArray(), levels,
+            H264InverseQuantizer.ToQpPrimeY(sps, 24), sps, pps,
+            scalingListIndex: 7);
+        for (int y = 0; y < 8; y++)
+            Assert.Equal(expected.Skip(y * 8).Take(8),
+                result.Luma.Skip(y * 16).Take(8));
+        for (int y = 0; y < 16; y++)
+            Assert.All(result.Luma.Skip(y * 16 + (y < 8 ? 8 : 0)).Take(y < 8 ? 8 : 16),
+                value => Assert.Equal((byte)100, value));
+    }
+
+    [Fact]
     public void Reconstruct_ShouldRejectDuplicateOrIncompleteLumaBlockGrid()
     {
         H264IntraLumaResidualBlock[] blocks = EmptyLumaBlocks();
