@@ -293,6 +293,77 @@ public sealed class H264CabacSyntaxElementReaderTests
             reader.ReadIntraSliceMacroblockType(increment));
     }
 
+
+    [Fact]
+    public void ReadIntraCodedBlockPattern_ShouldDecodeLumaAndChromaPatterns()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 1, 1, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        var pattern = reader.ReadIntraCodedBlockPattern(
+            new[] { 0, 1, 2, 3 }, new[] { 1, 2 }, 1);
+
+        Assert.Equal((uint)13, pattern.Luma);
+        Assert.Equal((uint)1, pattern.Chroma);
+        Assert.Equal((uint)29, pattern.CodeNum);
+        Assert.Equal((uint)1, pattern.ChromaArrayType);
+        Assert.Equal(new[] { 73, 74, 75, 76, 78, 83 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadIntraCodedBlockPattern_ShouldStopChromaPrefixWhenFirstBinIsZero()
+    {
+        ScriptedCabacReader bins = new(new[] { 0, 0, 0, 0, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        var pattern = reader.ReadIntraCodedBlockPattern(
+            new[] { 0, 0, 0, 0 }, new[] { 0, 0 }, 2);
+
+        Assert.Equal((uint)0, pattern.Chroma);
+        Assert.Equal(5, bins.ContextIndices.Count);
+    }
+
+    [Fact]
+    public void ReadIntraCodedBlockPattern_ShouldDecodeMaximumChromaPattern()
+    {
+        ScriptedCabacReader bins = new(new[] { 0, 0, 0, 0, 1, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        var pattern = reader.ReadIntraCodedBlockPattern(
+            new[] { 0, 0, 0, 0 }, new[] { 0, 3 }, 1);
+
+        Assert.Equal((uint)2, pattern.Chroma);
+        Assert.Equal(32u, pattern.CodeNum);
+        Assert.Equal(82, bins.ContextIndices[^1]);
+    }
+
+    [Fact]
+    public void ReadIntraCodedBlockPattern_ShouldOmitChromaBinsForMonochrome()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        var pattern = reader.ReadIntraCodedBlockPattern(
+            new[] { 0, 0, 0, 0 }, null, 0);
+
+        Assert.Equal((uint)5, pattern.Luma);
+        Assert.Equal((uint)0, pattern.Chroma);
+        Assert.Equal(4, bins.ContextIndices.Count);
+    }
+
+    [Fact]
+    public void ReadIntraCodedBlockPattern_ShouldRejectInvalidContextArrays()
+    {
+        H264CabacSyntaxElementReader reader = new(new ScriptedCabacReader());
+
+        Assert.Throws<ArgumentException>(() =>
+            reader.ReadIntraCodedBlockPattern(new[] { 0, 1 }, new[] { 0, 0 }, 1));
+        Assert.Throws<ArgumentException>(() =>
+            reader.ReadIntraCodedBlockPattern(new[] { 0, 0, 0, 0 }, new[] { 0 }, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            reader.ReadIntraCodedBlockPattern(new[] { 0, 0, 0, 0 }, null, 4));
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _bins;
