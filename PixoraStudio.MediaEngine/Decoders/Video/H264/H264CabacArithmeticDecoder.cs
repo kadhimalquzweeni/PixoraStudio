@@ -37,7 +37,7 @@ public sealed class H264CabacArithmeticDecoder
             if (transMps[state] >= 64 || transLps[state] >= 64)
                 throw new ArgumentException("CABAC state transitions must remain within states 0 through 63.");
             for (int q = 0; q < 4; q++)
-                if (rangeLps[state, q] is < 2 or > 510)
+                if (rangeLps[state, q] is < 2 or > 240)
                     throw new ArgumentException("CABAC range-LPS values must be between 2 and 510.", nameof(rangeLps));
         }
 
