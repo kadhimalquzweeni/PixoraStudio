@@ -46,6 +46,9 @@ public sealed class H264BInterMacroblockPredictionDecoder
             throw new ArgumentException("Decoded reference surfaces must match the active B reference lists.");
         if (referenceList0.Any(item => item is null) || referenceList1.Any(item => item is null))
             throw new ArgumentException("B reference lists cannot contain null surfaces.");
+        if (referenceList0.Any(item => item.ChromaFormatIdc != chromaFormatIdc) ||
+            referenceList1.Any(item => item.ChromaFormatIdc != chromaFormatIdc))
+            throw new ArgumentException("Every B reference surface must use the active picture chroma format.");
         if (weightedBipredIdc == 1 && predictionWeights is null)
             throw new ArgumentNullException(nameof(predictionWeights),
                 "Explicit weighted bi-prediction requires the parsed slice prediction-weight table.");
@@ -88,10 +91,10 @@ public sealed class H264BInterMacroblockPredictionDecoder
 
             H264MotionCompensatedBlock combined = (prediction0, prediction1) switch
             {
-                (not null, null) => prediction0,
-                (null, not null) => prediction1,
+                (not null, null) => prediction0!,
+                (null, not null) => prediction1!,
                 (not null, not null) => CombineBiPrediction(
-                    prediction0, prediction1, partition, referencePictureLists,
+                    prediction0!, prediction1!, partition, referencePictureLists,
                     currentPictureOrderCount, weightedBipredIdc,
                     predictionWeights, chromaFormatIdc),
                 _ => throw new FormatException("A reconstructed B partition must use list 0, list 1, or both.")
