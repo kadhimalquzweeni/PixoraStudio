@@ -76,6 +76,60 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     [Fact]
+    public void ReadMp4Samples_ShouldDecodeBDirectPictureBetweenPastAndFutureReferences()
+    {
+        byte[] spsNal = BuildNal(0x67, CreateSpsRbsp(maxNumRefFrames: 2));
+        byte[] ppsNal = BuildNal(0x68, CreatePpsRbsp());
+        List<byte> avcC = [1, 66, 0, 30, 0xFD, 0xE1];
+        AddLengthPrefixedNal(avcC, spsNal);
+        avcC.Add(1);
+        AddLengthPrefixedNal(avcC, ppsNal);
+
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 16, 16, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc,
+            new Mp4CodecConfiguration(Mp4VideoCodec.Avc, "avcC",
+                avcC.ToArray(), 1, 66, 0, 30, 2));
+        Mp4Track track = new(
+            9, 16, 16, 1000, 1000, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+
+        H264Mp4VideoSample idrSample = ReadSample(
+            track, 1, 0, true,
+            BuildNal(0x65, CreateIdrPcmSliceRbsp(luma: 80, cb: 96, cr: 160)));
+        H264Mp4VideoSample futurePSample = ReadSample(
+            track, 2, 40, false,
+            BuildNal(0x61, CreatePcmPSliceRbsp(luma: 120, cb: 140, cr: 200)));
+        H264Mp4VideoSample bSample = ReadSample(
+            track, 3, 80, false,
+            BuildNal(0x01, CreateBDirectSliceRbsp()));
+
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets, maxNumReorderFramesFallback: 2);
+
+        H264Mp4AccessUnitDecodeResult idrResult = decoder.Decode(idrSample)!;
+        Assert.Empty(idrResult.ReadyFrames);
+        H264Mp4AccessUnitDecodeResult pResult = decoder.Decode(futurePSample)!;
+        Assert.Empty(pResult.ReadyFrames);
+        H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(bSample)!;
+
+        H264Mp4DecodedVideoFrame firstOutput = Assert.Single(bResult.ReadyFrames);
+        Assert.Equal(1u, firstOutput.SampleNumber);
+        Assert.Equal(0, firstOutput.PictureOrderCount);
+        Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
+        Assert.All(bResult.Surface.CopyLumaPlane(), sample => Assert.Equal((byte)100, sample));
+        Assert.All(bResult.Surface.CopyCbPlane(), sample => Assert.Equal((byte)118, sample));
+        Assert.All(bResult.Surface.CopyCrPlane(), sample => Assert.Equal((byte)180, sample));
+
+        IReadOnlyList<H264Mp4DecodedVideoFrame> remaining = decoder.Flush();
+        Assert.Equal(new[] { 3u, 2u }, remaining.Select(frame => frame.SampleNumber));
+        Assert.Equal(new[] { 2, 4 }, remaining.Select(frame => frame.PictureOrderCount));
+        Assert.Equal(2, decoder.DecodedPictureBuffer.Count);
+    }
+
+    [Fact]
     public void ReadMp4Samples_ShouldDecodePReferencePictureUsingPreviousIdrSurface()
     {
         byte[] spsNal = BuildNal(0x67, CreateSpsRbsp());
@@ -204,6 +258,53 @@ public sealed class H264Mp4AvcEndToEndTests
         return new H264Mp4TrackSampleReader().Read(track, encoded);
     }
 
+    private static byte[] CreatePcmPSliceRbsp(
+        uint luma, uint cb, uint cr)
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(0); // P slice
+        bits.WriteUe(0); // pic_parameter_set_id
+        bits.WriteBits(1, 4); // frame_num
+        bits.WriteBits(4, 4); // pic_order_cnt_lsb
+        bits.WriteFlag(false); // num_ref_idx_active_override_flag
+        bits.WriteFlag(false); // ref_pic_list_modification_flag_l0
+        bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
+        bits.WriteSe(0); // slice_qp_delta
+        bits.WriteUe(0); // disable_deblocking_filter_idc
+        bits.WriteSe(0); // slice_alpha_c0_offset_div2
+        bits.WriteSe(0); // slice_beta_offset_div2
+        bits.WriteUe(0); // mb_skip_run
+        bits.WriteUe(30); // P-slice I_PCM macroblock
+        bits.AlignWithZeroes();
+        for (int i = 0; i < 256; i++) bits.WriteBits(luma, 8);
+        for (int i = 0; i < 64; i++) bits.WriteBits(cb, 8);
+        for (int i = 0; i < 64; i++) bits.WriteBits(cr, 8);
+        return bits.ToRbsp();
+    }
+
+    private static byte[] CreateBDirectSliceRbsp()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(1); // B slice
+        bits.WriteUe(0); // pic_parameter_set_id
+        bits.WriteBits(2, 4); // frame_num
+        bits.WriteBits(2, 4); // pic_order_cnt_lsb
+        bits.WriteFlag(true); // direct_spatial_mv_pred_flag
+        bits.WriteFlag(false); // num_ref_idx_active_override_flag
+        bits.WriteFlag(false); // ref_pic_list_modification_flag_l0
+        bits.WriteFlag(false); // ref_pic_list_modification_flag_l1
+        bits.WriteSe(0); // slice_qp_delta
+        bits.WriteUe(0); // disable_deblocking_filter_idc
+        bits.WriteSe(0); // slice_alpha_c0_offset_div2
+        bits.WriteSe(0); // slice_beta_offset_div2
+        bits.WriteUe(0); // mb_skip_run
+        bits.WriteUe(0); // B_Direct_16x16
+        bits.WriteUe(0); // coded_block_pattern (inter)
+        return bits.ToRbsp();
+    }
+
     private static byte[] CreatePSkipSliceRbsp()
     {
         BitWriter bits = new();
@@ -223,7 +324,7 @@ public sealed class H264Mp4AvcEndToEndTests
         return bits.ToRbsp();
     }
 
-    private static byte[] CreateSpsRbsp(uint picWidthInMbsMinus1 = 0)
+    private static byte[] CreateSpsRbsp(uint picWidthInMbsMinus1 = 0, uint maxNumRefFrames = 1)
     {
         BitWriter bits = new();
         bits.WriteBits(66, 8);
@@ -233,7 +334,7 @@ public sealed class H264Mp4AvcEndToEndTests
         bits.WriteUe(0); // log2_max_frame_num_minus4
         bits.WriteUe(0); // pic_order_cnt_type
         bits.WriteUe(0); // log2_max_pic_order_cnt_lsb_minus4
-        bits.WriteUe(1); // max_num_ref_frames
+        bits.WriteUe(maxNumRefFrames); // max_num_ref_frames
         bits.WriteFlag(false); // gaps_in_frame_num_value_allowed_flag
         bits.WriteUe(picWidthInMbsMinus1); // pic_width_in_mbs_minus1
         bits.WriteUe(0); // pic_height_in_map_units_minus1
