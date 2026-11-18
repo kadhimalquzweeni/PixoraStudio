@@ -89,8 +89,9 @@ public static class H264ChromaIntraPrediction
         {
             for (int blockX = 0; blockX < blockColumns; blockX++)
             {
-                bool useTop = hasTop && (blockY == 0 || blockX > 0);
-                bool useLeft = hasLeft && (blockX == 0 || blockY > 0);
+                bool interior = blockX > 0 && blockY > 0 && hasTop && hasLeft;
+                bool useTop = hasTop && (blockY == 0 || interior);
+                bool useLeft = hasLeft && (blockX == 0 || interior);
                 int value;
 
                 if (useTop && useLeft)

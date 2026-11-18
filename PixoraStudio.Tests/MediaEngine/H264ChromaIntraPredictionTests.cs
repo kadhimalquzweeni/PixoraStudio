@@ -50,8 +50,19 @@ public sealed class H264ChromaIntraPredictionTests
         byte[] result = H264ChromaIntraPrediction.Predict(
             0, chromaFormat, top, left, 0, true, true, false);
 
-        Assert.All(result.Take(4 * 8), sample => Assert.Equal((byte)60, sample));
-        Assert.All(result.Skip(4 * 8), sample => Assert.Equal((byte)60, sample));
+        int blockRows = height / 4;
+        for (int blockY = 0; blockY < blockRows; blockY++)
+        {
+            for (int blockX = 0; blockX < 2; blockX++)
+            {
+                byte expected = blockY == 0
+                    ? (blockX == 0 ? (byte)60 : (byte)40)
+                    : (blockX == 0 ? (byte)80 : (byte)60);
+                for (int y = blockY * 4; y < blockY * 4 + 4; y++)
+                    Assert.All(result.Skip(y * 8 + blockX * 4).Take(4),
+                        sample => Assert.Equal(expected, sample));
+            }
+        }
     }
 
     [Fact]
@@ -67,6 +78,21 @@ public sealed class H264ChromaIntraPredictionTests
         Assert.Equal((byte)60, result[4]);       // top-right: top only
         Assert.Equal((byte)120, result[4 * 8]);  // bottom-left: left only
         Assert.Equal((byte)100, result[4 * 8 + 4]); // bottom-right: both
+    }
+
+    [Theory]
+    [InlineData(true, false, 40, 128)]
+    [InlineData(false, true, 80, 128)]
+    public void Predict_DcWithSingleEdge_ShouldUseOnlyTheAvailableBoundary(
+        bool hasTop, bool hasLeft, byte expectedTopLeft, byte expectedInterior)
+    {
+        byte[] top = Enumerable.Repeat((byte)40, 8).ToArray();
+        byte[] left = Enumerable.Repeat((byte)80, 16).ToArray();
+        byte[] result = H264ChromaIntraPrediction.Predict(
+            0, 2, top, left, 0, hasTop, hasLeft, false);
+
+        Assert.All(result.Take(4 * 8), sample => Assert.Equal(expectedTopLeft, sample));
+        Assert.All(result.Skip(4 * 8), sample => Assert.Equal(expectedInterior, sample));
     }
 
     [Theory]
