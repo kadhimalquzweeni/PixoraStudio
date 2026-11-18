@@ -128,7 +128,7 @@ public sealed class H264InverseQuantizerTests
         Assert.Throws<ArgumentException>(() => H264InverseQuantizer.Dequantize8x8(new int[64], 0, new int[63]));
         Assert.Throws<ArgumentOutOfRangeException>(() => H264InverseQuantizer.Dequantize8x8(new int[64], 88, flat));
         Assert.Throws<ArgumentOutOfRangeException>(() => H264InverseQuantizer.Dequantize8x8(
-            new int[64], 0, flat, CreateSps(), CreatePps() with { Transform8X8ModeFlag = true }, 6));
+            new int[64], 0, CreateSps(), CreatePps() with { Transform8X8ModeFlag = true }, 8));
         int[] invalid = Enumerable.Repeat(16, 64).ToArray();
         invalid[0] = 0;
         Assert.Throws<ArgumentOutOfRangeException>(() => H264InverseQuantizer.Dequantize8x8(new int[64], 0, invalid));
