@@ -39,6 +39,14 @@ public sealed class H264DecodedPictureOutputScheduler
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(slice);
+        if (!sps.FrameMbsOnlyFlag || sps.MbAdaptiveFrameFieldFlag || slice.FieldPicFlag)
+            throw new NotSupportedException("Decoded picture output scheduling currently supports frame pictures only.");
+        if (surface.MacroblockWidth != checked((int)(sps.PicWidthInMbsMinus1 + 1)) ||
+            surface.MacroblockHeight != checked((int)(sps.PicHeightInMapUnitsMinus1 + 1)) ||
+            surface.ChromaFormatIdc != sps.ChromaFormatIdc)
+            throw new ArgumentException("The SPS geometry and chroma format must match the decoded surface.", nameof(sps));
+        if (slice.IdrPicId.HasValue && slice.DecodedReferenceMarking is null)
+            throw new FormatException("An IDR slice must include decoded reference marking flags.");
 
         int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
         IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
