@@ -214,8 +214,8 @@ public sealed class H264DecodedPictureBufferTests
             1, 0, 1, 1, 0, 0, new H264MotionVector(88, 88));
 
         H264TemporalDirectMotionField field = dpb.CreateTemporalDirectMotionField(collocated);
-        Assert.Null(field.GetContext(1, 0, 1, 1, 10));
-        Assert.Null(field.GetContext(2, 0, 1, 1, 10));
+        Assert.Null(field.GetContext(1, 0, 1, 1, 10, [new H264ReferencePicture(0, -2)]));
+        Assert.Null(field.GetContext(2, 0, 1, 1, 10, [new H264ReferencePicture(0, -2)]));
         H264TemporalDirectPredictionContext context = field
             .CreateTemporalDirectMotionField(collocated)
             .GetContext(0, 0, 1, 1, 10)!;
@@ -275,7 +275,7 @@ public sealed class H264DecodedPictureBufferTests
             dpb.Entries.Where(entry => entry.Picture.IsLongTerm)).Picture;
         H264TemporalDirectPredictionContext context = dpb
             .CreateTemporalDirectMotionField(converted)
-            .GetContext(0, 0, 1, 1, 8)!;
+            .GetContext(0, 0, 1, 1, 8, [new H264ReferencePicture(0, 0)])!;
 
         Assert.Equal(new H264MotionVector(3, 4), context.CollocatedMotionVector);
         Assert.True(context.CollocatedPictureIsShortTerm == false);
