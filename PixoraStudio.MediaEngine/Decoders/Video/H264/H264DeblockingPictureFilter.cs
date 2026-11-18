@@ -126,7 +126,6 @@ public static class H264DeblockingPictureFilter
                     continue;
             }
 
-            int pColumn = external ? 1 : 0;
             for (int blockRow = 0; blockRow < chromaRows; blockRow++)
             {
                 // Chroma bS is inherited from the luma edge containing
@@ -238,7 +237,6 @@ public static class H264DeblockingPictureFilter
                     continue;
             }
 
-            int pRow = external ? chromaRows - 1 : edge - 1;
             for (int blockColumn = 0; blockColumn < 2; blockColumn++)
             {
                 // Map the chroma q0 sample to its corresponding luma
