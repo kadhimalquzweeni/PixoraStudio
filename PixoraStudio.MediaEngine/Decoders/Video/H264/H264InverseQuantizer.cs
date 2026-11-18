@@ -3,7 +3,7 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// H.264 4x4 inverse quantisation and luma quantiser derivation.
+/// H.264 4x4/8x8 inverse quantisation and luma quantiser derivation.
 /// Scaling lists supplied to Dequantize4x4 must already be resolved and in raster order.
 /// </summary>
 public static class H264InverseQuantizer
