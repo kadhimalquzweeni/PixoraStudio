@@ -53,7 +53,7 @@ public sealed class H264PInterMacroblockReconstructorTests
 
         Assert.Equal(25, result.QpY);
         Assert.Equal(1u, result.CodedBlockPattern.Luma);
-        Assert.Equal(0, result.CodedBlockPattern.Chroma);
+        Assert.Equal(0u, result.CodedBlockPattern.Chroma);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
         Assert.Equal((byte)80, destination.GetLumaSample(0, 0));
     }
