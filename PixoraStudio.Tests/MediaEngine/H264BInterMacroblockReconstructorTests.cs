@@ -80,7 +80,7 @@ public sealed class H264BInterMacroblockReconstructorTests
                 new H264MotionVectorPictureState(1, 1),
                 new H264MotionVectorPictureState(1, 1),
                 destination, 0, 0, 0, 26, 2, false, sps, pps,
-                temporalContextProvider: (_, _, _, _) =>
+                collocatedContextProvider: (_, _, _, _) =>
                     new H264TemporalDirectPredictionContext(
                         new H264MotionVector(0, 0), 2, 0, 0, false));
 
