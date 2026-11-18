@@ -57,9 +57,9 @@ public sealed class H264PcmMacroblockReaderTests
         H264PcmMacroblock cabacResult = reader.Read(
             CreateReader(new string('0', (256 + 128) * 8)),
             CreateHeader(0), CreateSps(1), CreatePps() with { EntropyCodingModeFlag = true });
-        Assert.Equal(256, cabacResult.LumaSamples.Length);
-        Assert.Equal(64, cabacResult.CbSamples.Length);
-        Assert.Equal(64, cabacResult.CrSamples.Length);
+        Assert.Equal(256, cabacResult.LumaSamples.Count);
+        Assert.Equal(64, cabacResult.CbSamples.Count);
+        Assert.Equal(64, cabacResult.CrSamples.Count);
     }
 
     [Fact]
