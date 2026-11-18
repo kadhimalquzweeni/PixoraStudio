@@ -102,7 +102,7 @@ public static class H264IntraPrediction
                 }
                 Array.Fill(transposedTop, transposedTop[3], 4, 4);
                 byte[] transposed = Predict4x4(5, transposedTop, transposedLeft,
-                    topLeft, hasLeft, hasTop, hasTopLeft, true, true);
+                    topLeft, hasLeft, hasTop, hasTopLeft, true);
                 for (int y = 0; y < 4; y++)
                     for (int x = 0; x < 4; x++)
                         result[y * 4 + x] = transposed[x * 4 + y];
@@ -129,7 +129,7 @@ public static class H264IntraPrediction
                 }
                 Array.Fill(leftAsTop, leftAsTop[3], 4, 4);
                 byte[] horizontalUpTranspose = Predict4x4(7, leftAsTop,
-                    topAsLeft, topLeft, hasLeft, hasTop, hasTopLeft, true, true);
+                    topAsLeft, topLeft, hasLeft, hasTop, hasTopLeft, true);
                 for (int y = 0; y < 4; y++)
                     for (int x = 0; x < 4; x++)
                         result[y * 4 + x] = horizontalUpTranspose[x * 4 + y];
