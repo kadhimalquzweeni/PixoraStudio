@@ -7,6 +7,52 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// </summary>
 public sealed class H264CabacResidualBlockReader
 {
+    /// <summary>
+    /// Decodes a residual block using its normative category context map.
+    /// For categories 0..4, codedBlockFlag=false represents an uncoded block
+    /// and consumes no CABAC bins. Category 5 infers coded-block presence
+    /// from the macroblock coded-block pattern and therefore cannot be false.
+    /// </summary>
+    public PixoraStudio.MediaEngine.Models.Video.H264CavlcResidualBlock ReadBlock(
+        IH264CabacBinReader reader,
+        H264CabacResidualBlockContextMap contextMap,
+        bool codedBlockFlag = true)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(contextMap);
+
+        if (!codedBlockFlag)
+        {
+            if (contextMap.HasImplicitCodedBlockFlag)
+                throw new ArgumentException(
+                    "The luma 8x8 category infers coded-block presence from coded_block_pattern.",
+                    nameof(codedBlockFlag));
+
+            return new PixoraStudio.MediaEngine.Models.Video.H264CavlcResidualBlock(
+                contextMap.MaximumCoefficients, 0, 0, 0,
+                new int[contextMap.MaximumCoefficients]);
+        }
+
+        int[] coefficients = ReadBlock(
+            reader,
+            contextMap.MaximumCoefficients,
+            contextMap.StartIndex,
+            contextMap.MaximumCoefficients - 1,
+            contextMap.SignificantContextOffset,
+            contextMap.LastSignificantContextOffset,
+            contextMap.AbsoluteLevelContextOffset,
+            contextMap.SignificantContextIncrements,
+            contextMap.LastSignificantContextIncrements);
+
+        int totalCoefficients = coefficients.Count(value => value != 0);
+        return new PixoraStudio.MediaEngine.Models.Video.H264CavlcResidualBlock(
+            contextMap.MaximumCoefficients,
+            totalCoefficients,
+            0,
+            0,
+            coefficients);
+    }
+
     public int[] ReadBlock(
         IH264CabacBinReader reader,
         int maximumCoefficients,
