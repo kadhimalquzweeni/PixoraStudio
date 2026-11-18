@@ -23,9 +23,11 @@ public sealed class H264InverseQuantizerTests
     {
         int[] coefficients = new int[16];
         coefficients[0] = 1;
-        Assert.Equal(16, H264InverseQuantizer.Dequantize4x4(coefficients, 6, FlatScalingList)[0]);
-        Assert.Equal(256, H264InverseQuantizer.Dequantize4x4(coefficients, 24, FlatScalingList)[0]);
-        Assert.Equal(576, H264InverseQuantizer.Dequantize4x4(coefficients, 30, FlatScalingList)[0]);
+        // With a flat scaling list of 16, the even/even level scale is 10.
+        // QP 6 uses one right-shift stage; QP 24 has no shift; QP 30 shifts once left.
+        Assert.Equal(20, H264InverseQuantizer.Dequantize4x4(coefficients, 6, FlatScalingList)[0]);
+        Assert.Equal(160, H264InverseQuantizer.Dequantize4x4(coefficients, 24, FlatScalingList)[0]);
+        Assert.Equal(320, H264InverseQuantizer.Dequantize4x4(coefficients, 30, FlatScalingList)[0]);
     }
 
     [Fact]
@@ -68,9 +70,11 @@ public sealed class H264InverseQuantizerTests
     [Fact]
     public void CalculateLumaQpY_ShouldRejectQpOutsideBitDepthRange()
     {
+        // 26 + 25 reaches the valid maximum QPY of 51; a positive slice delta exceeds it.
         H264PictureParameterSetHeader pps = CreatePps() with { PicInitQpMinus26 = 25 };
+        H264SliceHeader slice = CreateSlice() with { SliceQpDelta = 1 };
         Assert.Throws<FormatException>(() =>
-            H264InverseQuantizer.CalculateLumaQpY(CreateSps(), pps, CreateSlice()));
+            H264InverseQuantizer.CalculateLumaQpY(CreateSps(), pps, slice));
     }
 
     [Fact]
