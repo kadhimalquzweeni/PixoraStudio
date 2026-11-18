@@ -98,6 +98,16 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
+    public void Enqueue_ShouldRejectReorderLimitGreaterThanMaxDecFrameBuffering()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(2, maxDecFrameBuffering: 1);
+
+        Assert.Throws<FormatException>(() =>
+            new H264DecodedPictureOutputScheduler().Enqueue(
+                Surface(sps, 1), sps, Slice(0, 0), 1));
+    }
+
+    [Fact]
     public void Enqueue_ShouldRejectMissingVuiWhenSpsSignalsVuiPresence()
     {
         H264SequenceParameterSet sps = new(
@@ -135,12 +145,13 @@ public sealed class H264DecodedPictureOutputSchedulerTests
         Assert.Equal(0, immediate.PictureOrderCount);
     }
 
-    private static H264SequenceParameterSet SpsWithReorderLimit(uint reorderLimit)
+    private static H264SequenceParameterSet SpsWithReorderLimit(
+        uint reorderLimit, uint maxDecFrameBuffering = 4)
     {
         H264VuiParameters vui = new(
             1, null, null, false, null, null, null, null, null,
             null, null, null, null, false, null, null, false, false,
-            true, false, 0, 0, 0, 0, reorderLimit, 4);
+            true, false, 0, 0, 0, 0, reorderLimit, maxDecFrameBuffering);
         return new H264SequenceParameterSet(
             0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
             0, 0, true, true, 16, 16, true)
