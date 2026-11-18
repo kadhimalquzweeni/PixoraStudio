@@ -142,10 +142,16 @@ public sealed class H264PictureParameterSetReader
     private static bool MoreRbspData(H264BitReader reader)
     {
         if (reader.RemainingBits == 0) return false;
-        // rbsp_trailing_bits is a single one bit followed only by zero bits.
-        if (!reader.ReadFlag()) return true;
-        while (reader.RemainingBits > 0)
-            if (reader.ReadFlag()) return true;
+
+        // Do not consume bits while distinguishing an optional PPS extension
+        // from rbsp_trailing_bits. The first extension syntax element may itself
+        // begin with a one bit (for example transform_8x8_mode_flag).
+        if (reader.PeekBits(1) == 0) return true;
+
+        // rbsp_trailing_bits is one stop bit followed only by zero alignment bits.
+        for (int offset = 1; offset < reader.RemainingBits; offset++)
+            if (reader.PeekBits(1, offset) != 0) return true;
+
         return false;
     }
 
