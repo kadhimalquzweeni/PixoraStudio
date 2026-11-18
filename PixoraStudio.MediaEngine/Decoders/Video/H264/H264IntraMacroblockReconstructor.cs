@@ -11,6 +11,9 @@ public sealed class H264IntraMacroblockReconstructor
 {
     private readonly H264IntraReferenceSampleProvider _references;
     private readonly H264DecodedPictureSurface _surface;
+    private readonly H264Intra4x4PredictionContext _intra4x4Modes = new();
+    private readonly H264Intra8x8PredictionContext _intra8x8Modes = new();
+    private readonly H264Intra4x4MacroblockLumaReconstructor _intra4x4Luma = new();
 
     public H264IntraMacroblockReconstructor(H264DecodedPictureSurface surface)
     {
@@ -91,6 +94,84 @@ public sealed class H264IntraMacroblockReconstructor
             syntax.IntraChromaPredictionMode.Value, residual, qpY, sps, pps);
 
         _surface.WriteIntraMacroblock(macroblockX, macroblockY, sliceId, luma, cb, cr);
+        RecordIntra16x16Modes(macroblockX, macroblockY, sliceId);
+    }
+
+    /// <summary>
+    /// Reconstructs and commits one I_NxN macroblock using sixteen Intra4x4
+    /// luma blocks. The Intra8x8 transform path is deliberately handled by a
+    /// separate implementation because its CAVLC coefficient layout differs.
+    /// </summary>
+    public void ReconstructIntraNxN4x4(
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        H264MacroblockHeader header,
+        H264IntraMacroblockSyntax syntax,
+        H264IntraLumaResidualMacroblock residual,
+        int qpY,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps)
+    {
+        ArgumentNullException.ThrowIfNull(header);
+        ArgumentNullException.ThrowIfNull(syntax);
+        ArgumentNullException.ThrowIfNull(residual);
+        ArgumentNullException.ThrowIfNull(sps);
+        ArgumentNullException.ThrowIfNull(pps);
+        ValidateContext(macroblockX, macroblockY, sliceId, header, residual, sps, pps);
+
+        if (header.IsIntra16x16)
+            throw new NotSupportedException("The I_NxN path cannot reconstruct I_16x16 macroblocks.");
+        if (syntax.TransformSize8X8Flag == true ||
+            syntax.LumaPredictionModes?.Uses8X8Transform != false)
+            throw new NotSupportedException("This path requires sixteen Intra4x4 prediction modes.");
+        H264IntraPredictionModeSyntax modes = syntax.LumaPredictionModes;
+        if (modes.Modes.Count != 16)
+            throw new FormatException("An Intra4x4 macroblock must contain sixteen prediction-mode entries.");
+        if (syntax.IntraChromaPredictionMode is null or > 3)
+            throw new FormatException("The chroma prediction mode must be present and in the range 0..3.");
+        if (syntax.CodedBlockPattern.ChromaArrayType != sps.ChromaFormatIdc ||
+            syntax.CodedBlockPattern.Luma > 15 ||
+            syntax.CodedBlockPattern.Chroma > 2)
+            throw new FormatException("The intra macroblock coded-block-pattern does not match the active chroma format.");
+        if (residual.Intra16x16Dc is not null)
+            throw new FormatException("I_NxN macroblocks cannot contain an Intra16x16 luma DC block.");
+        if (residual.ChromaComponents.Count != 2 ||
+            residual.ChromaComponents.Select(component => component.ComponentId).Distinct().Count() != 2 ||
+            !residual.ChromaComponents.Any(component => component.ComponentId == 1) ||
+            !residual.ChromaComponents.Any(component => component.ComponentId == 2))
+            throw new FormatException("I_NxN residual data must contain exactly one Cb and one Cr component.");
+
+        H264IntraReferenceSamples lumaReferences = _references.GatherLuma16x16(
+            macroblockX, macroblockY, sliceId, pps.ConstrainedIntraPredFlag);
+        byte[] luma = _intra4x4Luma.Reconstruct(
+            macroblockX, macroblockY, sliceId,
+            lumaReferences.Top, lumaReferences.Left, lumaReferences.TopLeft,
+            lumaReferences.HasTop, lumaReferences.HasLeft, lumaReferences.HasTopLeft,
+            modes, residual.Blocks, _intra4x4Modes, qpY, sps, pps);
+
+        byte[] cb = ReconstructChroma(1, macroblockX, macroblockY, sliceId,
+            syntax.IntraChromaPredictionMode.Value, residual, qpY, sps, pps);
+        byte[] cr = ReconstructChroma(2, macroblockX, macroblockY, sliceId,
+            syntax.IntraChromaPredictionMode.Value, residual, qpY, sps, pps);
+
+        _surface.WriteIntraMacroblock(macroblockX, macroblockY, sliceId, luma, cb, cr);
+    }
+
+    /// <summary>Clears neighbour-derived mode state at a new picture boundary.</summary>
+    public void ResetPictureContexts()
+    {
+        _intra4x4Modes.Reset();
+        _intra8x8Modes.Reset();
+    }
+
+    private void RecordIntra16x16Modes(int macroblockX, int macroblockY, int sliceId)
+    {
+        for (int blockY = 0; blockY < 4; blockY++)
+        for (int blockX = 0; blockX < 4; blockX++)
+            _intra4x4Modes.RecordMode(
+                macroblockX * 4 + blockX, macroblockY * 4 + blockY,
+                sliceId, 2);
     }
 
     private byte[] ReconstructChroma(
