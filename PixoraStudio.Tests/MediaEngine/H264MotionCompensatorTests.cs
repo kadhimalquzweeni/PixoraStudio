@@ -56,6 +56,21 @@ public sealed class H264MotionCompensatorTests
             surface, 4 * 4 + fractionX, 4 * 4 + fractionY));
     }
 
+    [Theory]
+    [InlineData(2, 0, 160)]
+    [InlineData(0, 2, 160)]
+    [InlineData(2, 2, 100)]
+    public void InterpolateLuma_HalfSamples_ShouldUseNormativeSixTapCoefficients(
+        int quarterX, int quarterY, byte expected)
+    {
+        H264DecodedPictureSurface surface = CreateSurface(1,
+            (x, y) => x == 5 && y == 5 ? (byte)255 : (byte)0,
+            (_, _) => 0, (_, _) => 0);
+
+        Assert.Equal(expected, _compensator.InterpolateLuma(
+            surface, 4 * 4 + quarterX, 4 * 4 + quarterY));
+    }
+
     [Fact]
     public void InterpolateLuma_DiagonalHalfSample_ShouldApplyTwoDimensionalSixTapFilter()
     {
