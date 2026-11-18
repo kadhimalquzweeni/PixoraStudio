@@ -63,6 +63,13 @@ public sealed class H264DecodedPictureOutputScheduler
             bool noOutput = slice.DecodedReferenceMarking?.NoOutputOfPriorPicsFlag ?? false;
             priorOutputs = _outputQueue.HandleIdr(noOutput);
         }
+        else if (slice.DecodedReferenceMarking?.Operations.Any(
+            operation => operation.MemoryManagementControlOperation == 5) == true)
+        {
+            // MMCO 5 invokes DPB bumping until every prior output picture has
+            // been emitted before the new POC epoch begins.
+            priorOutputs = _outputQueue.Flush();
+        }
 
         IReadOnlyList<H264DecodedPictureOutput> ready =
             _outputQueue.Enqueue(surface, poc, maxNumReorderFrames);
