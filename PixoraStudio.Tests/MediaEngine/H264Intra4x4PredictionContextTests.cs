@@ -39,6 +39,16 @@ public sealed class H264Intra4x4PredictionContextTests
         Assert.Equal(expected, context.GetPredictedMode(1, 1, 1));
     }
 
+
+    [Fact]
+    public void GetPredictedMode_ShouldUseDcWhenOneNeighbourIsUnavailableEvenIfOtherModeIsZero()
+    {
+        var context = new H264Intra4x4PredictionContext();
+        context.RecordMode(0, 1, 1, 0);
+
+        Assert.Equal(2u, context.GetPredictedMode(1, 1, 1));
+    }
+
     [Fact]
     public void GetPredictedMode_ShouldTreatDifferentSliceNeighboursAsUnavailable()
     {
@@ -59,6 +69,7 @@ public sealed class H264Intra4x4PredictionContextTests
         context.RecordMode(1, 0, 1, 3);
 
         uint resolved = context.ResolveAndRecord(1, 1, 1, true, null);
+        context.RecordMode(2, 0, 1, 4);
 
         Assert.Equal(3u, resolved);
         Assert.Equal(3u, context.GetPredictedMode(2, 1, 1));
