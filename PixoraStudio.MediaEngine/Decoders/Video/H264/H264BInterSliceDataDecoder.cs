@@ -429,7 +429,11 @@ public sealed class H264BInterSliceDataDecoder
                 _cabacInterNeighbours.RecordMacroblock(
                     address, macroblockX, macroblockY, sliceId,
                     isSkipped: false,
-                    isDirect: H264CabacInterMacroblockSyntaxReader.IsDirectMacroblock(interSyntax));
+                    // Only B_Direct_16x16 (mb_type 0) is the direct
+                    // macroblock type for subsequent mb_type context derivation.
+                    // A B_8x8 macroblock can contain four direct sub-partitions
+                    // without itself being B_Direct_16x16.
+                    isDirect: header.MbTypeCode == 0);
             }
 
             decodedCount++;
