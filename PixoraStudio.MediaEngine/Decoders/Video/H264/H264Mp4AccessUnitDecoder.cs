@@ -106,10 +106,10 @@ public sealed class H264Mp4AccessUnitDecoder
         {
             uint ppsId = sliceHeaderReader.ReadLeadingIdentifiers(nalUnit).PictureParameterSetId;
             if (!_parameterSets.PictureParameterSets.TryGetValue(
-                ppsId, out H264PictureParameterSetHeader currentPps))
+                ppsId, out H264PictureParameterSetHeader? currentPps) || currentPps is null)
                 throw new FormatException($"The AVC slice references missing PPS {ppsId}.");
             if (!_parameterSets.SequenceParameterSets.TryGetValue(
-                currentPps.SequenceParameterSetId, out H264SequenceParameterSet currentSps))
+                currentPps.SequenceParameterSetId, out H264SequenceParameterSet? currentSps) || currentSps is null)
                 throw new FormatException(
                     $"PPS {currentPps.Id} references missing SPS {currentPps.SequenceParameterSetId}.");
 
