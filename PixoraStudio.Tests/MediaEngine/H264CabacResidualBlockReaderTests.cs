@@ -8,7 +8,7 @@ public sealed class H264CabacResidualBlockReaderTests
     public void ReadBlock_ShouldInferFinalCoefficientWhenNoLastFlagIsSet()
     {
         ScriptedCabacReader bins = new(
-            decisionBins: new[] { 0, 0, 0 },
+            decisionBins: new[] { 0, 0, 0, 0 },
             bypassBins: new[] { 0 });
         H264CabacResidualBlockReader reader = new();
 
@@ -59,7 +59,7 @@ public sealed class H264CabacResidualBlockReaderTests
         // Both positions are significant. The higher position is +1;
         // the lower position is -2.
         ScriptedCabacReader bins = new(
-            decisionBins: new[] { 1, 0, 1, 1, 0 },
+            decisionBins: new[] { 1, 0, 1, 1, 0, 1, 0 },
             bypassBins: new[] { 0, 1 });
         H264CabacResidualBlockReader reader = new();
 
@@ -132,7 +132,7 @@ public sealed class H264CabacResidualBlockReaderTests
     public void ReadBlock_WithCategoryMap_ShouldReturnSharedResidualModel()
     {
         ScriptedCabacReader bins = new(
-            decisionBins: new[] { 0 },
+            decisionBins: Enumerable.Repeat(0, 16),
             bypassBins: new[] { 0 });
         H264CabacResidualBlockReader reader = new();
 
@@ -228,7 +228,7 @@ public sealed class H264CabacResidualBlockReaderTests
     public void ReadBlockWithCodedBlockFlag_ShouldOmitFlagForLumaEightByEight()
     {
         ScriptedCabacReader bins = new(
-            decisionBins: new[] { 0 },
+            decisionBins: Enumerable.Repeat(0, 64),
             bypassBins: new[] { 0 });
         H264CabacResidualBlockReader reader = new();
 
@@ -236,7 +236,9 @@ public sealed class H264CabacResidualBlockReaderTests
             bins, H264CabacResidualBlockContext.Create(5), contextIndexIncrement: 0);
 
         Assert.Equal(1, block.TotalCoefficients);
-        Assert.Empty(bins.ContextIndices);
+        Assert.Equal(64, bins.ContextIndices.Count);
+        Assert.Equal(402, bins.ContextIndices[0]);
+        Assert.Equal(427, bins.ContextIndices[^1]);
     }
 
 
@@ -253,7 +255,7 @@ public sealed class H264CabacResidualBlockReaderTests
             new[] { 0 }, new[] { 0 });
 
         Assert.Equal(new[] { 1, 2 }, coefficients);
-        Assert.Equal(new[] { 105, 166, 228, 232, 231 }, bins.ContextIndices);
+        Assert.Equal(new[] { 105, 166, 228, 232, 227 }, bins.ContextIndices);
     }
 
 
@@ -262,7 +264,7 @@ public sealed class H264CabacResidualBlockReaderTests
     {
         int[] decisions =
         [
-            1, 0, 1, 0, 1, 0, 1, 0, 0, 0, // significance and last flags
+            1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, // significance and last flags
             1, 0, 1, 0, 1, 0, 1, 0, 1, 0 // five coefficient levels
         ];
         ScriptedCabacReader bins = new(
