@@ -63,6 +63,33 @@ public sealed class H264BInterMacroblockReconstructorTests
     }
 
     [Fact]
+    public void DecodeSkippedAndReconstruct_TemporalDirect_ShouldUseProvidedCollocatedMotion()
+    {
+        H264SequenceParameterSet sps = CreateSps();
+        H264PictureParameterSetHeader pps = CreatePps();
+        H264DecodedPictureSurface reference = CreateSurface(sps, 91);
+        H264DecodedPictureSurface destination = new(sps);
+        H264MacroblockHeader skipped = new(
+            0, 0, true, 1, false, false, null, null, null, false);
+
+        H264BInterMacroblockReconstructionResult result =
+            new H264BInterMacroblockReconstructor().DecodeSkippedAndReconstruct(
+                skipped, [reference], [reference],
+                new H264BReferencePictureLists(
+                    [new H264ReferencePicture(0, 0)], [new H264ReferencePicture(1, 4)]),
+                new H264MotionVectorPictureState(1, 1),
+                new H264MotionVectorPictureState(1, 1),
+                destination, 0, 0, 0, 26, 2, false, sps, pps,
+                temporalContextProvider: (_, _, _, _) =>
+                    new H264TemporalDirectPredictionContext(
+                        new H264MotionVector(0, 0), 2, 0, 0, false));
+
+        Assert.True(result.IsSkipped);
+        Assert.Equal(4, result.Partitions.Count);
+        Assert.Equal((byte)91, destination.GetLumaSample(0, 0));
+    }
+
+    [Fact]
     public void DecodeSkippedAndReconstruct_ShouldRejectTemporalDirectUntilCollocatedMetadataExists()
     {
         H264SequenceParameterSet sps = CreateSps();
