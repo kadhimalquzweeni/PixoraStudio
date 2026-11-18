@@ -52,7 +52,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
             new(new H264CabacSyntaxElementReader(bins), neighbours);
 
         H264InterMacroblockResidualSyntax result = reader.Read(
-            Sps(), Pps() with { Transform8X8ModeFlag = true },
+            Sps(), Pps() with { EntropyCodingModeFlag = true, Transform8X8ModeFlag = true },
             0, 0, 1, 0, noSubMacroblockPartitionSmallerThan8x8: false);
 
         Assert.False(result.TransformSize8X8Flag);
