@@ -69,6 +69,34 @@ public sealed class H264Mp4VideoOutputSchedulerTests
     }
 
     [Fact]
+    public void Enqueue_IdrWithOutputPrior_ShouldReleasePriorSampleWithItsOwnTimestamps()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(2);
+        H264Mp4VideoOutputScheduler scheduler = new();
+        H264SliceHeader priorSlice = Slice(0, 2);
+        H264PictureOrderCount priorPoc =
+            scheduler.CalculatePictureOrderCount(sps, priorSlice, 1);
+        scheduler.Enqueue(
+            Surface(sps, 10), Sample(1, 100, 200), sps,
+            priorSlice, 1, priorPoc);
+
+        H264SliceHeader idrSlice = Slice(0, 0, idr: true, noOutputPrior: false);
+        H264PictureOrderCount idrPoc =
+            scheduler.CalculatePictureOrderCount(sps, idrSlice, 3);
+        H264Mp4DecodedVideoFrame prior = Assert.Single(scheduler.Enqueue(
+            Surface(sps, 30), Sample(2, 140, 160), sps,
+            idrSlice, 3, idrPoc));
+
+        Assert.Equal(1u, prior.SampleNumber);
+        Assert.Equal(200L, prior.PresentationTimeTicks);
+        Assert.Equal(2, prior.PictureOrderCount);
+
+        H264Mp4DecodedVideoFrame current = Assert.Single(scheduler.Flush());
+        Assert.Equal(2u, current.SampleNumber);
+        Assert.Equal(0, current.PictureOrderCount);
+    }
+
+    [Fact]
     public void Reset_ShouldClearPocQueueAndSampleAssociations()
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(2);
