@@ -90,6 +90,28 @@ public sealed class H264BReferencePictureListBuilderTests
     }
 
     [Fact]
+    public void BuildLists_ShouldApplyShortTermModificationsAcrossFrameNumWraparound()
+    {
+        H264ReferencePicture[] references =
+        [
+            new(15, -8),
+            new(0, 0),
+            new(2, 4)
+        ];
+        H264ReferenceListModification[] modifications =
+        [
+            new(0, 1, null), // CurrPicNum 1 -> PicNum -1 (frame_num 15)
+            new(1, 0, null), // PicNum 2 (frame_num 2)
+            new(3, null, null)
+        ];
+
+        H264BReferencePictureLists lists = _builder.BuildLists(
+            references, 1, 16, 2, 2, 1, modifications);
+
+        Assert.Equal(new[] { 15, 2 }, lists.List0.Select(picture => picture.FrameNum));
+    }
+
+    [Fact]
     public void BuildLists_ShouldRejectMissingReferencesAndMalformedModifications()
     {
         Assert.Throws<FormatException>(() => _builder.BuildLists(
