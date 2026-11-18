@@ -23,10 +23,11 @@ public static class H264DeblockingPictureFilter
         Span<byte> cb = surface.GetChromaPlaneSpan(1);
         Span<byte> cr = surface.GetChromaPlaneSpan(2);
 
-        // H.264 specifies picture-wide vertical filtering before any
-        // horizontal filtering. Keeping the passes separate is observable:
-        // horizontal filtering must consume samples already modified by the
-        // vertical pass, including at macroblock intersections.
+        // H.264 processes macroblocks in increasing address order. Within
+        // each macroblock it filters all vertical edges from left to right,
+        // then all horizontal edges from top to bottom. The horizontal pass
+        // therefore consumes samples already modified by this macroblock's
+        // vertical pass, while previously processed macroblocks remain filtered.
         for (int macroblockY = 0; macroblockY < surface.MacroblockHeight; macroblockY++)
         for (int macroblockX = 0; macroblockX < surface.MacroblockWidth; macroblockX++)
         {
@@ -39,16 +40,6 @@ public static class H264DeblockingPictureFilter
                 surface, luma, macroblockX, macroblockY, current);
             filteredSegments += FilterVerticalChroma(
                 surface, cb, cr, macroblockX, macroblockY, current);
-        }
-
-        for (int macroblockY = 0; macroblockY < surface.MacroblockHeight; macroblockY++)
-        for (int macroblockX = 0; macroblockX < surface.MacroblockWidth; macroblockX++)
-        {
-            H264DeblockingMacroblockMetadata current =
-                surface.GetDeblockingMetadataForFiltering(macroblockX, macroblockY);
-            if (current.DisableDeblockingFilterIdc == 1)
-                continue;
-
             filteredSegments += FilterHorizontalLuma(
                 surface, luma, macroblockX, macroblockY, current);
             filteredSegments += FilterHorizontalChroma(
