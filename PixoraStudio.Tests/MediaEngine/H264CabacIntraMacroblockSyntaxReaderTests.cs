@@ -71,7 +71,7 @@ public sealed class H264CabacIntraMacroblockSyntaxReaderTests
     [Fact]
     public void Read_ShouldParseCabacIntra16x16Syntax()
     {
-        ScriptedCabacReader binReader = new(new[] { 1, 0, 0, 0, 0, 0, 0, 0, 1, 0 });
+        ScriptedCabacReader binReader = new(new[] { 1, 0, 0, 0, 0, 0, 0, 1, 0 });
         H264CabacSyntaxElementReader syntax = new(binReader);
         H264MacroblockHeader header = new H264CabacMacroblockHeaderReader()
             .ReadIntraSlice(syntax, 0, 0);
