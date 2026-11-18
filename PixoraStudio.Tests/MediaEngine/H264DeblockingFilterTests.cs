@@ -127,6 +127,27 @@ public sealed class H264DeblockingFilterTests
         Assert.Equal(before, plane);
     }
 
+    [Theory]
+    [InlineData(100, 100, 100, 100, 180, 180, 180, 180)]
+    [InlineData(100, 100, 113, 100, 101, 101, 101, 101)]
+    [InlineData(100, 100, 100, 100, 101, 114, 101, 101)]
+    public void FilterEdge_WhenAlphaOrBetaDifferenceEqualsThreshold_ShouldNotFilter(
+        byte p3, byte p2, byte p1, byte p0,
+        byte q0, byte q1, byte q2, byte q3)
+    {
+        byte[] plane = CreateEdgePlane(p3, p2, p1, p0, q0, q1, q2, q3);
+        byte[] before = (byte[])plane.Clone();
+
+        // At QP 40, alpha is 80 and beta is 13. The standard requires
+        // each difference to be strictly less than its threshold.
+        bool changed = H264DeblockingFilter.FilterEdge(
+            plane, 6, 1, 12, 4,
+            new H264DeblockingEdgeParameters(1, 40, 40, 0, 0, false));
+
+        Assert.False(changed);
+        Assert.Equal(before, plane);
+    }
+
     [Fact]
     public void FilterEdge_ShouldRejectAnIncompleteEdgeNeighbourhood()
     {
