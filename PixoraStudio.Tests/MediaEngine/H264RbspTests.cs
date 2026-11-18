@@ -26,7 +26,7 @@ public sealed class H264RbspTests
     [InlineData(new byte[] { 0x00, 0x00, 0x02 })]
     public void FromEbsp_ShouldRejectUnescapedStartCodeEmulationSequences(byte[] ebsp)
     {
-        Assert.Throws<FormatException>(() => H264Rbsp.FromEbsp(ebsp));
+        Assert.Throws<FormatException>(() => H264Rbsp.ValidateEbsp(ebsp));
     }
 
     [Fact]
