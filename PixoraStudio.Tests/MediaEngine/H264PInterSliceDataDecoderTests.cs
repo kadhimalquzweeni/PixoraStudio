@@ -163,6 +163,13 @@ public sealed class H264PInterSliceDataDecoderTests
         Assert.Equal((byte)61, destination.GetLumaSample(0, 0));
         Assert.Equal((byte)71, destination.GetChromaSample(1, 0, 0));
         Assert.Equal((byte)81, destination.GetChromaSample(2, 0, 0));
+        Assert.True(destination.HasCompleteDeblockingMetadata);
+        Assert.All(destination.GetDeblockingMetadata(0, 0)!.LumaBlocks, block =>
+        {
+            Assert.Equal(new H264ReferencePicture(0, 0), block.ReferencePictureL0);
+            Assert.Equal(new H264MotionVector(0, 0), block.MotionVectorL0);
+            Assert.Null(block.ReferencePictureL1);
+        });
     }
 
     [Fact]
