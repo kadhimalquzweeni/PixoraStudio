@@ -115,7 +115,7 @@ public sealed class H264DeblockingPictureFilterTests
 
         H264DeblockingPictureFilter.Apply(surface);
 
-        Assert.Equal(expected, surface.GetLumaPlaneSpan().ToArray());
+        Assert.Equal(expected, surface.CopyLumaPlane());
     }
 
     [Fact]
