@@ -129,24 +129,30 @@ public sealed class H264BInterSliceDataDecoderTests
     public void Decode_BSkipRun_TemporalDirect_ShouldResolveCollocatedMotionFromDpbAutomatically()
     {
         H264SequenceParameterSet sps = Sps();
-        H264DecodedPictureSurface reference = Reference(sps, 41);
-        H264DecodedPictureSurface olderReference = Reference(sps, 42);
+        H264DecodedPictureSurface collocated = Reference(sps, 41);
+        H264DecodedPictureSurface pastReference = Reference(sps, 42);
+        H264DecodedPictureSurface secondPastReference = Reference(sps, 43);
         H264DecodedPictureBuffer dpb = new();
         dpb.StoreDecodedPicture(
-            olderReference, new H264ReferencePicture(15, -2), true, 4, 15, 16,
+            pastReference, new H264ReferencePicture(15, 1), true, 4, 15, 16,
+            new H264DecodedReferenceMarking(false, false, false, []));
+        dpb.StoreDecodedPicture(
+            secondPastReference, new H264ReferencePicture(0, 0), true, 4, 0, 16,
             new H264DecodedReferenceMarking(false, false, false, []));
         H264MotionVectorPictureState collocatedL0 = new(1, 1);
         H264MotionVectorPictureState collocatedL1 = new(1, 1);
         collocatedL0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(2, -2));
         dpb.StoreDecodedPicture(
-            reference, new H264ReferencePicture(0, 0), true, 4, 0, 16,
+            collocated, new H264ReferencePicture(2, 4), true, 4, 2, 16,
             new H264DecodedReferenceMarking(false, false, false, []),
             motionVectorStateL0: collocatedL0,
             motionVectorStateL1: collocatedL1,
-            referenceList0: [new H264ReferencePicture(15, -2)],
+            referenceList0: [new H264ReferencePicture(0, 0)],
             referenceList1: []);
 
-        BitWriter bits = WriteBSliceHeader(directSpatial: false);
+        BitWriter bits = WriteBSliceHeader(
+            directSpatial: false, overrideReferenceCounts: true,
+            numRefIdxL0ActiveMinus1: 1);
         bits.Ue(1);
         bits.TrailingBits();
         H264DecodedPictureSurface destination = new(sps);
@@ -157,12 +163,12 @@ public sealed class H264BInterSliceDataDecoderTests
         H264BInterMacroblockReconstructionResult skipped =
             Assert.Single(result.InterMacroblocks);
         Assert.True(skipped.IsSkipped);
-        Assert.Single(result.ReferencePictureLists!.List0);
+        Assert.Equal(2, result.ReferencePictureLists!.List0.Count);
         Assert.Single(result.ReferencePictureLists.List1);
         H264ReconstructedBInterSubPartition first = skipped.Partitions[0];
         Assert.Equal(1, first.ReferenceIndexL0);
-        Assert.Equal(new H264MotionVector(-2, 2), first.MotionVectorL0);
-        Assert.Equal(new H264MotionVector(-4, 4), first.MotionVectorL1);
+        Assert.Equal(new H264MotionVector(1, -1), first.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(-1, 1), first.MotionVectorL1);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
     }
 
@@ -262,7 +268,9 @@ public sealed class H264BInterSliceDataDecoderTests
         return dpb;
     }
 
-    private static BitWriter WriteBSliceHeader(uint sliceType = 1, bool directSpatial = true)
+    private static BitWriter WriteBSliceHeader(
+        uint sliceType = 1, bool directSpatial = true,
+        bool overrideReferenceCounts = false, uint numRefIdxL0ActiveMinus1 = 0)
     {
         BitWriter bits = new();
         bits.Ue(0); // first_mb_in_slice
@@ -271,7 +279,12 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.Bits(1, 4); // frame_num
         bits.Bits(0, 4); // pic_order_cnt_lsb
         bits.Flag(directSpatial); // direct_spatial_mv_pred_flag
-        bits.Flag(false); // num_ref_idx_active_override_flag
+        bits.Flag(overrideReferenceCounts); // num_ref_idx_active_override_flag
+        if (overrideReferenceCounts)
+        {
+            bits.Ue(numRefIdxL0ActiveMinus1);
+            bits.Ue(0); // num_ref_idx_l1_active_minus1
+        }
         bits.Flag(false); // ref_pic_list_modification_flag_l0
         bits.Flag(false); // ref_pic_list_modification_flag_l1
         bits.Flag(false); // adaptive_ref_pic_marking_mode_flag
