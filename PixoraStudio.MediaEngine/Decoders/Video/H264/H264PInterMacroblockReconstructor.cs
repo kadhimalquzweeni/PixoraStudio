@@ -68,8 +68,11 @@ public sealed class H264PInterMacroblockReconstructor
                 motionVectorState, macroblockX, macroblockY, sliceId,
                 predictionWeights);
 
+        bool noSubMbPartSizeLessThan8x8Flag = partitions.All(item =>
+            item.Partition.Width >= 2 && item.Partition.Height >= 2);
         H264InterMacroblockResidualSyntax residualSyntax =
-            _residualSyntaxReader.Read(reader, header, sps, pps);
+            _residualSyntaxReader.Read(
+                reader, header, sps, pps, noSubMbPartSizeLessThan8x8Flag);
         int qpY = residualSyntax.MacroblockQpDelta is int delta
             ? UpdateQpY(previousQpY, delta)
             : previousQpY;
