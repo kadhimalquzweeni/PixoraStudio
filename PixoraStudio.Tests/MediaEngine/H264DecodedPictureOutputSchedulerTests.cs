@@ -105,7 +105,7 @@ public sealed class H264DecodedPictureOutputSchedulerTests
             ? new H264DecodedReferenceMarking(noOutputPrior, false, false, [])
             : null;
         return new H264SliceHeader(
-            0, H264SliceType.P, 0, 0, frameNum,
+            0, idr ? H264SliceType.I : H264SliceType.P, 0, 0, frameNum,
             false, false, idr ? 0u : null, pocLsb,
             null, null, null, null,
             false, false, 0, 0, [], [], null, marking,
