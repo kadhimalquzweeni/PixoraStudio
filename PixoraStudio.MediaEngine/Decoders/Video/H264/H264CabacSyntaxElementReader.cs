@@ -407,11 +407,11 @@ public sealed class H264CabacSyntaxElementReader
     /// <summary>Decodes P-slice sub_mb_type (contexts 21..23).</summary>
     public int ReadPSubMacroblockType()
     {
-        if (!ReadFlagAtContext(21))
+        if (ReadFlagAtContext(21))
             return 0;
         if (!ReadFlagAtContext(22))
             return 1;
-        return ReadFlagAtContext(23) ? 3 : 2;
+        return ReadFlagAtContext(23) ? 2 : 3;
     }
 
     /// <summary>Decodes B-slice sub_mb_type (contexts 36..39).</summary>
