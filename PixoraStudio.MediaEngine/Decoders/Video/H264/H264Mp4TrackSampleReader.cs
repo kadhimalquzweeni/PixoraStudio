@@ -52,7 +52,9 @@ public sealed class H264Mp4TrackSampleReader
                 $"The MP4 track contains duplicate sample description index {descriptionIndex}.");
 
         Mp4VideoSampleEntry? video = descriptions[0].Video;
-        if (video is null || video.Codec != Mp4VideoCodec.Avc ||
+        if (video is null ||
+            (video.Format != "avc1" && video.Format != "avc3") ||
+            video.Codec != Mp4VideoCodec.Avc ||
             video.CodecConfiguration is null)
             throw new NotSupportedException(
                 $"Sample description {descriptionIndex} is not configured for AVC video.");
