@@ -234,8 +234,9 @@ public sealed class H264BInterSliceDataDecoder
         IReadOnlyList<H264ReferencePicture> pictures,
         H264DecodedPictureBuffer dpb)
     {
+        H264DecodedPictureBufferEntry[] entries = dpb.Entries.ToArray();
         return pictures.Select(picture =>
-            dpb.Entries.Single(entry => entry.Picture == picture).Surface).ToArray();
+            entries.Single(entry => entry.Picture == picture).Surface).ToArray();
     }
 
     private void RecordZeroResidualContexts(
