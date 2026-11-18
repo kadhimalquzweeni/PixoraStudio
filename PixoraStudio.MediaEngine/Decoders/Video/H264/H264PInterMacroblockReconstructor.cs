@@ -194,7 +194,7 @@ public sealed class H264PInterMacroblockReconstructor
             {
                 foreach (H264Intra8x8LumaResidualBlock block in residual.Luma8x8Blocks)
                 {
-                    if (!block.IsCoded)
+                    if (!block.CoefficientsInScanOrder.Any(level => level != 0))
                         continue;
                     for (int dy = 0; dy < 2; dy++)
                     for (int dx = 0; dx < 2; dx++)
