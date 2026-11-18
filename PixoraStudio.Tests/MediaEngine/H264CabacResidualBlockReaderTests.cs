@@ -239,6 +239,23 @@ public sealed class H264CabacResidualBlockReaderTests
         Assert.Empty(bins.ContextIndices);
     }
 
+
+    [Fact]
+    public void ReadBlock_ShouldTransitionLevelContextAfterMagnitudeGreaterThanOne()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 1, 0, 1, 0, 0 },
+            bypassBins: new[] { 0, 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        int[] coefficients = reader.ReadBlock(
+            bins, 2, 0, 1, 105, 166, 227,
+            new[] { 0 }, new[] { 0 });
+
+        Assert.Equal(new[] { 1, 2 }, coefficients);
+        Assert.Equal(new[] { 105, 166, 228, 232, 231 }, bins.ContextIndices);
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _decisionBins;
