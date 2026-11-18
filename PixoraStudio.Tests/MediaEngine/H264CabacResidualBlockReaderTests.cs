@@ -17,7 +17,7 @@ public sealed class H264CabacResidualBlockReaderTests
             new[] { 0, 1, 2 }, new[] { 0, 1, 2 });
 
         Assert.Equal(new[] { 0, 0, 0, 1 }, coefficients);
-        Assert.Equal(new[] { 105, 120, 136 }, bins.ContextIndices);
+        Assert.Equal(new[] { 105, 106, 107 }, bins.ContextIndices);
     }
 
     [Fact]
@@ -106,6 +106,25 @@ public sealed class H264CabacResidualBlockReaderTests
         Assert.Throws<FormatException>(() => reader.ReadBlock(
             bins, 1, 0, 0, 105, 166, 227,
             Array.Empty<int>(), Array.Empty<int>()));
+    }
+
+
+    [Fact]
+    public void ReadBlock_ShouldDecodeEscapeLevelWithZeroOrderSuffix()
+    {
+        // coeff_abs_level_minus1 escape value 14: fourteen context-coded
+        // prefix bins, then a zero bypass escape-order terminator.
+        int[] decisions = new[] { 1 }.Concat(Enumerable.Repeat(1, 13)).Append(0).ToArray();
+        ScriptedCabacReader bins = new(
+            decisionBins: decisions,
+            bypassBins: new[] { 0, 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        int[] coefficients = reader.ReadBlock(
+            bins, 1, 0, 0, 105, 166, 227,
+            Array.Empty<int>(), Array.Empty<int>());
+
+        Assert.Equal(new[] { 15 }, coefficients);
     }
 
     private sealed class ScriptedCabacReader : IH264CabacBinReader
