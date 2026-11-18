@@ -103,10 +103,12 @@ public sealed class H264TemporalDirectMotionField
     {
         for (int i = 0; i < currentReferenceList0.Count; i++)
         {
-            // A reference can be re-marked short-term/long-term after the
-            // collocated picture was decoded. POC identifies the same frame
-            // across that marking transition for the supported frame-only path.
-            if (currentReferenceList0[i].PictureOrderCount ==
+            // Reference marking can change (for example, MMCO 3 converts
+            // short-term to long-term), but the underlying frame identity does
+            // not. POC alone is insufficient: distinct decoded pictures may
+            // share a POC and must not be aliased during temporal-direct mapping.
+            if (currentReferenceList0[i].FrameNum == collocatedReference.FrameNum &&
+                currentReferenceList0[i].PictureOrderCount ==
                 collocatedReference.PictureOrderCount)
                 return i;
         }
