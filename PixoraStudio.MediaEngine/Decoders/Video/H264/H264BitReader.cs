@@ -44,14 +44,26 @@ public sealed class H264BitReader
     public void ConsumeRbspTrailingBits()
     {
         if (RemainingBits == 0 || !ReadFlag())
-            throw new FormatException("RBSP trailing bits must begin with rbsp_stop_one_bit.");
+            throw CreateTrailingBitsException("RBSP trailing bits must begin with rbsp_stop_one_bit.");
         while (!IsByteAligned)
         {
             if (ReadFlag())
-                throw new FormatException("RBSP alignment bits must be zero.");
+                throw CreateTrailingBitsException("RBSP alignment bits must be zero.");
         }
         if (RemainingBits != 0)
-            throw new FormatException("Unexpected data remains after rbsp_trailing_bits.");
+            throw CreateTrailingBitsException("Unexpected data remains after rbsp_trailing_bits.");
+    }
+
+    private FormatException CreateTrailingBitsException(string reason)
+    {
+        string remainingBits = string.Concat(
+            Enumerable.Range(_position, RemainingBits)
+                .Select(bit => ((_data.Span[bit >> 3] >> (7 - (bit & 7))) & 1).ToString()));
+
+        return new FormatException(
+            $"{reason} Bit position: {_position}; total RBSP bits: {_lengthBits}; " +
+            $"remaining bits: {RemainingBits}; remaining bit sequence: {remainingBits}; " +
+            $"RBSP hex: {Convert.ToHexString(_data.Span)}.");
     }
 
     public uint ReadBits(int count)
