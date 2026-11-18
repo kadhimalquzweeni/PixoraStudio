@@ -103,10 +103,7 @@ public class FFmpegService
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(_ffmpegPath))
-            throw new FileNotFoundException(
-                "FFmpeg executable was not found.",
-                _ffmpegPath);
+        EnsureFFmpegAvailable();
 
         if (!File.Exists(inputPath))
             throw new FileNotFoundException(
