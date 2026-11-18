@@ -59,5 +59,6 @@ public sealed class H264CabacMacroblockHeaderReaderTests
         public int DecodeBin(int contextIndex) => _bins.Dequeue();
         public int DecodeBypass() => _bins.Dequeue();
         public int DecodeTerminate() => _bins.Dequeue();
+        public void MarkTerminated() { }
     }
 }
