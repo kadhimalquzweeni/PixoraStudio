@@ -12,7 +12,7 @@ public sealed class H264MacroblockHeaderReader
         H264BitReader reader,
         H264SliceType sliceType,
         uint macroblockAddress,
-        uint remainingMacroblocks,
+        uint pictureMacroblockCount,
         bool entropyCodingModeFlag = false)
     {
         ArgumentNullException.ThrowIfNull(reader);
@@ -20,14 +20,14 @@ public sealed class H264MacroblockHeaderReader
             throw new NotSupportedException("Macroblock prefix parsing currently supports I and P slices only.");
         if (entropyCodingModeFlag)
             throw new NotSupportedException("CABAC macroblock parsing is not implemented; use CAVLC slices.");
-        if (remainingMacroblocks == 0 || macroblockAddress >= remainingMacroblocks)
+        if (pictureMacroblockCount == 0 || macroblockAddress >= pictureMacroblockCount)
             throw new ArgumentOutOfRangeException(nameof(macroblockAddress),
-                "The macroblock address must be inside the remaining picture range.");
+                "The macroblock address must be inside the picture macroblock range.");
 
         if (sliceType == H264SliceType.P)
         {
             uint skipRun = reader.ReadUnsignedExpGolomb();
-            if (skipRun > remainingMacroblocks - macroblockAddress)
+            if (skipRun > pictureMacroblockCount - macroblockAddress)
                 throw new FormatException("mb_skip_run exceeds the remaining macroblocks in the picture.");
 
             if (skipRun > 0)
