@@ -95,7 +95,7 @@ public sealed class H264Mp4VideoOutputScheduler
         List<H264Mp4DecodedVideoFrame> result = new(outputs.Count);
         foreach (H264DecodedPictureOutput output in outputs)
         {
-            if (!_pendingSamples.Remove(output.Surface, out H264Mp4VideoSample? sample))
+            if (!_pendingSamples.Remove(output.Surface, out H264Mp4VideoSample? sample) || sample is null)
                 throw new InvalidOperationException(
                     "The output scheduler released a picture without a matching MP4 sample timestamp association.");
             result.Add(new H264Mp4DecodedVideoFrame(
