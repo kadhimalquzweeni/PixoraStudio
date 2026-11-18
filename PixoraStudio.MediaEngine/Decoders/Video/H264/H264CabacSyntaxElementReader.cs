@@ -101,12 +101,14 @@ public sealed class H264CabacSyntaxElementReader
     public bool ReadEndOfSliceFlag()
     {
         int bin = _reader.DecodeTerminate();
-        return bin switch
+        if (bin == 0)
+            return false;
+        if (bin == 1)
         {
-            0 => false,
-            1 => true,
-            _ => throw new FormatException("CABAC terminating bins must be zero or one.")
-        };
+            _reader.MarkTerminated();
+            return true;
+        }
+        throw new FormatException("CABAC terminating bins must be zero or one.");
     }
 
     /// <summary>
