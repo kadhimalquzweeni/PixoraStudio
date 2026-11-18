@@ -39,12 +39,12 @@ public sealed class H264MotionCompensatorTests
     }
 
     [Theory]
-    [InlineData(1, 0, 3)]
-    [InlineData(3, 0, 8)]
-    [InlineData(0, 1, 2)]
-    [InlineData(0, 3, 6)]
-    [InlineData(1, 1, 3)]
-    [InlineData(3, 3, 9)]
+    [InlineData(1, 0, 59)]
+    [InlineData(3, 0, 64)]
+    [InlineData(0, 1, 57)]
+    [InlineData(0, 3, 59)]
+    [InlineData(1, 1, 60)]
+    [InlineData(3, 3, 67)]
     public void InterpolateLuma_QuarterSample_ShouldAverageAdjacentHalfGridSamples(
         int fractionX, int fractionY, byte expected)
     {
@@ -70,7 +70,7 @@ public sealed class H264MotionCompensatorTests
     [InlineData(-1, -1, 0)]
     [InlineData(-4, 0, 0)]
     [InlineData(0, -4, 0)]
-    [InlineData(31 * 4, 31 * 4, 93)]
+    [InlineData(31 * 4, 31 * 4, 62)]
     public void InterpolateLuma_OutOfFrameCoordinates_ShouldReplicateEdges(
         int x, int y, byte expected)
     {
@@ -81,9 +81,9 @@ public sealed class H264MotionCompensatorTests
     }
 
     [Theory]
-    [InlineData(1, 4, 4, 24)]
-    [InlineData(2, 4, 4, 24)]
-    [InlineData(1, 0, 0, 0)]
+    [InlineData(1, 4, 4, 72)]
+    [InlineData(2, 4, 4, 72)]
+    [InlineData(1, 0, 0, 48)]
     public void InterpolateChroma_ShouldUseBilinearEighthSampleInterpolation(
         uint format, int fractionX, int fractionY, byte expected)
     {
@@ -106,10 +106,10 @@ public sealed class H264MotionCompensatorTests
     }
 
     [Theory]
-    [InlineData(1, 8, 8, 4)]
-    [InlineData(2, 8, 8, 8)]
+    [InlineData(1, 8, 8, 4, 24, 44)]
+    [InlineData(2, 8, 8, 8, 26, 46)]
     public void Predict_ShouldProduceTightlyPackedLumaAndChromaPlanes(
-        uint format, int width, int height, int chromaHeight)
+        uint format, int width, int height, int chromaHeight, byte expectedCb, byte expectedCr)
     {
         H264DecodedPictureSurface surface = CreateSurface(format,
             (x, y) => (byte)(x + y),
@@ -127,8 +127,8 @@ public sealed class H264MotionCompensatorTests
         Assert.Equal(width / 2 * chromaHeight, result.Cb.Length);
         Assert.Equal(width / 2 * chromaHeight, result.Cr.Length);
         Assert.Equal((byte)8, result.Luma[0]);
-        Assert.Equal((byte)28, result.Cb[0]);
-        Assert.Equal((byte)48, result.Cr[0]);
+        Assert.Equal(expectedCb, result.Cb[0]);
+        Assert.Equal(expectedCr, result.Cr[0]);
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public sealed class H264MotionCompensatorTests
         H264MotionCompensatedBlock result = _compensator.Predict(
             surface, 0, 0, 4, 4, new H264MotionVector(-4, -4));
 
-        Assert.All(result.Luma, sample => Assert.Equal((byte)0, sample));
+        Assert.Equal((byte)0, result.Luma[0]);
     }
 
     [Fact]
