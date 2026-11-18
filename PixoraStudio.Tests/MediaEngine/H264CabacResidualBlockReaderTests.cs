@@ -17,7 +17,7 @@ public sealed class H264CabacResidualBlockReaderTests
             new[] { 0, 1, 2 }, new[] { 0, 1, 2 });
 
         Assert.Equal(new[] { 0, 0, 0, 1 }, coefficients);
-        Assert.Equal(new[] { 105, 106, 107 }, bins.ContextIndices);
+        Assert.Equal(new[] { 105, 106, 107, 228 }, bins.ContextIndices);
     }
 
     [Fact]
