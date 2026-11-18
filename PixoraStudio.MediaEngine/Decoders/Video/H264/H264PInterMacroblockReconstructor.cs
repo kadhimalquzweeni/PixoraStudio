@@ -165,9 +165,9 @@ public sealed class H264PInterMacroblockReconstructor
             throw new NotSupportedException("CABAC P inter macroblock reconstruction is not implemented.");
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
+        ValidateSurface(destination, x, y, sliceId, sps);
         if (header.MacroblockAddress != checked((uint)(y * destination.MacroblockWidth + x)))
             throw new FormatException("The macroblock header address does not match its picture coordinates.");
-        ValidateSurface(destination, x, y, sliceId, sps);
     }
 
     private static void ValidateSurface(
