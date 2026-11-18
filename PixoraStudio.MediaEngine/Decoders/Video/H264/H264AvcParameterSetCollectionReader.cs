@@ -32,14 +32,11 @@ public sealed class H264AvcParameterSetCollectionReader
         Dictionary<uint, H264PictureParameterSetHeader> pictureParameterSets = [];
         foreach (H264NalUnit nalUnit in configuration.PictureParameterSets)
         {
-            // Parse once without SPS context to discover seq_parameter_set_id.
-            // Reparse with the matching SPS so scaling-list count follows its
-            // chroma_format_idc when the optional PPS extension is present.
-            H264PictureParameterSetHeader preliminary = _ppsReader.Read(nalUnit);
-            if (!sequenceParameterSets.TryGetValue(
-                preliminary.SequenceParameterSetId, out H264SequenceParameterSet? sps))
+            (uint ppsId, uint spsId) =
+                _ppsReader.ReadParameterSetIdentifiers(nalUnit);
+            if (!sequenceParameterSets.TryGetValue(spsId, out H264SequenceParameterSet? sps))
                 throw new FormatException(
-                    $"PPS {preliminary.Id} references missing SPS {preliminary.SequenceParameterSetId}.");
+                    $"PPS {ppsId} references missing SPS {spsId}.");
 
             H264PictureParameterSetHeader pps = _ppsReader.Read(nalUnit, sps);
             if (!pictureParameterSets.TryAdd(pps.Id, pps))
