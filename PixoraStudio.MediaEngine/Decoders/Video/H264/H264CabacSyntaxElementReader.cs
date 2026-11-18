@@ -24,7 +24,10 @@ public sealed class H264CabacSyntaxElementReader
         if (!ReadFlagAtContext(3 + firstBinContextIncrement))
             return 0;
 
-        if (_reader.DecodeTerminate() == 1)
+        int pcmFlag = _reader.DecodeTerminate();
+        if (pcmFlag is not (0 or 1))
+            throw new FormatException("CABAC terminating bins must be zero or one.");
+        if (pcmFlag == 1)
             return 25;
 
         int suffix = 0;
