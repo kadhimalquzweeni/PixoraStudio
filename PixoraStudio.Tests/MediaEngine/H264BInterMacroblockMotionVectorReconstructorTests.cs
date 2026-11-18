@@ -138,14 +138,15 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
                 direct8x8InferenceFlag: true,
                 collocatedContextProvider: (_, _, _, _) =>
                     new H264TemporalDirectPredictionContext(
-                        new H264MotionVector(16, -16), 5, 0, 10, false));
+                        new H264MotionVector(16, -16), 5, 0, 10, false,
+                        MappedReferenceIndexL0: 2));
 
         Assert.Equal(4, result.Count);
         Assert.All(result, item =>
         {
             Assert.Equal(new H264MotionVector(8, -8), item.MotionVectorL0);
             Assert.Equal(new H264MotionVector(-8, 8), item.MotionVectorL1);
-            Assert.Equal((int?)0, item.ReferenceIndexL0);
+            Assert.Equal((int?)2, item.ReferenceIndexL0);
             Assert.Equal((int?)0, item.ReferenceIndexL1);
         });
         Assert.NotNull(state0.GetCandidates(1, 0, 1, 1, 0).Left);
