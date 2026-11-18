@@ -271,11 +271,12 @@ public static class H264DeblockingPictureFilter
         int currentSliceId,
         int previousSliceId)
     {
-        if (current.DisableDeblockingFilterIdc == 1 ||
-            previous.DisableDeblockingFilterIdc == 1)
+        // The current (q-side) macroblock controls this edge. idc=1
+        // disables all filtering for its slice; idc=2 disables only edges
+        // whose p-side neighbour belongs to another slice.
+        if (current.DisableDeblockingFilterIdc == 1)
             return true;
-        return currentSliceId != previousSliceId &&
-            (current.DisableDeblockingFilterIdc == 2 ||
-             previous.DisableDeblockingFilterIdc == 2);
+        return current.DisableDeblockingFilterIdc == 2 &&
+            currentSliceId != previousSliceId;
     }
 }
