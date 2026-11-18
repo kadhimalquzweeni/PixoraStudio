@@ -36,8 +36,11 @@ public sealed class H264CabacSyntaxElementReader
                 throw new FormatException("CABAC mb_qp_delta exceeds the supported 8-bit QP range.");
         }
 
-        return (codeNum & 1) == 0
+        int delta = (codeNum & 1) == 0
             ? -(codeNum / 2)
             : (codeNum + 1) / 2;
+        if (delta is < -26 or > 25)
+            throw new FormatException("CABAC mb_qp_delta is outside the supported -26..25 range.");
+        return delta;
     }
 }
