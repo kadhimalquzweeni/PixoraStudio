@@ -66,13 +66,15 @@ public sealed class H264InterMacroblockResidualSyntaxReaderTests
     }
 
     [Fact]
-    public void Read_WithTransform8x8FlagTrue_ShouldRejectUnsupportedTransform()
+    public void Read_WithTransform8x8FlagTrue_ShouldRetainTransformSelection()
     {
-        H264BitReader bits = Bits(WriteUe(2) + "1");
+        H264BitReader bits = Bits(WriteUe(2) + "1" + WriteSe(0));
 
-        Assert.Throws<NotSupportedException>(() =>
-            _reader.Read(bits, Header(), Sps(),
-                Pps() with { Transform8X8ModeFlag = true }));
+        H264InterMacroblockResidualSyntax result = _reader.Read(
+            bits, Header(), Sps(), Pps() with { Transform8X8ModeFlag = true });
+
+        Assert.True(result.TransformSize8X8Flag);
+        Assert.Equal(0, result.MacroblockQpDelta);
         Assert.Equal(0, bits.RemainingBits);
     }
 
