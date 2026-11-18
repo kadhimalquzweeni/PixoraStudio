@@ -92,15 +92,25 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
                 : _predictor.Predict(candidates1.Left, candidates1.Above,
                     candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
 
-            motionVectorStateL0.RecordInterPartition(
-                regionX, regionY, step, step, sliceId, referenceIndex0, vector0);
-            motionVectorStateL1.RecordInterPartition(
-                regionX, regionY, step, step, sliceId, referenceIndex1, vector1);
+            if (referenceIndex0 >= 0)
+                motionVectorStateL0.RecordInterPartition(
+                    regionX, regionY, step, step, sliceId, referenceIndex0, vector0);
+            else
+                motionVectorStateL0.RecordUnavailableRegion(
+                    regionX, regionY, step, step, sliceId);
+            if (referenceIndex1 >= 0)
+                motionVectorStateL1.RecordInterPartition(
+                    regionX, regionY, step, step, sliceId, referenceIndex1, vector1);
+            else
+                motionVectorStateL1.RecordUnavailableRegion(
+                    regionX, regionY, step, step, sliceId);
 
             result.Add(new H264ReconstructedBInterSubPartition(
                 macroblockPartitionIndex, subIndex++,
                 regionX, regionY, step, step,
-                referenceIndex0, referenceIndex1, vector0, vector1));
+                referenceIndex0 >= 0 ? referenceIndex0 : null,
+                referenceIndex1 >= 0 ? referenceIndex1 : null,
+                vector0, vector1));
         }
 
         return result;
