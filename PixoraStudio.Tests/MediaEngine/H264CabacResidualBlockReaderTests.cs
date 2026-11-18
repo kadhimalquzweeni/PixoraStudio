@@ -127,6 +127,48 @@ public sealed class H264CabacResidualBlockReaderTests
         Assert.Equal(new[] { 15 }, coefficients);
     }
 
+
+    [Fact]
+    public void ReadBlock_WithCategoryMap_ShouldReturnSharedResidualModel()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 0 },
+            bypassBins: new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        var block = reader.ReadBlock(
+            bins, H264CabacResidualBlockContext.Create(2));
+
+        Assert.Equal(16, block.MaximumCoefficients);
+        Assert.Equal(1, block.TotalCoefficients);
+        Assert.Equal(1, block.Coefficients[15]);
+    }
+
+    [Fact]
+    public void ReadBlock_WithUncodedCategory_ShouldNotConsumeBins()
+    {
+        ScriptedCabacReader bins = new();
+        H264CabacResidualBlockReader reader = new();
+
+        var block = reader.ReadBlock(
+            bins, H264CabacResidualBlockContext.Create(2), codedBlockFlag: false);
+
+        Assert.Equal(0, block.TotalCoefficients);
+        Assert.Equal(16, block.Coefficients.Count);
+        Assert.Empty(bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadBlock_WithEightByEightCategory_ShouldRejectExplicitUncodedFlag()
+    {
+        ScriptedCabacReader bins = new();
+        H264CabacResidualBlockReader reader = new();
+
+        Assert.Throws<ArgumentException>(() => reader.ReadBlock(
+            bins, H264CabacResidualBlockContext.Create(5), codedBlockFlag: false));
+        Assert.Empty(bins.ContextIndices);
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _decisionBins;
