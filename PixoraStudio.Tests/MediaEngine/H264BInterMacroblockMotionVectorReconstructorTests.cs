@@ -122,6 +122,56 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
+    public void Reconstruct_TemporalDirect_ShouldDeriveAndRecordBothListVectors()
+    {
+        H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
+            new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
+        var state0 = new H264MotionVectorPictureState(1, 1);
+        var state1 = new H264MotionVectorPictureState(1, 1);
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
+                syntax, state0, state1, 0, 0, 0, 1, 1,
+                directSpatialPrediction: false,
+                direct8x8InferenceFlag: true,
+                temporalContextProvider: (_, _, _, _) =>
+                    new H264TemporalDirectPredictionContext(
+                        new H264MotionVector(16, -16), 10, 0, -10, false));
+
+        Assert.Equal(4, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(new H264MotionVector(8, -8), item.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(-8, 8), item.MotionVectorL1);
+            Assert.Equal((int?)0, item.ReferenceIndexL0);
+            Assert.Equal((int?)0, item.ReferenceIndexL1);
+        });
+        Assert.NotNull(state0.GetCandidates(1, 0, 1, 1, 0).Left);
+        Assert.NotNull(state1.GetCandidates(1, 0, 1, 1, 0).Left);
+    }
+
+    [Fact]
+    public void Reconstruct_TemporalDirectWithUnavailableCollocatedReference_ShouldUseZeroVectors()
+    {
+        H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
+            new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
+                syntax, new H264MotionVectorPictureState(1, 1),
+                new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1,
+                directSpatialPrediction: false,
+                temporalContextProvider: (_, _, _, _) => null);
+
+        Assert.Equal(4, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL1);
+        });
+    }
+
+    [Fact]
     public void SpatialDirect_ShouldSelectMinimumReferenceFromA_B_AndCAndIgnoreDWhenCExists()
     {
         var state0 = new H264MotionVectorPictureState(2, 2);
