@@ -124,7 +124,7 @@ public sealed class H264MotionVectorPictureStateTests
 
         Assert.Throws<OverflowException>(() => state.ReconstructAndRecord(
             _predictor, 1, 0, 1, 1, 0, 0,
-            new H264MotionVectorDifference(1, 0)));
+            new H264MotionVectorDifference(int.MaxValue, 0)));
     }
 
     [Fact]
