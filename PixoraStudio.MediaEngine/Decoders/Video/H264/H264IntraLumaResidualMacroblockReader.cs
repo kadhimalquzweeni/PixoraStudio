@@ -67,6 +67,22 @@ public sealed class H264IntraLumaResidualMacroblockReader
         if (sliceId < 0)
             throw new ArgumentOutOfRangeException(nameof(sliceId));
 
+        if (!sequenceParameterSet.FrameMbsOnlyFlag)
+            throw new NotSupportedException(
+                "This residual reader currently supports frame-only pictures.");
+
+        uint pictureWidthInMacroblocks = checked(sequenceParameterSet.PicWidthInMbsMinus1 + 1);
+        uint pictureHeightInMacroblocks = checked(sequenceParameterSet.PicHeightInMapUnitsMinus1 + 1);
+        if ((uint)macroblockX >= pictureWidthInMacroblocks)
+            throw new ArgumentOutOfRangeException(nameof(macroblockX),
+                "The macroblock X coordinate is outside the picture.");
+        if ((uint)macroblockY >= pictureHeightInMacroblocks)
+            throw new ArgumentOutOfRangeException(nameof(macroblockY),
+                "The macroblock Y coordinate is outside the picture.");
+
+        if (macroblockSyntax.CodedBlockPattern.Luma > 15)
+            throw new FormatException("The luma coded-block-pattern value must be in the range 0..15.");
+
         if (sequenceParameterSet.ChromaFormatIdc != 0 ||
             sequenceParameterSet.SeparateColourPlaneFlag ||
             macroblockSyntax.CodedBlockPattern.Chroma != 0 ||
