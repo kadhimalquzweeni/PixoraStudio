@@ -56,6 +56,7 @@ public sealed class H264DecodedPictureOutputScheduler
         int? maxNumReorderFramesFallback = null)
     {
         ValidateOutputContext(surface, sps, slice, nalRefIdc);
+        PrepareSurfaceForOutput(surface);
         int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
         H264PictureOrderCount poc = CalculatePictureOrderCount(sps, slice, nalRefIdc);
         return EnqueueCore(surface, slice, poc, maxNumReorderFrames);
@@ -75,6 +76,7 @@ public sealed class H264DecodedPictureOutputScheduler
         int? maxNumReorderFramesFallback = null)
     {
         ValidateOutputContext(surface, sps, slice, nalRefIdc);
+        PrepareSurfaceForOutput(surface);
         ArgumentNullException.ThrowIfNull(pictureOrderCount);
         int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
         return EnqueueCore(surface, slice, pictureOrderCount, maxNumReorderFrames);
@@ -86,12 +88,6 @@ public sealed class H264DecodedPictureOutputScheduler
         H264PictureOrderCount pictureOrderCount,
         int maxNumReorderFrames)
     {
-        if (!surface.HasCompleteDeblockingMetadata)
-            throw new InvalidOperationException(
-                "A picture must have complete deblocking metadata before presentation output.");
-        if (!surface.IsDeblockingFilterApplied)
-            H264DeblockingPictureFilter.Apply(surface);
-
         IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
         if (slice.IdrPicId.HasValue)
         {
@@ -111,6 +107,18 @@ public sealed class H264DecodedPictureOutputScheduler
         if (priorOutputs.Count == 0)
             return ready;
         return priorOutputs.Concat(ready).ToArray();
+    }
+
+    private static void PrepareSurfaceForOutput(H264DecodedPictureSurface surface)
+    {
+        // Do all fallible pixel/metadata preparation before calculating POC.
+        // CalculatePictureOrderCount advances stream history; a surface that
+        // cannot be presented must not consume a picture-order state transition.
+        if (!surface.HasCompleteDeblockingMetadata)
+            throw new InvalidOperationException(
+                "A picture must have complete deblocking metadata before presentation output.");
+        if (!surface.IsDeblockingFilterApplied)
+            H264DeblockingPictureFilter.Apply(surface);
     }
 
     private static void ValidateOutputContext(
