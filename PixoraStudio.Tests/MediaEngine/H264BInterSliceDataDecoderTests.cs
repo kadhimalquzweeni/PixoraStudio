@@ -127,7 +127,11 @@ public sealed class H264BInterSliceDataDecoderTests
     {
         H264SequenceParameterSet sps = Sps();
         H264DecodedPictureSurface reference = Reference(sps, 41);
+        H264DecodedPictureSurface olderReference = Reference(sps, 42);
         H264DecodedPictureBuffer dpb = new();
+        H264DecodedPictureBufferEntry? olderEntry = dpb.StoreDecodedPicture(
+            olderReference, new H264ReferencePicture(15, -2), true, 4, 15, 16,
+            new H264DecodedReferenceMarking(false, false, false, []));
         H264MotionVectorPictureState collocatedL0 = new(1, 1);
         H264MotionVectorPictureState collocatedL1 = new(1, 1);
         collocatedL0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(2, -2));
@@ -136,7 +140,7 @@ public sealed class H264BInterSliceDataDecoderTests
             new H264DecodedReferenceMarking(false, false, false, []),
             motionVectorStateL0: collocatedL0,
             motionVectorStateL1: collocatedL1,
-            referenceList0: [new H264ReferencePicture(0, -2)],
+            referenceList0: [new H264ReferencePicture(15, -2)],
             referenceList1: []);
 
         BitWriter bits = WriteBSliceHeader(directSpatial: false);
@@ -153,6 +157,7 @@ public sealed class H264BInterSliceDataDecoderTests
         Assert.Single(result.ReferencePictureLists!.List0);
         Assert.Single(result.ReferencePictureLists.List1);
         H264ReconstructedBInterSubPartition first = skipped.Partitions[0];
+        Assert.Equal(1, first.ReferenceIndexL0);
         Assert.Equal(new H264MotionVector(-2, 2), first.MotionVectorL0);
         Assert.Equal(new H264MotionVector(-4, 4), first.MotionVectorL1);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
