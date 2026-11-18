@@ -16,6 +16,7 @@ public sealed class H264DecodedPictureSurface
     private readonly bool[] _decoded;
     private readonly bool[] _intra;
     private readonly H264DeblockingMacroblockMetadata?[] _deblockingMetadata;
+    private bool _deblockingFilterApplied;
 
     public H264DecodedPictureSurface(H264SequenceParameterSet sps)
     {
@@ -55,6 +56,7 @@ public sealed class H264DecodedPictureSurface
     public bool IsComplete => _decoded.All(decoded => decoded);
     public bool HasCompleteDeblockingMetadata =>
         _deblockingMetadata.All(metadata => metadata is not null);
+    public bool IsDeblockingFilterApplied => _deblockingFilterApplied;
 
     public void SetDeblockingMetadata(
         int macroblockX,
@@ -62,6 +64,8 @@ public sealed class H264DecodedPictureSurface
         H264DeblockingMacroblockMetadata metadata)
     {
         ArgumentNullException.ThrowIfNull(metadata);
+        if (_deblockingFilterApplied)
+            throw new InvalidOperationException("Deblocking metadata cannot change after picture filtering.");
         ValidateMacroblock(macroblockX, macroblockY);
         int index = GetMacroblockIndex(macroblockX, macroblockY);
         if (!_decoded[index])
@@ -79,6 +83,18 @@ public sealed class H264DecodedPictureSurface
     }
 
     internal Span<byte> GetLumaPlaneSpan() => _luma;
+    internal int GetMacroblockSliceId(int x, int y)
+    {
+        ValidateMacroblock(x, y);
+        return _sliceIds[GetMacroblockIndex(x, y)];
+    }
+
+    internal void MarkDeblockingFilterApplied()
+    {
+        if (_deblockingFilterApplied)
+            throw new InvalidOperationException("The deblocking filter has already been applied to this picture.");
+        _deblockingFilterApplied = true;
+    }
 
     internal Span<byte> GetChromaPlaneSpan(byte componentId) => componentId switch
     {
@@ -152,6 +168,8 @@ public sealed class H264DecodedPictureSurface
         IReadOnlyList<byte> cb,
         IReadOnlyList<byte> cr)
     {
+        if (_deblockingFilterApplied)
+            throw new InvalidOperationException("A decoded picture cannot be modified after deblocking.");
         ValidateMacroblock(macroblockX, macroblockY);
         if (sliceId < 0)
             throw new ArgumentOutOfRangeException(nameof(sliceId));
