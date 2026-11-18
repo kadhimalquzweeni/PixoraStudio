@@ -94,6 +94,21 @@ public sealed class H264BitReaderTests
     }
 
     [Fact]
+    public void ConsumeRbspTrailingBits_ShouldIncludeBitstreamDiagnosticsWhenUnexpectedDataRemains()
+    {
+        H264BitReader reader = new(new byte[] { 0b1010_0000, 0b1100_0000 }, 10);
+        reader.SkipBits(1);
+
+        FormatException exception = Assert.Throws<FormatException>(
+            () => reader.ConsumeRbspTrailingBits());
+
+        Assert.Contains("Bit position:", exception.Message);
+        Assert.Contains("total RBSP bits: 10", exception.Message);
+        Assert.Contains("remaining bits:", exception.Message);
+        Assert.Contains("RBSP hex: A0C0", exception.Message);
+    }
+
+    [Fact]
     public void ReadBits_ShouldRejectTruncatedInput()
     {
         H264BitReader reader = new(new byte[] { 0x80 }, 1);
