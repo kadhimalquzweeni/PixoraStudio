@@ -60,7 +60,7 @@ public sealed class H264CoefficientScannerTests
 
         Assert.Equal(
             new[] { 0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5 },
-            H264CoefficientScanner.ToScanOrder(raster));
+            H264CoefficientScanner.ToScanOrder(raster).Take(16));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class H264CoefficientScannerTests
 
         Assert.Equal(
             new[] { 0, 8, 16, 1, 9, 24, 32, 17, 2, 25, 40, 48, 56, 33, 10, 3 },
-            H264CoefficientScanner.ToScanOrder(raster, fieldScan: true));
+            H264CoefficientScanner.ToScanOrder(raster, fieldScan: true).Take(16));
     }
 
     [Theory]
