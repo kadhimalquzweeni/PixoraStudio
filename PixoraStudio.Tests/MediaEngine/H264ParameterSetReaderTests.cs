@@ -1,4 +1,5 @@
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
+using PixoraStudio.MediaEngine.Models.Video;
 
 namespace PixoraStudio.Tests.MediaEngine;
 
