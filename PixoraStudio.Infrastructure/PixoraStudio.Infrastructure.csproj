@@ -12,6 +12,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\PixoraStudio.Core\PixoraStudio.Core.csproj" />
+		<ProjectReference Include="..\PixoraStudio.MediaEngine\PixoraStudio.MediaEngine.csproj" />
 	</ItemGroup>
 
 </Project>
