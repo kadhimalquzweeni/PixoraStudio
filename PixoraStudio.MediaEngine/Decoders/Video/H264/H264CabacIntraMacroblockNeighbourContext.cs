@@ -110,16 +110,23 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
     /// order for the four 8x8 luma regions of the current macroblock.
     /// </summary>
     public int[] GetLumaCodedBlockPatternContextIncrements(
-        int macroblockX, int macroblockY, int sliceId)
+        int macroblockX, int macroblockY, int sliceId,
+        uint previouslyDecodedCodedBlockPattern = 0)
     {
         ValidatePosition(macroblockX, macroblockY, sliceId);
+        if (previouslyDecodedCodedBlockPattern > 15)
+            throw new ArgumentOutOfRangeException(nameof(previouslyDecodedCodedBlockPattern));
         int[] increments = new int[4];
         for (int blockIndex = 0; blockIndex < 4; blockIndex++)
         {
             int blockX = macroblockX * 2 + (blockIndex & 1);
             int blockY = macroblockY * 2 + (blockIndex >> 1);
-            int left = GetLumaCbpNeighbourCondition(blockX - 1, blockY, sliceId);
-            int top = GetLumaCbpNeighbourCondition(blockX, blockY - 1, sliceId);
+            int left = GetLumaCbpNeighbourCondition(
+                blockX - 1, blockY, macroblockX, macroblockY,
+                previouslyDecodedCodedBlockPattern, sliceId);
+            int top = GetLumaCbpNeighbourCondition(
+                blockX, blockY - 1, macroblockX, macroblockY,
+                previouslyDecodedCodedBlockPattern, sliceId);
             increments[blockIndex] = left + (2 * top);
         }
         return increments;
@@ -150,12 +157,25 @@ public sealed class H264CabacIntraMacroblockNeighbourContext
         ];
     }
 
-    private int GetLumaCbpNeighbourCondition(int blockX, int blockY, int sliceId)
+    private int GetLumaCbpNeighbourCondition(
+        int blockX,
+        int blockY,
+        int currentMacroblockX,
+        int currentMacroblockY,
+        uint previouslyDecodedCodedBlockPattern,
+        int sliceId)
     {
         if (blockX < 0 || blockY < 0)
             return 0;
+
         int macroblockX = blockX / 2;
         int macroblockY = blockY / 2;
+        if (macroblockX == currentMacroblockX &&
+            macroblockY == currentMacroblockY)
+        {
+            int currentBlockIndex = ((blockY & 1) * 2) + (blockX & 1);
+            return (previouslyDecodedCodedBlockPattern & (1u << currentBlockIndex)) == 0 ? 1 : 0;
+        }
         if (!TryGetMacroblock(macroblockX, macroblockY, sliceId, out MacroblockState state) ||
             state.IsPcm)
             return 0;
