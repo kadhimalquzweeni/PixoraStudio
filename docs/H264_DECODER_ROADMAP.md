@@ -1,5 +1,27 @@
 # H.264 / AVC decoder roadmap
 
+## Current feature-branch status (supersedes older stage snapshots below)
+
+The current implementation on `feature/h264-decoder-complete-integration` has advanced beyond several of the historical notes retained later in this document.
+
+| Area | Current status |
+|---|---|
+| Slice traversal | Frame-coded CAVLC I, P and B paths are implemented for the supported subset |
+| P macroblocks | P_L0 partitions, P_8x8 sub-macroblocks, P_Skip, I_NxN, I_16x16 and I_PCM |
+| B macroblocks | B inter types 0–22, B_8x8 sub-macroblocks, B_Skip, spatial direct, I_NxN, I_16x16 and I_PCM |
+| Motion compensation | List 0 and list 1; luma fractional interpolation and 4:2:0/4:2:2 chroma interpolation |
+| Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
+| Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
+| Reference management | Frame DPB, short/long-term marking, MMCO 1–6, P/B reference-list construction |
+| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering and IDR prior-output handling |
+| Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
+
+**Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
+
+**Still unsupported:** temporal direct prediction (including B_Skip when temporal direct is selected), CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces, but MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are not yet connected.
+
+The detailed bullets below record implementation history; where they say a feature remains outstanding, this current-status section takes precedence.
+
 PixoraStudio is implementing a managed H.264/AVC decoder in `PixoraStudio.MediaEngine`. The target is native decoding without FFmpeg or LibVLC in the decoding path. Those tools may be used externally to create reference test streams, but are not runtime decoder dependencies.
 
 ## Decoder scope and support policy
