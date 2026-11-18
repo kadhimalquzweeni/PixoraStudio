@@ -186,6 +186,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(expected, reader.ReadEndOfSliceFlag());
+        Assert.Equal(expected, bins.Terminated);
     }
 
 
@@ -241,6 +242,16 @@ public sealed class H264CabacSyntaxElementReaderTests
 
         Assert.Equal(0, reader.ReadIntraSliceMacroblockType(2));
         Assert.Equal(new[] { 5 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadIntraSliceMacroblockType_ShouldNotMarkSliceTerminatedForPcm()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(25, reader.ReadIntraSliceMacroblockType(0));
+        Assert.False(bins.Terminated);
     }
 
     [Fact]
@@ -376,6 +387,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         }
 
         public List<int> ContextIndices { get; } = [];
+        public bool Terminated { get; private set; }
 
         public int DecodeBin(int contextIndex)
         {
@@ -385,6 +397,6 @@ public sealed class H264CabacSyntaxElementReaderTests
 
         public int DecodeBypass() => _bins.Dequeue();
         public int DecodeTerminate() => _bins.Dequeue();
-        public void MarkTerminated() { }
+        public void MarkTerminated() => Terminated = true;
     }
 }
