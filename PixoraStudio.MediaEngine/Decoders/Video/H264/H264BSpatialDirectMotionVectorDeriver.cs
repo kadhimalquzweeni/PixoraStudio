@@ -100,18 +100,20 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
     private static int MinimumReferenceIndex(H264MotionVectorNeighbourCandidates candidates)
     {
         int minimum = int.MaxValue;
+        H264MotionVectorCandidate? c = candidates.AboveRight ?? candidates.AboveLeft;
         if (candidates.Left is { } left) minimum = Math.Min(minimum, left.ReferenceIndex);
         if (candidates.Above is { } above) minimum = Math.Min(minimum, above.ReferenceIndex);
-        if (candidates.AboveRight is { } aboveRight) minimum = Math.Min(minimum, aboveRight.ReferenceIndex);
-        if (candidates.AboveLeft is { } aboveLeft) minimum = Math.Min(minimum, aboveLeft.ReferenceIndex);
+        if (c is { } aboveCandidate) minimum = Math.Min(minimum, aboveCandidate.ReferenceIndex);
         return minimum == int.MaxValue ? 0 : minimum;
     }
 
-    private static bool AllReferencesAreZero(H264MotionVectorNeighbourCandidates candidates) =>
-        IsZeroOrUnavailable(candidates.Left) &&
-        IsZeroOrUnavailable(candidates.Above) &&
-        IsZeroOrUnavailable(candidates.AboveRight) &&
-        IsZeroOrUnavailable(candidates.AboveLeft);
+    private static bool AllReferencesAreZero(H264MotionVectorNeighbourCandidates candidates)
+    {
+        H264MotionVectorCandidate? c = candidates.AboveRight ?? candidates.AboveLeft;
+        return IsZeroOrUnavailable(candidates.Left) &&
+            IsZeroOrUnavailable(candidates.Above) &&
+            IsZeroOrUnavailable(c);
+    }
 
     private static bool IsZeroOrUnavailable(H264MotionVectorCandidate? candidate) =>
         candidate is null || candidate.Value.ReferenceIndex == 0;
