@@ -59,6 +59,33 @@ public sealed class H264PInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_PSliceWithIpcmMacroblock_ShouldReadAndCommitRawSamples()
+    {
+        H264SequenceParameterSet sps = Sps(1);
+        H264DecodedPictureSurface reference = Reference(sps, 1, 2, 3);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WritePSliceHeader();
+        bits.WriteUe(0); // mb_skip_run
+        bits.WriteUe(30); // P-slice I_PCM macroblock type
+        bits.AlignToByte();
+        for (int i = 0; i < 256; i++) bits.WriteBits(101, 8);
+        for (int i = 0; i < 64; i++) bits.WriteBits(111, 8);
+        for (int i = 0; i < 64; i++) bits.WriteBits(121, 8);
+        bits.WriteRbspTrailingBits();
+
+        H264PInterSliceDecodeResult result = new H264PInterSliceDataDecoder(
+            destination, new H264MotionVectorPictureState(1, 1)).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), [reference], 2);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Empty(result.Macroblocks);
+        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal((byte)101, destination.GetLumaSample(0, 0));
+        Assert.Equal((byte)111, destination.GetChromaSample(1, 0, 0));
+        Assert.Equal((byte)121, destination.GetChromaSample(2, 0, 0));
+    }
+
+    [Fact]
     public void Decode_PSkipRun_ShouldReconstructEverySkippedMacroblock()
     {
         H264SequenceParameterSet sps = Sps(2);
@@ -232,6 +259,12 @@ public sealed class H264PInterSliceDataDecoderTests
         private readonly List<bool> _bits = [];
 
         public void WriteFlag(bool value) => _bits.Add(value);
+
+        public void AlignToByte()
+        {
+            while ((_bits.Count & 7) != 0)
+                WriteFlag(false);
+        }
 
         public void WriteBits(uint value, int count)
         {
