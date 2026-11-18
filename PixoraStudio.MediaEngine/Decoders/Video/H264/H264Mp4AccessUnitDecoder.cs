@@ -31,6 +31,20 @@ public sealed class H264Mp4AccessUnitDecoder
         _maxNumReorderFramesFallback = maxNumReorderFramesFallback;
     }
 
+    /// <summary>
+    /// Creates a track decoder by loading the active SPS/PPS collection from
+    /// the first sample's avcC configuration.
+    /// </summary>
+    public static H264Mp4AccessUnitDecoder CreateFromSample(
+        H264Mp4VideoSample firstSample,
+        int? maxNumReorderFramesFallback = null)
+    {
+        ArgumentNullException.ThrowIfNull(firstSample);
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(firstSample.Configuration);
+        return new H264Mp4AccessUnitDecoder(parameterSets, maxNumReorderFramesFallback);
+    }
+
     public H264DecodedPictureBuffer DecodedPictureBuffer => _decodedPictureBuffer;
     public int PendingOutputCount => _outputScheduler.PendingCount;
 
