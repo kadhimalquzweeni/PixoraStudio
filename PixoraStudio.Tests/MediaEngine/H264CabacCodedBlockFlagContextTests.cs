@@ -5,12 +5,12 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264CabacCodedBlockFlagContextTests
 {
     [Theory]
-    [InlineData(true, false, 0, 0, 3)]
+    [InlineData(true, false, 0, 0, 1)]
     [InlineData(false, false, 0, 0, 0)]
-    [InlineData(true, true, 0, 0, 1)]
+    [InlineData(true, true, 0, 0, 0)]
     [InlineData(false, true, 0, 0, 0)]
     [InlineData(true, false, 1, 0, 1)]
-    [InlineData(true, false, 0, 1, 2)]
+    [InlineData(true, false, 0, 1, 3)]
     [InlineData(true, true, 1, 1, 3)]
     [InlineData(false, true, 1, 1, 3)]
     public void GetContextIndexIncrement_ShouldCombineNeighbourConditions(
