@@ -126,6 +126,17 @@ public sealed class H264DecodedPictureOutputQueueTests
     }
 
     [Fact]
+    public void Enqueue_ShouldRejectIncompletePictureSurface()
+    {
+        H264SequenceParameterSet sps = new(0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
+            0, 0, true, true, 16, 16, false);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new H264DecodedPictureOutputQueue().Enqueue(
+                new H264DecodedPictureSurface(sps), Poc(0), 0));
+    }
+
+    [Fact]
     public void Enqueue_ShouldRejectInvalidReorderLimitAndNullInputs()
     {
         H264DecodedPictureOutputQueue queue = new();
