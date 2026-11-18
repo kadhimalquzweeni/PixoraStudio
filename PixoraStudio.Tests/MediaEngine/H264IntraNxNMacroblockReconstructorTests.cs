@@ -71,8 +71,11 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
             24, sps, CreatePps());
 
         Assert.Equal((byte)60, surface.GetLumaSample(16, 16));
-        Assert.Equal((byte)50, surface.GetChromaSample(1, 8, 8));
-        Assert.Equal((byte)55, surface.GetChromaSample(2, 8, 8));
+
+        // Vertical chroma prediction uses the directly adjacent top macroblock
+        // (1, 0), not the diagonal top-left macroblock (0, 0).
+        Assert.Equal((byte)30, surface.GetChromaSample(1, 8, 8));
+        Assert.Equal((byte)35, surface.GetChromaSample(2, 8, 8));
     }
 
     [Fact]
