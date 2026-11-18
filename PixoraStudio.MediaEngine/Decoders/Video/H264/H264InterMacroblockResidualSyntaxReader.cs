@@ -40,14 +40,16 @@ public sealed class H264InterMacroblockResidualSyntaxReader
         // For inter macroblocks this optional flag follows coded_block_pattern
         // and precedes mb_qp_delta. It is present only when every subpartition
         // is at least 8x8 and the PPS enables 8x8 transforms.
-        if (pattern.Luma > 0 && pps.Transform8X8ModeFlag &&
-            noSubMbPartSizeLessThan8x8Flag && reader.ReadFlag())
-            throw new NotSupportedException("Inter 8x8 transform residual reconstruction is not implemented.");
+        bool transformSize8X8Flag = pattern.Luma > 0 && pps.Transform8X8ModeFlag &&
+            noSubMbPartSizeLessThan8x8Flag && reader.ReadFlag();
 
         int? qpDelta = pattern.Luma != 0 || pattern.Chroma != 0
             ? reader.ReadSignedExpGolomb()
             : null;
 
-        return new H264InterMacroblockResidualSyntax(pattern, qpDelta);
+        return new H264InterMacroblockResidualSyntax(pattern, qpDelta)
+        {
+            TransformSize8X8Flag = transformSize8X8Flag
+        };
     }
 }
