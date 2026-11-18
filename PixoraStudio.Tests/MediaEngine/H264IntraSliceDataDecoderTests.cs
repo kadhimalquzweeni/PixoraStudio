@@ -28,6 +28,9 @@ public sealed class H264IntraSliceDataDecoderTests
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Equal(26, result.FinalQpY);
         Assert.True(surface.IsMacroblockDecoded(0, 0));
+        Assert.True(surface.HasCompleteDeblockingMetadata);
+        Assert.All(surface.GetDeblockingMetadata(0, 0)!.LumaBlocks,
+            block => Assert.True(block.IsIntra));
         Assert.All(surface.CopyLumaPlane(), value => Assert.Equal((byte)0x5A, value));
         Assert.All(surface.CopyCbPlane(), value => Assert.Equal((byte)0x6B, value));
         Assert.All(surface.CopyCrPlane(), value => Assert.Equal((byte)0x7C, value));
