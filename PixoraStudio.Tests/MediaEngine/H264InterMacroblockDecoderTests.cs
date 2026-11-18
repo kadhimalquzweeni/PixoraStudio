@@ -55,8 +55,6 @@ public sealed class H264InterMacroblockDecoderTests
     {
         BitWriter bits = new();
         bits.WriteUe(2); // ref_idx_l0 is outside a two-entry list (0..1)
-        H264FormatException? unused = null;
-
         Assert.Throws<FormatException>(() => _decoder.Decode(
             new H264BitReader(bits.ToArray()), CreateInterHeader(0), 1,
             new H264MotionVectorPictureState(1, 1), 0, 0, 0));
