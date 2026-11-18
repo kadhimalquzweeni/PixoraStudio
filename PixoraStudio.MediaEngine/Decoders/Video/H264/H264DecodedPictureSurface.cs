@@ -15,6 +15,7 @@ public sealed class H264DecodedPictureSurface
     private readonly int[] _sliceIds;
     private readonly bool[] _decoded;
     private readonly bool[] _intra;
+    private readonly H264DeblockingMacroblockMetadata?[] _deblockingMetadata;
 
     public H264DecodedPictureSurface(H264SequenceParameterSet sps)
     {
@@ -41,6 +42,7 @@ public sealed class H264DecodedPictureSurface
         Array.Fill(_sliceIds, -1);
         _decoded = new bool[macroblockCount];
         _intra = new bool[macroblockCount];
+        _deblockingMetadata = new H264DeblockingMacroblockMetadata?[macroblockCount];
     }
 
     public int Width { get; }
@@ -51,6 +53,39 @@ public sealed class H264DecodedPictureSurface
     public int MacroblockHeight { get; }
     public uint ChromaFormatIdc { get; }
     public bool IsComplete => _decoded.All(decoded => decoded);
+    public bool HasCompleteDeblockingMetadata =>
+        _deblockingMetadata.All(metadata => metadata is not null);
+
+    public void SetDeblockingMetadata(
+        int macroblockX,
+        int macroblockY,
+        H264DeblockingMacroblockMetadata metadata)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        ValidateMacroblock(macroblockX, macroblockY);
+        int index = GetMacroblockIndex(macroblockX, macroblockY);
+        if (!_decoded[index])
+            throw new InvalidOperationException("Deblocking metadata can only be attached after macroblock reconstruction.");
+        metadata.Validate(checked((int)ChromaFormatIdc));
+        _deblockingMetadata[index] = metadata.Clone();
+    }
+
+    public H264DeblockingMacroblockMetadata? GetDeblockingMetadata(
+        int macroblockX,
+        int macroblockY)
+    {
+        ValidateMacroblock(macroblockX, macroblockY);
+        return _deblockingMetadata[GetMacroblockIndex(macroblockX, macroblockY)]?.Clone();
+    }
+
+    internal Span<byte> GetLumaPlaneSpan() => _luma;
+
+    internal Span<byte> GetChromaPlaneSpan(byte componentId) => componentId switch
+    {
+        1 => _cb,
+        2 => _cr,
+        _ => throw new ArgumentOutOfRangeException(nameof(componentId))
+    };
 
     public byte[] CopyLumaPlane() => (byte[])_luma.Clone();
     public byte[] CopyCbPlane() => (byte[])_cb.Clone();
