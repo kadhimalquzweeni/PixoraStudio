@@ -69,11 +69,14 @@ public sealed class H264DecodedPictureOutputScheduler
         int? fallback)
     {
         H264VuiParameters? vui = sps.VuiParameters;
-        if (vui is { BitstreamRestrictionFlag: true, MaxNumReorderFrames: uint reorderFrames })
+        if (vui is { BitstreamRestrictionFlag: true })
         {
-            if (reorderFrames > 16)
-                throw new FormatException("VUI max_num_reorder_frames exceeds the supported frame buffer limit.");
-            if (vui.MaxDecFrameBuffering is uint buffering && reorderFrames > buffering)
+            if (vui.MaxNumReorderFrames is not uint reorderFrames ||
+                vui.MaxDecFrameBuffering is not uint buffering)
+                throw new FormatException("VUI bitstream restrictions must include max_num_reorder_frames and max_dec_frame_buffering.");
+            if (reorderFrames > 16 || buffering > 16)
+                throw new FormatException("VUI picture buffering values exceed the supported DPB limit.");
+            if (reorderFrames > buffering)
                 throw new FormatException("VUI max_num_reorder_frames cannot exceed max_dec_frame_buffering.");
             return checked((int)reorderFrames);
         }
