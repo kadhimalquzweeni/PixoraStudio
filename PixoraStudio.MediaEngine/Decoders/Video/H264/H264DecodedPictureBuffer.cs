@@ -99,40 +99,55 @@ public sealed class H264DecodedPictureBuffer
         if (!surface.IsDeblockingFilterApplied)
             H264DeblockingPictureFilter.Apply(surface);
 
-        H264ReferencePicture current = picture;
-        if (idrPicture)
+        // Reference marking is stateful. Apply it transactionally so a
+        // malformed later MMCO cannot leave earlier removals/conversions in
+        // effect when this picture is rejected.
+        H264DecodedPictureBufferEntry[] originalEntries = _entries.ToArray();
+        int originalMaxLongTermFrameIndex = _maxLongTermFrameIndex;
+        try
         {
-            _entries.Clear();
-            _maxLongTermFrameIndex = marking.LongTermReferenceFlag ? 0 : -1;
-            if (marking.LongTermReferenceFlag)
-                current = current with { IsLongTerm = true, LongTermFrameIndex = 0 };
-        }
-        else
-        {
-            if (marking.AdaptiveRefPicMarkingModeFlag)
+            H264ReferencePicture current = picture;
+            if (idrPicture)
             {
-                bool mmco5 = ApplyMemoryManagementOperations(
-                    marking.Operations, currentFrameNum, maxFrameNum,
-                    maxNumRefFrames, ref current);
-                if (mmco5)
-                    current = current with { FrameNum = 0 };
+                _entries.Clear();
+                _maxLongTermFrameIndex = marking.LongTermReferenceFlag ? 0 : -1;
+                if (marking.LongTermReferenceFlag)
+                    current = current with { IsLongTerm = true, LongTermFrameIndex = 0 };
             }
             else
             {
-                ApplySlidingWindowMarking(
-                    currentFrameNum, maxFrameNum, checked((int)maxNumRefFrames));
+                if (marking.AdaptiveRefPicMarkingModeFlag)
+                {
+                    bool mmco5 = ApplyMemoryManagementOperations(
+                        marking.Operations, currentFrameNum, maxFrameNum,
+                        maxNumRefFrames, ref current);
+                    if (mmco5)
+                        current = current with { FrameNum = 0 };
+                }
+                else
+                {
+                    ApplySlidingWindowMarking(
+                        currentFrameNum, maxFrameNum, checked((int)maxNumRefFrames));
+                }
             }
+
+            if (_entries.Count >= maxNumRefFrames)
+                throw new FormatException("Reference marking leaves no decoded-picture-buffer slot for the current picture.");
+
+            ValidateNoDuplicatePictureNumber(current);
+            H264DecodedPictureBufferEntry entry = new(
+                current, surface, motionVectorStateL0?.Clone(), motionVectorStateL1?.Clone(),
+                referenceList0, referenceList1);
+            _entries.Add(entry);
+            return entry;
         }
-
-        if (_entries.Count >= maxNumRefFrames)
-            throw new FormatException("Reference marking leaves no decoded-picture-buffer slot for the current picture.");
-
-        ValidateNoDuplicatePictureNumber(current);
-        H264DecodedPictureBufferEntry entry = new(
-            current, surface, motionVectorStateL0?.Clone(), motionVectorStateL1?.Clone(),
-            referenceList0, referenceList1);
-        _entries.Add(entry);
-        return entry;
+        catch
+        {
+            _entries.Clear();
+            _entries.AddRange(originalEntries);
+            _maxLongTermFrameIndex = originalMaxLongTermFrameIndex;
+            throw;
+        }
     }
 
     /// <summary>
