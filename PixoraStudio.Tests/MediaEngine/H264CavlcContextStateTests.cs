@@ -63,7 +63,7 @@ public sealed class H264CavlcContextStateTests
     public void SetDecodedBlock_ShouldAllowZeroTotalCoefficientsAsAvailableNeighbour()
     {
         H264CavlcContextState state = new(2, 2);
-        state.SetDecodedBlock(0, 0, 0, 0);
+        state.SetDecodedBlock(0, 1, 0, 0);
         state.SetDecodedBlock(1, 0, 0, 10);
 
         Assert.Equal(5, state.GetPredictedNonZeroCount(1, 1, 0));
