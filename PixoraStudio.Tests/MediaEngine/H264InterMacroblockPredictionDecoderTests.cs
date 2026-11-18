@@ -103,6 +103,79 @@ public sealed class H264InterMacroblockPredictionDecoderTests
         Assert.All(prediction.Prediction.Cr, sample => Assert.Equal((byte)120, sample));
     }
 
+
+    [Fact]
+    public void PredictFromSyntax_ShouldReconstructCabacSyntaxAndGeneratePrediction()
+    {
+        H264DecodedPictureSurface reference = CreateReference(91, 82, 73);
+        H264InterMacroblockSyntax syntax = new(
+            0,
+            false,
+            false,
+            [
+                new H264InterPredictionPartition(
+                    0, 0, 16, 16, 0,
+                    [new H264InterSubPartition(0, 0, 16, 16,
+                        [new H264MotionVectorDifference(0, 0)])])
+            ]);
+        H264MotionVectorPictureState motionState = new(1, 1);
+
+        IReadOnlyList<H264InterMacroblockPrediction> result =
+            _decoder.PredictFromSyntax(
+                syntax, 0, [reference], motionState, 0, 0, 4);
+
+        H264InterMacroblockPrediction prediction = Assert.Single(result);
+        Assert.Equal(0, prediction.Partition.ReferenceIndex);
+        Assert.Equal(new H264MotionVector(0, 0), prediction.Partition.MotionVector);
+        Assert.All(prediction.Prediction.Luma, sample => Assert.Equal((byte)91, sample));
+        Assert.All(prediction.Prediction.Cb, sample => Assert.Equal((byte)82, sample));
+        Assert.All(prediction.Prediction.Cr, sample => Assert.Equal((byte)73, sample));
+        Assert.True(motionState.TryGetStoredMotionVector(0, 0, out H264MotionVectorCandidate stored));
+        Assert.Equal(0, stored.ReferenceIndex);
+    }
+
+    [Fact]
+    public void PredictFromSyntax_ShouldApplyCABACReferenceIndexAndMotionVectorDifference()
+    {
+        H264DecodedPictureSurface reference = CreateReference(50, 60, 70);
+        H264InterMacroblockSyntax syntax = new(
+            0,
+            false,
+            false,
+            [
+                new H264InterPredictionPartition(
+                    0, 0, 16, 16, 0,
+                    [new H264InterSubPartition(0, 0, 16, 16,
+                        [new H264MotionVectorDifference(2, -2)])])
+            ]);
+
+        IReadOnlyList<H264InterMacroblockPrediction> result =
+            _decoder.PredictFromSyntax(
+                syntax, 0, [reference],
+                new H264MotionVectorPictureState(1, 1), 0, 0, 0);
+
+        H264InterMacroblockPrediction prediction = Assert.Single(result);
+        Assert.Equal(new H264MotionVector(2, -2), prediction.Partition.MotionVector);
+        Assert.Equal(256, prediction.Prediction.Luma.Length);
+    }
+
+    [Fact]
+    public void PredictFromSyntax_ShouldRejectInvalidMotionStateBeforeReconstruction()
+    {
+        H264DecodedPictureSurface reference = CreateReference(1, 2, 3);
+        H264InterMacroblockSyntax syntax = new(
+            0, false, false,
+            [
+                new H264InterPredictionPartition(0, 0, 16, 16, 0,
+                    [new H264InterSubPartition(0, 0, 16, 16,
+                        [new H264MotionVectorDifference(0, 0)])])
+            ]);
+
+        Assert.Throws<ArgumentException>(() => _decoder.PredictFromSyntax(
+            syntax, 0, [reference], new H264MotionVectorPictureState(2, 1),
+            0, 0, 0));
+    }
+
     private static H264MacroblockHeader CreateInterHeader(uint type) =>
         new(0, type, false, 0, false, false, null, null, null, false);
 
