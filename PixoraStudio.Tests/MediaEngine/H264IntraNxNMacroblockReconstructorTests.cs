@@ -66,7 +66,7 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
         reconstructor.ReconstructIntraNxN4x4(
             1, 1, 4,
             CreateHeader(3),
-            CreateSyntax(chromaFormat),
+            CreateSyntax(chromaFormat, chromaMode: 2),
             CreateResidual(3, chromaFormat),
             24, sps, CreatePps());
 
@@ -179,13 +179,14 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
     private static H264MacroblockHeader CreateHeader(uint address) =>
         new(address, 0, false, 0, true, false, null, null, null, false);
 
-    private static H264IntraMacroblockSyntax CreateSyntax(uint chromaFormat) =>
+    private static H264IntraMacroblockSyntax CreateSyntax(
+        uint chromaFormat, uint chromaMode = 0) =>
         new(null,
             new H264IntraPredictionModeSyntax(false,
                 Enumerable.Range(0, 16)
                     .Select(_ => new H264IntraPredictionModeEntry(true, null))
                     .ToArray()),
-            0,
+            chromaMode,
             new H264CodedBlockPattern(0, 0, 0, chromaFormat),
             null);
 
