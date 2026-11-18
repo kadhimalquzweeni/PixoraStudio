@@ -91,6 +91,10 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
                 H264BSubPartition sub = partition.SubPartitions[subIndex];
                 if (sub.Direction == H264BPredictionDirection.Direct)
                 {
+                    if (partition.Direction != H264BPredictionDirection.Direct ||
+                        partition.ReferenceIndexL0 is not null ||
+                        partition.ReferenceIndexL1 is not null)
+                        throw new FormatException("Direct B sub-partitions must belong to a direct parent partition and carry no explicit reference indices.");
                     if (!directSpatialPrediction)
                         throw new NotSupportedException("Temporal direct prediction requires collocated-picture motion metadata; spatial direct was not selected.");
                     result.AddRange(_directDeriver.Derive(
@@ -100,8 +104,9 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
                         partitionIndex, sliceId, direct8x8InferenceFlag));
                     continue;
                 }
-                if (sub.Direction != partition.Direction)
-                    throw new FormatException("A B sub-partition direction must match its parent 8x8 partition.");
+                if (partition.Direction == H264BPredictionDirection.Direct ||
+                    sub.Direction != partition.Direction)
+                    throw new FormatException("A non-direct B sub-partition direction must match its non-direct parent partition.");
                 int x = checked(macroblockBlockX + sub.X / 4);
                 int y = checked(macroblockBlockY + sub.Y / 4);
                 int width = sub.Width / 4;
