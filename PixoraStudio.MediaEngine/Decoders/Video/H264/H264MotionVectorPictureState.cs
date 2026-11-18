@@ -55,7 +55,7 @@ public sealed class H264MotionVectorPictureState
         if (referenceIndex < 0)
             throw new ArgumentOutOfRangeException(nameof(referenceIndex));
         WriteRegion(x, y, width, height, sliceId,
-            new Cell(sliceId, referenceIndex, motionVector));
+            new Cell(sliceId, referenceIndex, H264MotionVectorRange.Clip(motionVector)));
     }
 
     /// <summary>
