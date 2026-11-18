@@ -64,11 +64,10 @@ public sealed class H264BMacroblockSyntaxReaderTests
     {
         BitWriter bits = new();
         bits.Ue(0); bits.Ue(1); bits.Ue(2); bits.Ue(3);
-        // list0 ref index for sub-MB 1, then list1 ref index for sub-MB 2.
-        bits.Ue(0); bits.Ue(0);
+        // Both active lists contain one entry, so ref_idx syntax is omitted.
         // list0 MVDs for one 8x8 subpartition and four 4x4 subpartitions.
         for (int i = 0; i < 5; i++) { bits.Se(i); bits.Se(-i); }
-        // list1 MVDs for one 8x8 subpartition and two 4x8 subpartitions.
+        // list1 MVDs for one 8x8 subpartition and four 4x4 subpartitions.
         for (int i = 0; i < 5; i++) { bits.Se(-i); bits.Se(i); }
         H264BMacroblockSyntax result = Read(bits, 22, 0, 0);
         Assert.Equal(4, result.Partitions.Count);
