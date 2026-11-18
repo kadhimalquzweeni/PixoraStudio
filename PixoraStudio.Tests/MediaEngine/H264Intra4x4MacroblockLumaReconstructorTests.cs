@@ -73,7 +73,7 @@ public sealed class H264Intra4x4MacroblockLumaReconstructorTests
             CreateResiduals(), context, 24, CreateSps(), CreatePps()));
     }
 
-    private static H264IntraPredictionModeSyntax CreateModes(uint remainder = 2) =>
+    private static H264IntraPredictionModeSyntax CreateModes(uint remainder = 1) =>
         new(false, Enumerable.Range(0, 16)
             .Select(_ => new H264IntraPredictionModeEntry(false, remainder)).ToArray());
 
