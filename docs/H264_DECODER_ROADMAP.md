@@ -15,7 +15,10 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Reference management | Frame DPB, short/long-term marking, transactional MMCO 1–6, P/B reference-list construction |
 | Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |
 | In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation and picture traversal implemented; I/P/B intra, PCM and inter paths populate metadata; macroblock-order traversal filters vertical edges before horizontal edges within each macroblock; DPB/output reject unfiltered pictures; q-side slice controls govern cross-slice edges; I_PCM uses QP 0 for deblocking; 4:2:0 and 4:2:2 chroma bS mapping and horizontal/vertical 4:2:2 internal edges have focused regression coverage |
-| Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
+| Bitstream validation | SPS/PPS readers validate RBSP trailing bits; signed Exp-Golomb decoding covers the full representable Int32 range |
+| Motion-vector arithmetic | Predictor-plus-MVD uses widened intermediates before normative signed 16-bit clipping |
+| Output scheduling | Surface/deblocking preflight occurs before the stateful POC calculator advances |
+| Automated tests | Regression tests cover the above cases; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
 
