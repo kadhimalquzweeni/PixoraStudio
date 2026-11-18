@@ -50,12 +50,14 @@ public sealed class H264IntraPredictionModeReaderTests
     [InlineData(false, 0, 4, 0)]
     public void ResolveMode_ShouldApplyNormativeRemapping(
         bool previousModeFlag,
-        uint? remainderMode,
+        int? remainderMode,
         uint predictedMode,
         uint expected)
     {
         Assert.Equal(expected, H264IntraPredictionModeReader.ResolveMode(
-            previousModeFlag, remainderMode, predictedMode));
+            previousModeFlag,
+            remainderMode is null ? null : (uint?)remainderMode.Value,
+            predictedMode));
     }
 
     [Fact]
