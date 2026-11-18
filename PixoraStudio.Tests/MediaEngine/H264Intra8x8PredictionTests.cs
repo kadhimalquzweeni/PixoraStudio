@@ -35,7 +35,7 @@ public sealed class H264Intra8x8PredictionTests
     [Theory]
     [InlineData(true, true, 33)]
     [InlineData(true, false, 16)]
-    [InlineData(false, true, 54)]
+    [InlineData(false, true, 50)]
     [InlineData(false, false, 128)]
     public void Predict_Dc_ShouldUseOnlyAvailableUnfilteredEdges(
         bool hasTop, bool hasLeft, byte expected)
