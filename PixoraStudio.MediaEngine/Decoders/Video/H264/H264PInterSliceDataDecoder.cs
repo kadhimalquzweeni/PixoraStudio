@@ -351,7 +351,7 @@ public sealed class H264PInterSliceDataDecoder
                     address, macroblockX, macroblockY, sliceId,
                     false, false, true, 0, 0, null, null, false);
                 _cabacIntraResidualReader.RecordPcmMacroblock(
-                    macroblockX, macroblockY, sliceId);
+                    macroblockX, macroblockY, sliceId, sps, _cabacResidualNeighbours);
                 RecordCabacMotionState(macroblockX, macroblockY, sliceId, -1, isDirect: false);
                 _cabacInterNeighbours.RecordMacroblock(
                     address, macroblockX, macroblockY, sliceId,
