@@ -4,7 +4,7 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Reads the CAVLC residual() payload for frame-coded inter macroblocks in
-/// 8-bit non-separate 4:2:0/4:2:2 pictures. The caller supplies the already
+/// 8-bit non-separate 4:2:0/4:2:2 pictures, including 4x4 and 8x8 luma transforms. The caller supplies the already
 /// decoded coded_block_pattern and maintains the three neighbour contexts
 /// across macroblocks and slices in the same picture.
 /// </summary>
