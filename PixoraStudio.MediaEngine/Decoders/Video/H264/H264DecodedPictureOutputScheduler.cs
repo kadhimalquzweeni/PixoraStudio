@@ -39,6 +39,8 @@ public sealed class H264DecodedPictureOutputScheduler
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(slice);
+        if (!surface.IsComplete)
+            throw new InvalidOperationException("A picture must be fully reconstructed before it enters the output queue.");
         if (nalRefIdc > 3)
             throw new ArgumentOutOfRangeException(nameof(nalRefIdc));
         if (slice.IdrPicId.HasValue &&
