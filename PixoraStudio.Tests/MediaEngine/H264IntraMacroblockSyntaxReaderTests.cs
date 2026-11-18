@@ -92,7 +92,7 @@ public sealed class H264IntraMacroblockSyntaxReaderTests
     [Fact]
     public void Read_SeparateColourPlane_ShouldNotReadChromaPredictionMode()
     {
-        string bits = string.Concat(Enumerable.Repeat("1", 16)) + WriteUe(3);
+        string bits = string.Concat(Enumerable.Repeat("1", 16)) + WriteUe(3) + WriteSe(1);
         H264BitReader reader = CreateReader(bits);
         H264SequenceParameterSet sps = CreateSps(3) with { SeparateColourPlaneFlag = true };
 
@@ -100,8 +100,9 @@ public sealed class H264IntraMacroblockSyntaxReaderTests
             reader, CreateIntraNxNHeader(), sps, CreatePps(false));
 
         Assert.Null(result.IntraChromaPredictionMode);
+        Assert.Equal(11u, result.CodedBlockPattern.Luma);
         Assert.Equal(0u, result.CodedBlockPattern.Chroma);
-        Assert.Null(result.MacroblockQpDelta);
+        Assert.Equal(1, result.MacroblockQpDelta);
         Assert.Equal(0, reader.RemainingBits);
     }
 
