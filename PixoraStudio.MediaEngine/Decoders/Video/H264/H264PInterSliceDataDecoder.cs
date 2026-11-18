@@ -18,6 +18,10 @@ public sealed class H264PInterSliceDataDecoder
     private readonly H264CavlcNeighbourContext _lumaNeighbours = new();
     private readonly H264CavlcNeighbourContext _cbNeighbours = new();
     private readonly H264CavlcNeighbourContext _crNeighbours = new();
+    private readonly H264IntraMacroblockReconstructor _intraReconstructor;
+    private readonly H264IntraMacroblockSyntaxReader _intraSyntaxReader = new();
+    private readonly H264IntraLumaResidualMacroblockReader _intraResidualReader = new();
+    private readonly H264PcmMacroblockReader _pcmReader = new();
 
     public H264PInterSliceDataDecoder(
         H264DecodedPictureSurface destination,
@@ -37,6 +41,7 @@ public sealed class H264PInterSliceDataDecoder
         _destination = destination;
         _motionVectorState = motionVectorState;
         _macroblockReconstructor = macroblockReconstructor;
+        _intraReconstructor = new H264IntraMacroblockReconstructor(destination);
         if (motionVectorState.MacroblockWidth != destination.MacroblockWidth ||
             motionVectorState.MacroblockHeight != destination.MacroblockHeight)
             throw new ArgumentException("Motion-vector state dimensions must match the destination picture.", nameof(motionVectorState));
@@ -52,6 +57,7 @@ public sealed class H264PInterSliceDataDecoder
         _lumaNeighbours.Reset();
         _cbNeighbours.Reset();
         _crNeighbours.Reset();
+        _intraReconstructor.ResetPictureContexts();
     }
 
     /// <summary>
@@ -134,6 +140,8 @@ public sealed class H264PInterSliceDataDecoder
             throw new FormatException("The initial SliceQPY is outside the supported 8-bit range.");
 
         List<H264InterMacroblockReconstructionResult> results = [];
+        List<uint> intraAddresses = [];
+        int decodedCount = 0;
         uint address = slice.FirstMacroblockInSlice;
         while (reader.MoreRbspData())
         {
@@ -161,33 +169,97 @@ public sealed class H264PInterSliceDataDecoder
                         _destination, x, y, sliceId, qpY, sps,
                         slice.PredictionWeights));
                 }
+                decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
                 address = checked(address + header.SkippedMacroblockCount);
                 continue;
             }
 
-            if (header.IsIntra)
-                throw new NotSupportedException("Intra-coded macroblocks inside P slices are not yet supported.");
-
             int macroblockX = checked((int)(address % pictureWidth));
             int macroblockY = checked((int)(address / pictureWidth));
-            H264InterMacroblockReconstructionResult reconstructed =
-                _macroblockReconstructor.DecodeAndReconstruct(
-                    reader, header, slice.NumRefIdxL0ActiveMinus1,
-                    activeReferenceList0, _motionVectorState, _destination,
-                    macroblockX, macroblockY, sliceId, qpY, sps, pps,
-                    _lumaNeighbours, _cbNeighbours, _crNeighbours,
-                    slice.PredictionWeights);
-            qpY = reconstructed.QpY;
-            results.Add(reconstructed);
+            if (header.IsPcm)
+            {
+                H264PcmMacroblock pcm = _pcmReader.Read(reader, header, sps, pps);
+                _intraReconstructor.ReconstructPcm(
+                    header, pcm, macroblockX, macroblockY, sliceId, sps, pps);
+                RecordPcmResidualContexts(macroblockX, macroblockY, sliceId, sps);
+                _motionVectorState.RecordUnavailableRegion(
+                    macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                intraAddresses.Add(address);
+            }
+            else if (header.IsIntra)
+            {
+                H264IntraMacroblockSyntax syntax = _intraSyntaxReader.Read(reader, header, sps, pps);
+                int macroblockQp = syntax.MacroblockQpDelta is int delta
+                    ? UpdateQpY(qpY, delta)
+                    : qpY;
+                H264IntraLumaResidualMacroblock residual = _intraResidualReader.Read(
+                    reader, header, syntax, sps,
+                    macroblockX, macroblockY, sliceId,
+                    _lumaNeighbours, _cbNeighbours, _crNeighbours);
+                if (header.IsIntra16x16)
+                    _intraReconstructor.ReconstructIntra16x16(
+                        macroblockX, macroblockY, sliceId, header, syntax,
+                        residual, macroblockQp, sps, pps);
+                else if (syntax.TransformSize8X8Flag == true)
+                    _intraReconstructor.ReconstructIntraNxN8x8(
+                        macroblockX, macroblockY, sliceId, header, syntax,
+                        residual, macroblockQp, sps, pps);
+                else
+                    _intraReconstructor.ReconstructIntraNxN4x4(
+                        macroblockX, macroblockY, sliceId, header, syntax,
+                        residual, macroblockQp, sps, pps);
+                qpY = macroblockQp;
+                _motionVectorState.RecordUnavailableRegion(
+                    macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                intraAddresses.Add(address);
+            }
+            else
+            {
+                H264InterMacroblockReconstructionResult reconstructed =
+                    _macroblockReconstructor.DecodeAndReconstruct(
+                        reader, header, slice.NumRefIdxL0ActiveMinus1,
+                        activeReferenceList0, _motionVectorState, _destination,
+                        macroblockX, macroblockY, sliceId, qpY, sps, pps,
+                        _lumaNeighbours, _cbNeighbours, _crNeighbours,
+                        slice.PredictionWeights);
+                qpY = reconstructed.QpY;
+                results.Add(reconstructed);
+            }
+            decodedCount++;
             address++;
         }
 
-        if (results.Count == 0)
+        if (decodedCount == 0)
             throw new FormatException("The P slice contains no macroblock data.");
 
         reader.ConsumeRbspTrailingBits();
         return new H264PInterSliceDecodeResult(
-            slice, results.Count, qpY, reader.PositionBits, results);
+            slice, decodedCount, qpY, reader.PositionBits, results)
+        {
+            IntraMacroblockAddresses = intraAddresses
+        };
+    }
+
+    private void RecordPcmResidualContexts(
+        int macroblockX, int macroblockY, int sliceId, H264SequenceParameterSet sps)
+    {
+        for (int y = 0; y < 4; y++)
+        for (int x = 0; x < 4; x++)
+            _lumaNeighbours.RecordBlock(macroblockX * 4 + x, macroblockY * 4 + y, sliceId, 16);
+        int chromaHeight = sps.ChromaFormatIdc == 1 ? 2 : 4;
+        for (int y = 0; y < chromaHeight; y++)
+        for (int x = 0; x < 2; x++)
+        {
+            _cbNeighbours.RecordBlock(macroblockX * 2 + x, macroblockY * chromaHeight + y, sliceId, 16);
+            _crNeighbours.RecordBlock(macroblockX * 2 + x, macroblockY * chromaHeight + y, sliceId, 16);
+        }
+    }
+
+    private static int UpdateQpY(int previousQpY, int delta)
+    {
+        if (delta is < -26 or > 25)
+            throw new FormatException("mb_qp_delta is outside the supported 8-bit range.");
+        return (previousQpY + delta + 52) % 52;
     }
 
     private void ValidateConfiguration(
