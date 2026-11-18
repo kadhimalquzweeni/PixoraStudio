@@ -36,6 +36,32 @@ public sealed class H264AvcParameterSetCollectionReaderTests
     }
 
     [Fact]
+    public void Read_ShouldRejectSequenceParameterSetExtensionNals()
+    {
+        H264AvcDecoderConfiguration configuration = new(
+            100, 0, 40, 4, [], [],
+            [new H264NalUnit(0x6D, [0x80])]);
+
+        Assert.Throws<NotSupportedException>(() =>
+            new H264AvcParameterSetCollectionReader().Read(configuration));
+    }
+
+    [Fact]
+    public void Read_ShouldRejectAvccChromaFormatThatDisagreesWithSps()
+    {
+        H264AvcDecoderConfiguration configuration = new(
+            100, 0, 40, 4,
+            [new H264NalUnit(0x67, CreateSps(0))],
+            [], [])
+        {
+            ChromaFormat = 2
+        };
+
+        Assert.Throws<FormatException>(() =>
+            new H264AvcParameterSetCollectionReader().Read(configuration));
+    }
+
+    [Fact]
     public void Read_ShouldRejectDuplicateParameterSetIdentifiers()
     {
         byte[] sps = CreateSps(0);
