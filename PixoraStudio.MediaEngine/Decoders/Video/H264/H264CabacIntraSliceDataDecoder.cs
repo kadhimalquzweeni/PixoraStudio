@@ -18,12 +18,23 @@ public sealed class H264CabacIntraSliceDataDecoder
     private readonly H264IntraMacroblockReconstructor _reconstructor;
     private readonly H264CabacIntraMacroblockNeighbourContext _macroblockNeighbours = new();
     private readonly H264CabacResidualNeighbourContext _residualNeighbours = new();
+    private readonly Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> _cabacReaderFactory;
 
     public H264CabacIntraSliceDataDecoder(H264DecodedPictureSurface surface)
+        : this(surface, static (reader, qpY, isIntra, cabacInitIdc) =>
+            new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc))
+    {
+    }
+
+    internal H264CabacIntraSliceDataDecoder(
+        H264DecodedPictureSurface surface,
+        Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> cabacReaderFactory)
     {
         ArgumentNullException.ThrowIfNull(surface);
+        ArgumentNullException.ThrowIfNull(cabacReaderFactory);
         _surface = surface;
         _reconstructor = new H264IntraMacroblockReconstructor(surface);
+        _cabacReaderFactory = cabacReaderFactory;
     }
 
     /// <summary>
@@ -80,7 +91,7 @@ public sealed class H264CabacIntraSliceDataDecoder
         _reconstructor.SetDeblockingSliceParameters(
             H264DeblockingSliceParameters.FromSliceHeader(slice));
 
-        H264CabacSliceDataReader cabac = new(
+        IH264CabacSliceDataReader cabac = _cabacReaderFactory(
             bitReader, qpY, isIntraSlice: true, cabacInitIdc: 0);
         H264CabacSyntaxElementReader syntax = new(cabac);
         uint macroblockAddress = slice.FirstMacroblockInSlice;
