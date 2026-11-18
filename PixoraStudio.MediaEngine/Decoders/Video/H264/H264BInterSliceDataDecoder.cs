@@ -219,7 +219,10 @@ public sealed class H264BInterSliceDataDecoder
         reader.ConsumeRbspTrailingBits();
         return new H264BInterSliceDecodeResult(
             slice, decodedCount, qpY, reader.PositionBits,
-            interResults, intraAddresses);
+            interResults, intraAddresses)
+        {
+            ReferencePictureLists = referencePictures
+        };
     }
 
     private static IReadOnlyList<H264DecodedPictureSurface> MapSurfaces(
