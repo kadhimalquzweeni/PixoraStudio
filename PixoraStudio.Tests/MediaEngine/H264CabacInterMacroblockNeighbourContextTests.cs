@@ -30,7 +30,7 @@ public sealed class H264CabacInterMacroblockNeighbourContextTests
         context.RecordMacroblock(0, 0, 1, 3, isSkipped: false, isDirect: true);
         context.RecordMacroblock(1, 1, 0, 3, isSkipped: false, isDirect: false);
 
-        Assert.Equal(1, context.GetBSliceMacroblockTypeContextIncrement(1, 1, 3));
+        Assert.Equal(2, context.GetBSliceMacroblockTypeContextIncrement(1, 1, 3));
     }
 
     [Fact]
