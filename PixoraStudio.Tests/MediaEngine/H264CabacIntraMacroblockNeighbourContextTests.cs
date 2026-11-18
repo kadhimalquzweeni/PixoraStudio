@@ -64,9 +64,9 @@ public sealed class H264CabacIntraMacroblockNeighbourContextTests
         context.RecordMacroblock(0, 0, 0, 1, false, false, false, 0b0010, 0, 0, null);
         context.RecordMacroblock(1, 1, 0, 1, false, false, false, 0b0001, 0, 0, null);
 
-        int[] increments = context.GetLumaCodedBlockPatternContextIncrements(1, 1, 1);
+        int[] increments = context.GetLumaCodedBlockPatternContextIncrements(1, 1, 1, previouslyDecodedCodedBlockPattern: 0b0010);
 
-        Assert.Equal(new[] { 1, 2, 3, 3 }, increments);
+        Assert.Equal(new[] { 2, 3, 3, 1 }, increments);
     }
 
     [Fact]
