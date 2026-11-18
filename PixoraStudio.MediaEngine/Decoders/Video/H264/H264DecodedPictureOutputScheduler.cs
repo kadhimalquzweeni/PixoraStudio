@@ -56,6 +56,7 @@ public sealed class H264DecodedPictureOutputScheduler
             throw new FormatException("An IDR slice must include decoded reference marking flags.");
 
         int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
+        H264PictureOrderCount poc = _pocCalculator.Calculate(sps, slice, nalRefIdc);
         IReadOnlyList<H264DecodedPictureOutput> priorOutputs = [];
         if (slice.IdrPicId.HasValue)
         {
@@ -63,7 +64,6 @@ public sealed class H264DecodedPictureOutputScheduler
             priorOutputs = _outputQueue.HandleIdr(noOutput);
         }
 
-        H264PictureOrderCount poc = _pocCalculator.Calculate(sps, slice, nalRefIdc);
         IReadOnlyList<H264DecodedPictureOutput> ready =
             _outputQueue.Enqueue(surface, poc, maxNumReorderFrames);
         if (priorOutputs.Count == 0)
