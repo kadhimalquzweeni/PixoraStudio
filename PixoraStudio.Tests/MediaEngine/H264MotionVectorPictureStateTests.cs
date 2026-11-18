@@ -166,6 +166,21 @@ public sealed class H264MotionVectorPictureStateTests
             state.RecordInterPartition(7, 0, 2, 1, 0, 0, new H264MotionVector(0, 0)));
     }
 
+
+    [Fact]
+    public void ReconstructAndRecord_ShouldClipMotionVectorToNormativeRange()
+    {
+        var state = new H264MotionVectorPictureState(2, 2);
+        state.RecordInterPartition(3, 4, 1, 1, 0, 0,
+            new H264MotionVector(32760, -32760));
+
+        H264MotionVector result = state.ReconstructAndRecord(
+            _predictor, 4, 4, 1, 1, 0, 0,
+            new H264MotionVectorDifference(20, -20));
+
+        Assert.Equal(new H264MotionVector(32767, -32768), result);
+    }
+
     private static H264MotionVectorCandidate Candidate(int reference, int x, int y) =>
         new(reference, new H264MotionVector(x, y));
 }
