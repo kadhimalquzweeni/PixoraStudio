@@ -67,9 +67,9 @@ public static class H264IntraPrediction
                     {
                         int d = x - y;
                         result[y * 4 + x] = Average3(
-                            DiagonalReference(d - 2, t, l, topLeft),
                             DiagonalReference(d - 1, t, l, topLeft),
-                            DiagonalReference(d, t, l, topLeft));
+                            DiagonalReference(d, t, l, topLeft),
+                            DiagonalReference(d + 1, t, l, topLeft));
                     }
                 break;
 

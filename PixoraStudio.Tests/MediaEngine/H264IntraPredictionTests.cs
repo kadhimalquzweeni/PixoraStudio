@@ -37,6 +37,18 @@ public sealed class H264IntraPredictionTests
     }
 
     [Fact]
+    public void Predict4x4_DiagonalDownRight_ShouldFollowTopLeftToBottomLeftReferenceDiagonals()
+    {
+        byte[] result = H264IntraPrediction.Predict4x4(
+            4, Top4, Left4, 15, true, true, true);
+
+        Assert.Equal((byte)19, result[0]);
+        Assert.Equal((byte)23, result[4]);
+        Assert.Equal((byte)44, result[8]);
+        Assert.Equal((byte)60, result[12]);
+    }
+
+    [Fact]
     public void Predict4x4_DirectionalModes_ShouldProduceCompleteClippedBlocks()
     {
         for (uint mode = 3; mode <= 8; mode++)
