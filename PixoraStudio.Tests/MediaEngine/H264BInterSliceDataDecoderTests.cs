@@ -52,6 +52,32 @@ public sealed class H264BInterSliceDataDecoderTests
 
 
     [Fact]
+    public void Decode_BSkipRunBeforeInterMacroblock_ShouldSeedZeroCavlcNeighbourContexts()
+    {
+        H264SequenceParameterSet sps = Sps(2);
+        H264DecodedPictureSurface reference = Reference(sps, 41);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader();
+        bits.Ue(1); // one B_Skip macroblock
+        bits.Ue(0); // next mb_skip_run is zero
+        bits.Ue(1); // B_L0_16x16
+        bits.Se(0); bits.Se(0);
+        bits.Ue(2); // coded_block_pattern: luma group 0
+        bits.Se(0); // mb_qp_delta
+        for (int i = 0; i < 4; i++) bits.Flag(true); // four zero coeff_token values
+        bits.TrailingBits();
+
+        H264BInterSliceDecodeResult result = Decoder(destination).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), dpb, 0, 0);
+
+        Assert.Equal(2, result.MacroblocksDecoded);
+        Assert.Equal(2, result.InterMacroblocks.Count);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.IsMacroblockDecoded(1, 0));
+    }
+
+    [Fact]
     public void Decode_BSliceWithIntraNxNMacroblock_ShouldUseSharedIntraReconstruction()
     {
         H264SequenceParameterSet sps = Sps();
