@@ -9,7 +9,9 @@ public sealed record H264TemporalDirectPredictionContext(
     int CurrentPictureOrderCount,
     int CollocatedPictureOrderCount,
     int CollocatedReferencePictureOrderCount,
-    bool CollocatedReferenceIsLongTerm);
+    bool CollocatedReferenceIsLongTerm,
+    int CollocatedReferenceIndex = 0,
+    bool CollocatedPictureIsShortTerm = true);
 
 /// <summary>The two derived motion vectors and the temporal distance scale factor.</summary>
 public sealed record H264TemporalDirectMotionVectorResult(
