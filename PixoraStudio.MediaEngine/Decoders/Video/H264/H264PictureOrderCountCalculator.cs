@@ -55,12 +55,13 @@ public sealed class H264PictureOrderCountCalculator
 
         bool idr = slice.IdrPicId.HasValue;
         bool reference = nalRefIdc != 0;
-        bool mmco5 = reference && !idr &&
-            slice.DecodedReferenceMarking?.Operations.Any(
-                operation => operation.MemoryManagementControlOperation == 5) == true;
-
-        if (idr)
-            Reset();
+        if (idr && (!reference || slice.FrameNum != 0))
+            throw new FormatException("An IDR picture must be a reference picture with frame_num equal to zero.");
+        bool hasMmco5 = slice.DecodedReferenceMarking?.Operations.Any(
+            operation => operation.MemoryManagementControlOperation == 5) == true;
+        if (hasMmco5 && (!reference || idr))
+            throw new FormatException("MMCO 5 is valid only for non-IDR reference pictures.");
+        bool mmco5 = hasMmco5;
 
         int frameNumOffset = idr ? 0 : _previousFrameNum > slice.FrameNum
             ? checked(_previousFrameNumOffset + (1 << checked((int)sps.Log2MaxFrameNumMinus4 + 4)))
@@ -86,6 +87,10 @@ public sealed class H264PictureOrderCountCalculator
         bool hasTop = !slice.FieldPicFlag || !slice.BottomFieldFlag;
         bool hasBottom = !slice.FieldPicFlag || slice.BottomFieldFlag;
         int pictureOrder = hasTop && hasBottom ? Math.Min(top, bottom) : hasTop ? top : bottom;
+        if (idr && pictureOrder != 0)
+            throw new FormatException("An IDR picture must have picture order count zero.");
+        if (idr)
+            Reset();
 
         // MMCO 5 starts a new POC epoch. Normalize the current picture itself
         // after deriving its raw field order counts, before storing reference state.
