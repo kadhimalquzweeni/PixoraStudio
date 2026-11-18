@@ -52,6 +52,43 @@ public sealed class H264InterMacroblockResidualSyntaxReaderTests
             _reader.Read(Bits(WriteUe(0)), Header(), Sps(), Pps() with { SequenceParameterSetId = 1 }));
     }
 
+    [Fact]
+    public void Read_WithTransform8x8Enabled_ShouldConsumeFalseFlagBeforeQpDelta()
+    {
+        H264BitReader bits = Bits(WriteUe(2) + "0" + WriteSe(0));
+        H264InterMacroblockResidualSyntax result =
+            _reader.Read(bits, Header(), Sps(),
+                Pps() with { Transform8X8ModeFlag = true });
+
+        Assert.Equal(1u, result.CodedBlockPattern.Luma);
+        Assert.Equal(0, result.MacroblockQpDelta);
+        Assert.Equal(0, bits.RemainingBits);
+    }
+
+    [Fact]
+    public void Read_WithTransform8x8FlagTrue_ShouldRejectUnsupportedTransform()
+    {
+        H264BitReader bits = Bits(WriteUe(2) + "1");
+
+        Assert.Throws<NotSupportedException>(() =>
+            _reader.Read(bits, Header(), Sps(),
+                Pps() with { Transform8X8ModeFlag = true }));
+        Assert.Equal(0, bits.RemainingBits);
+    }
+
+    [Fact]
+    public void Read_WithSmallSubPartitions_ShouldNotConsumeTransformFlag()
+    {
+        H264BitReader bits = Bits(WriteUe(2) + WriteSe(0));
+        H264InterMacroblockResidualSyntax result =
+            _reader.Read(bits, Header(), Sps(),
+                Pps() with { Transform8X8ModeFlag = true },
+                noSubMbPartSizeLessThan8x8Flag: false);
+
+        Assert.Equal(0, result.MacroblockQpDelta);
+        Assert.Equal(0, bits.RemainingBits);
+    }
+
     private static H264MacroblockHeader Header(bool isIntra = false) =>
         new(0, 0, false, 0, isIntra, false, null, null, null, false);
 
