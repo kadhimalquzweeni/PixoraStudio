@@ -49,8 +49,9 @@ public sealed class H264CavlcNeighbourContext
         ValidateCoordinate(x, y);
         if (sliceId < 0) throw new ArgumentOutOfRangeException(nameof(sliceId));
 
-        bool hasLeft = x > 0 && TryGetNeighbour((x - 1, y), sliceId, out int left);
-        bool hasTop = y > 0 && TryGetNeighbour((x, y - 1), sliceId, out int top);
+        int left = 0, top = 0;
+        bool hasLeft = x > 0 && TryGetNeighbour((x - 1, y), sliceId, out left);
+        bool hasTop = y > 0 && TryGetNeighbour((x, y - 1), sliceId, out top);
 
         if (hasLeft && hasTop) return (left + top + 1) >> 1;
         if (hasLeft) return left;
