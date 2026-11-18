@@ -69,7 +69,8 @@ public sealed class H264BInterSliceDataDecoder
         H264PictureParameterSetHeader pps,
         H264DecodedPictureBuffer decodedPictureBuffer,
         int currentPictureOrderCount,
-        int sliceId)
+        int sliceId,
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? temporalContextProvider = null)
     {
         ArgumentNullException.ThrowIfNull(nalUnit);
         ArgumentNullException.ThrowIfNull(sps);
@@ -136,7 +137,7 @@ public sealed class H264BInterSliceDataDecoder
                         _motionVectorStateL0, _motionVectorStateL1,
                         _destination, x, y, sliceId, qpY,
                         currentPictureOrderCount, slice.DirectSpatialMvPredFlag, sps, pps,
-                        slice.PredictionWeights));
+                        slice.PredictionWeights, temporalContextProvider));
                     RecordZeroResidualContexts(x, y, sliceId, sps);
                 }
                 decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
@@ -196,7 +197,7 @@ public sealed class H264BInterSliceDataDecoder
                         qpY, currentPictureOrderCount,
                         slice.DirectSpatialMvPredFlag,
                         sps, pps, _lumaNeighbours, _cbNeighbours, _crNeighbours,
-                        slice.PredictionWeights);
+                        slice.PredictionWeights, temporalContextProvider);
                 qpY = result.QpY;
                 interResults.Add(result);
             }
