@@ -197,8 +197,9 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
     {
         if (partition.Width <= 0 || partition.Height <= 0 ||
             partition.X < 0 || partition.Y < 0 ||
-            partition.X + partition.Width > 16 ||
-            partition.Y + partition.Height > 16 ||
+            partition.X > 16 || partition.Y > 16 ||
+            partition.Width > 16 - partition.X ||
+            partition.Height > 16 - partition.Y ||
             partition.SubPartitions.Count == 0)
             throw new FormatException("A B macroblock partition has invalid geometry or no sub-partitions.");
 
