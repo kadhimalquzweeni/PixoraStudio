@@ -38,8 +38,8 @@ public sealed class H264CabacContextInitializerTests
         Assert.Equal(new H264CabacContextModel(62, 0), lower);
 
         Assert.True(H264CabacContextInitializer.TryInitialize(
-            6, 51, true, 0, out H264CabacContextModel upper));
-        Assert.Equal(new H264CabacContextModel(62, 1), upper);
+            16, 51, true, 0, out H264CabacContextModel upper));
+        Assert.Equal(new H264CabacContextModel(8, 1), upper);
     }
 
     [Fact]
