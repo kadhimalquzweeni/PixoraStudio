@@ -39,7 +39,7 @@ public sealed class H264Mp4FramePresentationScheduler
             return new H264FramePresentationDecision(H264FramePresentationAction.Wait, delay);
         }
 
-        if (delta < -maximumLatenessSeconds)
+        if (delta < -maximumLatenessSeconds - 1e-9)
             return new H264FramePresentationDecision(H264FramePresentationAction.Drop, TimeSpan.Zero);
 
         return new H264FramePresentationDecision(H264FramePresentationAction.Present, TimeSpan.Zero);

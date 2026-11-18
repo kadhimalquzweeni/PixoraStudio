@@ -1,6 +1,7 @@
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
+using PixoraStudio.MediaEngine.Exceptions;
 using PixoraStudio.MediaEngine.Models.General;
 using PixoraStudio.MediaEngine.Readers.Mp4;
 
@@ -46,7 +47,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         (Mp4MediaInfo Info, uint TrackId)? prepared;
         try
         {
-            prepared = await Task.Run(() =>
+            prepared = await Task.Run<(Mp4MediaInfo Info, uint TrackId)?>(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using FileStream stream = new(
@@ -65,7 +66,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             throw;
         }
         catch (Exception exception) when (
-            exception is IOException or FormatException or NotSupportedException or
+            exception is IOException or FormatException or NotSupportedException or Mp4ParsingException or
             ArgumentException or InvalidOperationException)
         {
             return false;

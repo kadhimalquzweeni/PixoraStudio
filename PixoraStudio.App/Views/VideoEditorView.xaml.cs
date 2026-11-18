@@ -307,6 +307,9 @@ public partial class VideoEditorView : UserControl
 
         _mediaPlayer.Stop();
         _mediaPlayer.Mute = false;
+        _usesManagedH264Video = false;
+        ManagedVideoFrame.Source = null;
+        ManagedVideoFrame.Visibility = Visibility.Collapsed;
         _usesCustomAacAudio = false;
 
         try
