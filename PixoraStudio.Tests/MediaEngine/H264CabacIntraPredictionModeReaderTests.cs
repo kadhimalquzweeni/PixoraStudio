@@ -63,5 +63,6 @@ public sealed class H264CabacIntraPredictionModeReaderTests
 
         public int DecodeBypass() => _bins.Dequeue();
         public int DecodeTerminate() => _bins.Dequeue();
+        public void MarkTerminated() { }
     }
 }
