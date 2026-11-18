@@ -369,7 +369,7 @@ public sealed class H264CabacSyntaxElementReader
     /// <summary>Decodes B-slice mb_type, including intra macroblock types.</summary>
     public int ReadBSliceMacroblockType(int firstBinContextIncrement)
     {
-        if (firstBinContextIncrement is < 0 or > 2)
+        if (firstBinContextIncrement is < 0 or > 3)
             throw new ArgumentOutOfRangeException(nameof(firstBinContextIncrement));
         if (!ReadFlagAtContext(27 + firstBinContextIncrement))
             return 0;
