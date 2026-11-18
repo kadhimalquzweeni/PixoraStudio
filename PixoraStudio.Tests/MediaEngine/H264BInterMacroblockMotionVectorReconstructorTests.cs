@@ -66,7 +66,52 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
-    public void Reconstruct_ShouldRejectDirectPredictionUntilDirectStageExists()
+    public void Reconstruct_SpatialDirectWithInferenceFlag_ShouldDeriveFour8x8Regions()
+    {
+        H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
+            new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
+        var state0 = new H264MotionVectorPictureState(1, 1);
+        var state1 = new H264MotionVectorPictureState(1, 1);
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
+                syntax, state0, state1, 0, 0, 0, 1, 1,
+                directSpatialPrediction: true, direct8x8InferenceFlag: true);
+
+        Assert.Equal(4, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(2, item.Width);
+            Assert.Equal(2, item.Height);
+            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL1);
+            Assert.Equal(0, item.ReferenceIndexL0);
+            Assert.Equal(0, item.ReferenceIndexL1);
+        });
+    }
+
+    [Fact]
+    public void Reconstruct_SpatialDirectWithoutInferenceFlag_ShouldDeriveSixteen4x4Regions()
+    {
+        H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
+            new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
+                syntax, new H264MotionVectorPictureState(1, 1),
+                new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1,
+                directSpatialPrediction: true, direct8x8InferenceFlag: false);
+
+        Assert.Equal(16, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(1, item.Width);
+            Assert.Equal(1, item.Height);
+        });
+    }
+
+    [Fact]
+    public void Reconstruct_ShouldRejectTemporalDirectUntilCollocatedMetadataIsAvailable()
     {
         H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
             new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
