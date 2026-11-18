@@ -1,0 +1,77 @@
+# Managed H.264/AVC decoding from MP4
+
+PixoraStudio's managed AVC pipeline lives in `PixoraStudio.MediaEngine`. It reads AVC configuration and length-prefixed NAL units from an MP4 video track, reconstructs frame-coded pictures, maintains reference pictures, and emits frames in H.264 presentation order while preserving the MP4 sample timestamps.
+
+## Decode a complete track
+
+The MP4 parser supplies an `Mp4MediaInfo` object. Select its video track and pass the source stream to `H264Mp4TrackDecoder`:
+
+```csharp
+using PixoraStudio.MediaEngine.Decoders.Video.H264;
+using PixoraStudio.MediaEngine.Models.General;
+
+H264Mp4TrackDecoder decoder = new();
+
+IEnumerable<H264Mp4DecodedVideoFrame> frames = decoder.Decode(
+    stream,
+    mediaInfo,
+    trackId,
+    maxNumReorderFramesFallback: 2,
+    cancellationToken);
+
+foreach (H264Mp4DecodedVideoFrame frame in frames)
+{
+    H264DecodedPictureSurface surface = frame.Surface;
+
+    // The surface contains decoded Y, Cb and Cr planes.
+    // PresentationTimeTicks / DurationTicks use frame.Timescale.
+    long pts = frame.PresentationTimeTicks;
+    uint duration = frame.DurationTicks;
+    uint timescale = frame.Timescale;
+}
+```
+
+If the SPS VUI contains a valid bitstream restriction, its `max_num_reorder_frames` value is used. Otherwise the caller must provide a container-appropriate fallback. The fallback is not a frame-rate estimate; it is the maximum number of decoded pictures that may be held for presentation reordering.
+
+The track decoder reads samples in decode order. Do not skip samples when using one decoder instance: reference-picture state depends on the preceding access units. Start from a random-access point (normally an IDR sample). Seeking and recovery from arbitrary sample positions are not implemented yet.
+
+## Decode individual samples
+
+For callers that already read MP4 samples, use `H264Mp4TrackSampleReader` to resolve each sample's sample description, parse its `avcC` configuration, split its length-prefixed NAL units, and retain DTS, PTS and duration ticks. Create an `H264Mp4AccessUnitDecoder` from the first sample's parameter sets, then supply contiguous samples in decode order:
+
+```csharp
+H264Mp4TrackSampleReader sampleReader = new();
+H264Mp4VideoSample first = sampleReader.Read(track, firstEncodedSample);
+
+H264Mp4AccessUnitDecoder decoder =
+    H264Mp4AccessUnitDecoder.CreateFromSample(
+        first,
+        maxNumReorderFramesFallback: 2);
+
+H264Mp4AccessUnitDecodeResult? result = decoder.Decode(first);
+foreach (H264Mp4DecodedVideoFrame frame in result?.ReadyFrames ?? [])
+{
+    // Consume frame.Surface and its MP4 timing properties.
+}
+
+// Continue with each subsequent encoded sample in decode order.
+// Call Flush() at end-of-stream to emit any pictures still held for reordering.
+IReadOnlyList<H264Mp4DecodedVideoFrame> finalFrames = decoder.Flush();
+```
+
+One MP4 sample represents one coded picture. Multiple VCL slices in that sample are assembled when they share picture identity and reference-list ordering. A failed picture decode faults the stateful decoder; call `Reset()` and restart from a valid random-access point rather than continuing with an incomplete reference chain.
+
+## Supported bitstream subset
+
+- Frame-coded, 8-bit AVC.
+- CAVLC entropy coding.
+- 4:2:0 and 4:2:2 chroma.
+- I, P and B slices, including the implemented intra/inter macroblock types, direct prediction, weighted prediction and CAVLC residual reconstruction.
+- Short- and long-term reference management, POC types 0/1/2, frame output reordering and in-loop deblocking.
+- MP4 `avc1` / `avc3` sample descriptions with a stable `avcC` parameter-set configuration. Dynamic in-band parameter-set updates are rejected.
+
+## Explicit limitations
+
+The decoder rejects unsupported syntax instead of silently approximating it. Current exclusions include CABAC, FMO, field/MBAFF/interlaced pictures, separate colour planes, 4:4:4, high bit depth, SP/SI reconstruction and partitioned slice NAL units. Field pairing, arbitrary seeking, streaming recovery, colour conversion and UI playback integration are separate remaining tasks.
+
+The supported subset still requires real-stream conformance validation against independently decoded reference output. Synthetic tests exercise parser, reconstruction, DPB, deblocking and MP4 integration paths, but do not establish complete H.264 conformance.
