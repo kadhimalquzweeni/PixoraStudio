@@ -56,8 +56,8 @@ public sealed class H264DecodedPictureOutputScheduler
         int? maxNumReorderFramesFallback = null)
     {
         ValidateOutputContext(surface, sps, slice, nalRefIdc);
-        PrepareSurfaceForOutput(surface);
         int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
+        PrepareSurfaceForOutput(surface);
         H264PictureOrderCount poc = CalculatePictureOrderCount(sps, slice, nalRefIdc);
         return EnqueueCore(surface, slice, poc, maxNumReorderFrames);
     }
@@ -76,9 +76,9 @@ public sealed class H264DecodedPictureOutputScheduler
         int? maxNumReorderFramesFallback = null)
     {
         ValidateOutputContext(surface, sps, slice, nalRefIdc);
-        PrepareSurfaceForOutput(surface);
         ArgumentNullException.ThrowIfNull(pictureOrderCount);
         int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
+        PrepareSurfaceForOutput(surface);
         return EnqueueCore(surface, slice, pictureOrderCount, maxNumReorderFrames);
     }
 
