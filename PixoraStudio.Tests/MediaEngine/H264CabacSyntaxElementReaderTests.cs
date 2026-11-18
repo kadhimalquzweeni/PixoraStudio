@@ -442,7 +442,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(9, reader.ReadMotionVectorDifference(47, 0));
-        Assert.Equal(new[] { 47, 50, 51, 52, 53, 53, 53, 53, 53, 53 },
+        Assert.Equal(new[] { 47, 50, 51, 52, 53, 53, 53, 53, 53 },
             bins.ContextIndices);
     }
 
@@ -474,7 +474,7 @@ public sealed class H264CabacSyntaxElementReaderTests
             .ReadBSliceMacroblockType(2));
         Assert.Equal(new[] { 29 }, directBins.ContextIndices);
 
-        ScriptedCabacReader intraBins = new(new[] { 1, 1, 1, 1, 1, 1, 1, 0 });
+        ScriptedCabacReader intraBins = new(new[] { 1, 1, 1, 1, 0, 1, 0 });
         Assert.Equal(23, new H264CabacSyntaxElementReader(intraBins)
             .ReadBSliceMacroblockType(0));
     }
