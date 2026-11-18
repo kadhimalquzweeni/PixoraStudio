@@ -6,7 +6,8 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// Reconstructs one frame-coded B inter macroblock by combining parsed
 /// prediction syntax, independent list motion vectors, motion compensation,
 /// weighted bi-prediction, CAVLC residuals and decoded-surface commit.
-/// Spatial direct is supported; temporal direct requires collocated metadata.
+/// Spatial and temporal direct are supported; temporal metadata is supplied
+/// through a region-based collocated-motion callback.
 /// </summary>
 public sealed class H264BInterMacroblockReconstructor
 {
