@@ -64,7 +64,12 @@ public sealed class H264MotionCompensatorTests
         int quarterX, int quarterY, byte expected)
     {
         H264DecodedPictureSurface surface = CreateSurface(1,
-            (x, y) => x == 5 && y == 5 ? (byte)255 : (byte)0,
+            (x, y) => (quarterX, quarterY) switch
+            {
+                (2, 0) => x == 5 && y == 4 ? (byte)255 : (byte)0,
+                (0, 2) => x == 4 && y == 5 ? (byte)255 : (byte)0,
+                _ => x == 5 && y == 5 ? (byte)255 : (byte)0
+            },
             (_, _) => 0, (_, _) => 0);
 
         Assert.Equal(expected, _compensator.InterpolateLuma(
