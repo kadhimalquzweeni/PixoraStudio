@@ -124,8 +124,9 @@ public static class H264InterMacroblockResidualReconstructor
     private static void WriteLuma8x8(
         byte[] destination, IReadOnlyList<byte> block, int blockX, int blockY)
     {
+        byte[] source = block as byte[] ?? block.ToArray();
         for (int y = 0; y < 8; y++)
-            Array.Copy(block.ToArray(), y * 8, destination,
+            Array.Copy(source, y * 8, destination,
                 (blockY * 8 + y) * 16 + blockX * 8, 8);
     }
 
