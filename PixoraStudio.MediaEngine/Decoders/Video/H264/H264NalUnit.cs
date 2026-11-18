@@ -11,8 +11,13 @@ public sealed class H264NalUnit
     public ReadOnlyMemory<byte> Payload => _payload;
     public ReadOnlyMemory<byte> Rbsp => H264Rbsp.FromEbsp(_payload);
 
-    internal H264NalUnit(byte header, ReadOnlySpan<byte> payload)
+    public H264NalUnit(byte header, ReadOnlySpan<byte> payload)
     {
+        if ((header & 0x80) != 0)
+            throw new ArgumentException("H.264 forbidden_zero_bit must be zero.", nameof(header));
+        byte type = (byte)(header & 0x1F);
+        if (type is 0 or > 23)
+            throw new ArgumentOutOfRangeException(nameof(header), "The NAL unit type is reserved or unspecified.");
         Header = header;
         _payload = payload.ToArray();
     }
