@@ -18,12 +18,31 @@ public sealed class H264CabacSyntaxElementReader
     /// I_PCM (25). The caller supplies the neighbour-derived first-bin
     /// context increment from H.264 clause 9.3.3.1.2.
     /// </summary>
-    public int ReadIntraSliceMacroblockType(int firstBinContextIncrement)
+    public int ReadIntraSliceMacroblockType(int firstBinContextIncrement) =>
+        ReadIntraMacroblockType(3, firstBinContextIncrement, isIntraSlice: true);
+
+    /// <summary>
+    /// Decodes the intra macroblock type suffix used inside P and B slices.
+    /// The returned value is the I-slice-relative code (0..25); callers add
+    /// the P/B inter-type offset (5 for P, 23 for B).
+    /// </summary>
+    public int ReadInterSliceIntraMacroblockType(int contextBase) =>
+        ReadIntraMacroblockType(contextBase, 0, isIntraSlice: false);
+
+    private int ReadIntraMacroblockType(
+        int contextBase,
+        int firstBinContextIncrement,
+        bool isIntraSlice)
     {
-        if (firstBinContextIncrement is < 0 or > 2)
+        if (contextBase < 0 || contextBase > 459)
+            throw new ArgumentOutOfRangeException(nameof(contextBase));
+        if (isIntraSlice && firstBinContextIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(firstBinContextIncrement));
+        if (!isIntraSlice && firstBinContextIncrement != 0)
             throw new ArgumentOutOfRangeException(nameof(firstBinContextIncrement));
 
-        if (!ReadFlagAtContext(3 + firstBinContextIncrement))
+        int firstContext = contextBase + firstBinContextIncrement;
+        if (!ReadFlagAtContext(firstContext))
             return 0;
 
         int pcmFlag = _reader.DecodeTerminate();
@@ -32,34 +51,23 @@ public sealed class H264CabacSyntaxElementReader
         if (pcmFlag == 1)
             return 25;
 
-        int suffix = 0;
-        int thirdSuffixBin = 0;
-        for (int binIndex = 2; binIndex <= 6; binIndex++)
+        int lumaCbpFlag = ReadFlagAtContext(contextBase + 3) ? 1 : 0;
+        int chromaCbpFlag = ReadFlagAtContext(contextBase + 4) ? 1 : 0;
+        int chromaCbpValue = 0;
+        if (chromaCbpFlag == 1)
         {
-            int contextIndex;
-            if (binIndex == 2)
-                contextIndex = 6;
-            else if (binIndex == 3)
-                contextIndex = 7;
-            else if (binIndex == 4)
-                contextIndex = thirdSuffixBin == 0 ? 9 : 8;
-            else if (binIndex == 5)
-                contextIndex = thirdSuffixBin == 0 ? 10 : 9;
-            else
-                contextIndex = 10;
-
-            int bin = _reader.DecodeBin(contextIndex);
-            if (bin is not (0 or 1))
-                throw new FormatException("CABAC decision bins must be zero or one.");
-
-            suffix = (suffix << 1) | bin;
-            if (binIndex == 3)
-                thirdSuffixBin = bin;
+            int chromaContext = contextBase + (isIntraSlice ? 5 : 4);
+            chromaCbpValue = ReadFlagAtContext(chromaContext) ? 1 : 0;
         }
 
-        if (suffix > 23)
-            throw new FormatException("The I-slice mb_type suffix is outside the defined I16x16 range.");
-        return suffix + 1;
+        int predictionModeHigh = ReadFlagAtContext(
+            contextBase + (isIntraSlice ? 6 : 5)) ? 1 : 0;
+        int predictionModeLow = ReadFlagAtContext(
+            contextBase + (isIntraSlice ? 7 : 5)) ? 1 : 0;
+
+        return 1 + (12 * lumaCbpFlag) +
+            (chromaCbpFlag == 1 ? 4 + (4 * chromaCbpValue) : 0) +
+            (2 * predictionModeHigh) + predictionModeLow;
     }
 
     /// <summary>
