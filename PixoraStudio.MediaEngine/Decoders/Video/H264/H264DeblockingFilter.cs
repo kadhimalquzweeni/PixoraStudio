@@ -133,11 +133,11 @@ public static class H264DeblockingFilter
         {
             if (chroma)
             {
-                int newP0 = (2 * p1 + p0 + q1 + 2) >> 2;
-                int newQ0 = (2 * q1 + q0 + p1 + 2) >> 2;
-                plane[p0Index] = Clip1(newP0);
-                plane[q0Index] = Clip1(newQ0);
-                return newP0 != p0 || newQ0 != q0;
+                int chromaNewP0 = (2 * p1 + p0 + q1 + 2) >> 2;
+                int chromaNewQ0 = (2 * q1 + q0 + p1 + 2) >> 2;
+                plane[p0Index] = (byte)Clip1(chromaNewP0);
+                plane[q0Index] = (byte)Clip1(chromaNewQ0);
+                return chromaNewP0 != p0 || chromaNewQ0 != q0;
             }
 
             bool modifyP = Abs(p2 - p0) < thresholds.Beta &&
@@ -157,12 +157,12 @@ public static class H264DeblockingFilter
             int newP2 = modifyP ? (2 * p3 + 3 * p2 + p1 + p0 + q0 + 4) >> 3 : p2;
             int newQ2 = modifyQ ? (2 * q3 + 3 * q2 + q1 + q0 + p0 + 4) >> 3 : q2;
 
-            plane[p0Index] = Clip1(newP0);
-            plane[q0Index] = Clip1(newQ0);
-            plane[p1Index] = Clip1(newP1);
-            plane[q1Index] = Clip1(newQ1);
-            plane[p2Index] = Clip1(newP2);
-            plane[q2Index] = Clip1(newQ2);
+            plane[p0Index] = (byte)Clip1(newP0);
+            plane[q0Index] = (byte)Clip1(newQ0);
+            plane[p1Index] = (byte)Clip1(newP1);
+            plane[q1Index] = (byte)Clip1(newQ1);
+            plane[p2Index] = (byte)Clip1(newP2);
+            plane[q2Index] = (byte)Clip1(newQ2);
             return newP0 != p0 || newQ0 != q0 || newP1 != p1 ||
                 newQ1 != q1 || newP2 != p2 || newQ2 != q2;
         }
