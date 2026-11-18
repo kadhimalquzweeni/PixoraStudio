@@ -12,6 +12,52 @@ public sealed class H264CabacSyntaxElementReader
     }
 
     /// <summary>
+    /// Decodes mb_type for an I slice: I_NxN (0), I16x16 (1..24), or
+    /// I_PCM (25). The caller supplies the neighbour-derived first-bin
+    /// context increment from H.264 clause 9.3.3.1.2.
+    /// </summary>
+    public int ReadIntraSliceMacroblockType(int firstBinContextIncrement)
+    {
+        if (firstBinContextIncrement is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(firstBinContextIncrement));
+
+        if (!ReadFlagAtContext(3 + firstBinContextIncrement))
+            return 0;
+
+        if (_reader.DecodeTerminate() == 1)
+            return 25;
+
+        int suffix = 0;
+        int thirdSuffixBin = 0;
+        for (int binIndex = 2; binIndex <= 6; binIndex++)
+        {
+            int contextIndex;
+            if (binIndex == 2)
+                contextIndex = 6;
+            else if (binIndex == 3)
+                contextIndex = 7;
+            else if (binIndex == 4)
+                contextIndex = thirdSuffixBin == 0 ? 9 : 8;
+            else if (binIndex == 5)
+                contextIndex = thirdSuffixBin == 0 ? 10 : 9;
+            else
+                contextIndex = 10;
+
+            int bin = _reader.DecodeBin(contextIndex);
+            if (bin is not (0 or 1))
+                throw new FormatException("CABAC decision bins must be zero or one.");
+
+            suffix = (suffix << 1) | bin;
+            if (binIndex == 3)
+                thirdSuffixBin = bin;
+        }
+
+        if (suffix > 23)
+            throw new FormatException("The I-slice mb_type suffix is outside the defined I16x16 range.");
+        return suffix + 1;
+    }
+
+    /// <summary>
     /// Decodes mb_skip_flag for P or B slices. The context increment is the
     /// sum of the left and upper neighbour condTermFlag values.
     /// </summary>
