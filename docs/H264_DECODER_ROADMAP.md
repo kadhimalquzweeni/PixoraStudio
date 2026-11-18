@@ -13,12 +13,12 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | Weighted prediction | P explicit uni-prediction; B default, explicit and implicit bi-prediction |
 | Inter residuals | CAVLC 4x4 and 8x8 luma transforms; 4:2:0/4:2:2 chroma DC/AC reconstruction |
 | Reference management | Frame DPB, short/long-term marking, MMCO 1–6, P/B reference-list construction |
-| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation and picture traversal implemented; I/P/B intra and PCM paths populate metadata automatically, inter metadata population remains outstanding |
+| Picture order/output | POC types 0/1/2; VUI-driven frame output reordering, IDR handling and MMCO 5 bumping |\n| In-loop deblocking | 8-bit luma/chroma kernels, boundary-strength derivation and picture traversal implemented; I/P/B intra, PCM and inter paths populate metadata; picture-wide vertical filtering precedes horizontal filtering |
 | Automated tests | Test files are authored alongside the implementation; this branch has not yet had a full build/test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC pictures.
 
-**Still unsupported:** CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces, but the mandatory H.264 in-loop deblocking filter is not yet implemented. MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are also not yet connected.
+**Still unsupported:** CABAC, FMO, field/MBAFF/interlaced decoding, separate colour planes, 4:4:4, high bit depth, and SP/SI slice reconstruction. Real-stream conformance and independently verified reference-output comparisons remain outstanding. The output scheduler orders decoded frame surfaces. The deblocking filter is implemented for the supported frame-coded 8-bit 4:2:0/4:2:2 subset, but still requires comprehensive real-stream conformance validation. MP4 sample timestamps, field pairing, seeking and end-to-end playback integration are also not yet connected.
 
 The detailed bullets below record implementation history; where they say a feature remains outstanding, this current-status section takes precedence.
 
