@@ -120,6 +120,8 @@ public sealed class H264PInterSliceDataDecoder
 
         H264BitReader reader = new(nalUnit.Rbsp);
         H264SliceHeader slice = _sliceHeaderReader.Read(reader, nalUnit, sps, pps);
+        _intraReconstructor.SetDeblockingSliceParameters(
+            H264DeblockingSliceParameters.FromSliceHeader(slice));
         if (slice.SliceType != H264SliceType.P)
             throw new NotSupportedException("This decoder accepts P slices only.");
         if (slice.FieldPicFlag)
@@ -188,7 +190,7 @@ public sealed class H264PInterSliceDataDecoder
             {
                 H264PcmMacroblock pcm = _pcmReader.Read(reader, header, sps, pps);
                 _intraReconstructor.ReconstructPcm(
-                    header, pcm, macroblockX, macroblockY, sliceId, sps, pps);
+                    header, pcm, macroblockX, macroblockY, sliceId, sps, pps, qpY: qpY);
                 RecordPcmResidualContexts(macroblockX, macroblockY, sliceId, sps);
                 _motionVectorState.RecordUnavailableRegion(
                     macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
