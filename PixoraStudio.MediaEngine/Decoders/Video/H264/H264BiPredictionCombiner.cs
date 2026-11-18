@@ -178,11 +178,11 @@ public static class H264BiPredictionCombiner
             p0.ChromaWidth <= 0 || p0.ChromaHeight <= 0 ||
             p0.Luma.Length != checked(p0.LumaWidth * p0.LumaHeight) ||
             p0.Cb.Length != checked(p0.ChromaWidth * p0.ChromaHeight) ||
-            p0.Cr.Length != p0.Cb.Count ||
+            p0.Cr.Length != p0.Cb.Length ||
             p0.LumaWidth != p1.LumaWidth || p0.LumaHeight != p1.LumaHeight ||
             p0.ChromaWidth != p1.ChromaWidth || p0.ChromaHeight != p1.ChromaHeight ||
-            p0.Luma.Count != p1.Luma.Length || p0.Cb.Count != p1.Cb.Length ||
-            p0.Cr.Count != p1.Cr.Length)
+            p0.Luma.Length != p1.Luma.Length || p0.Cb.Length != p1.Cb.Length ||
+            p0.Cr.Length != p1.Cr.Length)
             throw new ArgumentException("List-0 and list-1 prediction planes must have identical, internally consistent geometry.");
     }
 
