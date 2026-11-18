@@ -122,6 +122,8 @@ public sealed class H264IntraMacroblockReconstructor
 
         if (header.IsIntra16x16)
             throw new NotSupportedException("The I_NxN path cannot reconstruct I_16x16 macroblocks.");
+        if (pps.Transform8X8ModeFlag != syntax.TransformSize8X8Flag.HasValue)
+            throw new FormatException("transform_size_8x8_flag presence does not match the PPS.");
         if (syntax.TransformSize8X8Flag == true)
             throw new NotSupportedException("The Intra8x8 transform path is not yet integrated.");
         H264IntraPredictionModeSyntax modes = syntax.LumaPredictionModes
