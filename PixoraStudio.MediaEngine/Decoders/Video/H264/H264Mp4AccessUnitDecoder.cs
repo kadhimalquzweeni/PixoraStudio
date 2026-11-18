@@ -115,6 +115,11 @@ public sealed class H264Mp4AccessUnitDecoder
 
         H264SequenceParameterSet activeSps = sps!;
         H264PictureParameterSetHeader activePps = pps!;
+        ulong pictureMacroblockCount =
+            ((ulong)activeSps.PicWidthInMbsMinus1 + 1) *
+            ((ulong)activeSps.PicHeightInMapUnitsMinus1 + 1);
+        if (slices.Any(item => (ulong)item.Header.FirstMacroblockInSlice >= pictureMacroblockCount))
+            throw new FormatException("A slice first_mb_in_slice address lies outside the picture.");
         H264NalUnit firstNal = slices[0].NalUnit;
         H264SliceHeader firstSlice = slices[0].Header;
         if (firstNal.NalRefIdc != 0 && activeSps.MaxNumRefFrames == 0)
@@ -315,8 +320,6 @@ public sealed class H264Mp4AccessUnitDecoder
             throw new FormatException("IDR NAL units must have non-zero nal_ref_idc.");
         if (nalUnit.NalUnitType == 5 && slice.SliceType != H264SliceType.I)
             throw new FormatException("IDR NAL units must contain I slices.");
-        if (slice.FirstMacroblockInSlice >= uint.MaxValue)
-            throw new FormatException("first_mb_in_slice exceeds the supported macroblock address range.");
         if (slice.FieldPicFlag || slice.ColourPlaneId != 0 || slice.RedundantPicCnt is > 0)
             throw new NotSupportedException(
                 "Field, separate-plane and redundant slices are not supported.");
@@ -332,7 +335,7 @@ public sealed class H264Mp4AccessUnitDecoder
     {
         bool samePicture =
             firstNal.NalUnitType == currentNal.NalUnitType &&
-            firstNal.NalRefIdc == currentNal.NalRefIdc &&
+            (firstNal.NalRefIdc == 0) == (currentNal.NalRefIdc == 0) &&
             first.SliceType == current.SliceType &&
             first.PicParameterSetId == current.PicParameterSetId &&
             first.ColourPlaneId == current.ColourPlaneId &&
