@@ -56,9 +56,13 @@ public sealed class H264BitReader
 
     private FormatException CreateTrailingBitsException(string reason)
     {
-        string remainingBits = string.Concat(
-            Enumerable.Range(_position, RemainingBits)
-                .Select(bit => ((_data.Span[bit >> 3] >> (7 - (bit & 7))) & 1).ToString()));
+        char[] remainingBitCharacters = new char[RemainingBits];
+        for (int i = 0; i < remainingBitCharacters.Length; i++)
+        {
+            int bit = _position + i;
+            remainingBitCharacters[i] = ((_data.Span[bit >> 3] >> (7 - (bit & 7))) & 1) == 0 ? '0' : '1';
+        }
+        string remainingBits = new(remainingBitCharacters);
 
         return new FormatException(
             $"{reason} Bit position: {_position}; total RBSP bits: {_lengthBits}; " +
