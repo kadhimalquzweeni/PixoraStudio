@@ -39,6 +39,35 @@ public sealed class H264CabacIntraMacroblockSyntaxReaderTests
         Assert.Equal(1, result.MacroblockQpDelta);
     }
 
+
+    [Fact]
+    public void Read_ShouldParseSixteenCabac4x4PredictionModesWithoutTransformFlag()
+    {
+        int[] bins =
+        [
+            0, // mb_type: I_NxN
+            .. Enumerable.Repeat(1, 16), // previous intra prediction modes
+            0, // intra_chroma_pred_mode
+            0, 0, 0, 0, // luma coded block pattern
+            0 // chroma coded block pattern
+        ];
+        ScriptedCabacReader binReader = new(bins);
+        H264CabacSyntaxElementReader syntax = new(binReader);
+        H264MacroblockHeader header = new H264CabacMacroblockHeaderReader()
+            .ReadIntraSlice(syntax, 0, 0);
+
+        H264IntraMacroblockSyntax result = new H264CabacIntraMacroblockSyntaxReader().Read(
+            syntax, header, CreateSps(), CreatePps(transform8x8: false),
+            chromaPredictionContextIncrement: 0,
+            lumaCbpContextIncrements: new[] { 0, 0, 0, 0 },
+            chromaCbpContextIncrements: new[] { 0, 0 },
+            qpDeltaContextIncrement: 0);
+
+        Assert.Null(result.TransformSize8X8Flag);
+        Assert.Equal(16, result.LumaPredictionModes!.Modes.Count);
+        Assert.Null(result.MacroblockQpDelta);
+    }
+
     [Fact]
     public void Read_ShouldParseCabacIntra16x16Syntax()
     {
