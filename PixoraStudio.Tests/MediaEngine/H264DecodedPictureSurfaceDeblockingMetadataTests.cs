@@ -35,6 +35,19 @@ public sealed class H264DecodedPictureSurfaceDeblockingMetadataTests
     }
 
     [Fact]
+    public void RewritingMacroblock_ShouldInvalidatePreviouslyAttachedDeblockingMetadata()
+    {
+        H264DecodedPictureSurface surface = Surface(1);
+        WriteMacroblock(surface, 1);
+        surface.SetDeblockingMetadata(0, 0, Metadata(4));
+
+        WriteMacroblock(surface, 1);
+
+        Assert.False(surface.HasCompleteDeblockingMetadata);
+        Assert.Null(surface.GetDeblockingMetadata(0, 0));
+    }
+
+    [Fact]
     public void SetDeblockingMetadata_ShouldRequireDecodedMacroblock()
     {
         H264DecodedPictureSurface surface = Surface(1);
