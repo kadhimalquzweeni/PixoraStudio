@@ -204,8 +204,9 @@ public sealed class H264BInterMacroblockPredictionDecoder
     {
         if (partition.X < 0 || partition.Y < 0 ||
             partition.Width <= 0 || partition.Height <= 0 ||
-            partition.X + partition.Width > 4 ||
-            partition.Y + partition.Height > 4)
+            partition.X > 4 || partition.Y > 4 ||
+            partition.Width > 4 - partition.X ||
+            partition.Height > 4 - partition.Y)
             throw new FormatException("A B sub-partition must lie within the 16x16 macroblock.");
     }
 }
