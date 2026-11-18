@@ -29,6 +29,24 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
+    public void Enqueue_InvalidIdr_ShouldNotFlushPendingOutput()
+    {
+        H264SequenceParameterSet sps = SpsWithReorderLimit(2);
+        H264DecodedPictureOutputScheduler scheduler = new();
+        H264DecodedPictureSurface prior = Surface(sps, 10);
+        scheduler.Enqueue(prior, sps, Slice(0, 0), 1);
+
+        Assert.Throws<FormatException>(() => scheduler.Enqueue(
+            Surface(sps, 30), sps, Slice(0, 0, idr: true) with
+            {
+                PicOrderCntLsb = null
+            }, 3));
+
+        Assert.Equal(1, scheduler.PendingCount);
+        Assert.Same(prior, Assert.Single(scheduler.Flush()).Surface);
+    }
+
+    [Fact]
     public void Enqueue_IdrWithNoOutputFlag_ShouldDiscardPriorPendingPictures()
     {
         H264SequenceParameterSet sps = SpsWithReorderLimit(2);
