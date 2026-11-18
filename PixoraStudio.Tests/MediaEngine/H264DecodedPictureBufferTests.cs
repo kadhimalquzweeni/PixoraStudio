@@ -217,8 +217,7 @@ public sealed class H264DecodedPictureBufferTests
         Assert.Null(field.GetContext(1, 0, 1, 1, 10, [new H264ReferencePicture(0, -2)]));
         Assert.Null(field.GetContext(2, 0, 1, 1, 10, [new H264ReferencePicture(0, -2)]));
         H264TemporalDirectPredictionContext context = field
-            .CreateTemporalDirectMotionField(collocated)
-            .GetContext(0, 0, 1, 1, 10)!;
+            .GetContext(0, 0, 1, 1, 10, [new H264ReferencePicture(0, -2)])!;
 
         Assert.Equal(new H264MotionVector(6, -4), context.CollocatedMotionVector);
         Assert.Equal(2, context.CollocatedPictureOrderCount);
