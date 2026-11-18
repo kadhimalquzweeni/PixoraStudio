@@ -40,6 +40,20 @@ public sealed class AudioOutputSettingsTests
     }
 
     [Fact]
+    public void Create_ShouldLeaveLibVlcAudioEnabledWhenCustomAacIsDisabled()
+    {
+        AudioOutputSettings settings = AudioOutputSettings.Create(
+            80d,
+            isMuted: false,
+            usesCustomAacAudio: false);
+
+        Assert.Equal(0.8f, settings.PcmVolume);
+        Assert.Equal(80, settings.LibVlcVolume);
+        Assert.False(settings.IsMuted);
+        Assert.False(settings.LibVlcMuted);
+    }
+
+    [Fact]
     public void Create_ShouldKeepLibVlcMutedWhenCustomAacIsActive()
     {
         AudioOutputSettings settings = AudioOutputSettings.Create(
