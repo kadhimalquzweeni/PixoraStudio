@@ -540,6 +540,11 @@ public sealed class H264CabacSyntaxElementReaderTests
         {
         }
 
+        public ScriptedCabacReader(IEnumerable<int> bins)
+            : this(bins, Array.Empty<int>())
+        {
+        }
+
         public ScriptedCabacReader(
             IEnumerable<int> decisionBins,
             IEnumerable<int> bypassBins)
