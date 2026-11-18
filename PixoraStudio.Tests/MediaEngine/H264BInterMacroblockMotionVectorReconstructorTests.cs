@@ -76,7 +76,8 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
         IReadOnlyList<H264ReconstructedBInterSubPartition> result =
             new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
                 syntax, state0, state1, 0, 0, 0, 1, 1,
-                directSpatialPrediction: true, direct8x8InferenceFlag: true);
+                directSpatialPrediction: true, direct8x8InferenceFlag: true,
+                collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.Equal(4, result.Count);
         Assert.All(result, item =>
@@ -100,7 +101,8 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
             new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
                 syntax, new H264MotionVectorPictureState(1, 1),
                 new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1,
-                directSpatialPrediction: true, direct8x8InferenceFlag: false);
+                directSpatialPrediction: true, direct8x8InferenceFlag: false,
+                collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.Equal(16, result.Count);
         Assert.All(result, item =>
