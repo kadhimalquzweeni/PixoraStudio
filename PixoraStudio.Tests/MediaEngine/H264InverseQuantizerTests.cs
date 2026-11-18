@@ -31,6 +31,38 @@ public sealed class H264InverseQuantizerTests
     }
 
     [Fact]
+    public void Dequantize4x4_ShouldResolveScalingListFromSpsAndPps()
+    {
+        H264SequenceParameterSet sps = CreateSps() with
+        {
+            ScalingMatrixPresentFlag = true,
+            ScalingLists = Enumerable.Range(0, 8)
+                .Select(_ => (IReadOnlyList<int>)Array.Empty<int>())
+                .ToArray(),
+            ScalingListUseDefault = new bool[8]
+        };
+        H264PictureParameterSetHeader pps = CreatePps();
+
+        int[] coefficients = new int[16];
+        coefficients[0] = 1;
+
+        // With the SPS scaling matrix present but list 0 absent, H.264 selects
+        // the default 4x4 intra matrix whose first raster entry is 6.
+        int[] result = H264InverseQuantizer.Dequantize4x4(
+            coefficients, 0, sps, pps);
+
+        Assert.Equal(4, result[0]);
+    }
+
+    [Fact]
+    public void Dequantize4x4_ShouldRejectInvalidResolvedScalingListIndex()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            H264InverseQuantizer.Dequantize4x4(
+                new int[16], 0, CreateSps(), CreatePps(), 6));
+    }
+
+    [Fact]
     public void Dequantize4x4_ShouldApplyCustomScalingList()
     {
         int[] coefficients = new int[16];
