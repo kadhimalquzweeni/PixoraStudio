@@ -36,8 +36,7 @@ public sealed class H264Mp4VideoSeekPlanner
             throw new ArgumentOutOfRangeException(
                 nameof(targetPresentationTimeSeconds),
                 targetPresentationTimeSeconds,
-                "The requested seek time exceeds the MP4 track clock range.",
-                exception);
+                $"The requested seek time exceeds the MP4 track clock range: {exception.Message}");
         }
 
         Mp4SampleLocation[] samples = track.SampleLocations.Samples.ToArray();
