@@ -62,6 +62,44 @@ public sealed class H264InterMacroblockDecoder
         return new H264InterMacroblockDecodeResult(syntax, partitions);
     }
 
+    /// <summary>
+    /// Expands the mb_skip_run returned by the macroblock header reader,
+    /// deriving and recording each skipped macroblock in raster order.
+    /// </summary>
+    public IReadOnlyList<H264ReconstructedInterPartition> DecodeSkippedRun(
+        H264MacroblockHeader macroblockHeader,
+        H264MotionVectorPictureState pictureState,
+        int sliceId)
+    {
+        ArgumentNullException.ThrowIfNull(macroblockHeader);
+        ArgumentNullException.ThrowIfNull(pictureState);
+        if (!macroblockHeader.IsSkipped || macroblockHeader.SkippedMacroblockCount == 0)
+            throw new ArgumentException(
+                "A skipped macroblock header with a non-zero skip run is required.",
+                nameof(macroblockHeader));
+        if (sliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(sliceId));
+
+        uint pictureMacroblockCount = checked(
+            (uint)pictureState.MacroblockWidth * (uint)pictureState.MacroblockHeight);
+        if (macroblockHeader.MacroblockAddress >= pictureMacroblockCount ||
+            macroblockHeader.SkippedMacroblockCount >
+                pictureMacroblockCount - macroblockHeader.MacroblockAddress)
+            throw new FormatException("mb_skip_run exceeds the remaining picture macroblocks.");
+
+        List<H264ReconstructedInterPartition> result =
+            new(checked((int)macroblockHeader.SkippedMacroblockCount));
+        for (uint offset = 0; offset < macroblockHeader.SkippedMacroblockCount; offset++)
+        {
+            uint address = macroblockHeader.MacroblockAddress + offset;
+            int macroblockX = checked((int)(address % (uint)pictureState.MacroblockWidth));
+            int macroblockY = checked((int)(address / (uint)pictureState.MacroblockWidth));
+            result.Add(_motionVectorReconstructor.ReconstructSkipped(
+                pictureState, macroblockX, macroblockY, sliceId));
+        }
+        return result;
+    }
+
     /// <summary>Derives and records the list-0 vector for one P_Skip macroblock.</summary>
     public H264ReconstructedInterPartition DecodeSkipped(
         H264MacroblockHeader macroblockHeader,
