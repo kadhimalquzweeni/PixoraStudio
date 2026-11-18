@@ -17,12 +17,15 @@ public sealed class H264ReferencePictureListBuilder
         IReadOnlyList<H264ReferenceListModification>? modifications = null)
     {
         ArgumentNullException.ThrowIfNull(referencePictures);
-        if (maxFrameNum <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxFrameNum));
+        if (maxFrameNum <= 0 || maxFrameNum > 65536 ||
+            (maxFrameNum & (maxFrameNum - 1)) != 0)
+            throw new ArgumentOutOfRangeException(nameof(maxFrameNum),
+                "MaxFrameNum must be a power of two no greater than 65536.");
         if (currentFrameNum < 0 || currentFrameNum >= maxFrameNum)
             throw new ArgumentOutOfRangeException(nameof(currentFrameNum));
-        if (activeReferenceCount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(activeReferenceCount));
+        if (activeReferenceCount is < 1 or > 32)
+            throw new ArgumentOutOfRangeException(nameof(activeReferenceCount),
+                "The active reference count must be between 1 and 32.");
 
         H264ReferencePicture[] pictures = referencePictures.ToArray();
         ValidatePictures(pictures, maxFrameNum);
@@ -145,6 +148,7 @@ public sealed class H264ReferencePictureListBuilder
 
         foreach (H264ReferencePicture picture in pictures)
         {
+            ArgumentNullException.ThrowIfNull(picture);
             if (picture.FrameNum < 0 || picture.FrameNum >= maxFrameNum)
                 throw new ArgumentOutOfRangeException(nameof(pictures),
                     "A reference picture frame_num is outside MaxFrameNum.");
