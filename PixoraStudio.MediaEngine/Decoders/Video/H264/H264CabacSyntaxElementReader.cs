@@ -169,6 +169,62 @@ public sealed class H264CabacSyntaxElementReader
     }
 
 
+    /// <summary>
+    /// Decodes intra coded_block_pattern while deriving each luma context
+    /// increment after the preceding CBP bins have been decoded.
+    /// </summary>
+    public H264CodedBlockPattern ReadIntraCodedBlockPattern(
+        Func<int, uint, int> lumaContextIncrementProvider,
+        IReadOnlyList<int>? chromaContextIncrements,
+        uint chromaArrayType)
+    {
+        ArgumentNullException.ThrowIfNull(lumaContextIncrementProvider);
+        if (chromaArrayType > 3)
+            throw new ArgumentOutOfRangeException(nameof(chromaArrayType));
+        if (chromaArrayType is 1 or 2)
+        {
+            ArgumentNullException.ThrowIfNull(chromaContextIncrements);
+            if (chromaContextIncrements.Count != 2 ||
+                chromaContextIncrements.Any(value => value is < 0 or > 3))
+                throw new ArgumentException(
+                    "Two chroma coded-block context increments in the range 0..3 are required.",
+                    nameof(chromaContextIncrements));
+        }
+
+        uint lumaPattern = 0;
+        for (int binIndex = 0; binIndex < 4; binIndex++)
+        {
+            int increment = lumaContextIncrementProvider(binIndex, lumaPattern);
+            if (increment is < 0 or > 3)
+                throw new ArgumentOutOfRangeException(nameof(lumaContextIncrementProvider),
+                    "Luma coded-block context increments must be in the range 0..3.");
+
+            int bin = _reader.DecodeBin(73 + increment);
+            if (bin is not (0 or 1))
+                throw new FormatException("CABAC decision bins must be zero or one.");
+            lumaPattern |= (uint)bin << binIndex;
+        }
+
+        uint chromaPattern = 0;
+        if (chromaArrayType is 1 or 2)
+        {
+            int firstBin = _reader.DecodeBin(77 + chromaContextIncrements![0]);
+            if (firstBin is not (0 or 1))
+                throw new FormatException("CABAC decision bins must be zero or one.");
+            if (firstBin == 1)
+            {
+                int secondBin = _reader.DecodeBin(81 + chromaContextIncrements![1]);
+                if (secondBin is not (0 or 1))
+                    throw new FormatException("CABAC decision bins must be zero or one.");
+                chromaPattern = secondBin == 0 ? 1u : 2u;
+            }
+        }
+
+        uint combinedPattern = lumaPattern | (chromaPattern << 4);
+        return new H264CodedBlockPattern(
+            combinedPattern, lumaPattern, chromaPattern, chromaArrayType);
+    }
+
     /// <summary>Decodes prev_intra4x4_pred_mode_flag or prev_intra8x8_pred_mode_flag (ctxIdx 68).</summary>
     public bool ReadPreviousIntraPredictionModeFlag() =>
         ReadFlagAtContext(68);
