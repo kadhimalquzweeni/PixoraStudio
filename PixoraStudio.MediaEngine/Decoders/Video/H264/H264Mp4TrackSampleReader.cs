@@ -26,12 +26,20 @@ public sealed class H264Mp4TrackSampleReader
         if (descriptionIndex == 0)
             throw new FormatException("The MP4 sample has no sample-description index.");
 
-        Mp4SampleDescription? description = track.SampleDescriptions
-            .SingleOrDefault(item => item.Index == descriptionIndex);
-        if (description is null)
+        Mp4SampleDescription[] descriptions = track.SampleDescriptions
+            .Where(item => item.Index == descriptionIndex)
+            .Take(2)
+            .ToArray();
+        if (descriptions.Length == 0)
             throw new FormatException(
                 $"The MP4 sample references missing sample description {descriptionIndex}.");
-        if (description.Video is not { Codec: Mp4VideoCodec.Avc, CodecConfiguration: not null } video)
+        if (descriptions.Length > 1)
+            throw new FormatException(
+                $"The MP4 track contains duplicate sample description index {descriptionIndex}.");
+
+        Mp4VideoSampleEntry? video = descriptions[0].Video;
+        if (video is null || video.Codec != Mp4VideoCodec.Avc ||
+            video.CodecConfiguration is null)
             throw new NotSupportedException(
                 $"Sample description {descriptionIndex} is not configured for AVC video.");
 
