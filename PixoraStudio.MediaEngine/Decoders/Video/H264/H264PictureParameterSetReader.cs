@@ -167,7 +167,12 @@ public sealed class H264PictureParameterSetReader
         for (int i = 0; i < size; i++)
         {
             if (nextScale != 0)
-                nextScale = (int)(((long)lastScale + reader.ReadSignedExpGolomb() + 256) % 256);
+            {
+                int deltaScale = reader.ReadSignedExpGolomb();
+                if (deltaScale is < -128 or > 127)
+                    throw new FormatException("Scaling-list delta_scale is outside the permitted range.");
+                nextScale = (lastScale + deltaScale + 256) % 256;
+            }
             if (i == 0 && nextScale == 0) useDefault = true;
             int scale = nextScale == 0 ? lastScale : nextScale;
             values[i] = scale;
