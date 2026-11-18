@@ -59,6 +59,17 @@ public sealed class H264IntraPredictionTests
     }
 
     [Fact]
+    public void Predict4x4_DiagonalDownLeft_ShouldReplicateLastAvailableTopRightSample()
+    {
+        byte[] result = H264IntraPrediction.Predict4x4(
+            3, Top4, Left4, 15, true, true, true,
+            hasTopRight: true);
+
+        // T8 is replicated from T7 at the upper-right picture boundary.
+        Assert.Equal((byte)78, result[15]);
+    }
+
+    [Fact]
     public void Predict4x4_ShouldRejectUnavailableRequiredReferences()
     {
         Assert.Throws<FormatException>(() =>
