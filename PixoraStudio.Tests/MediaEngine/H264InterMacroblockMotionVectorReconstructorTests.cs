@@ -49,7 +49,7 @@ public sealed class H264InterMacroblockMotionVectorReconstructorTests
     [Fact]
     public void Reconstruct_P8x16_ShouldUseLeftCandidateForLeftPartitionAndAboveRightForRight()
     {
-        H264MotionVectorPictureState state = new(2, 2);
+        H264MotionVectorPictureState state = new(3, 2);
         state.RecordInterPartition(0, 4, 4, 4, 2, 0, new H264MotionVector(4, 5));
         state.RecordInterPartition(8, 0, 4, 4, 2, 0, new H264MotionVector(7, 3));
         H264InterMacroblockSyntax syntax = CreateRectangularSyntax(
@@ -123,7 +123,7 @@ public sealed class H264InterMacroblockMotionVectorReconstructorTests
 
         Assert.All(result, partition => Assert.Equal(0, partition.ReferenceIndex));
         Assert.Equal(new H264MotionVector(2, 3), result[0].MotionVector);
-        Assert.Equal(new H264MotionVector(-1, 4), result[1].MotionVector);
+        Assert.Equal(new H264MotionVector(1, 7), result[1].MotionVector);
     }
 
     [Fact]
