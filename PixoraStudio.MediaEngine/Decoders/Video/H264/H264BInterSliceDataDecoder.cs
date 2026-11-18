@@ -23,6 +23,15 @@ public sealed class H264BInterSliceDataDecoder
     private readonly H264CavlcNeighbourContext _cbNeighbours = new();
     private readonly H264CavlcNeighbourContext _crNeighbours = new();
     private readonly H264BReferencePictureListBuilder _listBuilder = new();
+    private readonly H264CabacMacroblockHeaderReader _cabacHeaderReader = new();
+    private readonly H264CabacIntraMacroblockSyntaxReader _cabacIntraSyntaxReader = new();
+    private readonly H264CabacIntraResidualMacroblockReader _cabacIntraResidualReader = new();
+    private readonly H264CabacInterMacroblockSyntaxReader _cabacInterSyntaxReader = new();
+    private readonly H264CabacInterResidualMacroblockReader _cabacInterResidualReader = new();
+    private readonly H264CabacInterMacroblockNeighbourContext _cabacInterNeighbours = new();
+    private readonly H264CabacIntraMacroblockNeighbourContext _cabacMacroblockNeighbours = new();
+    private readonly H264CabacMotionVectorNeighbourContext _cabacMotionNeighbours = new();
+    private readonly H264CabacResidualNeighbourContext _cabacResidualNeighbours = new();
 
     public H264BInterSliceDataDecoder(
         H264DecodedPictureSurface destination,
@@ -60,6 +69,10 @@ public sealed class H264BInterSliceDataDecoder
         _lumaNeighbours.Reset();
         _cbNeighbours.Reset();
         _crNeighbours.Reset();
+        _cabacInterNeighbours.Reset();
+        _cabacMacroblockNeighbours.Reset();
+        _cabacMotionNeighbours.Reset();
+        _cabacResidualNeighbours.Reset();
         _intraReconstructor.ResetPictureContexts();
     }
 
@@ -125,6 +138,15 @@ public sealed class H264BInterSliceDataDecoder
         int qpY = checked(26 + pps.PicInitQpMinus26 + slice.SliceQpDelta);
         if (qpY is < 0 or > 51)
             throw new FormatException("The initial SliceQPY is outside the supported 8-bit range.");
+
+        if (pps.EntropyCodingModeFlag)
+        {
+            return DecodeCabac(
+                reader, slice, sps, pps, referenceList0, referenceList1,
+                referencePictures, currentPictureOrderCount, sliceId,
+                collocatedContextProvider, deblockingParameters,
+                pictureWidth, pictureMacroblockCount, qpY);
+        }
 
         List<H264BInterMacroblockReconstructionResult> interResults = [];
         List<uint> intraAddresses = [];
@@ -234,6 +256,246 @@ public sealed class H264BInterSliceDataDecoder
         };
     }
 
+    private H264BInterSliceDecodeResult DecodeCabac(
+        H264BitReader reader,
+        H264SliceHeader slice,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps,
+        IReadOnlyList<H264DecodedPictureSurface> referenceList0,
+        IReadOnlyList<H264DecodedPictureSurface> referenceList1,
+        H264BReferencePictureLists referencePictures,
+        int currentPictureOrderCount,
+        int sliceId,
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider,
+        H264DeblockingSliceParameters deblockingParameters,
+        uint pictureWidth,
+        uint pictureMacroblockCount,
+        int initialQpY)
+    {
+        if (slice.CabacInitIdc is not uint cabacInitIdc || cabacInitIdc > 2)
+            throw new FormatException("A CABAC B slice must provide a valid cabac_init_idc.");
+
+        int qpY = initialQpY;
+        H264CabacSliceDataReader cabac = new(
+            reader, qpY, isIntraSlice: false, checked((int)cabacInitIdc));
+        H264CabacSyntaxElementReader syntaxReader = new(cabac);
+        H264CabacInterMacroblockResidualSyntaxReader interResidualSyntaxReader =
+            new(syntaxReader, _cabacMacroblockNeighbours);
+        List<H264BInterMacroblockReconstructionResult> interResults = [];
+        List<uint> intraAddresses = [];
+        int decodedCount = 0;
+        uint address = slice.FirstMacroblockInSlice;
+
+        while (!cabac.IsTerminated)
+        {
+            if (address >= pictureMacroblockCount)
+                throw new FormatException("CABAC B-slice data contains more macroblocks than remain in the picture.");
+
+            int macroblockX = checked((int)(address % pictureWidth));
+            int macroblockY = checked((int)(address / pictureWidth));
+            int skipContextIncrement = _cabacInterNeighbours.GetSkipFlagContextIncrement(
+                macroblockX, macroblockY, sliceId);
+            int macroblockTypeContextIncrement =
+                _cabacInterNeighbours.GetBSliceMacroblockTypeContextIncrement(
+                    macroblockX, macroblockY, sliceId);
+            H264MacroblockHeader header = _cabacHeaderReader.ReadBSlice(
+                syntaxReader, address, skipContextIncrement,
+                macroblockTypeContextIncrement);
+
+            if (header.IsSkipped)
+            {
+                interResults.Add(_interReconstructor.DecodeSkippedAndReconstruct(
+                    header, referenceList0, referenceList1, referencePictures,
+                    _motionVectorStateL0, _motionVectorStateL1,
+                    _destination, macroblockX, macroblockY, sliceId, qpY,
+                    currentPictureOrderCount, slice.DirectSpatialMvPredFlag,
+                    sps, pps, slice.PredictionWeights,
+                    collocatedContextProvider, deblockingParameters));
+                RecordCabacMacroblockState(
+                    address, macroblockX, macroblockY, sliceId,
+                    false, false, false, 0, 0, null, null, false);
+                RecordCabacResidualMacroblockState(
+                    macroblockX, macroblockY, sliceId, isPcm: false);
+                RecordCabacMotionState(
+                    macroblockX, macroblockY, sliceId, -1, isDirect: true);
+                _cabacInterNeighbours.RecordMacroblock(
+                    address, macroblockX, macroblockY, sliceId,
+                    isSkipped: true, isDirect: true);
+            }
+            else if (header.IsPcm)
+            {
+                H264PcmMacroblock pcm = _pcmReader.Read(reader, header, sps, pps);
+                _intraReconstructor.ReconstructPcm(
+                    header, pcm, macroblockX, macroblockY, sliceId, sps, pps, qpY: qpY);
+                cabac.RestartAfterPcm();
+                RecordCabacMacroblockState(
+                    address, macroblockX, macroblockY, sliceId,
+                    false, false, true, 0, 0, null, null, false);
+                _cabacIntraResidualReader.RecordPcmMacroblock(
+                    macroblockX, macroblockY, sliceId, sps, _cabacResidualNeighbours);
+                RecordCabacMotionState(
+                    macroblockX, macroblockY, sliceId, -1, isDirect: false);
+                _cabacInterNeighbours.RecordMacroblock(
+                    address, macroblockX, macroblockY, sliceId,
+                    isSkipped: false, isDirect: false);
+                _motionVectorStateL0.RecordUnavailableRegion(
+                    macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                _motionVectorStateL1.RecordUnavailableRegion(
+                    macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                intraAddresses.Add(address);
+            }
+            else if (header.IsIntra)
+            {
+                uint? previousAddress = address == slice.FirstMacroblockInSlice
+                    ? null
+                    : address - 1;
+                H264IntraMacroblockSyntax syntax = _cabacIntraSyntaxReader.Read(
+                    syntaxReader, header, sps, pps,
+                    _cabacMacroblockNeighbours, macroblockX, macroblockY,
+                    sliceId, previousAddress);
+                H264IntraLumaResidualMacroblock residual = _cabacIntraResidualReader.Read(
+                    cabac, header, syntax, sps,
+                    macroblockX, macroblockY, sliceId, _cabacResidualNeighbours);
+                int macroblockQp = syntax.MacroblockQpDelta is int delta
+                    ? UpdateQpY(qpY, delta)
+                    : qpY;
+                if (header.IsIntra16x16)
+                    _intraReconstructor.ReconstructIntra16x16(
+                        macroblockX, macroblockY, sliceId, header, syntax,
+                        residual, macroblockQp, sps, pps);
+                else if (syntax.TransformSize8X8Flag == true)
+                    _intraReconstructor.ReconstructIntraNxN8x8(
+                        macroblockX, macroblockY, sliceId, header, syntax,
+                        residual, macroblockQp, sps, pps);
+                else
+                    _intraReconstructor.ReconstructIntraNxN4x4(
+                        macroblockX, macroblockY, sliceId, header, syntax,
+                        residual, macroblockQp, sps, pps);
+                qpY = macroblockQp;
+                RecordCabacMacroblockState(
+                    address, macroblockX, macroblockY, sliceId,
+                    !header.IsIntra16x16, header.IsIntra16x16, false,
+                    syntax.CodedBlockPattern.Luma,
+                    syntax.CodedBlockPattern.Chroma,
+                    syntax.IntraChromaPredictionMode,
+                    syntax.MacroblockQpDelta,
+                    syntax.TransformSize8X8Flag == true);
+                RecordCabacMotionState(
+                    macroblockX, macroblockY, sliceId, -1, isDirect: false);
+                _cabacInterNeighbours.RecordMacroblock(
+                    address, macroblockX, macroblockY, sliceId,
+                    isSkipped: false, isDirect: false);
+                _motionVectorStateL0.RecordUnavailableRegion(
+                    macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                _motionVectorStateL1.RecordUnavailableRegion(
+                    macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                intraAddresses.Add(address);
+            }
+            else
+            {
+                H264BMacroblockSyntax interSyntax = _cabacInterSyntaxReader.ReadBSlice(
+                    syntaxReader, header,
+                    slice.NumRefIdxL0ActiveMinus1, slice.NumRefIdxL1ActiveMinus1,
+                    macroblockX, macroblockY, sliceId, _cabacMotionNeighbours);
+                bool noSubMacroblockPartitionSmallerThan8x8 =
+                    H264CabacInterMacroblockSyntaxReader
+                        .HasNoSubMacroblockPartitionSmallerThan8x8(interSyntax);
+                H264InterMacroblockResidualSyntax residualSyntax =
+                    interResidualSyntaxReader.Read(
+                        sps, pps, macroblockX, macroblockY, sliceId,
+                        address, noSubMacroblockPartitionSmallerThan8x8);
+                H264InterResidualMacroblock residual = _cabacInterResidualReader.Read(
+                    cabac, header, residualSyntax, sps,
+                    macroblockX, macroblockY, sliceId, _cabacResidualNeighbours);
+                H264BInterMacroblockReconstructionResult result =
+                    _interReconstructor.ReconstructCabac(
+                        header, interSyntax, residualSyntax, residual,
+                        referenceList0, referenceList1, referencePictures,
+                        _motionVectorStateL0, _motionVectorStateL1,
+                        _destination, macroblockX, macroblockY, sliceId,
+                        qpY, currentPictureOrderCount,
+                        slice.DirectSpatialMvPredFlag, sps, pps,
+                        slice.PredictionWeights, collocatedContextProvider,
+                        deblockingParameters);
+                qpY = result.QpY;
+                interResults.Add(result);
+                RecordCabacMacroblockState(
+                    address, macroblockX, macroblockY, sliceId,
+                    false, false, false,
+                    residualSyntax.CodedBlockPattern.Luma,
+                    residualSyntax.CodedBlockPattern.Chroma,
+                    null, residualSyntax.MacroblockQpDelta,
+                    residualSyntax.TransformSize8X8Flag);
+                _cabacInterNeighbours.RecordMacroblock(
+                    address, macroblockX, macroblockY, sliceId,
+                    isSkipped: false,
+                    isDirect: H264CabacInterMacroblockSyntaxReader.IsDirectMacroblock(interSyntax));
+            }
+
+            decodedCount++;
+            bool endOfSlice = syntaxReader.ReadEndOfSliceFlag();
+            address++;
+            if (endOfSlice)
+                break;
+        }
+
+        if (decodedCount == 0)
+            throw new FormatException("The CABAC B slice contains no macroblock data.");
+        reader.ConsumeCabacTrailingBits();
+        return new H264BInterSliceDecodeResult(
+            slice, decodedCount, qpY, reader.PositionBits,
+            interResults, intraAddresses)
+        {
+            ReferencePictureLists = referencePictures
+        };
+    }
+
+    private void RecordCabacMacroblockState(
+        uint address,
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        bool isIntraNxN,
+        bool isIntra16x16,
+        bool isPcm,
+        uint codedBlockPatternLuma,
+        uint codedBlockPatternChroma,
+        uint? intraChromaPredictionMode,
+        int? macroblockQpDelta,
+        bool transformSize8x8Flag)
+    {
+        _cabacMacroblockNeighbours.RecordMacroblock(
+            address, macroblockX, macroblockY, sliceId,
+            isIntraNxN, isIntra16x16, isPcm,
+            codedBlockPatternLuma, codedBlockPatternChroma,
+            intraChromaPredictionMode, macroblockQpDelta,
+            transformSize8x8Flag);
+    }
+
+    private void RecordCabacResidualMacroblockState(
+        int macroblockX, int macroblockY, int sliceId, bool isPcm)
+    {
+        for (int plane = 0; plane <= 5; plane++)
+            _cabacResidualNeighbours.RecordMacroblock(
+                plane, macroblockX, macroblockY, sliceId, isPcm);
+    }
+
+    private void RecordCabacMotionState(
+        int macroblockX, int macroblockY, int sliceId,
+        int referenceIndex, bool isDirect)
+    {
+        for (int y = 0; y < 4; y++)
+        for (int x = 0; x < 4; x++)
+        {
+            int blockX = macroblockX * 4 + x;
+            int blockY = macroblockY * 4 + y;
+            _cabacMotionNeighbours.Record(
+                0, blockX, blockY, sliceId, referenceIndex, isDirect, 0, 0);
+            _cabacMotionNeighbours.Record(
+                1, blockX, blockY, sliceId, referenceIndex, isDirect, 0, 0);
+        }
+    }
+
     private static IReadOnlyList<H264DecodedPictureSurface> MapSurfaces(
         IReadOnlyList<H264ReferencePicture> pictures,
         H264DecodedPictureBuffer dpb)
@@ -277,8 +539,6 @@ public sealed class H264BInterSliceDataDecoder
     {
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
-        if (pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("CABAC B-slice decoding is not implemented.");
         if (pps.NumSliceGroupsMinus1 != 0)
             throw new NotSupportedException("FMO B slices are not supported.");
         if (!sps.FrameMbsOnlyFlag || sps.MbAdaptiveFrameFieldFlag ||
