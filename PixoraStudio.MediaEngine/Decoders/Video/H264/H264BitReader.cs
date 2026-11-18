@@ -77,6 +77,35 @@ public sealed class H264BitReader
         throw CreateTrailingBitsException("Unexpected data remains after rbsp_trailing_bits.");
     }
 
+    /// <summary>
+    /// Consumes CABAC rbsp_slice_trailing_bits followed by zero or more
+    /// 16-bit cabac_zero_word values.
+    /// </summary>
+    public void ConsumeCabacTrailingBits()
+    {
+        if (RemainingBits == 0 || !ReadFlag())
+            throw CreateTrailingBitsException(
+                "CABAC slice trailing bits must begin with rbsp_stop_one_bit.");
+
+        while (!IsByteAligned)
+        {
+            if (ReadFlag())
+                throw CreateTrailingBitsException(
+                    "CABAC slice alignment bits must be zero.");
+        }
+
+        if (RemainingBits % 16 != 0)
+            throw CreateTrailingBitsException(
+                "CABAC cabac_zero_word padding must contain complete 16-bit words.");
+
+        while (RemainingBits > 0)
+        {
+            if (ReadBits(16) != 0)
+                throw CreateTrailingBitsException(
+                    "CABAC cabac_zero_word values must be zero.");
+        }
+    }
+
     private FormatException CreateTrailingBitsException(string reason)
     {
         char[] remainingBitCharacters = new char[RemainingBits];
