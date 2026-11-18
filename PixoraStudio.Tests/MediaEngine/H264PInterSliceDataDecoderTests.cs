@@ -106,6 +106,32 @@ public sealed class H264PInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_SkipRunBeforeInterMacroblock_ShouldSeedZeroCavlcNeighbourContexts()
+    {
+        H264SequenceParameterSet sps = Sps(2);
+        H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WritePSliceHeader();
+        bits.WriteUe(1); // one P_Skip macroblock
+        bits.WriteUe(0); // next mb_skip_run is zero
+        bits.WriteUe(0); // P_L0_16x16
+        bits.WriteSe(0); bits.WriteSe(0);
+        bits.WriteUe(2); // coded_block_pattern: top-left luma group
+        bits.WriteSe(0); // mb_qp_delta
+        for (int i = 0; i < 4; i++) bits.WriteFlag(true); // four zero coeff_token values
+        bits.WriteRbspTrailingBits();
+
+        H264PInterSliceDecodeResult result = new H264PInterSliceDataDecoder(
+            destination, new H264MotionVectorPictureState(2, 1)).Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, Pps(), [reference], 0);
+
+        Assert.Equal(2, result.MacroblocksDecoded);
+        Assert.Single(result.Macroblocks);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.IsMacroblockDecoded(1, 0));
+    }
+
+    [Fact]
     public void Decode_WithDpb_ShouldBuildRefPicList0AndReconstructPInterMacroblock()
     {
         H264SequenceParameterSet sps = Sps(1);
