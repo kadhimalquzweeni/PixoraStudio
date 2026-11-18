@@ -40,36 +40,66 @@ public static class H264InterMacroblockResidualReconstructor
             prediction.Cr.Length != 8 * chromaHeight)
             throw new ArgumentException("Prediction buffers must describe one complete 16x16 macroblock.", nameof(prediction));
 
-        if (residual.LumaBlocks.Count != 16)
-            throw new FormatException("An inter macroblock must contain sixteen luma 4x4 residual blocks.");
-        if (residual.ChromaComponents.Count != 2 ||
-            residual.ChromaComponents.Count(component => component.ComponentId == 1) != 1 ||
-            residual.ChromaComponents.Count(component => component.ComponentId == 2) != 1)
-            throw new FormatException("Inter residual data must contain exactly one Cb and one Cr component.");
-
         byte[] luma = (byte[])prediction.Luma.Clone();
-        bool[] seen = new bool[16];
-        foreach (H264IntraLumaResidualBlock block in residual.LumaBlocks)
+        if (residual.TransformSize8X8Flag)
         {
-            if (block.BlockX is < 0 or > 3 || block.BlockY is < 0 or > 3)
-                throw new FormatException("Luma residual coordinates must be within the macroblock.");
-            int index = block.BlockY * 4 + block.BlockX;
-            if (seen[index])
-                throw new FormatException("Duplicate luma residual block coordinates.");
-            seen[index] = true;
-            if (block.Residual.MaximumCoefficients != 16 ||
-                block.Residual.Coefficients.Count != 16)
-                throw new FormatException("Inter luma residual blocks must contain sixteen coefficients.");
-            if (!block.IsCoded && block.Residual.TotalCoefficients != 0)
-                throw new FormatException("An uncoded luma block cannot contain non-zero coefficients.");
+            if (!pps.Transform8X8ModeFlag)
+                throw new FormatException("The residual payload selects 8x8 transforms but the PPS disables them.");
+            if (residual.LumaBlocks.Count != 0 || residual.Luma8x8Blocks.Count != 4)
+                throw new FormatException("An inter 8x8 transform macroblock must contain four 8x8 blocks and no 4x4 blocks.");
+            bool[] seen8x8 = new bool[4];
+            int qpPrimeY = H264InverseQuantizer.ToQpPrimeY(sps, qpY);
+            foreach (H264Intra8x8LumaResidualBlock block in residual.Luma8x8Blocks)
+            {
+                if (block.BlockX is < 0 or > 1 || block.BlockY is < 0 or > 1)
+                    throw new FormatException("Inter 8x8 residual coordinates must be within the macroblock.");
+                int index = block.BlockY * 2 + block.BlockX;
+                if (seen8x8[index])
+                    throw new FormatException("Duplicate inter 8x8 residual block coordinates.");
+                seen8x8[index] = true;
+                if (block.CoefficientsInScanOrder.Count != 64)
+                    throw new FormatException("An inter 8x8 residual block must contain 64 coefficients.");
+                if (!block.IsCoded && block.CoefficientsInScanOrder.Any(value => value != 0))
+                    throw new FormatException("An uncoded inter 8x8 block cannot contain non-zero coefficients.");
 
-            byte[] blockPrediction = ExtractLumaBlock(prediction.Luma, block.BlockX, block.BlockY);
-            byte[] reconstructed = H264IntraResidualReconstructor.Reconstruct4x4(
-                blockPrediction, block.Residual, qpY, sps, pps, scalingListIndex: 3);
-            WriteLumaBlock(luma, reconstructed, block.BlockX, block.BlockY);
+                byte[] blockPrediction = ExtractLuma8x8(
+                    prediction.Luma, block.BlockX, block.BlockY);
+                byte[] reconstructed = H264Intra8x8ResidualReconstructor.Reconstruct(
+                    blockPrediction, block.CoefficientsInScanOrder,
+                    qpPrimeY, sps, pps, scalingListIndex: 7);
+                WriteLuma8x8(luma, reconstructed, block.BlockX, block.BlockY);
+            }
+            if (seen8x8.Any(value => !value))
+                throw new FormatException("The inter 8x8 residual grid is incomplete.");
         }
-        if (seen.Any(value => !value))
-            throw new FormatException("The inter luma residual block grid is incomplete.");
+        else
+        {
+            if (residual.Luma8x8Blocks.Count != 0 || residual.LumaBlocks.Count != 16)
+                throw new FormatException("An inter 4x4 transform macroblock must contain sixteen 4x4 blocks only.");
+            bool[] seen = new bool[16];
+            foreach (H264IntraLumaResidualBlock block in residual.LumaBlocks)
+            {
+                if (block.BlockX is < 0 or > 3 || block.BlockY is < 0 or > 3)
+                    throw new FormatException("Luma residual coordinates must be within the macroblock.");
+                int index = block.BlockY * 4 + block.BlockX;
+                if (seen[index])
+                    throw new FormatException("Duplicate luma residual block coordinates.");
+                seen[index] = true;
+                if (block.Residual.MaximumCoefficients != 16 ||
+                    block.Residual.Coefficients.Count != 16)
+                    throw new FormatException("Inter luma residual blocks must contain sixteen coefficients.");
+                if (!block.IsCoded && block.Residual.TotalCoefficients != 0)
+                    throw new FormatException("An uncoded luma block cannot contain non-zero coefficients.");
+
+                byte[] blockPrediction = ExtractLumaBlock(
+                    prediction.Luma, block.BlockX, block.BlockY);
+                byte[] reconstructed = H264IntraResidualReconstructor.Reconstruct4x4(
+                    blockPrediction, block.Residual, qpY, sps, pps, scalingListIndex: 3);
+                WriteLumaBlock(luma, reconstructed, block.BlockX, block.BlockY);
+            }
+            if (seen.Any(value => !value))
+                throw new FormatException("The inter luma residual block grid is incomplete.");
+        }
 
         H264IntraChromaResidualComponent cbResidual = residual.ChromaComponents.Single(c => c.ComponentId == 1);
         H264IntraChromaResidualComponent crResidual = residual.ChromaComponents.Single(c => c.ComponentId == 2);
@@ -79,6 +109,24 @@ public static class H264InterMacroblockResidualReconstructor
             prediction.Cr, crResidual, qpY, sps, pps, scalingListIndexOverride: 5);
 
         return new H264MotionCompensatedBlock(16, 16, 8, chromaHeight, luma, cb, cr);
+    }
+
+
+    private static byte[] ExtractLuma8x8(IReadOnlyList<byte> plane, int blockX, int blockY)
+    {
+        byte[] block = new byte[64];
+        for (int y = 0; y < 8; y++)
+        for (int x = 0; x < 8; x++)
+            block[y * 8 + x] = plane[(blockY * 8 + y) * 16 + blockX * 8 + x];
+        return block;
+    }
+
+    private static void WriteLuma8x8(
+        byte[] destination, IReadOnlyList<byte> block, int blockX, int blockY)
+    {
+        for (int y = 0; y < 8; y++)
+            Array.Copy(block.ToArray(), y * 8, destination,
+                (blockY * 8 + y) * 16 + blockX * 8, 8);
     }
 
     private static byte[] ExtractLumaBlock(IReadOnlyList<byte> plane, int blockX, int blockY)
