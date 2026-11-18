@@ -481,6 +481,77 @@ public sealed class H264CabacSyntaxElementReaderTests
 
 
 
+
+    [Theory]
+    [InlineData(12, 0, 0, 0)]
+    [InlineData(13, 0, 0, 1)]
+    [InlineData(14, 0, 1, 0)]
+    [InlineData(15, 0, 1, 1)]
+    [InlineData(16, 1, 0, 0)]
+    [InlineData(17, 1, 0, 1)]
+    [InlineData(18, 1, 1, 0)]
+    [InlineData(19, 1, 1, 1)]
+    public void ReadBSliceMacroblockType_ShouldDecodeBiPartitionTypes(
+        int expected, int firstSuffix, int secondSuffix, int thirdSuffix)
+    {
+        ScriptedCabacReader bins = new(
+            1, 1, 1, 0, firstSuffix, secondSuffix, thirdSuffix);
+        int actual = new H264CabacSyntaxElementReader(bins)
+            .ReadBSliceMacroblockType(0);
+
+        Assert.Equal(expected, actual);
+        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32 }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(20, 0)]
+    [InlineData(21, 1)]
+    public void ReadBSliceMacroblockType_ShouldDecodeBiBi16x8And8x16(
+        int expected, int finalBin)
+    {
+        ScriptedCabacReader bins = new(1, 1, 1, 1, 0, 0, finalBin);
+        int actual = new H264CabacSyntaxElementReader(bins)
+            .ReadBSliceMacroblockType(0);
+
+        Assert.Equal(expected, actual);
+        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32 }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(11, 1, 0)]
+    [InlineData(22, 1, 1)]
+    public void ReadBSliceMacroblockType_ShouldDecodeReservedSuffixTypes(
+        int expected, int firstSuffix, int secondSuffix)
+    {
+        ScriptedCabacReader bins = new(1, 1, 1, 1, firstSuffix, secondSuffix);
+        int actual = new H264CabacSyntaxElementReader(bins)
+            .ReadBSliceMacroblockType(0);
+
+        Assert.Equal(expected, actual);
+        Assert.Equal(new[] { 27, 30, 31, 32, 32 }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(3, 0, 0, 0)]
+    [InlineData(4, 0, 0, 1)]
+    [InlineData(5, 0, 1, 0)]
+    [InlineData(6, 0, 1, 1)]
+    [InlineData(7, 1, 0, 0)]
+    [InlineData(8, 1, 0, 1)]
+    [InlineData(9, 1, 1, 0)]
+    [InlineData(10, 1, 1, 1)]
+    public void ReadBSliceMacroblockType_ShouldDecodeFirstPartitionTypeGroup(
+        int expected, int firstSuffix, int secondSuffix, int thirdSuffix)
+    {
+        ScriptedCabacReader bins = new(
+            1, 1, 0, firstSuffix, secondSuffix, thirdSuffix);
+        int actual = new H264CabacSyntaxElementReader(bins)
+            .ReadBSliceMacroblockType(0);
+
+        Assert.Equal(expected, actual);
+        Assert.Equal(new[] { 27, 30, 31, 32, 32, 32 }, bins.ContextIndices);
+    }
+
     [Fact]
     public void ReadReferenceIndex_ShouldAcceptMaximumNeighbourContextIncrement()
     {
