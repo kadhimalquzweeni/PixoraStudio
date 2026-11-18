@@ -5,6 +5,29 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// <summary>Parses AVC slice headers. Slice payload (macroblock data) remains unread.</summary>
 public sealed class H264SliceHeaderReader
 {
+    /// <summary>
+    /// Reads the three leading slice identifiers without requiring an SPS/PPS
+    /// context, allowing MP4 access-unit dispatch to resolve the referenced PPS.
+    /// </summary>
+    public (uint FirstMacroblockInSlice, uint SliceTypeCode, uint PictureParameterSetId)
+        ReadLeadingIdentifiers(H264NalUnit nalUnit)
+    {
+        ArgumentNullException.ThrowIfNull(nalUnit);
+        if (nalUnit.NalUnitType is not (1 or 5))
+            throw new FormatException("Only ordinary and IDR slice NAL units have this header prefix.");
+
+        H264BitReader reader = new(nalUnit.Rbsp);
+        uint firstMacroblock = reader.ReadUnsignedExpGolomb();
+        uint sliceType = reader.ReadUnsignedExpGolomb();
+        if (sliceType > 9)
+            throw new FormatException("slice_type must be in the range 0..9.");
+        uint ppsId = reader.ReadUnsignedExpGolomb();
+        if (ppsId > 255)
+            throw new FormatException("pic_parameter_set_id exceeds 255.");
+
+        return (firstMacroblock, sliceType, ppsId);
+    }
+
     public H264SliceHeader Read(
         H264NalUnit nalUnit,
         H264SequenceParameterSet sequenceParameterSet,
