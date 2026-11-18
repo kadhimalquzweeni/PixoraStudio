@@ -62,7 +62,7 @@ public sealed class H264Intra16x16ResidualReconstructorTests
 
         Assert.Equal(256, result.Length);
         Assert.All(result, sample => Assert.True(sample > 100));
-        Assert.Single(result.Distinct());
+        Assert.Equal(256, result.Distinct().Count());
     }
 
     [Fact]
@@ -79,8 +79,22 @@ public sealed class H264Intra16x16ResidualReconstructorTests
             24, CreateSps(), CreatePps());
 
         // The first luma4x4BlkIdx block occupies the top-left 4x4 region.
-        Assert.Equal(new byte[] { 104, 102, 98, 96 }, result.Take(4));
-        Assert.All(result.Skip(4), sample => Assert.Equal((byte)100, sample));
+        for (int y = 0; y < 4; y++)
+        {
+            Assert.Equal(new byte[] { 104, 102, 98, 96 },
+                result.Skip(y * 16).Take(4));
+        }
+
+        for (int y = 0; y < 16; y++)
+        {
+            Assert.All(result.Skip(y * 16 + 4).Take(12),
+                sample => Assert.Equal((byte)100, sample));
+        }
+        for (int y = 4; y < 16; y++)
+        {
+            Assert.All(result.Skip(y * 16).Take(4),
+                sample => Assert.Equal((byte)100, sample));
+        }
     }
 
     [Fact]
