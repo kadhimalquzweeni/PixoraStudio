@@ -54,9 +54,9 @@ public sealed class H264AvcDecoderConfigurationReaderTests
         H264AvcDecoderConfiguration result =
             new H264AvcDecoderConfigurationReader().Read(data.ToArray());
 
-        Assert.Equal((byte)1, result.ChromaFormat);
-        Assert.Equal((byte)2, result.BitDepthLumaMinus8);
-        Assert.Equal((byte)1, result.BitDepthChromaMinus8);
+        Assert.Equal((byte?)1, result.ChromaFormat);
+        Assert.Equal((byte?)2, result.BitDepthLumaMinus8);
+        Assert.Equal((byte?)1, result.BitDepthChromaMinus8);
         Assert.Equal((byte)13, Assert.Single(result.SequenceParameterSetExtensions).NalUnitType);
         Assert.Equal(2, result.NaluLengthSize);
     }
