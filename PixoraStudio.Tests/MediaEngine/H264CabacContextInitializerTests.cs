@@ -16,14 +16,14 @@ public sealed class H264CabacContextInitializerTests
     }
 
     [Theory]
-    [InlineData(0, 6, 1)]
-    [InlineData(1, 3, 0)]
-    [InlineData(2, 0, 0)]
+    [InlineData(0, 8, 0)]
+    [InlineData(1, 0, 1)]
+    [InlineData(2, 4, 0)]
     public void TryInitialize_ShouldSelectPOrBSliceInitialisationSet(
         int cabacInitIdc, int expectedState, int expectedMps)
     {
         bool initialized = H264CabacContextInitializer.TryInitialize(
-            contextIndex: 11, sliceQpY: 26, isIntraSlice: false, cabacInitIdc,
+            contextIndex: 54, sliceQpY: 26, isIntraSlice: false, cabacInitIdc,
             out H264CabacContextModel context);
 
         Assert.True(initialized);
@@ -38,8 +38,8 @@ public sealed class H264CabacContextInitializerTests
         Assert.Equal(new H264CabacContextModel(62, 0), lower);
 
         Assert.True(H264CabacContextInitializer.TryInitialize(
-            16, 51, true, 0, out H264CabacContextModel upper));
-        Assert.Equal(new H264CabacContextModel(8, 1), upper);
+            422, 51, true, 0, out H264CabacContextModel upper));
+        Assert.Equal(new H264CabacContextModel(62, 1), upper);
     }
 
     [Fact]
