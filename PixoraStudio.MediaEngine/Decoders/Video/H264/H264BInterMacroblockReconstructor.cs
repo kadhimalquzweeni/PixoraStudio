@@ -54,7 +54,8 @@ public sealed class H264BInterMacroblockReconstructor
         H264CavlcNeighbourContext lumaNeighbours,
         H264CavlcNeighbourContext chromaCbNeighbours,
         H264CavlcNeighbourContext chromaCrNeighbours,
-        H264PredictionWeightTable? predictionWeights = null)
+        H264PredictionWeightTable? predictionWeights = null,
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? temporalContextProvider = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(header);
@@ -77,7 +78,7 @@ public sealed class H264BInterMacroblockReconstructor
                 macroblockX, macroblockY, sliceId,
                 checked((int)(numRefIdxL0ActiveMinus1 + 1)),
                 checked((int)(numRefIdxL1ActiveMinus1 + 1)),
-                directSpatialPrediction, sps.Direct8X8InferenceFlag);
+                directSpatialPrediction, sps.Direct8X8InferenceFlag, temporalContextProvider);
 
         IReadOnlyList<H264BInterMacroblockPrediction> predictions =
             _predictionDecoder.DecodeAndPredict(
@@ -128,7 +129,8 @@ public sealed class H264BInterMacroblockReconstructor
         bool directSpatialPrediction,
         H264SequenceParameterSet sps,
         H264PictureParameterSetHeader pps,
-        H264PredictionWeightTable? predictionWeights = null)
+        H264PredictionWeightTable? predictionWeights = null,
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? temporalContextProvider = null)
     {
         ArgumentNullException.ThrowIfNull(header);
         ValidateContext(destination, macroblockX, macroblockY, sliceId, currentQpY, sps, pps);
@@ -136,8 +138,8 @@ public sealed class H264BInterMacroblockReconstructor
             throw new ArgumentException("A single B_Skip macroblock header is required.", nameof(header));
         if (header.MacroblockAddress != checked((uint)(macroblockY * destination.MacroblockWidth + macroblockX)))
             throw new FormatException("The B_Skip header address does not match its picture coordinates.");
-        if (!directSpatialPrediction)
-            throw new NotSupportedException("Temporal B_Skip prediction requires collocated-picture motion metadata.");
+        if (!directSpatialPrediction && temporalContextProvider is null)
+            throw new NotSupportedException("Temporal B_Skip prediction requires a collocated-picture metadata provider.");
         if (pps.WeightedBipredIdc == 1 && predictionWeights is null)
             throw new ArgumentNullException(nameof(predictionWeights));
         if (destination.IsMacroblockDecoded(macroblockX, macroblockY))
@@ -154,7 +156,7 @@ public sealed class H264BInterMacroblockReconstructor
                 directSyntax, motionVectorStateL0, motionVectorStateL1,
                 macroblockX, macroblockY, sliceId,
                 referenceList0.Count, referenceList1.Count,
-                true, sps.Direct8X8InferenceFlag);
+                directSpatialPrediction, sps.Direct8X8InferenceFlag, temporalContextProvider);
         IReadOnlyList<H264BInterMacroblockPrediction> predictions =
             _predictionDecoder.DecodeAndPredict(
                 partitions, referenceList0, referenceList1, referencePictureLists,
