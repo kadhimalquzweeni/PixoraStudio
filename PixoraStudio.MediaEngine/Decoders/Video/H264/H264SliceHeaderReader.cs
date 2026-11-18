@@ -11,6 +11,22 @@ public sealed class H264SliceHeaderReader
         H264PictureParameterSetHeader pictureParameterSet)
     {
         ArgumentNullException.ThrowIfNull(nalUnit);
+        return Read(new H264BitReader(nalUnit.Rbsp), nalUnit,
+            sequenceParameterSet, pictureParameterSet);
+    }
+
+    /// <summary>
+    /// Parses a slice header from an existing reader, leaving its position at
+    /// the first slice_data() syntax element for the macroblock decoder.
+    /// </summary>
+    public H264SliceHeader Read(
+        H264BitReader reader,
+        H264NalUnit nalUnit,
+        H264SequenceParameterSet sequenceParameterSet,
+        H264PictureParameterSetHeader pictureParameterSet)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(nalUnit);
         ArgumentNullException.ThrowIfNull(sequenceParameterSet);
         ArgumentNullException.ThrowIfNull(pictureParameterSet);
 
@@ -19,7 +35,6 @@ public sealed class H264SliceHeaderReader
         if (pictureParameterSet.SequenceParameterSetId != sequenceParameterSet.Id)
             throw new FormatException("The PPS references a different SPS.");
 
-        H264BitReader reader = new(nalUnit.Rbsp);
         uint firstMb = ReadBoundedUe(reader, 1_000_000, "first_mb_in_slice");
         uint sliceTypeCode = ReadBoundedUe(reader, 9, "slice_type");
         H264SliceType sliceType = (H264SliceType)(sliceTypeCode % 5);

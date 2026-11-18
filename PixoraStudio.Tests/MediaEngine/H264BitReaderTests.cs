@@ -37,6 +37,32 @@ public sealed class H264BitReaderTests
     }
 
     [Fact]
+    public void MoreRbspData_ShouldRecognizeStopBitAndZeroAlignmentAsTrailingBits()
+    {
+        H264BitReader reader = new(new byte[] { 0b1000_0000 });
+        Assert.False(reader.MoreRbspData());
+        reader.ConsumeRbspTrailingBits();
+        Assert.Equal(0, reader.RemainingBits);
+    }
+
+    [Fact]
+    public void MoreRbspData_ShouldDistinguishPayloadFromTrailingBits()
+    {
+        H264BitReader reader = new(new byte[] { 0b1010_0000 });
+        Assert.True(reader.MoreRbspData());
+        Assert.Equal(0, reader.PositionBits);
+    }
+
+    [Fact]
+    public void ConsumeRbspTrailingBits_ShouldRejectMissingStopBitAndNonZeroAlignment()
+    {
+        Assert.Throws<FormatException>(() =>
+            new H264BitReader(new byte[] { 0 }).ConsumeRbspTrailingBits());
+        Assert.Throws<FormatException>(() =>
+            new H264BitReader(new byte[] { 0b1100_0000 }).ConsumeRbspTrailingBits());
+    }
+
+    [Fact]
     public void ReadBits_ShouldRejectTruncatedInput()
     {
         H264BitReader reader = new(new byte[] { 0x80 }, 1);

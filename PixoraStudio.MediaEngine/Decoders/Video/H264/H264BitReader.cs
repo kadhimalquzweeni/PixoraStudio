@@ -23,6 +23,37 @@ public sealed class H264BitReader
     public int RemainingBits => _lengthBits - _position;
     public bool IsByteAligned => (_position & 7) == 0;
 
+    /// <summary>
+    /// Returns false only when the remaining bits are exactly rbsp_trailing_bits:
+    /// one stop bit followed by zero bits to the end of the RBSP.
+    /// </summary>
+    public bool MoreRbspData()
+    {
+        if (RemainingBits == 0)
+            return false;
+        if (!PeekBits(1).Equals(1u))
+            return true;
+
+        for (int offset = 1; offset < RemainingBits; offset++)
+            if (PeekBits(1, offset) != 0)
+                return true;
+        return false;
+    }
+
+    /// <summary>Consumes and validates rbsp_stop_one_bit and alignment zero bits.</summary>
+    public void ConsumeRbspTrailingBits()
+    {
+        if (RemainingBits == 0 || !ReadFlag())
+            throw new FormatException("RBSP trailing bits must begin with rbsp_stop_one_bit.");
+        while (!IsByteAligned)
+        {
+            if (ReadFlag())
+                throw new FormatException("RBSP alignment bits must be zero.");
+        }
+        if (RemainingBits != 0)
+            throw new FormatException("Unexpected data remains after rbsp_trailing_bits.");
+    }
+
     public uint ReadBits(int count)
     {
         if (count is < 0 or > 32) throw new ArgumentOutOfRangeException(nameof(count));
