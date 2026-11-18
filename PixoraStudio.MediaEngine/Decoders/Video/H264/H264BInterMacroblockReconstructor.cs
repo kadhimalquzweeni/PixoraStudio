@@ -97,7 +97,8 @@ public sealed class H264BInterMacroblockReconstructor
         H264InterResidualMacroblock residual = _residualReader.Read(
             reader, header, residualSyntax.CodedBlockPattern, sps,
             macroblockX, macroblockY, sliceId,
-            lumaNeighbours, chromaCbNeighbours, chromaCrNeighbours);
+            lumaNeighbours, chromaCbNeighbours, chromaCrNeighbours,
+            transformSize8x8Flag: residualSyntax.TransformSize8X8Flag);
         H264MotionCompensatedBlock reconstructed =
             H264InterMacroblockResidualReconstructor.Reconstruct(
                 prediction, residual, qpY, sps, pps);
