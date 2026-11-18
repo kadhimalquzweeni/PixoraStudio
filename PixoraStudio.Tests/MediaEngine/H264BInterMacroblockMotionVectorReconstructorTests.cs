@@ -181,11 +181,10 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     [Fact]
     public void Reconstruct_ShouldRejectInvalidListReferenceAndMismatchedPictureStates()
     {
-        H264BMacroblockSyntax syntax = Parse(1, 1, 0, (0, 0));
         Assert.Throws<FormatException>(() =>
-            new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
-                syntax, new H264MotionVectorPictureState(1, 1),
-                new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1));
+            new H264BMacroblockSyntaxReader().Read(
+                CreateReader([2], 0, 0), Header(1), 1, 0));
+        H264BMacroblockSyntax syntax = Parse(1, 0, 0, (0, 0));
         Assert.Throws<ArgumentException>(() =>
             new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
                 syntax, new H264MotionVectorPictureState(1, 1),
