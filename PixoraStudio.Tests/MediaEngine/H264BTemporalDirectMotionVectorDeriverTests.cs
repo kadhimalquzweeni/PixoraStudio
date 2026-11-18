@@ -36,7 +36,7 @@ public sealed class H264BTemporalDirectMotionVectorDeriverTests
     {
         H264TemporalDirectMotionVectorResult result = _deriver.Derive(
             new H264TemporalDirectPredictionContext(
-                new H264MotionVector(16, -16), 10, 0, -10, false));
+                new H264MotionVector(16, -16), 5, 0, 10, false));
 
         Assert.Equal(128, result.DistanceScaleFactor);
         Assert.Equal(new H264MotionVector(8, -8), result.MotionVectorL0);
