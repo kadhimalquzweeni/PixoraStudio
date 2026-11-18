@@ -256,17 +256,17 @@ public static class H264IntraPrediction
 
     private static byte[] ExtendTop(IReadOnlyList<byte> source, bool hasTopRight)
     {
-        byte[] result = new byte[8];
+        byte[] result = new byte[9];
         for (int i = 0; i < 4; i++)
             result[i] = source[i];
         if (hasTopRight)
         {
-            for (int i = 4; i < 8; i++)
+            for (int i = 4; i < 9; i++)
                 result[i] = i < source.Count ? source[i] : source[3];
         }
         else
         {
-            Array.Fill(result, result[3], 4, 4);
+            Array.Fill(result, result[3], 4, 5);
         }
         return result;
     }
