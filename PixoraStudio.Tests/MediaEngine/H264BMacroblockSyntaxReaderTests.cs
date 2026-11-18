@@ -69,7 +69,7 @@ public sealed class H264BMacroblockSyntaxReaderTests
         // list0 MVDs for one 8x8 subpartition and four 4x4 subpartitions.
         for (int i = 0; i < 5; i++) { bits.Se(i); bits.Se(-i); }
         // list1 MVDs for one 8x8 subpartition and two 4x8 subpartitions.
-        for (int i = 0; i < 3; i++) { bits.Se(-i); bits.Se(i); }
+        for (int i = 0; i < 5; i++) { bits.Se(-i); bits.Se(i); }
         H264BMacroblockSyntax result = Read(bits, 22, 0, 0);
         Assert.Equal(4, result.Partitions.Count);
         Assert.Equal(new[] { 1, 1, 1, 4 }, result.Partitions.Select(p => p.SubPartitions.Count));
