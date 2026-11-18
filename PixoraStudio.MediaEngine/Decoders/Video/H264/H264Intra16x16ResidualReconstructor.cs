@@ -54,7 +54,7 @@ public static class H264Intra16x16ResidualReconstructor
 
         // Intra16x16 luma DC uses the special inverse-quantisation scale
         // (four times the ordinary 4x4 DC scale).
-        int[] dcDequantized = H264InverseQuantizer.Dequantize4x4(
+        int[] dcDequantized = H264InverseQuantizer.DequantizeIntra16x16Dc(
             transformedDc, qpPrimeY, sps, pps, scalingListIndex);
         for (int i = 0; i < dcDequantized.Length; i++)
             dcDequantized[i] = checked(dcDequantized[i] * 4);
