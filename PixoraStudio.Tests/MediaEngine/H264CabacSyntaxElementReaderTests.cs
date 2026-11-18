@@ -480,6 +480,50 @@ public sealed class H264CabacSyntaxElementReaderTests
     }
 
 
+
+    [Fact]
+    public void ReadReferenceIndex_ShouldAcceptMaximumNeighbourContextIncrement()
+    {
+        ScriptedCabacReader bins = new(0);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(0, reader.ReadReferenceIndex(3, 1));
+        Assert.Equal(new[] { 57 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadPSubMacroblockType_ShouldDecodeFourPartitionShapes()
+    {
+        (int[] Bins, int Expected)[] cases =
+        [
+            (new[] { 0 }, 0),
+            (new[] { 1, 0 }, 1),
+            (new[] { 1, 1, 0 }, 2),
+            (new[] { 1, 1, 1 }, 3)
+        ];
+
+        foreach ((int[] encoded, int expected) in cases)
+        {
+            ScriptedCabacReader bins = new(encoded);
+            Assert.Equal(expected,
+                new H264CabacSyntaxElementReader(bins).ReadPSubMacroblockType());
+        }
+    }
+
+    [Theory]
+    [InlineData(new[] { 0 }, 0)]
+    [InlineData(new[] { 1, 0, 0 }, 1)]
+    [InlineData(new[] { 1, 0, 1 }, 2)]
+    [InlineData(new[] { 1, 1, 0, 0, 0 }, 3)]
+    [InlineData(new[] { 1, 1, 1, 0, 0 }, 7)]
+    public void ReadBSubMacroblockType_ShouldDecodePartitionShape(
+        int[] encodedBins, int expectedType)
+    {
+        ScriptedCabacReader bins = new(encodedBins);
+        Assert.Equal(expectedType,
+            new H264CabacSyntaxElementReader(bins).ReadBSubMacroblockType());
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _bins;
