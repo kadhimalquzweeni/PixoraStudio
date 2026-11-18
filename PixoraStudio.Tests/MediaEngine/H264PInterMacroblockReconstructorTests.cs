@@ -38,7 +38,7 @@ public sealed class H264PInterMacroblockReconstructorTests
         // MVDx=0, MVDy=0; inter CBP codeNum=2 (luma group 0);
         // mb_qp_delta=+1; four zero coeff_token values for the 4x4 blocks.
         H264InterMacroblockReconstructionResult result = _decoder.DecodeAndReconstruct(
-            Bits("11" + "011" + "011" + "1111"),
+            Bits("11" + "011" + "010" + "1111"),
             Header(), 0, [reference],
             new H264MotionVectorPictureState(1, 1), destination,
             0, 0, 3, 24, sps, Pps(), new(), new(), new());
