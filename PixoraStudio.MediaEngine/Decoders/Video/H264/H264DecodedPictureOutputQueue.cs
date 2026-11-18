@@ -68,12 +68,6 @@ public sealed class H264DecodedPictureOutputQueue
         return Flush();
     }
 
-    public void Reset()
-    {
-        _pending.Clear();
-        _nextSequence = 0;
-    }
-
     private H264DecodedPictureOutput RemoveLowestPoc()
     {
         int selectedIndex = 0;
