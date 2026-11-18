@@ -55,7 +55,8 @@ public sealed class H264DecodedPictureBuffer
         if (marking is null)
             throw new ArgumentNullException(nameof(marking),
                 "Reference pictures require decoded reference marking syntax.");
-        ValidateSurfaceCompatibility(surface);
+        if (!idrPicture)
+            ValidateSurfaceCompatibility(surface);
 
         H264ReferencePicture current = picture;
         if (idrPicture)
