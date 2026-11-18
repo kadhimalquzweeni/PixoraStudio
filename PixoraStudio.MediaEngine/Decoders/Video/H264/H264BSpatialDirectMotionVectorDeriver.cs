@@ -48,7 +48,8 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
             throw new ArgumentOutOfRangeException(nameof(sliceId));
         if (partitionX < 0 || partitionY < 0 ||
             partitionWidth <= 0 || partitionHeight <= 0 ||
-            partitionX + partitionWidth > 4 || partitionY + partitionHeight > 4)
+            partitionX > 4 || partitionY > 4 ||
+            partitionWidth > 4 - partitionX || partitionHeight > 4 - partitionY)
             throw new ArgumentOutOfRangeException(nameof(partitionWidth));
         if ((partitionX | partitionY | partitionWidth | partitionHeight) % 2 != 0)
             throw new ArgumentException("A direct region must be aligned to 8x8 luma samples.");
