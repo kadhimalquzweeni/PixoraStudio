@@ -181,7 +181,8 @@ public sealed class H264CabacIntraSliceDataDecoder
                     codedBlockPatternLuma: macroblockSyntax.CodedBlockPattern.Luma,
                     codedBlockPatternChroma: macroblockSyntax.CodedBlockPattern.Chroma,
                     intraChromaPredictionMode: macroblockSyntax.IntraChromaPredictionMode,
-                    macroblockQpDelta: macroblockSyntax.MacroblockQpDelta);
+                    macroblockQpDelta: macroblockSyntax.MacroblockQpDelta,
+                    transformSize8x8Flag: macroblockSyntax.TransformSize8X8Flag == true);
             }
 
             decodedCount++;
