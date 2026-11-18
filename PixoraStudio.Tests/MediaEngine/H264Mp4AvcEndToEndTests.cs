@@ -73,6 +73,14 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.True(mp4Sample.IsSyncSample);
         Assert.Single(decoder.DecodedPictureBuffer.Entries);
         Assert.Empty(decoder.Flush());
+
+        H264Mp4DecodedVideoFrame trackFrame = Assert.Single(
+            new H264Mp4TrackDecoder().DecodeSamples(
+                track, [encodedSample], maxNumReorderFramesFallback: 0));
+        Assert.Equal(1u, trackFrame.SampleNumber);
+        Assert.Equal(0, trackFrame.PictureOrderCount);
+        Assert.All(trackFrame.Surface.CopyLumaPlane(),
+            sample => Assert.Equal((byte)80, sample));
     }
 
     [Fact]
