@@ -76,8 +76,8 @@ public static class H264BiPredictionCombiner
         uint chromaFormatIdc)
     {
         ValidateInputs(prediction0, prediction1, chromaFormatIdc);
-        int td = Clip(referencePictureOrderCount1 - referencePictureOrderCount0, -128, 127);
-        int tb = Clip(currentPictureOrderCount - referencePictureOrderCount0, -128, 127);
+        int td = Clip((long)referencePictureOrderCount1 - referencePictureOrderCount0, -128, 127);
+        int tb = Clip((long)currentPictureOrderCount - referencePictureOrderCount0, -128, 127);
         int weight1 = 32;
         if (!reference0IsLongTerm && !reference1IsLongTerm && td != 0)
         {
@@ -188,4 +188,7 @@ public static class H264BiPredictionCombiner
 
     private static int Clip(int value, int minimum, int maximum) =>
         Math.Clamp(value, minimum, maximum);
+
+    private static int Clip(long value, int minimum, int maximum) =>
+        (int)Math.Clamp(value, minimum, maximum);
 }
