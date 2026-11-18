@@ -96,7 +96,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
                     result.AddRange(_directDeriver.Derive(
                         motionVectorStateL0, motionVectorStateL1,
                         macroblockX, macroblockY,
-                        sub.X, sub.Y, sub.Width, sub.Height,
+                        sub.X / 4, sub.Y / 4, sub.Width / 4, sub.Height / 4,
                         partitionIndex, sliceId, direct8x8InferenceFlag));
                     continue;
                 }
