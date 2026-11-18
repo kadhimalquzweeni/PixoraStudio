@@ -58,6 +58,48 @@ public sealed class H264CabacIntraSliceDataDecoderTests
         Assert.True(result.BitsConsumed > 0);
     }
 
+
+    [Fact]
+    public void Decode_CabacIpcmSlice_ShouldReadRawSamplesAndRestartArithmeticEngine()
+    {
+        H264SequenceParameterSet sps = CreateSps();
+        H264PictureParameterSetHeader pps =
+            CreatePps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface surface = new(sps);
+        BitWriter bits = WriteIdrISliceHeader();
+        bits.AlignWithOneBits();
+        bits.WriteBits(0, 9);
+        bits.AlignWithZeroBits();
+        bits.WriteRepeatedByte(0x5A, 256);
+        bits.WriteRepeatedByte(0x6B, 64);
+        bits.WriteRepeatedByte(0x7C, 64);
+        bits.WriteRbspTrailingBits();
+
+        ScriptedCabacSliceDataReader cabac = new(
+            decisionBins: [1],
+            terminateBins: [1, 1]);
+        H264CabacIntraSliceDataDecoder decoder = new(
+            surface,
+            (reader, _, _, _) =>
+            {
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabac;
+            });
+
+        H264IntraSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x65, bits.ToArray()), sps, pps, 2);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.True(surface.IsMacroblockDecoded(0, 0));
+        Assert.Equal(1, cabac.RestartAfterPcmCount);
+        Assert.True(cabac.IsTerminated);
+        Assert.All(surface.CopyLumaPlane(), value => Assert.Equal((byte)0x5A, value));
+        Assert.All(surface.CopyCbPlane(), value => Assert.Equal((byte)0x6B, value));
+        Assert.All(surface.CopyCrPlane(), value => Assert.Equal((byte)0x7C, value));
+    }
+
     private static H264SequenceParameterSet CreateSps() =>
         new(0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
             0, 0, true, true, 16, 16, false);
@@ -83,12 +125,19 @@ public sealed class H264CabacIntraSliceDataDecoderTests
     private sealed class ScriptedCabacSliceDataReader : IH264CabacSliceDataReader
     {
         private readonly Queue<int> _decisionBins;
+        private readonly Queue<int> _terminateBins;
 
-        public ScriptedCabacSliceDataReader(IEnumerable<int> decisionBins) =>
+        public ScriptedCabacSliceDataReader(
+            IEnumerable<int> decisionBins,
+            IEnumerable<int>? terminateBins = null)
+        {
             _decisionBins = new Queue<int>(decisionBins);
+            _terminateBins = new Queue<int>(terminateBins ?? [1]);
+        }
 
         public List<int> ContextIndices { get; } = [];
         public bool IsTerminated { get; private set; }
+        public int RestartAfterPcmCount { get; private set; }
 
         public int DecodeBin(int contextIndex)
         {
@@ -99,11 +148,9 @@ public sealed class H264CabacIntraSliceDataDecoderTests
         public int DecodeBypass() =>
             throw new InvalidOperationException("This I_NxN test does not use bypass bins.");
 
-        public int DecodeTerminate() => 1;
+        public int DecodeTerminate() => _terminateBins.Dequeue();
         public void MarkTerminated() => IsTerminated = true;
-
-        public void RestartAfterPcm() =>
-            throw new InvalidOperationException("This I_NxN test does not contain PCM.");
+        public void RestartAfterPcm() => RestartAfterPcmCount++;
     }
 
     private sealed class BitWriter
@@ -141,6 +188,18 @@ public sealed class H264CabacIntraSliceDataDecoderTests
         {
             while ((_bits.Count & 7) != 0)
                 _bits.Add(true);
+        }
+
+        public void AlignWithZeroBits()
+        {
+            while ((_bits.Count & 7) != 0)
+                _bits.Add(false);
+        }
+
+        public void WriteRepeatedByte(byte value, int count)
+        {
+            for (int i = 0; i < count; i++)
+                WriteBits(value, 8);
         }
 
         public void WriteRbspTrailingBits()
