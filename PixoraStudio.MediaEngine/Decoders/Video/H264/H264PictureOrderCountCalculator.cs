@@ -40,8 +40,9 @@ public sealed class H264PictureOrderCountCalculator
 
         bool idr = slice.IdrPicId.HasValue;
         bool reference = nalRefIdc != 0;
-        bool mmco5 = slice.DecodedReferenceMarking?.Operations.Any(
-            operation => operation.MemoryManagementControlOperation == 5) == true;
+        bool mmco5 = reference && !idr &&
+            slice.DecodedReferenceMarking?.Operations.Any(
+                operation => operation.MemoryManagementControlOperation == 5) == true;
 
         if (idr)
             Reset();
