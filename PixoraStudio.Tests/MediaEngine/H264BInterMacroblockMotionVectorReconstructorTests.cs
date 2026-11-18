@@ -133,7 +133,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
 
         IReadOnlyList<H264ReconstructedBInterSubPartition> result =
             new H264BInterMacroblockMotionVectorReconstructor().Reconstruct(
-                syntax, state0, state1, 0, 0, 0, 1, 1,
+                syntax, state0, state1, 0, 0, 0, 3, 1,
                 directSpatialPrediction: false,
                 direct8x8InferenceFlag: true,
                 collocatedContextProvider: (_, _, _, _) =>
