@@ -44,7 +44,7 @@ public sealed class H264IntraPredictionModeReaderTests
 
     [Theory]
     [InlineData(true, null, 4, 4)]
-    [InlineData(false, 2, 4, 3)]
+    [InlineData(false, 2, 4, 2)]
     [InlineData(false, 4, 4, 5)]
     [InlineData(false, 7, 4, 8)]
     [InlineData(false, 0, 4, 0)]
