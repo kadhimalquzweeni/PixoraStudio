@@ -15,6 +15,7 @@ public sealed class H264IntraChromaResidualMacroblockReaderTests
     {
         int blockCount = 2 * expectedBlocksHigh;
         string dcZeroToken = chromaFormat == 1 ? "01" : "1";
+        // Syntax order: Cb DC, Cr DC, all Cb AC blocks, then all Cr AC blocks.
         string bitstream = dcZeroToken + dcZeroToken + new string('1', blockCount * 2);
         H264BitReader bits = CreateReader(bitstream);
         H264CavlcNeighbourContext cb = new();

@@ -174,14 +174,23 @@ public sealed class H264IntraLumaResidualMacroblockReader
             int chromaMacroblockBlockX = checked(macroblockX * 2);
             int chromaMacroblockBlockY = checked(macroblockY * chromaBlocksHigh);
 
-            chromaComponents.Add(ReadChromaComponent(
-                reader, 1, chromaPattern, maximumDcCoefficients,
+            // H.264 residual syntax sends both chroma DC blocks first
+            // (Cb, then Cr), followed by the Cb AC blocks and then Cr AC.
+            H264CavlcResidualBlock? cbDc = chromaPattern == 0
+                ? null
+                : _residualReader.ReadBlock(reader, 0, maximumDcCoefficients);
+            H264CavlcResidualBlock? crDc = chromaPattern == 0
+                ? null
+                : _residualReader.ReadBlock(reader, 0, maximumDcCoefficients);
+
+            chromaComponents.Add(ReadChromaAcComponent(
+                reader, 1, cbDc, chromaPattern,
                 chromaBlocksHigh, chromaBlocksPerComponent,
                 chromaMacroblockBlockX, chromaMacroblockBlockY,
                 sliceId, chromaCbNeighbourContext!));
 
-            chromaComponents.Add(ReadChromaComponent(
-                reader, 2, chromaPattern, maximumDcCoefficients,
+            chromaComponents.Add(ReadChromaAcComponent(
+                reader, 2, crDc, chromaPattern,
                 chromaBlocksHigh, chromaBlocksPerComponent,
                 chromaMacroblockBlockX, chromaMacroblockBlockY,
                 sliceId, chromaCrNeighbourContext!));
@@ -195,11 +204,11 @@ public sealed class H264IntraLumaResidualMacroblockReader
             ChromaComponents = chromaComponents
         };
     }
-    private H264IntraChromaResidualComponent ReadChromaComponent(
+    private static H264IntraChromaResidualComponent ReadChromaAcComponent(
         H264BitReader reader,
         byte componentId,
+        H264CavlcResidualBlock? dc,
         uint chromaPattern,
-        int maximumDcCoefficients,
         int blocksHigh,
         int blocksPerComponent,
         int macroblockBlockX,
@@ -207,12 +216,8 @@ public sealed class H264IntraLumaResidualMacroblockReader
         int sliceId,
         H264CavlcNeighbourContext neighbourContext)
     {
-        // Chroma DC uses its dedicated 2x2 (4:2:0) or 2x4 (4:2:2)
-        // coeff_token and total_zeros tables; it has no nC neighbour context.
-        H264CavlcResidualBlock? dc = chromaPattern == 0
-            ? null
-            : _residualReader.ReadBlock(reader, 0, maximumDcCoefficients);
-
+        // DC has already been decoded for both components. Decode AC now
+        // in component order, using the component-specific neighbour state.
         List<H264IntraChromaResidualBlock> blocks = new(blocksPerComponent);
         for (int y = 0; y < blocksHigh; y++)
         {
