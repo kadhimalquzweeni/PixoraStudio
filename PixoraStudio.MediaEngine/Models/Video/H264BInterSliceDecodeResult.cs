@@ -9,4 +9,8 @@ public sealed record H264BInterSliceDecodeResult(
     int FinalQpY,
     int BitsConsumed,
     IReadOnlyList<H264BInterMacroblockReconstructionResult> InterMacroblocks,
-    IReadOnlyList<uint> IntraMacroblockAddresses);
+    IReadOnlyList<uint> IntraMacroblockAddresses)
+{
+    /// <summary>Ordered list-0/list-1 reference metadata used to decode this B slice.</summary>
+    public H264BReferencePictureLists? ReferencePictureLists { get; init; }
+}
