@@ -62,6 +62,30 @@ public sealed class H264CabacResidualBlockContextTests
         Assert.True(map.HasImplicitCodedBlockFlag);
     }
 
+
+    [Fact]
+    public void Create_ShouldReturnSpecialFourTwoTwoChromaDcContextMap()
+    {
+        H264CabacResidualBlockContextMap map =
+            H264CabacResidualBlockContext.Create(3, chroma422: true);
+
+        Assert.Equal(8, map.MaximumCoefficients);
+        Assert.Equal(97, map.CodedBlockFlagContextOffset);
+        Assert.Equal(149, map.SignificantContextOffset);
+        Assert.Equal(210, map.LastSignificantContextOffset);
+        Assert.Equal(257, map.AbsoluteLevelContextOffset);
+        Assert.Equal(new[] { 0, 0, 1, 1, 2, 2, 2 },
+            map.SignificantContextIncrements);
+        Assert.Equal(1, map.AbsoluteLevelContextAdjust);
+    }
+
+    [Fact]
+    public void Create_ShouldRejectFourTwoTwoFlagForNonChromaDcCategory()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            H264CabacResidualBlockContext.Create(2, chroma422: true));
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(6)]
