@@ -435,16 +435,28 @@ public partial class VideoEditorView : UserControl
             _resumePlaybackAfterSeek;
         _resumePlaybackAfterSeek = resumePlayback;
 
+        double targetPosition = DataContext is VideoEditorViewModel seekVm &&
+            seekVm.TotalMilliseconds > 0
+                ? VideoTimelineMath.ClampPosition(position, seekVm.TotalMilliseconds)
+                : Math.Max(0, position);
+
+        if (DataContext is VideoEditorViewModel currentVm)
+        {
+            currentVm.PlaybackPosition = targetPosition;
+            currentVm.CurrentTime = FormatPlaybackTime(
+                TimeSpan.FromMilliseconds(targetPosition));
+        }
+
         if (resumePlayback)
             _mediaPlayer.Pause();
 
-        _mediaPlayer.Time = (long)position;
+        _mediaPlayer.Time = (long)targetPosition;
 
         if (_usesManagedH264Video)
         {
             try
             {
-                await _managedH264PlaybackService.SeekAsync(position / 1000d);
+                await _managedH264PlaybackService.SeekAsync(targetPosition / 1000d);
             }
             catch (Exception exception)
             {
@@ -468,7 +480,7 @@ public partial class VideoEditorView : UserControl
         try
         {
             await _aacAudioPlaybackService.SeekAsync(
-                TimeSpan.FromMilliseconds(position),
+                TimeSpan.FromMilliseconds(targetPosition),
                 resumePlayback);
 
             if (resumePlayback &&
@@ -574,12 +586,23 @@ public partial class VideoEditorView : UserControl
 
         vm.IsPlaying = _mediaPlayer.IsPlaying;
 
-        if (!_isDraggingPlayhead && _mediaPlayer.Length > 0)
+        // LibVLC may report Length == 0 during opening or for some
+        // containers. Its Time remains the playback clock; don't gate the
+        // timeline on Length becoming available.
+        if (!_isDraggingPlayhead)
         {
-            vm.PlaybackPosition = _mediaPlayer.Time;
+            double playbackMilliseconds = Math.Max(0, _mediaPlayer.Time);
 
+            if (vm.TotalMilliseconds > 0)
+            {
+                playbackMilliseconds = VideoTimelineMath.ClampPosition(
+                    playbackMilliseconds,
+                    vm.TotalMilliseconds);
+            }
+
+            vm.PlaybackPosition = playbackMilliseconds;
             vm.CurrentTime = FormatPlaybackTime(
-                TimeSpan.FromMilliseconds(_mediaPlayer.Time));
+                TimeSpan.FromMilliseconds(playbackMilliseconds));
         }
 
         if (_usesCustomAacAudio &&
@@ -683,9 +706,6 @@ public partial class VideoEditorView : UserControl
             }
 
             UpdatePlayheadPosition(x, vm, width);
-
-            if (_mediaPlayer != null)
-                _mediaPlayer.Time = (long)vm.PlaybackPosition;
         }
 
         TrimTimelineCanvas.CaptureMouse();
@@ -712,10 +732,8 @@ public partial class VideoEditorView : UserControl
 
         double x = e.GetPosition(TrimTimelineCanvas).X;
 
-        double position = Math.Clamp(
-            x / width * vm.TotalMilliseconds,
-            0,
-            vm.TotalMilliseconds);
+        double position = VideoTimelineMath.GetPosition(
+            x, width, vm.TotalMilliseconds);
 
         if (_isDraggingTrimStart)
         {
@@ -732,9 +750,6 @@ public partial class VideoEditorView : UserControl
         else if (_isDraggingPlayhead)
         {
             UpdatePlayheadPosition(x, vm, width);
-
-            if (_mediaPlayer != null)
-                _mediaPlayer.Time = (long)vm.PlaybackPosition;
         }
 
         UpdateTrimTimeline();
@@ -798,14 +813,14 @@ public partial class VideoEditorView : UserControl
 
         Filmstrip.Width = width;
 
-        double startX =
-            vm.TrimStart / vm.TotalMilliseconds * width;
+        double startX = VideoTimelineMath.GetCoordinate(
+            vm.TrimStart, width, vm.TotalMilliseconds);
 
-        double endX =
-            vm.TrimEnd / vm.TotalMilliseconds * width;
+        double endX = VideoTimelineMath.GetCoordinate(
+            vm.TrimEnd, width, vm.TotalMilliseconds);
 
-        double playheadX =
-            vm.PlaybackPosition / vm.TotalMilliseconds * width;
+        double playheadX = VideoTimelineMath.GetCoordinate(
+            vm.PlaybackPosition, width, vm.TotalMilliseconds);
 
         // Selected trim section.
         Canvas.SetLeft(SelectionRange, startX);
