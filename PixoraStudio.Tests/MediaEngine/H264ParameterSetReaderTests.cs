@@ -114,8 +114,7 @@ public sealed class H264ParameterSetReaderTests
     {
         BitWriter bits = CreateBaselineSpsPrefix();
         bits.WriteFlag(true);  // VUI present
-        bits.WriteFlag(true);  // aspect_ratio_info_present_flag
-        bits.WriteBits(1, 8);   // square pixels
+        bits.WriteFlag(false); // aspect_ratio_info_present_flag (unspecified)
         bits.WriteFlag(false); // overscan
         bits.WriteFlag(false); // video signal
         bits.WriteFlag(false); // chroma location
@@ -140,6 +139,7 @@ public sealed class H264ParameterSetReaderTests
             new H264NalUnit(0x67, bits.ToArray()));
 
         Assert.NotNull(result.VuiParameters?.NalHrd);
+        Assert.Equal(0u, result.VuiParameters.AspectRatioIdc);
         Assert.Equal(1u, result.VuiParameters.NalHrd.CpbCount);
         Assert.Equal(10u, result.VuiParameters.NalHrd.Entries[0].BitRateValueMinus1);
         Assert.Equal(20u, result.VuiParameters.NalHrd.Entries[0].CpbSizeValueMinus1);
