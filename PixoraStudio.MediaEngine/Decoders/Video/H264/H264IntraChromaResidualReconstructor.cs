@@ -30,7 +30,8 @@ public static class H264IntraChromaResidualReconstructor
         int qpY,
         byte componentId,
         H264SequenceParameterSet sps,
-        H264PictureParameterSetHeader pps)
+        H264PictureParameterSetHeader pps,
+        int? scalingListIndexOverride = null)
     {
         ArgumentNullException.ThrowIfNull(sps);
         ArgumentNullException.ThrowIfNull(pps);
@@ -89,7 +90,7 @@ public static class H264IntraChromaResidualReconstructor
             throw new ArgumentException($"The component must contain exactly {blockCount} AC blocks.", nameof(component));
 
         int qpPrimeC = CalculateChromaQpPrime(qpY, component.ComponentId, sps, pps);
-        int scalingListIndex = component.ComponentId; // Intra Cb=1, Cr=2.
+        int scalingListIndex = scalingListIndexOverride ?? component.ComponentId; // Intra Cb/Cr=1/2; inter Cb/Cr=4/5.
         int[] dc = DecodeAndScaleDc(component.Dc, blocksHigh, qpPrimeC, sps, pps, scalingListIndex);
 
         byte[] output = new byte[width * height];
