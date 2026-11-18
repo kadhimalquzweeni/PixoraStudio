@@ -193,9 +193,10 @@ public sealed class H264IntraSliceDataDecoderTests
         malformed.WriteRepeatedByte(0x7C, 64);
         malformed.WriteFlag(false); // invalid stop bit
         malformed.AlignWithZeroBits();
-        Assert.Throws<EndOfStreamException>(() =>
+        FormatException exception = Assert.Throws<FormatException>(() =>
             new H264IntraSliceDataDecoder(new H264DecodedPictureSurface(sps)).Decode(
                 new H264NalUnit(0x65, malformed.ToArray()), sps, CreatePps(), 0));
+        Assert.Contains("more macroblocks than remain", exception.Message);
     }
 
     [Fact]
