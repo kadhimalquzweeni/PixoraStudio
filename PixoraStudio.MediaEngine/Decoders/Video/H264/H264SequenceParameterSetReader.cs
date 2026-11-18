@@ -100,6 +100,8 @@ public sealed class H264SequenceParameterSetReader
         bool vuiPresent = reader.ReadFlag();
         H264VuiParameters? vui = vuiPresent ? ReadVui(reader) : null;
 
+        reader.ConsumeRbspTrailingBits();
+
         uint chromaArrayType = separateColourPlaneFlag ? 0 : chromaFormatIdc;
         uint subWidth = chromaArrayType is 1 or 2 ? 2u : 1u;
         uint subHeight = chromaArrayType == 1 ? 2u : 1u;
