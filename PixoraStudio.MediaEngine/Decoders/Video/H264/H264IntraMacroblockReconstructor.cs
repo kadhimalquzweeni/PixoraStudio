@@ -101,7 +101,9 @@ public sealed class H264IntraMacroblockReconstructor
         H264IntraChromaResidualComponent component = residual.ChromaComponents
             .SingleOrDefault(item => item.ComponentId == componentId)
             ?? throw new FormatException($"Missing chroma residual component {componentId}.");
-        H264IntraReferenceSamples references = _references.GatherChroma(
+        if (component.Blocks.Any(block => !block.IsCoded && block.Residual.TotalCoefficients != 0))
+            throw new FormatException("An uncoded chroma AC block cannot contain non-zero coefficients.");
+        H264IntraReferenceSamples = _references.GatherChroma(
             componentId, macroblockX, macroblockY, sliceId, pps.ConstrainedIntraPredFlag);
         if (mode == 1 && !references.HasLeft ||
             mode == 2 && !references.HasTop ||
@@ -167,6 +169,8 @@ public sealed class H264IntraMacroblockReconstructor
             seen[scanIndex] = true;
             if (block.Residual.MaximumCoefficients != 15)
                 throw new FormatException("I_16x16 luma AC blocks must contain fifteen coefficients.");
+            if (!block.IsCoded && block.Residual.TotalCoefficients != 0)
+                throw new FormatException("An uncoded luma AC block cannot contain non-zero coefficients.");
             ordered[scanIndex] = block.Residual;
         }
         if (seen.Any(value => !value))
