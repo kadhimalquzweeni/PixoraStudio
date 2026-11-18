@@ -42,7 +42,8 @@ public sealed class H264TemporalDirectMotionFieldTests
 
         Assert.Equal(new H264MotionVector(-7, 9), context.CollocatedMotionVector);
         Assert.Equal(3, context.CollocatedReferencePictureOrderCount);
-        Assert.True(context.CollocatedReferenceIsLongTerm);
+        Assert.False(context.CollocatedReferenceIsLongTerm);
+        Assert.Equal(0, context.MappedReferenceIndexL0);
     }
 
     [Fact]
