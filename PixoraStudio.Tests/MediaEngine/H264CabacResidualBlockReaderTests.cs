@@ -114,7 +114,7 @@ public sealed class H264CabacResidualBlockReaderTests
     {
         // coeff_abs_level_minus1 escape value 14: fourteen context-coded
         // prefix bins, then a zero bypass escape-order terminator.
-        int[] decisions = new[] { 1 }.Concat(Enumerable.Repeat(1, 13)).Append(0).ToArray();
+        int[] decisions = new[] { 1 }.Concat(Enumerable.Repeat(1, 13)).ToArray();
         ScriptedCabacReader bins = new(
             decisionBins: decisions,
             bypassBins: new[] { 0, 0 });
