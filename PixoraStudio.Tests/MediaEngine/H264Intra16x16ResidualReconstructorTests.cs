@@ -62,7 +62,7 @@ public sealed class H264Intra16x16ResidualReconstructorTests
 
         Assert.Equal(256, result.Length);
         Assert.All(result, sample => Assert.True(sample > 100));
-        Assert.Equal(256, result.Distinct().Count());
+        Assert.Single(result.Distinct());
     }
 
     [Fact]
