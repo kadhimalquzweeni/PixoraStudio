@@ -44,37 +44,15 @@ public sealed class H264BTemporalDirectMotionVectorDeriverTests
     }
 
     [Fact]
-    public void Derive_WhenColZeroFlagApplies_ShouldZeroBothPredictionLists()
+    public void Derive_ShouldNotApplySpatialColZeroFlag()
     {
         H264TemporalDirectMotionVectorResult result = _deriver.Derive(
             new H264TemporalDirectPredictionContext(
                 new H264MotionVector(1, -1), 10, 0, -10, false,
                 CollocatedReferenceIndex: 0, CollocatedPictureIsShortTerm: true));
 
-        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL0);
-        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL1);
-    }
-
-    [Fact]
-    public void Derive_WhenCollocatedPictureIsLongTerm_ShouldNotApplyColZeroFlag()
-    {
-        H264TemporalDirectMotionVectorResult result = _deriver.Derive(
-            new H264TemporalDirectPredictionContext(
-                new H264MotionVector(1, -1), 10, 0, -10, false,
-                CollocatedReferenceIndex: 0, CollocatedPictureIsShortTerm: false));
-
-        Assert.NotEqual(new H264MotionVector(0, 0), result.MotionVectorL0);
-    }
-
-    [Fact]
-    public void Derive_WhenCollocatedReferenceIndexIsNotZero_ShouldNotApplyColZeroFlag()
-    {
-        H264TemporalDirectMotionVectorResult result = _deriver.Derive(
-            new H264TemporalDirectPredictionContext(
-                new H264MotionVector(1, -1), 10, 0, -10, false,
-                CollocatedReferenceIndex: 1, CollocatedPictureIsShortTerm: true));
-
-        Assert.NotEqual(new H264MotionVector(0, 0), result.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(-1, 1), result.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(-2, 2), result.MotionVectorL1);
     }
 
     [Fact]
