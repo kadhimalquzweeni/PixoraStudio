@@ -120,13 +120,22 @@ public sealed class H264CabacSyntaxElementReader
         uint chromaArrayType)
     {
         ArgumentNullException.ThrowIfNull(lumaContextIncrements);
-        if (lumaArrayTypeInvalid(chromaArrayType))
+        if (chromaArrayType > 3)
             throw new ArgumentOutOfRangeException(nameof(chromaArrayType));
         if (lumaContextIncrements.Count != 4 ||
             lumaContextIncrements.Any(value => value is < 0 or > 3))
             throw new ArgumentException(
                 "Four luma coded-block context increments in the range 0..3 are required.",
                 nameof(lumaContextIncrements));
+        if (chromaArrayType is 1 or 2)
+        {
+            ArgumentNullException.ThrowIfNull(chromaContextIncrements);
+            if (chromaContextIncrements.Count != 2 ||
+                chromaContextIncrements.Any(value => value is < 0 or > 3))
+                throw new ArgumentException(
+                    "Two chroma coded-block context increments in the range 0..3 are required.",
+                    nameof(chromaContextIncrements));
+        }
 
         uint lumaPattern = 0;
         for (int binIndex = 0; binIndex < 4; binIndex++)
@@ -140,13 +149,6 @@ public sealed class H264CabacSyntaxElementReader
         uint chromaPattern = 0;
         if (chromaArrayType is 1 or 2)
         {
-            ArgumentNullException.ThrowIfNull(chromaContextIncrements);
-            if (chromaContextIncrements.Count != 2 ||
-                chromaContextIncrements.Any(value => value is < 0 or > 3))
-                throw new ArgumentException(
-                    "Two chroma coded-block context increments in the range 0..3 are required.",
-                    nameof(chromaContextIncrements));
-
             int firstBin = _reader.DecodeBin(77 + chromaContextIncrements[0]);
             if (firstBin is not (0 or 1))
                 throw new FormatException("CABAC decision bins must be zero or one.");
@@ -164,8 +166,6 @@ public sealed class H264CabacSyntaxElementReader
             combinedPattern, lumaPattern, chromaPattern, chromaArrayType);
     }
 
-    private static bool lumaArrayTypeInvalid(uint chromaArrayType) =>
-        chromaArrayType > 3;
 
     /// <summary>Decodes prev_intra4x4_pred_mode_flag or prev_intra8x8_pred_mode_flag (ctxIdx 68).</summary>
     public bool ReadPreviousIntraPredictionModeFlag() =>
