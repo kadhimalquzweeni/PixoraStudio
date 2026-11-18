@@ -4,8 +4,8 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Traverses frame-coded CAVLC B slices, expands B_Skip runs, constructs both
-/// reference lists from the DPB, and reconstructs explicit/direct-spatial B
-/// inter macroblocks plus I_NxN/I_16x16/I_PCM macroblocks.
+/// reference lists from the DPB, and reconstructs explicit, spatial-direct and
+/// provider-backed temporal-direct B inter macroblocks plus intra/PCM blocks.
 /// </summary>
 public sealed class H264BInterSliceDataDecoder
 {
