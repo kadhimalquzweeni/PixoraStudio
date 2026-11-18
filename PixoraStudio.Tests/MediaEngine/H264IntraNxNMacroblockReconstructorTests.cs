@@ -88,13 +88,18 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
             reconstructor.ReconstructIntraNxN4x4(
                 0, 0, 0, CreateHeader(0),
                 validSyntax with { TransformSize8X8Flag = true },
-                residual, 24, sps, CreatePps()));
+                residual, 24, sps, CreatePps() with { Transform8X8ModeFlag = true }));
 
         Assert.Throws<FormatException>(() =>
             reconstructor.ReconstructIntraNxN4x4(
                 0, 0, 0, CreateHeader(0),
                 validSyntax with { LumaPredictionModes = null },
                 residual, 24, sps, CreatePps()));
+
+        Assert.Throws<FormatException>(() =>
+            reconstructor.ReconstructIntraNxN4x4(
+                0, 0, 0, CreateHeader(0), validSyntax,
+                residual, 24, sps, CreatePps() with { Transform8X8ModeFlag = true }));
 
         Assert.False(surface.IsMacroblockDecoded(0, 0));
     }
