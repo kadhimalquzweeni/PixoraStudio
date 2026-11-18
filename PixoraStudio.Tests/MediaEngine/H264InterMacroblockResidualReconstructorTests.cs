@@ -123,9 +123,11 @@ public sealed class H264InterMacroblockResidualReconstructorTests
         Assert.Throws<NotSupportedException>(() =>
             H264InterMacroblockResidualReconstructor.Reconstruct(
                 Prediction(8), residual, 24, Sps(1) with { FrameMbsOnlyFlag = false }, Pps()));
-        Assert.Throws<NotSupportedException>(() =>
+        H264MotionCompensatedBlock cabacResult =
             H264InterMacroblockResidualReconstructor.Reconstruct(
-                Prediction(8), residual, 24, Sps(1), Pps() with { EntropyCodingModeFlag = true }));
+                Prediction(8), residual, 24, Sps(1),
+                Pps() with { EntropyCodingModeFlag = true });
+        Assert.Equal(Prediction(8).Luma, cabacResult.Luma);
     }
 
     private static H264InterResidualMacroblock Residual(uint format)
