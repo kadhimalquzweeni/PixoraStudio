@@ -104,6 +104,17 @@ public sealed class H264CabacArithmeticDecoderTests
         Assert.Equal(new H264CabacContextModel(63, 0), context);
     }
 
+
+    [Fact]
+    public void DecodeDecision_ShouldUseNormativeRangeLpsBoundary()
+    {
+        H264CabacArithmeticDecoder decoder = CreateDecoder(270);
+        H264CabacContextModel context = new(0, 0);
+
+        Assert.Equal(1, decoder.DecodeDecision(ref context));
+        Assert.Equal(new H264CabacContextModel(0, 1), context);
+    }
+
     [Fact]
     public void DecodeDecision_ShouldRejectInvalidContextState()
     {
