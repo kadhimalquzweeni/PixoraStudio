@@ -70,10 +70,11 @@ public sealed class H264DecodedPictureOutputScheduler
         H264DecodedPictureSurface surface,
         H264SequenceParameterSet sps,
         H264SliceHeader slice,
+        byte nalRefIdc,
         H264PictureOrderCount pictureOrderCount,
         int? maxNumReorderFramesFallback = null)
     {
-        ValidateOutputContext(surface, sps, slice, nalRefIdc: 1);
+        ValidateOutputContext(surface, sps, slice, nalRefIdc);
         ArgumentNullException.ThrowIfNull(pictureOrderCount);
         int maxNumReorderFrames = ResolveMaxNumReorderFrames(sps, maxNumReorderFramesFallback);
         return EnqueueCore(surface, slice, pictureOrderCount, maxNumReorderFrames);
