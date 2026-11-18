@@ -37,6 +37,19 @@ public sealed class H264Mp4SampleNalUnitReaderTests
     }
 
     [Fact]
+    public void Read_ShouldRejectEmptySample()
+    {
+        H264AvcDecoderConfiguration configuration = new(
+            66, 0, 30, 2, [], [], []);
+        Mp4EncodedSample sample = new(
+            new Mp4SampleLocation(1, 1, 0, 0, 0, 1, true),
+            []);
+
+        Assert.Throws<FormatException>(() =>
+            new H264Mp4SampleNalUnitReader().Read(sample, configuration));
+    }
+
+    [Fact]
     public void Read_ShouldRejectReservedLengthFieldSize()
     {
         H264AvcDecoderConfiguration configuration = new(
