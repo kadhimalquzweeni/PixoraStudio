@@ -35,6 +35,39 @@ If the SPS VUI contains a valid bitstream restriction, its `max_num_reorder_fram
 
 The track decoder reads samples in decode order. Do not skip samples when using one decoder instance: reference-picture state depends on the preceding access units. Start from a random-access point (normally an IDR sample). Seeking and recovery from arbitrary sample positions are not implemented yet.
 
+## Seek within an AVC track
+
+Use `H264Mp4VideoSeekPlanner` to map a requested presentation time to the
+latest preceding MP4 sync sample. `H264Mp4TrackDecoder.DecodeFromTime` then
+starts at that random-access sample, decodes every following access unit in
+decode order to rebuild reference-picture and POC state, and discards output
+pictures whose presentation interval ends at or before the requested time:
+
+```csharp
+IEnumerable<H264Mp4DecodedVideoFrame> frames = new H264Mp4TrackDecoder().DecodeFromTime(
+    stream,
+    mediaInfo,
+    trackId,
+    targetPresentationTimeSeconds: 12.5,
+    maxNumReorderFramesFallback: 2,
+    cancellationToken);
+
+foreach (H264Mp4DecodedVideoFrame frame in frames)
+{
+    // PresentationTimeTicks and DurationTicks remain in the source track clock.
+    // Convert to seconds using frame.Timescale; do not use decode timestamps
+    // as the display clock when B-frame reordering is present.
+}
+```
+
+The seek planner uses MP4 composition offsets (PTS = DTS + composition offset),
+clamps times beyond the presentation end to the final presentation tick, and
+rejects tracks without a sync sample or with invalid sample timing. The returned
+sequence starts with the frame whose presentation interval contains the target,
+or the next frame when the target falls into a presentation gap. Seeking is
+not equivalent to starting a fresh decoder at an arbitrary P/B sample: all
+samples from the selected sync sample onward must be supplied contiguously.
+
 ## Decode individual samples
 
 For callers that already read MP4 samples, use `H264Mp4TrackSampleReader` to resolve each sample's sample description, parse its `avcC` configuration, split its length-prefixed NAL units, and retain DTS, PTS and duration ticks. Create an `H264Mp4AccessUnitDecoder` from the first sample's parameter sets, then supply contiguous samples in decode order:
