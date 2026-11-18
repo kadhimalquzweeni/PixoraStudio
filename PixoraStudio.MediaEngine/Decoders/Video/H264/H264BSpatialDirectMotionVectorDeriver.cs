@@ -72,8 +72,8 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
 
             int referenceIndex0 = MinimumReferenceIndex(candidates0);
             int referenceIndex1 = MinimumReferenceIndex(candidates1);
-            bool directZeroPrediction = AllReferencesAreZero(candidates0) &&
-                AllReferencesAreZero(candidates1);
+            bool directZeroPrediction = AllReferencesUnavailable(candidates0) &&
+                AllReferencesUnavailable(candidates1);
 
             H264MotionVector vector0 = directZeroPrediction
                 ? new H264MotionVector(0, 0)
@@ -116,6 +116,6 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
             IsZeroOrUnavailable(c);
     }
 
-    private static bool IsZeroOrUnavailable(H264MotionVectorCandidate? candidate) =>
-        candidate is null || candidate.Value.ReferenceIndex == 0;
+    private static bool cIsUnavailable(H264MotionVectorNeighbourCandidates candidates) =>
+        candidates.AboveRight is null && candidates.AboveLeft is null;
 }
