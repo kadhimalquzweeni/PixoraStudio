@@ -114,6 +114,9 @@ public sealed class H264Mp4AvcEndToEndTests
         H264Mp4AccessUnitDecodeResult pResult = decoder.Decode(futurePSample)!;
         Assert.Empty(pResult.ReadyFrames);
         H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(bSample)!;
+        Assert.All(pResult.Surface.CopyLumaPlane(), sample => Assert.Equal((byte)120, sample));
+        Assert.All(pResult.Surface.CopyCbPlane(), sample => Assert.Equal((byte)140, sample));
+        Assert.All(pResult.Surface.CopyCrPlane(), sample => Assert.Equal((byte)200, sample));
 
         H264Mp4DecodedVideoFrame firstOutput = Assert.Single(bResult.ReadyFrames);
         Assert.Equal(1u, firstOutput.SampleNumber);
