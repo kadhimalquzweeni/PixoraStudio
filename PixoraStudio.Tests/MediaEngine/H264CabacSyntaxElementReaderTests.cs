@@ -232,6 +232,67 @@ public sealed class H264CabacSyntaxElementReaderTests
             reader.ReadReferenceIndex(increment, maximum));
     }
 
+
+    [Fact]
+    public void ReadIntraSliceMacroblockType_ShouldDecodeIntraNxN()
+    {
+        ScriptedCabacReader bins = new(0);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(0, reader.ReadIntraSliceMacroblockType(2));
+        Assert.Equal(new[] { 5 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadIntraSliceMacroblockType_ShouldDecodePcmUsingTerminateBin()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(25, reader.ReadIntraSliceMacroblockType(1));
+        Assert.Equal(new[] { 4 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadIntraSliceMacroblockType_ShouldDecodeI16x16SuffixAndContextDerivation()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(1, reader.ReadIntraSliceMacroblockType(0));
+        Assert.Equal(new[] { 3, 6, 7, 9, 10, 10 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadIntraSliceMacroblockType_ShouldDecodeHighestI16x16Type()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 0, 1, 1, 1 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(24, reader.ReadIntraSliceMacroblockType(0));
+    }
+
+    [Fact]
+    public void ReadIntraSliceMacroblockType_ShouldRejectReservedSuffixValues()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 0, 1, 1, 0, 0, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Throws<FormatException>(() => reader.ReadIntraSliceMacroblockType(0));
+        Assert.Equal(new[] { 3, 6, 7, 8, 9, 10 }, bins.ContextIndices);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(3)]
+    public void ReadIntraSliceMacroblockType_ShouldRejectInvalidFirstBinContextIncrement(int increment)
+    {
+        H264CabacSyntaxElementReader reader = new(new ScriptedCabacReader(0));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            reader.ReadIntraSliceMacroblockType(increment));
+    }
+
     private sealed class ScriptedCabacReader : IH264CabacBinReader
     {
         private readonly Queue<int> _bins;
@@ -251,7 +312,7 @@ public sealed class H264CabacSyntaxElementReaderTests
             return _bins.Dequeue();
         }
 
-        public int DecodeBypass() => throw new NotSupportedException();
-        public int DecodeTerminate() => throw new NotSupportedException();
+        public int DecodeBypass() => _bins.Dequeue();
+        public int DecodeTerminate() => _bins.Dequeue();
     }
 }
