@@ -79,6 +79,61 @@ public sealed class H264InverseQuantizerTests
         Assert.Equal(-30, H264InverseQuantizer.Dequantize4x4(coefficients, 0, FlatScalingList)[0]);
     }
 
+
+    [Fact]
+    public void Dequantize8x8_ShouldApplySixPositionClassesAndQpScaling()
+    {
+        int[] coefficients = new int[64];
+        coefficients[0] = coefficients[1] = coefficients[2] = coefficients[9] = 1;
+        int[] flat = Enumerable.Repeat(16, 64).ToArray();
+        int[] result = H264InverseQuantizer.Dequantize8x8(coefficients, 0, flat);
+        Assert.Equal(5, result[0]);
+        Assert.Equal(6, result[1]);
+        Assert.Equal(7, result[2]);
+        Assert.Equal(8, result[9]);
+        Assert.Equal(10, H264InverseQuantizer.Dequantize8x8(coefficients, 6, flat)[0]);
+        Assert.Equal(320, H264InverseQuantizer.Dequantize8x8(coefficients, 36, flat)[0]);
+    }
+
+    [Fact]
+    public void Dequantize8x8_ShouldResolveDefaultIntraMatrixFromParameterSets()
+    {
+        var sps = CreateSps() with
+        {
+            ScalingMatrixPresentFlag = true,
+            ScalingLists = Enumerable.Range(0, 8).Select(_ => (IReadOnlyList<int>)Array.Empty<int>()).ToArray(),
+            ScalingListUseDefault = new bool[8]
+        };
+        var pps = CreatePps() with { Transform8X8ModeFlag = true };
+        int[] coefficients = new int[64];
+        coefficients[0] = 1;
+        int[] result = H264InverseQuantizer.Dequantize8x8(coefficients, 0, sps, pps);
+        Assert.Equal(2, result[0]);
+    }
+
+    [Fact]
+    public void Dequantize8x8_ShouldPreserveNegativeCoefficients()
+    {
+        int[] coefficients = new int[64];
+        coefficients[0] = -2;
+        Assert.Equal(-10, H264InverseQuantizer.Dequantize8x8(
+            coefficients, 0, Enumerable.Repeat(16, 64).ToArray())[0]);
+    }
+
+    [Fact]
+    public void Dequantize8x8_ShouldRejectInvalidInputsAndScalingListIndices()
+    {
+        int[] flat = Enumerable.Repeat(16, 64).ToArray();
+        Assert.Throws<ArgumentException>(() => H264InverseQuantizer.Dequantize8x8(new int[63], 0, flat));
+        Assert.Throws<ArgumentException>(() => H264InverseQuantizer.Dequantize8x8(new int[64], 0, new int[63]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => H264InverseQuantizer.Dequantize8x8(new int[64], 88, flat));
+        Assert.Throws<ArgumentOutOfRangeException>(() => H264InverseQuantizer.Dequantize8x8(
+            new int[64], 0, flat, CreateSps(), CreatePps() with { Transform8X8ModeFlag = true }, 6));
+        int[] invalid = Enumerable.Repeat(16, 64).ToArray();
+        invalid[0] = 0;
+        Assert.Throws<ArgumentOutOfRangeException>(() => H264InverseQuantizer.Dequantize8x8(new int[64], 0, invalid));
+    }
+
     [Fact]
     public void CalculateLumaQpY_ShouldCombinePpsInitialQpAndSliceDelta()
     {
