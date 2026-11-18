@@ -106,6 +106,25 @@ public sealed class H264DecodedPictureBufferTests
     }
 
     [Fact]
+    public void StoreDecodedPicture_WhenLaterMmcoFails_ShouldRestoreEarlierReferenceStateChanges()
+    {
+        H264DecodedPictureBuffer dpb = new();
+        dpb.StoreDecodedPicture(Surface(), new H264ReferencePicture(0, 0),
+            true, 4, 0, 16, Adaptive(false));
+        dpb.StoreDecodedPicture(Surface(), new H264ReferencePicture(1, 2),
+            true, 4, 1, 16, Adaptive(false));
+
+        Assert.Throws<FormatException>(() => dpb.StoreDecodedPicture(
+            Surface(), new H264ReferencePicture(2, 4), true, 4, 2, 16,
+            Adaptive(true,
+                new H264MemoryManagementControlOperation(1, 1, null, null, null),
+                new H264MemoryManagementControlOperation(1, 15, null, null, null))));
+
+        Assert.Equal(new[] { 0, 1 }, dpb.Entries.Select(entry => entry.Picture.FrameNum));
+        Assert.Null(dpb.MaxLongTermFrameIndex);
+    }
+
+    [Fact]
     public void StoreDecodedPicture_Mmco5ShouldClearReferencesAndResetCurrentFrameNum()
     {
         H264DecodedPictureBuffer dpb = new();
