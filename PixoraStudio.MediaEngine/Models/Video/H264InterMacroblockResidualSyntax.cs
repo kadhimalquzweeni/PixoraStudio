@@ -7,4 +7,7 @@ namespace PixoraStudio.MediaEngine.Models.Video;
 /// </summary>
 public sealed record H264InterMacroblockResidualSyntax(
     H264CodedBlockPattern CodedBlockPattern,
-    int? MacroblockQpDelta);
+    int? MacroblockQpDelta)
+{
+    public bool TransformSize8X8Flag { get; init; }
+}
