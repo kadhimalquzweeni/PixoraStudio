@@ -53,6 +53,36 @@ public sealed class H264IntraMacroblockReconstructorTests
     }
 
     [Fact]
+    public void ReconstructIntra16x16_ShouldGatherTopReferencesAndApplyVerticalLumaAndChromaModes()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        int chromaCount = 64;
+        surface.WriteIntraMacroblock(0, 0, 0,
+            Enumerable.Repeat((byte)80, 256).ToArray(),
+            Enumerable.Repeat((byte)90, chromaCount).ToArray(),
+            Enumerable.Repeat((byte)100, chromaCount).ToArray());
+        surface.WriteIntraMacroblock(1, 0, 0,
+            Enumerable.Repeat((byte)41, 256).ToArray(),
+            Enumerable.Repeat((byte)51, chromaCount).ToArray(),
+            Enumerable.Repeat((byte)61, chromaCount).ToArray());
+        surface.WriteIntraMacroblock(0, 1, 0,
+            Enumerable.Repeat((byte)71, 256).ToArray(),
+            Enumerable.Repeat((byte)81, chromaCount).ToArray(),
+            Enumerable.Repeat((byte)91, chromaCount).ToArray());
+
+        new H264IntraMacroblockReconstructor(surface).ReconstructIntra16x16(
+            1, 1, 0, CreateHeader(3, 0), CreateSyntax(2),
+            CreateResidualMacroblock(3, 1), 24, sps, CreatePps());
+
+        Assert.All(surface.CopyLumaPlane().Skip(16 * 32 + 16).Take(16),
+            value => Assert.Equal((byte)41, value));
+        Assert.Equal((byte)41, surface.GetLumaSample(16, 16));
+        Assert.Equal((byte)51, surface.GetChromaSample(1, 8, 8));
+        Assert.Equal((byte)61, surface.GetChromaSample(2, 8, 8));
+    }
+
+    [Fact]
     public void ReconstructIntra16x16_ShouldRejectMissingPlanePredictionReferences()
     {
         var sps = CreateSps(1);
