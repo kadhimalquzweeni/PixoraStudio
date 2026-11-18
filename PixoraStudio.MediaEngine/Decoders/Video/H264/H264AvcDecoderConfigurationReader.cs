@@ -126,6 +126,9 @@ public sealed class H264AvcDecoderConfigurationReader
             if (unit.NalUnitType != expectedNalType)
                 throw new FormatException(
                     $"The avcC {description} array contains NAL unit type {unit.NalUnitType}, expected {expectedNalType}.");
+            if (unit.NalRefIdc == 0)
+                throw new FormatException(
+                    $"The avcC {description} NAL unit must have non-zero nal_ref_idc.");
 
             units.Add(unit);
             position += length;
