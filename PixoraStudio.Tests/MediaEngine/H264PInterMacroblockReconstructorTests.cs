@@ -17,7 +17,8 @@ public sealed class H264PInterMacroblockReconstructorTests
         H264InterMacroblockReconstructionResult result = _decoder.DecodeAndReconstruct(
             Bits("111"), Header(), 0, [reference],
             new H264MotionVectorPictureState(1, 1), destination,
-            0, 0, 2, 24, sps, Pps(), new(), new(), new());
+            0, 0, 2, 24, sps, Pps(), new(), new(), new(),
+            referencePictureList0: [new H264ReferencePicture(0, 0)]);
 
         Assert.Equal(0u, result.CodedBlockPattern.Luma);
         Assert.Equal(24, result.QpY);
@@ -25,6 +26,13 @@ public sealed class H264PInterMacroblockReconstructorTests
         Assert.All(result.Reconstructed.Cb, sample => Assert.Equal((byte)110, sample));
         Assert.All(result.Reconstructed.Cr, sample => Assert.Equal((byte)120, sample));
         Assert.True(destination.IsMacroblockDecoded(0, 0));
+        H264DeblockingMacroblockMetadata metadata =
+            destination.GetDeblockingMetadata(0, 0)!;
+        Assert.Equal(24, metadata.QpY);
+        Assert.Equal(16, metadata.LumaBlocks.Count);
+        Assert.Equal(new H264ReferencePicture(0, 0), metadata.LumaBlocks[0].ReferencePictureL0);
+        Assert.Equal(new H264MotionVector(0, 0), metadata.LumaBlocks[0].MotionVectorL0);
+        Assert.Null(metadata.LumaBlocks[0].ReferencePictureL1);
         Assert.Equal((byte)100, destination.GetLumaSample(0, 0));
         Assert.Equal((byte)110, destination.GetChromaSample(1, 0, 0));
     }
@@ -62,13 +70,18 @@ public sealed class H264PInterMacroblockReconstructorTests
         H264InterMacroblockReconstructionResult result =
             _decoder.DecodeSkippedAndReconstruct(
                 skipped, [reference], new H264MotionVectorPictureState(1, 1),
-                destination, 0, 0, 4, 27, sps);
+                destination, 0, 0, 4, 27, sps,
+                referencePictureList0: [new H264ReferencePicture(0, 0)]);
 
         Assert.Equal(27, result.QpY);
         Assert.Equal(0u, result.CodedBlockPattern.Luma);
         Assert.Equal((byte)30, destination.GetLumaSample(0, 0));
         Assert.Equal((byte)40, destination.GetChromaSample(1, 0, 0));
         Assert.True(destination.IsMacroblockDecoded(0, 0));
+        H264DeblockingMacroblockMetadata metadata =
+            destination.GetDeblockingMetadata(0, 0)!;
+        Assert.Equal(27, metadata.QpY);
+        Assert.Equal(new H264ReferencePicture(0, 0), metadata.LumaBlocks[0].ReferencePictureL0);
     }
 
     [Fact]
