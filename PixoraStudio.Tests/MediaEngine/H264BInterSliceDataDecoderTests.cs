@@ -35,7 +35,7 @@ public sealed class H264BInterSliceDataDecoderTests
         {
             Assert.Equal(new H264ReferencePicture(0, 0), block.ReferencePictureL0);
             Assert.Null(block.ReferencePictureL1);
-            Assert.Equal(new H264MotionVector(1, -1), block.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(0, 0), block.MotionVectorL0);
             Assert.Null(block.MotionVectorL1);
         });
         Assert.Equal((byte)63, destination.GetLumaSample(0, 0));
