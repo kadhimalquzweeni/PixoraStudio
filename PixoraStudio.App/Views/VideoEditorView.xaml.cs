@@ -29,7 +29,7 @@ public partial class VideoEditorView : UserControl
     private readonly AacAudioPlaybackService _aacAudioPlaybackService = new();
     private readonly ManagedH264VideoPlaybackService _managedH264PlaybackService = new();
     private bool _usesManagedH264Video;
-    private CancellationTokenSource? _audioLoadCancellation;
+    private CancellationTokenSource? _videoLoadCancellation;
     private bool _usesCustomAacAudio;
     private bool _isPreparingVideo;
     private bool _resumePlaybackAfterSeek;
@@ -300,10 +300,10 @@ public partial class VideoEditorView : UserControl
         Interlocked.Increment(ref _seekOperationVersion);
         _resumePlaybackAfterSeek = false;
         _isPreparingVideo = true;
-        _audioLoadCancellation?.Cancel();
-        _audioLoadCancellation?.Dispose();
-        _audioLoadCancellation = new CancellationTokenSource();
-        CancellationToken cancellationToken = _audioLoadCancellation.Token;
+        _videoLoadCancellation?.Cancel();
+        _videoLoadCancellation?.Dispose();
+        _videoLoadCancellation = new CancellationTokenSource();
+        CancellationToken cancellationToken = _videoLoadCancellation.Token;
 
         _mediaPlayer.Stop();
         _mediaPlayer.Mute = false;
@@ -372,9 +372,9 @@ public partial class VideoEditorView : UserControl
         Interlocked.Increment(ref _seekOperationVersion);
         _resumePlaybackAfterSeek = false;
         _isPreparingVideo = false;
-        _audioLoadCancellation?.Cancel();
-        _audioLoadCancellation?.Dispose();
-        _audioLoadCancellation = null;
+        _videoLoadCancellation?.Cancel();
+        _videoLoadCancellation?.Dispose();
+        _videoLoadCancellation = null;
         _aacAudioPlaybackService.Unload();
         _ = _managedH264PlaybackService.StopAsync();
         _usesManagedH264Video = false;
@@ -1067,9 +1067,9 @@ public partial class VideoEditorView : UserControl
 
         _videoLoadVersion++;
         _isPreparingVideo = false;
-        _audioLoadCancellation?.Cancel();
-        _audioLoadCancellation?.Dispose();
-        _audioLoadCancellation = null;
+        _videoLoadCancellation?.Cancel();
+        _videoLoadCancellation?.Dispose();
+        _videoLoadCancellation = null;
 
         _aacAudioPlaybackService.Unload();
         _ = _managedH264PlaybackService.StopAsync();
