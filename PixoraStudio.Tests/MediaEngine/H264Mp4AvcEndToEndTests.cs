@@ -49,12 +49,13 @@ public sealed class H264Mp4AvcEndToEndTests
         H264SequenceParameterSet sps = Assert.Single(parameterSets.SequenceParameterSets).Value;
         H264PictureParameterSetHeader pps = Assert.Single(parameterSets.PictureParameterSets).Value;
 
-        H264DecodedPictureSurface surface = new(sps);
-        H264IntraSliceDecodeResult decodeResult =
-            new H264IntraSliceDataDecoder(surface).Decode(
-                Assert.Single(mp4Sample.NalUnits), sps, pps, sliceId: 0);
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets, maxNumReorderFramesFallback: 0);
+        H264Mp4AccessUnitDecodeResult decodeResult = decoder.Decode(mp4Sample)!;
+        H264DecodedPictureSurface surface = decodeResult.Surface;
 
-        Assert.Equal(1, decodeResult.MacroblocksDecoded);
+        Assert.Equal(H264SliceType.I, decodeResult.SliceHeader.SliceType);
+        Assert.Equal(0, decodeResult.PictureOrderCount.PictureOrderCount);
         Assert.True(surface.IsComplete);
         Assert.True(surface.HasCompleteDeblockingMetadata);
         Assert.Equal(16u, sps.FrameWidth);
@@ -62,9 +63,16 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.All(surface.CopyLumaPlane(), sample => Assert.Equal((byte)80, sample));
         Assert.All(surface.CopyCbPlane(), sample => Assert.Equal((byte)96, sample));
         Assert.All(surface.CopyCrPlane(), sample => Assert.Equal((byte)160, sample));
+        H264Mp4DecodedVideoFrame output = Assert.Single(decodeResult.ReadyFrames);
+        Assert.Equal(9u, output.TrackId);
+        Assert.Equal(1u, output.SampleNumber);
+        Assert.Equal(0L, output.PresentationTimeTicks);
+        Assert.Equal(1000u, output.Timescale);
         Assert.Equal(0.0, mp4Sample.DecodeTimeSeconds, 6);
         Assert.Equal(0.04, mp4Sample.DurationSeconds, 6);
         Assert.True(mp4Sample.IsSyncSample);
+        Assert.Single(decoder.DecodedPictureBuffer.Entries);
+        Assert.Empty(decoder.Flush());
     }
 
     private static byte[] CreateSpsRbsp()
