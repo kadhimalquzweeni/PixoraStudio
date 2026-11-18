@@ -76,6 +76,33 @@ public sealed class H264InterMacroblockPredictionDecoderTests
             skipped, [], new H264MotionVectorPictureState(1, 1), 0, 0, 0));
     }
 
+    [Fact]
+    public void DecodeAndPredict_ShouldApplySliceWeightTableToSelectedReference()
+    {
+        H264DecodedPictureSurface reference = CreateReference(100, 110, 120);
+        BitWriter bits = new();
+        bits.WriteUe(0); // ref_idx_l0 = 0
+        bits.WriteSe(0);
+        bits.WriteSe(0);
+        H264PredictionWeight weight = new(true, 2, 0, false, [], []);
+        H264PredictionWeightTable table = new(0, 0, [weight], []);
+
+        IReadOnlyList<H264InterMacroblockPrediction> result =
+            _decoder.DecodeAndPredict(
+                new H264BitReader(bits.ToArray()),
+                CreateInterHeader(0),
+                0,
+                [reference],
+                new H264MotionVectorPictureState(1, 1),
+                0, 0, 5,
+                table);
+
+        H264InterMacroblockPrediction prediction = Assert.Single(result);
+        Assert.All(prediction.Prediction.Luma, sample => Assert.Equal((byte)200, sample));
+        Assert.All(prediction.Prediction.Cb, sample => Assert.Equal((byte)110, sample));
+        Assert.All(prediction.Prediction.Cr, sample => Assert.Equal((byte)120, sample));
+    }
+
     private static H264MacroblockHeader CreateInterHeader(uint type) =>
         new(0, type, false, 0, false, false, null, null, null, false);
 
