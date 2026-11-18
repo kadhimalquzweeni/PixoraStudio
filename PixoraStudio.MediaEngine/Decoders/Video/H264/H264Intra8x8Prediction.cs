@@ -36,11 +36,13 @@ public static class H264Intra8x8Prediction
 
         // DC uses unfiltered edge samples. Directional and vertical/horizontal
         // modes use the normative three-tap filtered reference array.
-        byte[] filteredTop = FilterTop(rawTop, topLeft);
-        byte[] filteredLeft = FilterLeft(left, topLeft);
-        byte filteredTopLeft = hasTop && hasLeft && hasTopLeft
-            ? Average3(left[0], topLeft, top[0])
-            : topLeft;
+        byte filterTopLeft = hasTopLeft ? topLeft
+            : hasTop ? rawTop[0]
+            : hasLeft ? left[0]
+            : (byte)128;
+        byte[] filteredTop = FilterTop(rawTop, filterTopLeft);
+        byte[] filteredLeft = FilterLeft(left, filterTopLeft);
+        byte filteredTopLeft = Average3(left[0], filterTopLeft, rawTop[0]);
 
         IReadOnlyList<byte> t = mode == 2 ? rawTop : filteredTop;
         IReadOnlyList<byte> l = mode == 2 ? left : filteredLeft;
