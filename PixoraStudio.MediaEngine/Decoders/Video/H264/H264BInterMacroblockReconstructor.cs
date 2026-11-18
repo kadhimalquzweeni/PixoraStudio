@@ -6,8 +6,8 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// Reconstructs one frame-coded B inter macroblock by combining parsed
 /// prediction syntax, independent list motion vectors, motion compensation,
 /// weighted bi-prediction, CAVLC residuals and decoded-surface commit.
-/// Spatial and temporal direct are supported; temporal metadata is supplied
-/// through a region-based collocated-motion callback.
+/// Spatial and temporal direct are supported; collocated motion metadata is
+/// supplied through a region-based callback.
 /// </summary>
 public sealed class H264BInterMacroblockReconstructor
 {
@@ -56,7 +56,7 @@ public sealed class H264BInterMacroblockReconstructor
         H264CavlcNeighbourContext chromaCbNeighbours,
         H264CavlcNeighbourContext chromaCrNeighbours,
         H264PredictionWeightTable? predictionWeights = null,
-        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? temporalContextProvider = null)
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(header);
@@ -79,7 +79,7 @@ public sealed class H264BInterMacroblockReconstructor
                 macroblockX, macroblockY, sliceId,
                 checked((int)(numRefIdxL0ActiveMinus1 + 1)),
                 checked((int)(numRefIdxL1ActiveMinus1 + 1)),
-                directSpatialPrediction, sps.Direct8X8InferenceFlag, temporalContextProvider);
+                directSpatialPrediction, sps.Direct8X8InferenceFlag, collocatedContextProvider);
 
         IReadOnlyList<H264BInterMacroblockPrediction> predictions =
             _predictionDecoder.DecodeAndPredict(
@@ -131,7 +131,7 @@ public sealed class H264BInterMacroblockReconstructor
         H264SequenceParameterSet sps,
         H264PictureParameterSetHeader pps,
         H264PredictionWeightTable? predictionWeights = null,
-        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? temporalContextProvider = null)
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null)
     {
         ArgumentNullException.ThrowIfNull(header);
         ValidateContext(destination, macroblockX, macroblockY, sliceId, currentQpY, sps, pps);
@@ -139,8 +139,8 @@ public sealed class H264BInterMacroblockReconstructor
             throw new ArgumentException("A single B_Skip macroblock header is required.", nameof(header));
         if (header.MacroblockAddress != checked((uint)(macroblockY * destination.MacroblockWidth + macroblockX)))
             throw new FormatException("The B_Skip header address does not match its picture coordinates.");
-        if (!directSpatialPrediction && temporalContextProvider is null)
-            throw new NotSupportedException("Temporal B_Skip prediction requires a collocated-picture metadata provider.");
+        if (collocatedContextProvider is null)
+            throw new NotSupportedException("B_Skip direct prediction requires a collocated-picture metadata provider.");
         if (pps.WeightedBipredIdc == 1 && predictionWeights is null)
             throw new ArgumentNullException(nameof(predictionWeights));
         if (destination.IsMacroblockDecoded(macroblockX, macroblockY))
@@ -157,7 +157,7 @@ public sealed class H264BInterMacroblockReconstructor
                 directSyntax, motionVectorStateL0, motionVectorStateL1,
                 macroblockX, macroblockY, sliceId,
                 referenceList0.Count, referenceList1.Count,
-                directSpatialPrediction, sps.Direct8X8InferenceFlag, temporalContextProvider);
+                directSpatialPrediction, sps.Direct8X8InferenceFlag, collocatedContextProvider);
         IReadOnlyList<H264BInterMacroblockPrediction> predictions =
             _predictionDecoder.DecodeAndPredict(
                 partitions, referenceList0, referenceList1, referencePictureLists,
