@@ -160,6 +160,25 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
+    public void SpatialDirect_ShouldUseAboveLeftAsFallbackCandidateWhenCIsUnavailable()
+    {
+        var state0 = new H264MotionVectorPictureState(2, 2);
+        var state1 = new H264MotionVectorPictureState(2, 2);
+        state0.RecordInterPartition(3, 3, 1, 1, 0, 2, new H264MotionVector(50, 0));
+        state1.RecordInterPartition(3, 5, 1, 1, 0, 1, new H264MotionVector(10, 0));
+
+        H264ReconstructedBInterSubPartition result = Assert.Single(
+            new H264BSpatialDirectMotionVectorDeriver().Derive(
+                state0, state1, 1, 1, 0, 0, 2, 2,
+                0, 0, direct8x8InferenceFlag: true));
+
+        Assert.Equal((int?)2, result.ReferenceIndexL0);
+        Assert.Equal(new H264MotionVector(50, 0), result.MotionVectorL0);
+        Assert.Equal((int?)1, result.ReferenceIndexL1);
+        Assert.Equal(new H264MotionVector(10, 0), result.MotionVectorL1);
+    }
+
+    [Fact]
     public void Reconstruct_ShouldRejectInvalidListReferenceAndMismatchedPictureStates()
     {
         H264BMacroblockSyntax syntax = Parse(1, 1, 0, (0, 0));
