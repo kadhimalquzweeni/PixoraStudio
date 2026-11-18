@@ -180,6 +180,87 @@ public sealed class H264DecodedPictureBufferTests
     }
 
     [Fact]
+    public void CreateTemporalDirectMotionField_ShouldRestoreStoredCollocatedMotionAndReferenceLists()
+    {
+        H264DecodedPictureBuffer dpb = new();
+        H264ReferencePicture collocated = new(1, 2);
+        H264MotionVectorPictureState l0 = new(1, 1);
+        H264MotionVectorPictureState l1 = new(1, 1);
+        l0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(6, -4));
+        H264ReferencePicture[] references0 = [new H264ReferencePicture(0, -2)];
+        H264ReferencePicture[] references1 = [new H264ReferencePicture(2, 6)];
+
+        dpb.StoreDecodedPicture(
+            Surface(), collocated, true, 4, 1, 16, Adaptive(false),
+            motionVectorStateL0: l0, motionVectorStateL1: l1,
+            referenceList0: references0, referenceList1: references1);
+
+        H264TemporalDirectPredictionContext context = dpb
+            .CreateTemporalDirectMotionField(collocated)
+            .GetContext(0, 0, 1, 1, 10)!;
+
+        Assert.Equal(new H264MotionVector(6, -4), context.CollocatedMotionVector);
+        Assert.Equal(2, context.CollocatedPictureOrderCount);
+        Assert.Equal(-2, context.CollocatedReferencePictureOrderCount);
+        Assert.True(context.CollocatedPictureIsShortTerm);
+    }
+
+    [Fact]
+    public void CreateTemporalDirectMotionField_ShouldRejectEntriesWithoutStoredMotionMetadata()
+    {
+        H264DecodedPictureBuffer dpb = new();
+        H264ReferencePicture collocated = new(1, 2);
+        dpb.StoreDecodedPicture(Surface(), collocated, true, 4, 1, 16, Adaptive(false));
+
+        Assert.Throws<NotSupportedException>(() =>
+            dpb.CreateTemporalDirectMotionField(collocated));
+    }
+
+    [Fact]
+    public void StoreDecodedPicture_ShouldRejectPartialOrMismatchedTemporalMetadata()
+    {
+        H264DecodedPictureBuffer dpb = new();
+        H264MotionVectorPictureState state = new(1, 1);
+        Assert.Throws<ArgumentException>(() => dpb.StoreDecodedPicture(
+            Surface(), new H264ReferencePicture(0, 0), true, 4, 0, 16,
+            Adaptive(false), motionVectorStateL0: state));
+
+        Assert.Throws<ArgumentException>(() => dpb.StoreDecodedPicture(
+            Surface(), new H264ReferencePicture(0, 0), true, 4, 0, 16,
+            Adaptive(false),
+            motionVectorStateL0: new H264MotionVectorPictureState(2, 1),
+            motionVectorStateL1: new H264MotionVectorPictureState(2, 1),
+            referenceList0: [], referenceList1: []));
+    }
+
+    [Fact]
+    public void Mmco3_ShouldPreserveStoredTemporalMotionMetadata()
+    {
+        H264DecodedPictureBuffer dpb = new();
+        H264ReferencePicture collocated = new(1, 2);
+        H264MotionVectorPictureState l0 = new(1, 1);
+        H264MotionVectorPictureState l1 = new(1, 1);
+        l0.RecordInterPartition(0, 0, 4, 4, 0, 0, new H264MotionVector(3, 4));
+        dpb.StoreDecodedPicture(
+            Surface(), collocated, true, 4, 1, 16, Adaptive(false),
+            motionVectorStateL0: l0, motionVectorStateL1: l1,
+            referenceList0: [new H264ReferencePicture(0, 0)],
+            referenceList1: []);
+        dpb.StoreDecodedPicture(
+            Surface(), new H264ReferencePicture(2, 4), true, 4, 2, 16,
+            Adaptive(true, new H264MemoryManagementControlOperation(3, 0, null, 0, null)));
+
+        H264ReferencePicture converted = Assert.Single(
+            dpb.Entries.Where(entry => entry.Picture.IsLongTerm)).Picture;
+        H264TemporalDirectPredictionContext context = dpb
+            .CreateTemporalDirectMotionField(converted)
+            .GetContext(0, 0, 1, 1, 8)!;
+
+        Assert.Equal(new H264MotionVector(3, 4), context.CollocatedMotionVector);
+        Assert.True(context.CollocatedPictureIsShortTerm == false);
+    }
+
+    [Fact]
     public void StoreDecodedPicture_NonReferencePictureShouldNotEnterDpb()
     {
         H264DecodedPictureBuffer dpb = new();
