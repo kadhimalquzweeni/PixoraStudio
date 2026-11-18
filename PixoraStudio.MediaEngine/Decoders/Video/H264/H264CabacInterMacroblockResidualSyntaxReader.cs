@@ -48,11 +48,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReader
                 macroblockX, macroblockY, sliceId);
 
         H264CodedBlockPattern codedBlockPattern = _syntaxReader.ReadIntraCodedBlockPattern(
-            lumaContextIncrements: null,
-            chromaContextIncrements,
-            sps.ChromaArrayType,
-            isIntra16x16: false,
-            lumaContextProvider);
+            lumaContextProvider, chromaContextIncrements, sps.ChromaArrayType);
 
         bool transformSize8x8Flag = false;
         if (pps.Transform8X8ModeFlag &&
