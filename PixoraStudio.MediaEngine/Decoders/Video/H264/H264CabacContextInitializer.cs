@@ -1,7 +1,7 @@
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>Normative H.264 context-model initialisation constants (Tables 9-12 through 9-32).</summary>
-internal static class H264CabacContextInitializer
+public static class H264CabacContextInitializer
 {
     private const sbyte NotAvailable = -128;
     // Columns: I/SI, PB cabac_init_idc 0, PB cabac_init_idc 1, PB cabac_init_idc 2.
