@@ -20,6 +20,8 @@ public class VideoProcessingService : IVideoProcessingService
         if (!File.Exists(filePath))
             throw new FileNotFoundException("Video file not found.", filePath);
 
+        _ffmpeg.EnsureFFprobeAvailable();
+
         var startInfo = new ProcessStartInfo
         {
             FileName = _ffmpeg.FFprobePath,
@@ -75,6 +77,8 @@ public class VideoProcessingService : IVideoProcessingService
         TimeSpan position,
         string outputPath)
     {
+        _ffmpeg.EnsureFFmpegAvailable();
+
         var startInfo = new ProcessStartInfo
         {
             FileName = _ffmpeg.FFmpegPath,
