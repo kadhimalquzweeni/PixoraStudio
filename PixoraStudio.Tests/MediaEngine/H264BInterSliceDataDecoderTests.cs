@@ -129,7 +129,7 @@ public sealed class H264BInterSliceDataDecoderTests
         H264DecodedPictureSurface reference = Reference(sps, 41);
         H264DecodedPictureSurface olderReference = Reference(sps, 42);
         H264DecodedPictureBuffer dpb = new();
-        H264DecodedPictureBufferEntry? olderEntry = dpb.StoreDecodedPicture(
+        dpb.StoreDecodedPicture(
             olderReference, new H264ReferencePicture(15, -2), true, 4, 15, 16,
             new H264DecodedReferenceMarking(false, false, false, []));
         H264MotionVectorPictureState collocatedL0 = new(1, 1);
