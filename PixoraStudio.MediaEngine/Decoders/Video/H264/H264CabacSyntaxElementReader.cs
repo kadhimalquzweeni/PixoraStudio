@@ -23,11 +23,10 @@ public sealed class H264CabacSyntaxElementReader
     {
         int value = 0;
         for (int i = 0; i < 3; i++)
-            value = (value << 1) | ReadFlagAtContext(69) switch
-            {
-                true => 1,
-                false => 0
-            };
+        {
+            int bin = ReadFlagAtContext(69) ? 1 : 0;
+            value = (value << 1) | bin;
+        }
         return value;
     }
 
