@@ -77,7 +77,7 @@ public static class H264ScalingMatrixResolver
         if (!pps.Transform8X8ModeFlag)
             throw new FormatException("8x8 scaling matrices are not applicable when transform_8x8_mode_flag is false.");
 
-        int count = sps.ChromaFormatIdc == 3 && !sps.SeparateColourPlaneFlag ? 6 : 2;
+        int count = sps.ChromaFormatIdc == 3 ? 6 : 2;
         int[][] sequenceLists = ResolveSequence8x8(sps, count);
         if (!pps.PicScalingMatrixPresentFlag)
             return CloneMatrices(sequenceLists);
