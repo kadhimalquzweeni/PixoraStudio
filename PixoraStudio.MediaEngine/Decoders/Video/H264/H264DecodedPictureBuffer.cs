@@ -414,7 +414,7 @@ public sealed class H264DecodedPictureBuffer
     }
 }
 
-/// <summary>A DPB reference entry pairing frame metadata with its decoded Y/Cb/Cr surface.</summary>
+/// <summary>A DPB entry pairing frame metadata and its decoded surface with optional collocated motion/reference metadata.</summary>
 public sealed record H264DecodedPictureBufferEntry(
     H264ReferencePicture Picture,
     H264DecodedPictureSurface Surface,
