@@ -22,7 +22,7 @@ public sealed class H264InterMacroblockResidualSyntaxReaderTests
 
     [Theory]
     [InlineData(2, 1, 0, 1)]
-    [InlineData(1, 0, 0, -1)]
+    [InlineData(1, 0, 1, -1)]
     [InlineData(12, 15, 2, 1)]
     public void Read_WithCodedBlocks_ShouldReadSignedQpDelta(
         uint cbpCodeNum, uint expectedLuma, uint expectedChroma, int qpDelta)
