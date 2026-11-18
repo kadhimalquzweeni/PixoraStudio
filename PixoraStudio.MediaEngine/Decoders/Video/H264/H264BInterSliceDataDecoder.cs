@@ -151,6 +151,8 @@ public sealed class H264BInterSliceDataDecoder
                 _intraReconstructor.ReconstructPcm(
                     header, pcm, macroblockX, macroblockY, sliceId, sps, pps);
                 RecordPcmResidualContexts(macroblockX, macroblockY, sliceId, sps);
+                _motionVectorStateL0.RecordUnavailableRegion(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                _motionVectorStateL1.RecordUnavailableRegion(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
                 intraAddresses.Add(address);
             }
             else if (header.IsIntra)
@@ -176,6 +178,8 @@ public sealed class H264BInterSliceDataDecoder
                         macroblockX, macroblockY, sliceId, header, syntax,
                         residual, macroblockQp, sps, pps);
                 qpY = macroblockQp;
+                _motionVectorStateL0.RecordUnavailableRegion(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+                _motionVectorStateL1.RecordUnavailableRegion(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
                 intraAddresses.Add(address);
             }
             else
