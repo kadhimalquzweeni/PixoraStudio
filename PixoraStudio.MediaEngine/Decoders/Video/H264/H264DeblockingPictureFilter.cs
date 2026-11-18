@@ -27,7 +27,7 @@ public static class H264DeblockingPictureFilter
         for (int macroblockX = 0; macroblockX < surface.MacroblockWidth; macroblockX++)
         {
             H264DeblockingMacroblockMetadata current =
-                surface.GetDeblockingMetadata(macroblockX, macroblockY)!;
+                surface.GetDeblockingMetadataForFiltering(macroblockX, macroblockY);
             if (current.DisableDeblockingFilterIdc == 1)
                 continue;
 
@@ -65,7 +65,7 @@ public static class H264DeblockingPictureFilter
             int pSliceId = surface.GetMacroblockSliceId(mbX, mbY);
             if (external)
             {
-                pMetadata = surface.GetDeblockingMetadata(mbX - 1, mbY)!;
+                pMetadata = surface.GetDeblockingMetadataForFiltering(mbX - 1, mbY);
                 pSliceId = surface.GetMacroblockSliceId(mbX - 1, mbY);
                 if (SkipExternalEdge(current, pMetadata,
                     surface.GetMacroblockSliceId(mbX, mbY), pSliceId))
@@ -172,7 +172,7 @@ public static class H264DeblockingPictureFilter
             H264DeblockingMacroblockMetadata pMetadata = current;
             if (external)
             {
-                pMetadata = surface.GetDeblockingMetadata(mbX, mbY - 1)!;
+                pMetadata = surface.GetDeblockingMetadataForFiltering(mbX, mbY - 1);
                 int pSlice = surface.GetMacroblockSliceId(mbX, mbY - 1);
                 int qSlice = surface.GetMacroblockSliceId(mbX, mbY);
                 if (SkipExternalEdge(current, pMetadata, qSlice, pSlice))
