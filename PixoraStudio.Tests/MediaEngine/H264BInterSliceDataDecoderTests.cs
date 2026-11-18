@@ -30,6 +30,14 @@ public sealed class H264BInterSliceDataDecoderTests
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Single(result.InterMacroblocks);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.HasCompleteDeblockingMetadata);
+        Assert.All(destination.GetDeblockingMetadata(0, 0)!.LumaBlocks, block =>
+        {
+            Assert.Equal(new H264ReferencePicture(0, 0), block.ReferencePictureL0);
+            Assert.Equal(new H264ReferencePicture(2, 4), block.ReferencePictureL1);
+            Assert.Equal(new H264MotionVector(1, -1), block.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(-1, 1), block.MotionVectorL1);
+        });
         Assert.Equal((byte)63, destination.GetLumaSample(0, 0));
     }
 
