@@ -61,7 +61,7 @@ public sealed class H264CabacIntraMacroblockNeighbourContextTests
     public void GetLumaCodedBlockPatternContextIncrements_ShouldDeriveLeftAndTopConditions()
     {
         H264CabacIntraMacroblockNeighbourContext context = new();
-        context.RecordMacroblock(0, 0, 0, 1, false, false, false, 0b0010, 0, 0, null);
+        context.RecordMacroblock(0, 0, 1, 1, false, false, false, 0b0010, 0, 0, null);
         context.RecordMacroblock(1, 1, 0, 1, false, false, false, 0b0001, 0, 0, null);
 
         int[] increments = context.GetLumaCodedBlockPatternContextIncrements(1, 1, 1, previouslyDecodedCodedBlockPattern: 0b0010);
@@ -73,7 +73,7 @@ public sealed class H264CabacIntraMacroblockNeighbourContextTests
     public void GetChromaCodedBlockPatternContextIncrements_ShouldUseSeparateFirstAndSecondBinRules()
     {
         H264CabacIntraMacroblockNeighbourContext context = new();
-        context.RecordMacroblock(0, 0, 0, 1, false, false, false, 0, 1, 0, null);
+        context.RecordMacroblock(0, 0, 1, 1, false, false, false, 0, 1, 0, null);
         context.RecordMacroblock(1, 1, 0, 1, false, false, false, 0, 2, 0, null);
 
         Assert.Equal(new[] { 3, 2 },
