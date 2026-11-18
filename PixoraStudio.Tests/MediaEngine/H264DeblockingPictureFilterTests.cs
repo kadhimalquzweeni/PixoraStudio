@@ -86,6 +86,39 @@ public sealed class H264DeblockingPictureFilterTests
     }
 
     [Fact]
+    public void Apply_ShouldCompleteAllVerticalEdgesBeforeHorizontalEdges()
+    {
+        H264DecodedPictureSurface surface = Surface(0, 0, 1);
+        byte[] source = new byte[256];
+        for (int y = 0; y < 16; y++)
+        for (int x = 0; x < 16; x++)
+            source[y * 16 + x] = (byte)(96 + ((x * 13 + y * 7) % 24));
+
+        WriteMacroblock(surface, 0, 0, 0, 1, source);
+        surface.SetDeblockingMetadata(0, 0, Metadata(0, 4, transform8x8: false));
+
+        byte[] expected = (byte[])source.Clone();
+        H264DeblockingEdgeParameters parameters =
+            new(3, 40, 40, 0, 0, false);
+
+        // Normative picture traversal: all vertical edges first.
+        for (int edge = 4; edge < 16; edge += 4)
+        for (int blockRow = 0; blockRow < 4; blockRow++)
+            H264DeblockingFilter.FilterEdge(
+                expected, blockRow * 4 * 16 + edge, 1, 16, 4, parameters);
+
+        // Then all horizontal edges, using the vertically filtered samples.
+        for (int edge = 4; edge < 16; edge += 4)
+        for (int blockColumn = 0; blockColumn < 4; blockColumn++)
+            H264DeblockingFilter.FilterEdge(
+                expected, edge * 16 + blockColumn * 4, 16, 1, 4, parameters);
+
+        H264DeblockingPictureFilter.Apply(surface);
+
+        Assert.Equal(expected, surface.GetLumaPlaneSpan().ToArray());
+    }
+
+    [Fact]
     public void Apply_WithEightByEightTransform_ShouldSkipInternalFourByFourLumaEdges()
     {
         H264DecodedPictureSurface surface = Surface(0, 0, 1);
