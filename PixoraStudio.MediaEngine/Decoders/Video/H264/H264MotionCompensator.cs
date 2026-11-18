@@ -45,8 +45,8 @@ public sealed class H264MotionCompensator
             int destinationChromaX = destinationX / 2 + x;
             int destinationChromaY = destinationY / chromaSubsampleY + y;
             int sourceX8 = checked(destinationChromaX * 8 + motionVector.Horizontal);
-            int sourceY8 = checked(destinationChromaY * 4 * chromaSubsampleY +
-                motionVector.Vertical) / chromaSubsampleY;
+            int sourceY8 = checked(destinationChromaY * 8 +
+                motionVector.Vertical * 2 / chromaSubsampleY);
 
             int index = y * chromaWidth + x;
             cb[index] = InterpolateChroma(reference, 1, sourceX8, sourceY8);
@@ -76,31 +76,31 @@ public sealed class H264MotionCompensator
             return GetLumaClamped(reference, integerX, integerY);
 
         if ((fractionX & 1) == 0 && (fractionY & 1) == 0)
-            return GetHalfGridSample(reference,
-                integerX, integerY, fractionX / 2, fractionY / 2);
+            return GetEvenGridSample(reference,
+                integerX, integerY, fractionX, fractionY);
 
         if ((fractionX & 1) != 0 && fractionY == 0)
         {
-            int left = GetHalfGridSample(reference, integerX, integerY,
-                (fractionX - 1) / 2, 0);
-            int right = GetHalfGridSample(reference, integerX, integerY,
-                (fractionX + 1) / 2, 0);
+            int left = GetEvenGridSample(reference, integerX, integerY,
+                fractionX - 1, 0);
+            int right = GetEvenGridSample(reference, integerX, integerY,
+                fractionX + 1, 0);
             return Average(left, right);
         }
 
         if (fractionX == 0 && (fractionY & 1) != 0)
         {
-            int top = GetHalfGridSample(reference, integerX, integerY,
-                0, (fractionY - 1) / 2);
-            int bottom = GetHalfGridSample(reference, integerX, integerY,
-                0, (fractionY + 1) / 2);
+            int top = GetEvenGridSample(reference, integerX, integerY,
+                0, fractionY - 1);
+            int bottom = GetEvenGridSample(reference, integerX, integerY,
+                0, fractionY + 1);
             return Average(top, bottom);
         }
 
-        int upperLeft = GetHalfGridSample(reference, integerX, integerY,
-            (fractionX - 1) / 2, (fractionY - 1) / 2);
-        int lowerRight = GetHalfGridSample(reference, integerX, integerY,
-            (fractionX + 1) / 2, (fractionY + 1) / 2);
+        int upperLeft = GetEvenGridSample(reference, integerX, integerY,
+            fractionX - 1, fractionY - 1);
+        int lowerRight = GetEvenGridSample(reference, integerX, integerY,
+            fractionX + 1, fractionY + 1);
         return Average(upperLeft, lowerRight);
     }
 
@@ -138,6 +138,20 @@ public sealed class H264MotionCompensator
             (8 - dx) * dy * c +
             dx * dy * d;
         return (byte)((weighted + 32) >> 6);
+    }
+
+    private static byte GetEvenGridSample(
+        H264DecodedPictureSurface reference,
+        int integerX,
+        int integerY,
+        int quarterOffsetX,
+        int quarterOffsetY)
+    {
+        int sampleX = integerX + quarterOffsetX / 4;
+        int sampleY = integerY + quarterOffsetY / 4;
+        int halfX = (quarterOffsetX % 4) / 2;
+        int halfY = (quarterOffsetY % 4) / 2;
+        return GetHalfGridSample(reference, sampleX, sampleY, halfX, halfY);
     }
 
     private static byte GetHalfGridSample(
@@ -231,7 +245,8 @@ public sealed class H264MotionCompensator
         int x, int y, int width, int height)
     {
         if (x < 0 || y < 0 || width <= 0 || height <= 0 ||
-            (x & 1) != 0 || (y & 1) != 0 ||
+            (x & 1) != 0 ||
+            (reference.ChromaFormatIdc == 1 && (y & 1) != 0) ||
             (width & 1) != 0 || (height & 1) != 0 ||
             x > reference.Width - width || y > reference.Height - height)
             throw new ArgumentOutOfRangeException(nameof(width),
