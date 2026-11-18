@@ -105,7 +105,21 @@ public sealed class H264SequenceParameterSetReader
         bool vuiPresent = reader.ReadFlag();
         H264VuiParameters? vui = vuiPresent ? ReadVui(reader) : null;
 
-        reader.ConsumeRbspTrailingBits();
+        try
+        {
+            reader.ConsumeRbspTrailingBits();
+        }
+        catch (FormatException exception)
+        {
+            byte[] rbsp = nalUnit.Rbsp.ToArray();
+            throw new FormatException(
+                $"Failed to validate SPS rbsp_trailing_bits after parsing the SPS and VUI syntax. " +
+                $"NAL header: 0x{nalUnit.Header:X2}; NAL unit type: {nalUnit.NalUnitType}; " +
+                $"profile_idc: {profileIdc}; level_idc: {levelIdc}; " +
+                $"SPS EBSP payload hex: {Convert.ToHexString(nalUnit.Payload.Span)}; " +
+                $"SPS RBSP hex: {Convert.ToHexString(rbsp)}. {exception.Message}",
+                exception);
+        }
 
         uint chromaArrayType = separateColourPlaneFlag ? 0 : chromaFormatIdc;
         uint subWidth = chromaArrayType is 1 or 2 ? 2u : 1u;
