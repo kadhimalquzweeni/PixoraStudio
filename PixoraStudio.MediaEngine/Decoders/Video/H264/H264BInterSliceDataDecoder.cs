@@ -82,6 +82,9 @@ public sealed class H264BInterSliceDataDecoder
 
         H264BitReader reader = new(nalUnit.Rbsp);
         H264SliceHeader slice = _sliceHeaderReader.Read(reader, nalUnit, sps, pps);
+        H264DeblockingSliceParameters deblockingParameters =
+            H264DeblockingSliceParameters.FromSliceHeader(slice);
+        _intraReconstructor.SetDeblockingSliceParameters(deblockingParameters);
         _intraReconstructor.SetDeblockingSliceParameters(
             H264DeblockingSliceParameters.FromSliceHeader(slice));
         if (slice.SliceType != H264SliceType.B)
@@ -153,7 +156,7 @@ public sealed class H264BInterSliceDataDecoder
                         _motionVectorStateL0, _motionVectorStateL1,
                         _destination, x, y, sliceId, qpY,
                         currentPictureOrderCount, slice.DirectSpatialMvPredFlag, sps, pps,
-                        slice.PredictionWeights, collocatedContextProvider));
+                        slice.PredictionWeights, collocatedContextProvider, deblockingParameters));
                     RecordZeroResidualContexts(x, y, sliceId, sps);
                 }
                 decodedCount = checked(decodedCount + (int)header.SkippedMacroblockCount);
@@ -213,7 +216,7 @@ public sealed class H264BInterSliceDataDecoder
                         qpY, currentPictureOrderCount,
                         slice.DirectSpatialMvPredFlag,
                         sps, pps, _lumaNeighbours, _cbNeighbours, _crNeighbours,
-                        slice.PredictionWeights, collocatedContextProvider);
+                        slice.PredictionWeights, collocatedContextProvider, deblockingParameters);
                 qpY = result.QpY;
                 interResults.Add(result);
             }
