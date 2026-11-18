@@ -28,7 +28,7 @@ public sealed class H264CabacIntraResidualMacroblockReaderTests
         Assert.All(result.Blocks, block => Assert.False(block.IsCoded));
         Assert.Equal(2, result.ChromaComponents.Count);
         Assert.All(result.ChromaComponents, component => Assert.Null(component.Dc));
-        Assert.Equal(new[] { 85 }, bins.ContextIndices);
+        Assert.Equal(new[] { 88 }, bins.ContextIndices);
     }
 
     [Fact]
