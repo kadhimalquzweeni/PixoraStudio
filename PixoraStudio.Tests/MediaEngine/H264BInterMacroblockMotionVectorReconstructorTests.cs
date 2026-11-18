@@ -134,7 +134,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
                 syntax, state0, state1, 0, 0, 0, 1, 1,
                 directSpatialPrediction: false,
                 direct8x8InferenceFlag: true,
-                temporalContextProvider: (_, _, _, _) =>
+                collocatedContextProvider: (_, _, _, _) =>
                     new H264TemporalDirectPredictionContext(
                         new H264MotionVector(16, -16), 5, 0, 10, false));
 
@@ -168,7 +168,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
                 new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1,
                 directSpatialPrediction: false,
                 direct8x8InferenceFlag: true,
-                temporalContextProvider: field.AsProvider(5));
+                collocatedContextProvider: field.AsProvider(5));
 
         Assert.Equal(4, result.Count);
         Assert.All(result, item =>
@@ -189,7 +189,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
                 syntax, new H264MotionVectorPictureState(1, 1),
                 new H264MotionVectorPictureState(1, 1), 0, 0, 0, 1, 1,
                 directSpatialPrediction: false,
-                temporalContextProvider: (_, _, _, _) => null);
+                collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.Equal(4, result.Count);
         Assert.All(result, item =>
