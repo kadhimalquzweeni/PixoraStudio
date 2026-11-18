@@ -273,7 +273,7 @@ public sealed class H264ParameterSetReaderTests
         WriteRbspTrailingBits(bits);
 
         var result = new H264PictureParameterSetReader().Read(
-            new H264NalUnit(0x68, bits.ToArray()));
+            new H264NalUnit(0x68, bits.ToArray(appendTrailingBits: false)));
 
         Assert.True(result.HasExtension);
         Assert.True(result.Transform8X8ModeFlag);
