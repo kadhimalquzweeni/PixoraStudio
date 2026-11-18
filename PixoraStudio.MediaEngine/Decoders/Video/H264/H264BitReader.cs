@@ -110,9 +110,12 @@ public sealed class H264BitReader
     public int ReadSignedExpGolomb()
     {
         uint codeNum = ReadUnsignedExpGolomb();
-        if (codeNum > int.MaxValue) throw new FormatException("Signed Exp-Golomb value exceeds Int32.");
-        int magnitude = checked((int)((codeNum + 1u) >> 1));
-        return (codeNum & 1) == 0 ? -magnitude : magnitude;
+        long value = (codeNum & 1) == 0
+            ? -(long)(codeNum / 2u)
+            : ((long)codeNum + 1) / 2;
+        if (value < int.MinValue || value > int.MaxValue)
+            throw new FormatException("Signed Exp-Golomb value exceeds Int32.");
+        return (int)value;
     }
 
     /// <summary>Consumes pcm_alignment_zero_bit values until the next byte boundary.</summary>
