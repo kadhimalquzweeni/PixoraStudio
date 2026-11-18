@@ -92,6 +92,55 @@ public sealed class H264ScalingMatrixResolverTests
     }
 
     [Fact]
+    public void Resolve4x4_ShouldUseSequenceLumaAnchorsForMissingPpsLists()
+    {
+        IReadOnlyList<int>[] spsLists = EmptyLists(8);
+        spsLists[0] = Enumerable.Repeat(22, 16).ToArray();
+        spsLists[3] = Enumerable.Repeat(44, 16).ToArray();
+        H264SequenceParameterSet sps = CreateSps() with
+        {
+            ScalingMatrixPresentFlag = true,
+            ScalingLists = spsLists,
+            ScalingListUseDefault = new bool[8]
+        };
+        H264PictureParameterSetHeader pps = CreatePps() with
+        {
+            PicScalingMatrixPresentFlag = true,
+            ScalingLists = EmptyLists(6),
+            ScalingListUseDefault = new bool[6]
+        };
+
+        int[][] result = H264ScalingMatrixResolver.Resolve4x4(sps, pps);
+
+        Assert.Equal(22, Assert.Single(result[0].Distinct()));
+        Assert.Equal(result[0], result[1]);
+        Assert.Equal(result[1], result[2]);
+        Assert.Equal(44, Assert.Single(result[3].Distinct()));
+        Assert.Equal(result[3], result[4]);
+        Assert.Equal(result[4], result[5]);
+    }
+
+    [Fact]
+    public void Resolve4x4_ShouldUseFallbackRuleAWhenSpsScalingMatrixIsAbsent()
+    {
+        H264PictureParameterSetHeader pps = CreatePps() with
+        {
+            PicScalingMatrixPresentFlag = true,
+            ScalingLists = EmptyLists(6),
+            ScalingListUseDefault = new bool[6]
+        };
+
+        int[][] result = H264ScalingMatrixResolver.Resolve4x4(CreateSps(), pps);
+
+        Assert.Equal(DefaultIntra, result[0]);
+        Assert.Equal(DefaultIntra, result[1]);
+        Assert.Equal(DefaultIntra, result[2]);
+        Assert.Equal(DefaultInter, result[3]);
+        Assert.Equal(DefaultInter, result[4]);
+        Assert.Equal(DefaultInter, result[5]);
+    }
+
+    [Fact]
     public void Resolve4x4_ShouldApplyPpsOverridesAndSpsFallbacks()
     {
         IReadOnlyList<int>[] spsLists = EmptyLists(8);
