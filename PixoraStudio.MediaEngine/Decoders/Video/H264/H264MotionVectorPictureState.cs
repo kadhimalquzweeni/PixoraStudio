@@ -3,7 +3,7 @@ using PixoraStudio.MediaEngine.Models.Video;
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Stores list-0 motion vectors on a picture-relative 4x4-luma-block grid.
+/// Stores one reference list's motion vectors on a picture-relative 4x4-luma-block grid.
 /// Coordinates and partition dimensions passed to this type are measured in
 /// 4x4 luma blocks, not pixels or macroblocks.
 /// </summary>
