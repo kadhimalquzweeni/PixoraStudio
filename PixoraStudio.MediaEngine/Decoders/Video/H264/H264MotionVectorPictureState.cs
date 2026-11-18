@@ -70,6 +70,31 @@ public sealed class H264MotionVectorPictureState
     }
 
     /// <summary>
+    /// Reads stored motion metadata without applying current-slice neighbour
+    /// availability rules. This is intended for collocated-picture temporal
+    /// direct lookup, where the collocated picture was decoded previously.
+    /// </summary>
+    public bool TryGetStoredMotionVector(
+        int x, int y, out H264MotionVectorCandidate candidate)
+    {
+        if ((uint)x >= (uint)BlockWidth || (uint)y >= (uint)BlockHeight)
+        {
+            candidate = default;
+            return false;
+        }
+
+        Cell? cell = _cells[x, y];
+        if (cell is not { } value || value.ReferenceIndex is not int referenceIndex)
+        {
+            candidate = default;
+            return false;
+        }
+
+        candidate = new H264MotionVectorCandidate(referenceIndex, value.MotionVector);
+        return true;
+    }
+
+    /// <summary>
     /// Derives the spatial predictor, adds the parsed MVD, and records the
     /// reconstructed vector immediately. Call in H.264 partition decoding
     /// order so later partitions can use earlier vectors from this macroblock.
