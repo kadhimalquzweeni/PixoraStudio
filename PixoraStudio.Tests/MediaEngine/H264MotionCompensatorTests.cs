@@ -116,6 +116,24 @@ public sealed class H264MotionCompensatorTests
             surface, 1, 8 + fractionX, 8 + fractionY));
     }
 
+    [Theory]
+    [InlineData(1, 43)]
+    [InlineData(2, 85)]
+    public void Predict_ShouldScaleVerticalChromaMotionVectorForSubsampling(
+        uint format, byte expected)
+    {
+        H264DecodedPictureSurface surface = CreateSurface(format,
+            (_, _) => 0,
+            (_, y) => (byte)(y * 20),
+            (_, y) => (byte)(y * 20));
+
+        H264MotionCompensatedBlock result = _compensator.Predict(
+            surface, 4, 4, 4, 4, new H264MotionVector(0, 1));
+
+        Assert.Equal(expected, result.Cb[0]);
+        Assert.Equal(expected, result.Cr[0]);
+    }
+
     [Fact]
     public void InterpolateChroma_ShouldRejectInvalidComponent()
     {
