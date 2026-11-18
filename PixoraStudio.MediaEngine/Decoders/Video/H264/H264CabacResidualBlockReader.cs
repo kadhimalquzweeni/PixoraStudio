@@ -127,20 +127,21 @@ public sealed class H264CabacResidualBlockReader
             return value;
 
         // Escape suffix: unary-coded order followed by that many suffix bits.
-        int order = -1;
-        do
+        int escapeOrder = 0;
+        while (true)
         {
-            order++;
             bin = reader.DecodeBypass();
             if (bin is not (0 or 1))
                 throw new FormatException("CABAC bypass bins must be zero or one.");
-            if (order > 30)
+            if (bin == 0)
+                break;
+            escapeOrder++;
+            if (escapeOrder > 30)
                 throw new FormatException("CABAC coefficient escape prefix exceeds Int32.");
         }
-        while (bin != 0);
 
         long suffix = 0;
-        for (int bit = order; bit >= 0; bit--)
+        for (int bit = escapeOrder - 1; bit >= 0; bit--)
         {
             bin = reader.DecodeBypass();
             if (bin is not (0 or 1))
@@ -148,7 +149,7 @@ public sealed class H264CabacResidualBlockReader
             suffix |= (long)bin << bit;
         }
 
-        long escapedValue = 14L + ((1L << (order + 1)) - 1) + suffix;
+        long escapedValue = 14L + ((1L << escapeOrder) - 1) + suffix;
         if (escapedValue > int.MaxValue)
             throw new FormatException("CABAC coefficient level exceeds Int32.");
         return (int)escapedValue;
