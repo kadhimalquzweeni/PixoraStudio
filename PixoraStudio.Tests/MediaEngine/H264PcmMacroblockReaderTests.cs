@@ -48,15 +48,18 @@ public sealed class H264PcmMacroblockReaderTests
     }
 
     [Fact]
-    public void Read_ShouldRejectUnsupportedFormatAndCabac()
+    public void Read_ShouldRejectUnsupportedBitDepthAndAllowCabacPcm()
     {
         H264PcmMacroblockReader reader = new();
         Assert.Throws<NotSupportedException>(() =>
             reader.Read(CreateReader(new string('0', (256 + 128) * 8)),
                 CreateHeader(0), CreateSps(1) with { BitDepthLumaMinus8 = 1 }, CreatePps()));
-        Assert.Throws<NotSupportedException>(() =>
-            reader.Read(CreateReader(new string('0', (256 + 128) * 8)),
-                CreateHeader(0), CreateSps(1), CreatePps() with { EntropyCodingModeFlag = true }));
+        H264PcmMacroblock cabacResult = reader.Read(
+            CreateReader(new string('0', (256 + 128) * 8)),
+            CreateHeader(0), CreateSps(1), CreatePps() with { EntropyCodingModeFlag = true });
+        Assert.Equal(256, cabacResult.LumaSamples.Length);
+        Assert.Equal(64, cabacResult.CbSamples.Length);
+        Assert.Equal(64, cabacResult.CrSamples.Length);
     }
 
     [Fact]
