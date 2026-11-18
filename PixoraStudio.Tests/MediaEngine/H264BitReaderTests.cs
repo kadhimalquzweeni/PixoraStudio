@@ -44,6 +44,15 @@ public sealed class H264BitReaderTests
     }
 
     [Fact]
+    public void PeekBits_ShouldNotAdvanceReaderPosition()
+    {
+        H264BitReader reader = new(new byte[] { 0b1011_0010 });
+        Assert.Equal(0b011u, reader.PeekBits(3, 1));
+        Assert.Equal(0, reader.PositionBits);
+        Assert.Equal(0b101u, reader.ReadBits(3));
+    }
+
+    [Fact]
     public void ReadUnsignedExpGolomb_ShouldRejectTruncatedCode()
     {
         H264BitReader reader = new(new byte[] { 0x00 }, 8);
