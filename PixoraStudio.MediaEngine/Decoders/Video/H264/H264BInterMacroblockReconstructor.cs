@@ -181,8 +181,19 @@ public sealed class H264BInterMacroblockReconstructor
                 partitions, referenceList0, referenceList1, referencePictureLists,
                 sps.ChromaFormatIdc, currentPictureOrderCount,
                 pps.WeightedBipredIdc, predictionWeights);
+        H264BInterMacroblockPrediction[] macroblockLocalPredictions = predictions
+            .Select(item => item with
+            {
+                Partition = item.Partition with
+                {
+                    X = item.Partition.X - (macroblockX * 4),
+                    Y = item.Partition.Y - (macroblockY * 4)
+                }
+            })
+            .ToArray();
         H264MotionCompensatedBlock prediction =
-            H264BInterMacroblockPredictionDecoder.Assemble(predictions, sps.ChromaFormatIdc);
+            H264BInterMacroblockPredictionDecoder.Assemble(
+                macroblockLocalPredictions, sps.ChromaFormatIdc);
         destination.WriteMacroblock(
             macroblockX, macroblockY, sliceId, false,
             prediction.Luma, prediction.Cb, prediction.Cr);
