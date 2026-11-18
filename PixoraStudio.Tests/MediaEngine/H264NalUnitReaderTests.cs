@@ -56,25 +56,25 @@ public sealed class H264NalUnitReaderTests
     [InlineData(5)]
     public void ReadLengthPrefixed_ShouldRejectUnsupportedLengthSize(int lengthSize)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => _reader.ReadLengthPrefixed([1, 0x65], lengthSize));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _reader.ReadLengthPrefixed(new byte[] { 1, 0x65 }, lengthSize));
     }
 
     [Fact]
     public void ReadLengthPrefixed_ShouldRejectTruncatedLength()
     {
-        Assert.Throws<FormatException>(() => _reader.ReadLengthPrefixed([0], 2));
+        Assert.Throws<FormatException>(() => _reader.ReadLengthPrefixed(new byte[] { 0 }, 2));
     }
 
     [Fact]
     public void ReadLengthPrefixed_ShouldRejectZeroLength()
     {
-        Assert.Throws<FormatException>(() => _reader.ReadLengthPrefixed([0], 1));
+        Assert.Throws<FormatException>(() => _reader.ReadLengthPrefixed(new byte[] { 0 }, 1));
     }
 
     [Fact]
     public void ReadLengthPrefixed_ShouldRejectLengthBeyondSample()
     {
-        Assert.Throws<FormatException>(() => _reader.ReadLengthPrefixed([3, 0x65], 1));
+        Assert.Throws<FormatException>(() => _reader.ReadLengthPrefixed(new byte[] { 3, 0x65 }, 1));
     }
 
     [Fact]
