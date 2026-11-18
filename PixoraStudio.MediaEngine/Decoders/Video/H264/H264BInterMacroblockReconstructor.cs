@@ -56,7 +56,8 @@ public sealed class H264BInterMacroblockReconstructor
         H264CavlcNeighbourContext chromaCbNeighbours,
         H264CavlcNeighbourContext chromaCrNeighbours,
         H264PredictionWeightTable? predictionWeights = null,
-        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null)
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null,
+        H264DeblockingSliceParameters? deblockingParameters = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(header);
@@ -131,7 +132,8 @@ public sealed class H264BInterMacroblockReconstructor
         H264SequenceParameterSet sps,
         H264PictureParameterSetHeader pps,
         H264PredictionWeightTable? predictionWeights = null,
-        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null)
+        Func<int, int, int, int, H264TemporalDirectPredictionContext?>? collocatedContextProvider = null,
+        H264DeblockingSliceParameters? deblockingParameters = null)
     {
         ArgumentNullException.ThrowIfNull(header);
         ValidateContext(destination, macroblockX, macroblockY, sliceId, currentQpY, sps, pps);
@@ -168,11 +170,132 @@ public sealed class H264BInterMacroblockReconstructor
         destination.WriteMacroblock(
             macroblockX, macroblockY, sliceId, false,
             prediction.Luma, prediction.Cb, prediction.Cr);
+        AttachDeblockingMetadata(
+            destination, motionVectorStateL0, motionVectorStateL1,
+            referencePictureLists, null, currentQpY,
+            macroblockX, macroblockY, sps, pps,
+            deblockingParameters ?? new H264DeblockingSliceParameters(0, 0, 0));
 
         return new H264BInterMacroblockReconstructionResult(
             header.MacroblockAddress, currentQpY,
             new H264CodedBlockPattern(0, 0, 0, sps.ChromaFormatIdc),
             true, partitions, prediction, prediction);
+    }
+
+    private static void AttachDeblockingMetadata(
+        H264DecodedPictureSurface destination,
+        H264MotionVectorPictureState motionVectorStateL0,
+        H264MotionVectorPictureState motionVectorStateL1,
+        H264BReferencePictureLists referencePictureLists,
+        H264InterResidualMacroblock? residual,
+        int qpY,
+        int macroblockX,
+        int macroblockY,
+        H264SequenceParameterSet sps,
+        H264PictureParameterSetHeader pps,
+        H264DeblockingSliceParameters deblockingParameters)
+    {
+        if (referencePictureLists.List0.Count == 0 ||
+            referencePictureLists.List1.Count == 0)
+            throw new FormatException("B-slice deblocking metadata requires both active reference lists.");
+        deblockingParameters.Validate();
+
+        bool[] lumaNonZero = new bool[16];
+        int chromaBlockCount = sps.ChromaFormatIdc == 1 ? 4 : 8;
+        bool[] cbNonZero = new bool[chromaBlockCount];
+        bool[] crNonZero = new bool[chromaBlockCount];
+        if (residual is not null)
+        {
+            if (residual.TransformSize8X8Flag)
+            {
+                foreach (H264Intra8x8LumaResidualBlock block in residual.Luma8x8Blocks)
+                {
+                    if (!block.IsCoded)
+                        continue;
+                    for (int dy = 0; dy < 2; dy++)
+                    for (int dx = 0; dx < 2; dx++)
+                        lumaNonZero[(block.BlockY * 2 + dy) * 4 + block.BlockX * 2 + dx] = true;
+                }
+            }
+            else
+            {
+                foreach (H264IntraLumaResidualBlock block in residual.LumaBlocks)
+                    lumaNonZero[block.BlockY * 4 + block.BlockX] =
+                        block.Residual.TotalCoefficients > 0;
+            }
+
+            FillChromaNonZero(
+                residual.ChromaComponents.Single(component => component.ComponentId == 1),
+                cbNonZero);
+            FillChromaNonZero(
+                residual.ChromaComponents.Single(component => component.ComponentId == 2),
+                crNonZero);
+        }
+
+        H264DeblockingBlockMetadata[] lumaBlocks = new H264DeblockingBlockMetadata[16];
+        for (int blockY = 0; blockY < 4; blockY++)
+        for (int blockX = 0; blockX < 4; blockX++)
+        {
+            int x = macroblockX * 4 + blockX;
+            int y = macroblockY * 4 + blockY;
+            H264ReferencePicture? reference0 = null;
+            H264ReferencePicture? reference1 = null;
+            H264MotionVector? motion0 = null;
+            H264MotionVector? motion1 = null;
+            if (motionVectorStateL0.TryGetStoredMotionVector(x, y, out H264MotionVectorCandidate candidate0))
+            {
+                if ((uint)candidate0.ReferenceIndex >= (uint)referencePictureLists.List0.Count)
+                    throw new FormatException("A B inter list-0 reference index is outside RefPicList0.");
+                reference0 = referencePictureLists.List0[candidate0.ReferenceIndex];
+                motion0 = candidate0.MotionVector;
+            }
+            if (motionVectorStateL1.TryGetStoredMotionVector(x, y, out H264MotionVectorCandidate candidate1))
+            {
+                if ((uint)candidate1.ReferenceIndex >= (uint)referencePictureLists.List1.Count)
+                    throw new FormatException("A B inter list-1 reference index is outside RefPicList1.");
+                reference1 = referencePictureLists.List1[candidate1.ReferenceIndex];
+                motion1 = candidate1.MotionVector;
+            }
+
+            lumaBlocks[blockY * 4 + blockX] = new H264DeblockingBlockMetadata(
+                false, lumaNonZero[blockY * 4 + blockX],
+                reference0, motion0, reference1, motion1);
+        }
+
+        int chromaRows = sps.ChromaFormatIdc == 1 ? 2 : 4;
+        H264DeblockingBlockMetadata[] cbBlocks = new H264DeblockingBlockMetadata[chromaBlockCount];
+        H264DeblockingBlockMetadata[] crBlocks = new H264DeblockingBlockMetadata[chromaBlockCount];
+        for (int blockY = 0; blockY < chromaRows; blockY++)
+        for (int blockX = 0; blockX < 2; blockX++)
+        {
+            int lumaX = blockX * 2;
+            int lumaY = sps.ChromaFormatIdc == 1 ? blockY * 2 : blockY;
+            H264DeblockingBlockMetadata luma = lumaBlocks[lumaY * 4 + lumaX];
+            int index = blockY * 2 + blockX;
+            cbBlocks[index] = luma with { HasNonZeroCoefficients = cbNonZero[index] };
+            crBlocks[index] = luma with { HasNonZeroCoefficients = crNonZero[index] };
+        }
+
+        int qpCb = H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(qpY, 1, sps, pps);
+        int qpCr = H264IntraChromaResidualReconstructor.CalculateChromaQpPrime(qpY, 2, sps, pps);
+        destination.SetDeblockingMetadata(macroblockX, macroblockY,
+            new H264DeblockingMacroblockMetadata(
+                qpY, qpCb, qpCr,
+                deblockingParameters.DisableDeblockingFilterIdc,
+                deblockingParameters.AlphaOffsetDiv2,
+                deblockingParameters.BetaOffsetDiv2,
+                residual?.TransformSize8X8Flag ?? false,
+                lumaBlocks, cbBlocks, crBlocks));
+    }
+
+    private static void FillChromaNonZero(
+        H264IntraChromaResidualComponent component,
+        bool[] flags)
+    {
+        bool dcNonZero = component.Dc is { TotalCoefficients: > 0 };
+        for (int i = 0; i < component.Blocks.Count; i++)
+            flags[i] = dcNonZero ||
+                component.Blocks[i] is { Residual.TotalCoefficients: > 0 };
     }
 
     private static void ValidateContext(
