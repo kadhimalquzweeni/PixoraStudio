@@ -10,6 +10,9 @@ public sealed class H264SequenceParameterSetReader
         44, 83, 86, 100, 110, 118, 122, 128, 134, 135, 138, 139, 144, 244
     ];
 
+    private static readonly HashSet<byte> ProfilesWithKnownSpsSyntax =
+        new() { 66, 77, 88, 44, 83, 86, 100, 110, 118, 122, 128, 134, 135, 138, 139, 144, 244 };
+
     public H264SequenceParameterSet Read(H264NalUnit nalUnit)
     {
         ArgumentNullException.ThrowIfNull(nalUnit);
@@ -18,6 +21,8 @@ public sealed class H264SequenceParameterSetReader
 
         H264BitReader reader = new(nalUnit.Rbsp);
         byte profileIdc = (byte)reader.ReadBits(8);
+        if (!ProfilesWithKnownSpsSyntax.Contains(profileIdc))
+            throw new NotSupportedException($"SPS profile_idc {profileIdc} is not supported.");
         byte constraints = (byte)reader.ReadBits(8);
         if ((constraints & 0x03) != 0)
             throw new FormatException("SPS reserved_zero_2bits must be zero.");
