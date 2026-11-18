@@ -12,6 +12,7 @@ public sealed class H264DecodedPictureBuffer
     private readonly List<H264DecodedPictureBufferEntry> _entries = [];
     private int _maxLongTermFrameIndex = -1;
     private readonly H264ReferencePictureListBuilder _listBuilder = new();
+    private readonly H264BReferencePictureListBuilder _bListBuilder = new();
 
     public int Count => _entries.Count;
     public int? MaxLongTermFrameIndex =>
@@ -107,6 +108,46 @@ public sealed class H264DecodedPictureBuffer
         for (int i = 0; i < ordered.Count; i++)
         {
             H264ReferencePicture picture = ordered[i];
+            H264DecodedPictureBufferEntry entry = _entries.SingleOrDefault(
+                candidate => candidate.Picture == picture)
+                ?? throw new InvalidOperationException("A reference-list picture is not present in the decoded picture buffer.");
+            surfaces[i] = entry.Surface;
+        }
+        return surfaces;
+    }
+
+    /// <summary>
+    /// Builds both frame-coded B-slice reference lists and maps the ordered
+    /// reference metadata back to their decoded picture surfaces.
+    /// </summary>
+    public (IReadOnlyList<H264DecodedPictureSurface> List0,
+        IReadOnlyList<H264DecodedPictureSurface> List1) BuildBLists(
+        int currentFrameNum,
+        int maxFrameNum,
+        int currentPictureOrderCount,
+        int activeReferenceCountL0,
+        int activeReferenceCountL1,
+        IReadOnlyList<H264ReferenceListModification>? modificationsL0 = null,
+        IReadOnlyList<H264ReferenceListModification>? modificationsL1 = null)
+    {
+        H264BReferencePictureLists lists = _bListBuilder.BuildLists(
+            _entries.Select(entry => entry.Picture),
+            currentFrameNum, maxFrameNum, currentPictureOrderCount,
+            activeReferenceCountL0, activeReferenceCountL1,
+            modificationsL0, modificationsL1);
+
+        return (
+            MapPicturesToSurfaces(lists.List0),
+            MapPicturesToSurfaces(lists.List1));
+    }
+
+    private IReadOnlyList<H264DecodedPictureSurface> MapPicturesToSurfaces(
+        IReadOnlyList<H264ReferencePicture> pictures)
+    {
+        H264DecodedPictureSurface[] surfaces = new H264DecodedPictureSurface[pictures.Count];
+        for (int i = 0; i < pictures.Count; i++)
+        {
+            H264ReferencePicture picture = pictures[i];
             H264DecodedPictureBufferEntry entry = _entries.SingleOrDefault(
                 candidate => candidate.Picture == picture)
                 ?? throw new InvalidOperationException("A reference-list picture is not present in the decoded picture buffer.");
