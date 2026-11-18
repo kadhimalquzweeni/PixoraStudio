@@ -75,6 +75,66 @@ public sealed class H264InterMacroblockPredictionDecoder
         return predictions;
     }
 
+
+    /// <summary>
+    /// Reconstructs motion vectors and generates prediction blocks from
+    /// already-parsed CABAC P-slice syntax. This shares the same motion
+    /// compensation and weighting path as CAVLC without re-reading syntax
+    /// from a bit reader.
+    /// </summary>
+    public IReadOnlyList<H264InterMacroblockPrediction> PredictFromSyntax(
+        H264InterMacroblockSyntax syntax,
+        uint numRefIdxL0ActiveMinus1,
+        IReadOnlyList<H264DecodedPictureSurface> referenceList0,
+        H264MotionVectorPictureState motionVectorState,
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        H264PredictionWeightTable? predictionWeights = null)
+    {
+        ArgumentNullException.ThrowIfNull(syntax);
+        ArgumentNullException.ThrowIfNull(referenceList0);
+        ArgumentNullException.ThrowIfNull(motionVectorState);
+        ValidateReferenceList(referenceList0, numRefIdxL0ActiveMinus1);
+
+        if (macroblockX < 0)
+            throw new ArgumentOutOfRangeException(nameof(macroblockX));
+        if (macroblockY < 0)
+            throw new ArgumentOutOfRangeException(nameof(macroblockY));
+        if (sliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(sliceId));
+        if (motionVectorState.MacroblockWidth != referenceList0[0].MacroblockWidth ||
+            motionVectorState.MacroblockHeight != referenceList0[0].MacroblockHeight)
+            throw new ArgumentException(
+                "Motion-vector state dimensions must match the reference picture.",
+                nameof(motionVectorState));
+
+        H264InterMacroblockMotionVectorReconstructor vectorReconstructor = new();
+        IReadOnlyList<H264ReconstructedInterPartition> reconstructed =
+            vectorReconstructor.Reconstruct(
+                syntax, motionVectorState, macroblockX, macroblockY,
+                sliceId, referenceList0.Count);
+
+        List<H264InterMacroblockPrediction> predictions = new(reconstructed.Count);
+        foreach (H264ReconstructedInterPartition partition in reconstructed)
+        {
+            H264DecodedPictureSurface reference = referenceList0[partition.ReferenceIndex];
+            H264MotionCompensatedBlock prediction = _motionCompensator.Predict(
+                reference,
+                checked(partition.X * 4),
+                checked(partition.Y * 4),
+                checked(partition.Width * 4),
+                checked(partition.Height * 4),
+                partition.MotionVector);
+            prediction = H264WeightedPrediction.ApplyList0(
+                prediction, predictionWeights, partition.ReferenceIndex,
+                reference.ChromaFormatIdc);
+            predictions.Add(new H264InterMacroblockPrediction(partition, prediction));
+        }
+
+        return predictions;
+    }
+
     /// <summary>
     /// Derives a P_Skip vector and predicts the skipped macroblock from
     /// RefPicList0[0].
