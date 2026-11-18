@@ -106,7 +106,7 @@ public sealed class H264SliceHeaderReader
 
         int qpBdOffsetY = checked((int)(6 * sequenceParameterSet.BitDepthLumaMinus8));
         int minSliceQpDelta = -26 - qpBdOffsetY - pictureParameterSet.PicInitQpMinus26;
-        int maxSliceQpDelta = 25 - pictureParameterSet.PicInitQpMinus26;
+        int maxSliceQpDelta = 25 - qpBdOffsetY - pictureParameterSet.PicInitQpMinus26;
         int sliceQpDelta = ReadBoundedSe(reader, minSliceQpDelta, maxSliceQpDelta, "slice_qp_delta");
         bool spForSwitch = false;
         uint? sliceQsDelta = null;
