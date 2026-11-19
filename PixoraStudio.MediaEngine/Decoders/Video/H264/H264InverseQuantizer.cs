@@ -21,8 +21,8 @@ public static class H264InverseQuantizer
     private static readonly int[,] LevelScale =
     {
         { 10, 11, 13, 14, 16, 18 },
-        { 16, 18, 20, 23, 25, 29 },
-        { 13, 14, 16, 18, 20, 23 }
+        { 13, 14, 16, 18, 20, 23 },
+        { 16, 18, 20, 23, 25, 29 }
     };
 
 
