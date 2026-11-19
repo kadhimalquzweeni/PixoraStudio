@@ -11,9 +11,9 @@ CABAC is implemented in the managed decoder. This document separates implementat
 | Arithmetic engine and context setup | Arithmetic decoding, context initialisation, bypass/terminate handling and context-state tests | Independent conformance vectors compared against a trusted CABAC implementation |
 | Intra macroblock syntax/residuals | CABAC Intra4x4/Intra16x16 syntax, prediction-mode contexts, residual blocks and coded-block flags | Broader residual combinations and multi-macroblock/multi-slice fixtures |
 | CABAC I-slice traversal | Intra4x4 reconstruction and I_PCM alignment/restart | Intra8x8, Intra16x16, non-zero residual and multi-slice picture traversal using real arithmetic-coded input |
-| CABAC P-slice traversal | P_Skip reconstruction and reference/deblocking metadata | Coded P_L0 macroblock with non-zero residual; P intra/PCM CABAC paths; multi-macroblock context carry |
-| CABAC B-slice traversal | B_Skip and a list-0 inter macroblock reconstruction | List-1 and bi-predicted coded macroblocks, direct modes, residual-bearing macroblocks and context carry |
-| MP4 integration | MP4 end-to-end CAVLC I/P/B tests cover avcC, NAL extraction, DPB and POC output | CABAC samples have not yet been exercised end-to-end through avcC and MP4 track decoding |
+| CABAC P-slice traversal | P_Skip; coded P_L0_16x16 inter prediction with zero MVD/CBP; multi-macroblock skip-context carry; reference and deblocking metadata | Non-zero residual and P intra/PCM CABAC paths; wider partition and multi-slice fixtures |
+| CABAC B-slice traversal | B_Skip; coded list-0, list-1 and bi-predicted macroblock syntax/reconstruction; both-list reference/deblocking metadata | Residual-bearing macroblocks, broader direct modes and multi-macroblock/multi-slice context carry |
+| MP4 integration | CABAC I_PCM, P_Skip and B_Skip fixtures now traverse avcC, NAL extraction, access-unit dispatch, DPB and POC output using an injected scripted CABAC reader; CAVLC I/P/B fixtures retain their independent coverage | Real arithmetic-coded CABAC MP4 samples and independently decoded real-stream comparisons |
 | Real-stream conformance | No independently verified CABAC reference-output comparison recorded | Decode real CABAC streams and compare Y/Cb/Cr output against a trusted decoder |
 
 The test files currently carrying the focused coverage include:
@@ -33,7 +33,7 @@ The test files currently carrying the focused coverage include:
 2. Extend B-slice CABAC tests to cover list-1/bi-prediction, direct prediction and residual-bearing macroblocks. Assert both reference lists and per-block motion/reference metadata.
 3. Add multi-macroblock and multi-slice CABAC tests that prove picture-relative contexts are retained across slices and reset only at picture boundaries.
 4. Add CABAC I/P/B MP4 access-unit tests using valid arithmetic-coded NAL units in length-prefixed MP4 samples. Assert complete surfaces, DPB state, sample timestamps and presentation ordering.
-5. Decode a small set of real CABAC streams (at minimum I/P/B, 4:2:0, 8-bit, frame-coded) and compare the managed Y/Cb/Cr planes with an independently decoded reference. Record stream-generation commands, encoder settings, expected hashes/tolerances and any known exclusions.
+5. Replace or supplement scripted MP4 CABAC fixtures with genuine arithmetic-coded CABAC NAL units (at minimum I/P/B, 4:2:0, 8-bit, frame-coded) and compare the managed Y/Cb/Cr planes with an independently decoded reference. Record stream-generation commands, encoder settings, expected hashes/tolerances and any known exclusions.
 6. Run the complete solution test suite and record the exact commit and command used. A passing synthetic suite alone is not a claim of full H.264 conformance.
 
 ## Local verification
