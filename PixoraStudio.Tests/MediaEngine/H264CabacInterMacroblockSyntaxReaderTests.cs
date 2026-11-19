@@ -96,6 +96,33 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
     }
 
     [Fact]
+    public void ReadPSlice_ShouldTraceEveryMvdComponentAndItsDerivedContext()
+    {
+        ScriptedCabacReader bins = new(new[] { 0, 0 });
+        H264CabacMotionVectorNeighbourContext context = new();
+
+        _ = new H264CabacInterMacroblockSyntaxReader()
+            .ReadPSlice(new H264CabacSyntaxElementReader(bins), CreateHeader(0),
+                0, 0, 0, 1, context);
+
+        Assert.Contains(
+            "mvd list=0 block=(0,0) region=(0,0,16,16) component=x context=40 increment=0 begin",
+            bins.Diagnostics);
+        Assert.Contains(
+            "mvd list=0 block=(0,0) region=(0,0,16,16) component=x value=0",
+            bins.Diagnostics);
+        Assert.Contains(
+            "mvd list=0 block=(0,0) region=(0,0,16,16) component=y context=47 increment=0 begin",
+            bins.Diagnostics);
+        Assert.Contains(
+            "mvd list=0 block=(0,0) region=(0,0,16,16) component=y value=0",
+            bins.Diagnostics);
+        Assert.Contains(
+            "mvd list=0 block=(0,0) region=(0,0,16,16) complete value=(0,0)",
+            bins.Diagnostics);
+    }
+
+    [Fact]
     public void ReadBSlice_ShouldDecodeDirectMacroblockWithoutBins()
     {
         ScriptedCabacReader bins = new();
@@ -145,7 +172,7 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
         new(0, macroblockType, false, 0, false, false,
             null, null, null, false);
 
-    private sealed class ScriptedCabacReader : IH264CabacBinReader
+    private sealed class ScriptedCabacReader : IH264CabacBinReader, IH264CabacDiagnosticTraceSink
     {
         private readonly Queue<int> _decisionBins;
         private readonly Queue<int> _bypassBins;
@@ -164,6 +191,9 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
         }
 
         public List<int> ContextIndices { get; } = [];
+        public List<string> Diagnostics { get; } = [];
+        public void TraceDiagnostic(string marker) => Diagnostics.Add(marker);
+
         public int DecodeBin(int contextIndex)
         {
             ContextIndices.Add(contextIndex);
