@@ -304,17 +304,31 @@ public sealed class H264CabacSyntaxElementReader
         if (contextIndexIncrement is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
 
-        int firstBin = _reader.DecodeBin(contextBase + contextIndexIncrement);
+        int firstContext = contextBase + contextIndexIncrement;
+        H264CabacDiagnosticTrace.Mark(
+            _reader, $"mvd syntax base={contextBase} increment={contextIndexIncrement} " +
+                $"first_context={firstContext} begin");
+        int firstBin = _reader.DecodeBin(firstContext);
+        H264CabacDiagnosticTrace.Mark(
+            _reader, $"mvd syntax first_bin context={firstContext} value={firstBin}");
         if (firstBin is not (0 or 1))
             throw new FormatException("CABAC decision bins must be zero or one.");
         if (firstBin == 0)
+        {
+            H264CabacDiagnosticTrace.Mark(_reader, "mvd syntax complete value=0");
             return 0;
+        }
 
         int magnitude = 1;
         int contextIndex = contextBase + 3;
+        int unaryIndex = 0;
         while (magnitude < 9)
         {
+            H264CabacDiagnosticTrace.Mark(
+                _reader, $"mvd syntax unary[{unaryIndex}] context={contextIndex} begin");
             int bin = _reader.DecodeBin(contextIndex);
+            H264CabacDiagnosticTrace.Mark(
+                _reader, $"mvd syntax unary[{unaryIndex}]={bin}");
             if (bin is not (0 or 1))
                 throw new FormatException("CABAC decision bins must be zero or one.");
             if (bin == 0)
@@ -323,14 +337,20 @@ public sealed class H264CabacSyntaxElementReader
             if (magnitude < 4)
                 contextIndex++;
             magnitude++;
+            unaryIndex++;
         }
 
         if (magnitude == 9)
         {
             int order = 3;
+            int escapePrefixIndex = 0;
             while (true)
             {
+                H264CabacDiagnosticTrace.Mark(
+                    _reader, $"mvd syntax escape_prefix[{escapePrefixIndex}] begin order={order}");
                 int bin = _reader.DecodeBypass();
+                H264CabacDiagnosticTrace.Mark(
+                    _reader, $"mvd syntax escape_prefix[{escapePrefixIndex}]={bin}");
                 if (bin is not (0 or 1))
                     throw new FormatException("CABAC bypass bins must be zero or one.");
                 if (bin == 0)
@@ -338,23 +358,32 @@ public sealed class H264CabacSyntaxElementReader
 
                 magnitude = checked(magnitude + (1 << order));
                 order++;
+                escapePrefixIndex++;
                 if (order > 24)
                     throw new FormatException("CABAC MVD escape prefix exceeds the supported range.");
             }
 
             for (int bit = order - 1; bit >= 0; bit--)
             {
+                H264CabacDiagnosticTrace.Mark(
+                    _reader, $"mvd syntax escape_suffix bit={bit} begin");
                 int bin = _reader.DecodeBypass();
+                H264CabacDiagnosticTrace.Mark(
+                    _reader, $"mvd syntax escape_suffix bit={bit} value={bin}");
                 if (bin is not (0 or 1))
                     throw new FormatException("CABAC bypass bins must be zero or one.");
                 magnitude = checked(magnitude + (bin << bit));
             }
         }
 
+        H264CabacDiagnosticTrace.Mark(_reader, $"mvd syntax sign begin magnitude={magnitude}");
         int sign = _reader.DecodeBypass();
+        H264CabacDiagnosticTrace.Mark(_reader, $"mvd syntax sign={sign}");
         if (sign is not (0 or 1))
             throw new FormatException("CABAC bypass bins must be zero or one.");
-        return sign == 0 ? magnitude : -magnitude;
+        int result = sign == 0 ? magnitude : -magnitude;
+        H264CabacDiagnosticTrace.Mark(_reader, $"mvd syntax complete value={result}");
+        return result;
     }
 
     /// <summary>Decodes P-slice mb_type, including intra macroblock types.</summary>
