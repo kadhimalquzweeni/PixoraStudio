@@ -97,11 +97,13 @@ foreach ($case in $cases) {
     try {
         $frame = [byte[]]::new([int]$frameBytes)
         while ($stream.Position -lt $stream.Length) {
-            try {
-                $stream.ReadExactly($frame)
-            }
-            catch ([System.IO.EndOfStreamException]) {
-                throw "Reference output '$rawPath' ended with a partial YUV frame."
+            $offset = 0
+            while ($offset -lt $frame.Length) {
+                $count = $stream.Read($frame, $offset, $frame.Length - $offset)
+                if ($count -eq 0) {
+                    throw "Reference output '$rawPath' ended with a partial YUV frame."
+                }
+                $offset += $count
             }
 
             $hash = [System.Security.Cryptography.SHA256]::HashData($frame)
