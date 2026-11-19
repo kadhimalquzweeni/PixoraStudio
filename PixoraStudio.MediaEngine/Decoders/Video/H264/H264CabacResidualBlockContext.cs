@@ -67,7 +67,7 @@ public static class H264CabacResidualBlockContext
         int startIndex)
     {
         int mapLength = maximumCoefficients - 1 - startIndex;
-        int[] increments = Enumerable.Range(startIndex, mapLength).ToArray();
+        int[] increments = Enumerable.Range(0, mapLength).ToArray();
         return new H264CabacResidualBlockContextMap(
             maximumCoefficients, startIndex, category,
             codedBlockFlagOffset, significantOffset, lastSignificantOffset, absoluteLevelOffset,
