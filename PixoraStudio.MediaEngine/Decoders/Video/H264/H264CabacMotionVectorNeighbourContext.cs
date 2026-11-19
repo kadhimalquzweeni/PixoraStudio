@@ -71,13 +71,9 @@ public sealed class H264CabacMotionVectorNeighbourContext
             throw new ArgumentOutOfRangeException(nameof(component));
 
         int left = GetNeighbour(list, blockX - 1, blockY, sliceId,
-            state => state.ReferenceIndex <= 0 || state.IsDirect
-                ? 0
-                : Math.Abs(component == 0 ? state.MvdX : state.MvdY));
+            state => Math.Abs(component == 0 ? state.MvdX : state.MvdY));
         int top = GetNeighbour(list, blockX, blockY - 1, sliceId,
-            state => state.ReferenceIndex <= 0 || state.IsDirect
-                ? 0
-                : Math.Abs(component == 0 ? state.MvdX : state.MvdY));
+            state => Math.Abs(component == 0 ? state.MvdX : state.MvdY));
         int sum = checked(left + top);
         return sum < 3 ? 0 : sum < 33 ? 1 : 2;
     }
