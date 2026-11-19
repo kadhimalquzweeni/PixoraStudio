@@ -41,6 +41,24 @@ public sealed class H264CabacInterResidualMacroblockReaderTests
     }
 
     [Fact]
+    public void Read_WithNonZeroLumaDcCoefficient_ShouldDecodeSignificanceLevelAndSign()
+    {
+        ScriptedCabacReader bins = new(
+            new[] { 1, 1, 1, 0, 0, 0, 0 },
+            new[] { 0 });
+        H264InterResidualMacroblock result = CreateReader().Read(
+            bins, Header(), Syntax(1, 0, false), Sps(), 0, 0, 1,
+            new H264CabacResidualNeighbourContext());
+
+        H264CavlcResidualBlock firstBlock = result.LumaBlocks[0].Residual;
+        Assert.Equal(1, firstBlock.TotalCoefficients);
+        Assert.Equal(1, firstBlock.Coefficients[0]);
+        Assert.All(result.LumaBlocks.Skip(1), block =>
+            Assert.Equal(0, block.Residual.TotalCoefficients));
+        Assert.Equal(new[] { 93, 134, 195, 248, 94, 94, 95 }, bins.ContextIndices);
+    }
+
+    [Fact]
     public void Read_WithEightByEightTransform_ShouldUseSignificanceMapWithoutCbf()
     {
         ScriptedCabacReader bins = new(
