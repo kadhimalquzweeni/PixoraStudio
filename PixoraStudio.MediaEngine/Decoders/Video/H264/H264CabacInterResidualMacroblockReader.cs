@@ -208,6 +208,9 @@ public sealed class H264CabacInterResidualMacroblockReader
             for (int blockY = 0; blockY < chromaBlocksHigh; blockY++)
             for (int blockX = 0; blockX < 2; blockX++)
             {
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual chroma_ac[{component},{blockX},{blockY}] " +
+                        $"coded={(codedChroma == 2)} begin");
                 int pictureX = chromaBlockOriginX + blockX;
                 int pictureY = chromaBlockOriginY + blockY;
                 bool isGroupCoded = codedChroma == 2;
@@ -231,6 +234,9 @@ public sealed class H264CabacInterResidualMacroblockReader
                 neighbourContext.RecordBlock(
                     plane, pictureX, pictureY, sliceId,
                     residual.TotalCoefficients != 0);
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual chroma_ac[{component},{blockX},{blockY}] " +
+                        $"total_coeff={residual.TotalCoefficients} complete");
             }
 
             chromaComponents.Add(new H264IntraChromaResidualComponent(
