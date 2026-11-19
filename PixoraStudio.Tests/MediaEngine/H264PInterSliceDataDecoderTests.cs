@@ -52,6 +52,64 @@ public sealed class H264PInterSliceDataDecoderTests
 
 
     [Fact]
+    public void Decode_CabacPInterSlice_WithNonZeroLumaResidual_ShouldReconstructResidual()
+    {
+        H264SequenceParameterSet sps = Sps(1);
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
+        H264DecodedPictureSurface destination = new(sps);
+
+        // P_L0_16x16, zero MVD, luma CBP group 0, QP delta +1,
+        // then one non-zero 4x4 luma DC coefficient (positive sign).
+        ScriptedCabacSliceDataReader cabac = new(
+            [
+                0,             // mb_skip_flag
+                0, 0, 0,       // P_L0_16x16 mb_type
+                0, 0,          // horizontal/vertical MVD
+                1, 0, 0, 0, 0, // coded_block_pattern
+                0,             // transform_size_8x8_flag
+                1, 0,          // mb_qp_delta = +1
+                1, 1, 1, 0, 0, 0, 0 // CBF, significance, last, level, remaining CBFs
+            ],
+            [1],
+            [0]);
+
+        H264PInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(1, 1),
+            new H264PInterMacroblockReconstructor(),
+            (_, _, _, _) => cabac);
+
+        H264PInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, CreateCabacPSliceHeader(firstMacroblock: 0)),
+            sps, pps, [reference], 12, [new H264ReferencePicture(0, 0)]);
+
+        H264InterMacroblockReconstructionResult macroblock =
+            Assert.Single(result.Macroblocks);
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Equal(27, result.FinalQpY);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.Contains(destination.CopyLumaPlane(), sample => sample != 70);
+        Assert.All(destination.CopyCbPlane(), sample => Assert.Equal((byte)80, sample));
+        Assert.All(destination.CopyCrPlane(), sample => Assert.Equal((byte)90, sample));
+        Assert.All(destination.GetDeblockingMetadata(0, 0)!.LumaBlocks, block =>
+        {
+            Assert.Equal(new H264ReferencePicture(0, 0), block.ReferencePictureL0);
+            Assert.Equal(new H264MotionVector(0, 0), block.MotionVectorL0);
+        });
+        Assert.Equal(
+            new[]
+            {
+                11, 14, 15, 16, 40, 47,
+                73, 73, 73, 76, 77, 399, 60, 62,
+                93, 134, 195, 248, 94, 95, 93
+            },
+            cabac.ContextIndices);
+        Assert.True(cabac.IsTerminated);
+    }
+
+    [Fact]
     public void Decode_CabacPSlices_ShouldNotCarryNeighbourSkipContextAcrossSliceBoundary()
     {
         H264SequenceParameterSet sps = Sps(2);
@@ -579,12 +637,16 @@ public sealed class H264PInterSliceDataDecoderTests
     {
         private readonly Queue<int> _decisionBins;
         private readonly Queue<int> _terminateBins;
+        private readonly Queue<int> _bypassBins;
 
         public ScriptedCabacSliceDataReader(
-            IEnumerable<int> decisionBins, IEnumerable<int> terminateBins)
+            IEnumerable<int> decisionBins,
+            IEnumerable<int> terminateBins,
+            IEnumerable<int>? bypassBins = null)
         {
             _decisionBins = new Queue<int>(decisionBins);
             _terminateBins = new Queue<int>(terminateBins);
+            _bypassBins = new Queue<int>(bypassBins ?? []);
         }
 
         public List<int> ContextIndices { get; } = [];
@@ -596,8 +658,7 @@ public sealed class H264PInterSliceDataDecoderTests
             return _decisionBins.Dequeue();
         }
 
-        public int DecodeBypass() =>
-            throw new InvalidOperationException("The P_Skip test does not use bypass bins.");
+        public int DecodeBypass() => _bypassBins.Dequeue();
 
         public int DecodeTerminate() => _terminateBins.Dequeue();
         public void MarkTerminated() => IsTerminated = true;
