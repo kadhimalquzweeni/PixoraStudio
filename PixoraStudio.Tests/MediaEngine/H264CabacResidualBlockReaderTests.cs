@@ -85,7 +85,13 @@ public sealed class H264CabacResidualBlockReaderTests
 
         Assert.Equal(new[] { 1, 0 }, coefficients);
         Assert.Contains(
-            "residual significant_coeff_flag position=0 context=105 value=1",
+            "residual significant_coeff_flag position=0 context=105 begin",
+            bins.Diagnostics);
+        Assert.Contains(
+            "residual decision context=105 value=1",
+            bins.Diagnostics);
+        Assert.Contains(
+            "residual significant_coeff_flag position=0 value=1",
             bins.Diagnostics);
         Assert.Contains(
             "residual last_significant_coeff_flag position=0 value=1",
