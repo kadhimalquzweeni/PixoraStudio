@@ -122,6 +122,13 @@ public sealed class H264Mp4AvcEndToEndTests
         try
         {
             frames.AddRange(decoder.Decode(p)!.ReadyFrames);
+            Assert.Contains(cabacTrace, entry => entry.Contains("mb[3] stage=inter-prediction-syntax complete"));
+            Assert.Contains(cabacTrace, entry => entry.Contains("sub_mb_type[0]="));
+            Assert.Contains(cabacTrace, entry => entry.Contains("sub_mb_type[1]="));
+            Assert.Contains(cabacTrace, entry => entry.Contains("sub_mb_type[2]="));
+            Assert.Contains(cabacTrace, entry => entry.Contains("sub_mb_type[3]="));
+            Assert.Contains(cabacTrace, entry => entry.Contains("stage=residual-coefficients complete"));
+            Assert.Contains(cabacTrace, entry => entry.Contains("mb[3] stage=end_of_slice_flag value=1"));
         }
         catch (Exception exception)
         {
