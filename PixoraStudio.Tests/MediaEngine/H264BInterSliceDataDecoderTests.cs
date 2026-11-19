@@ -52,6 +52,50 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_CabacBSkipSlice_ShouldCarrySkipContextAcrossMacroblocks()
+    {
+        H264SequenceParameterSet sps = Sps(2);
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 45);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader(cabac: true);
+        bits.AlignWithOneBits();
+        bits.Bits(0, 9);
+        bits.TrailingBits();
+
+        // Two B_Skip macroblocks; the first end_of_slice_flag is zero,
+        // allowing the second macroblock to use the left-neighbour context.
+        ScriptedCabacSliceDataReader cabac = new([1, 1], [0, 1]);
+        H264BInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(2, 1),
+            new H264MotionVectorPictureState(2, 1),
+            new H264BInterMacroblockReconstructor(),
+            (reader, _, _, _) =>
+            {
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabac;
+            });
+
+        H264BInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, pps, dpb, 0, 0,
+            collocatedContextProvider: (_, _, _, _) => null);
+
+        Assert.Equal(2, result.MacroblocksDecoded);
+        Assert.Equal(2, result.InterMacroblocks.Count);
+        Assert.All(Enumerable.Range(0, 2),
+            x => Assert.True(destination.IsMacroblockDecoded(x, 0)));
+        Assert.All(destination.CopyLumaPlane(),
+            sample => Assert.Equal((byte)45, sample));
+        Assert.Equal(new[] { 24, 25 }, cabac.ContextIndices);
+        Assert.True(cabac.IsTerminated);
+    }
+
+    [Fact]
     public void Decode_CabacBInterSlice_ShouldDecodeL0MacroblockAndReconstruct()
     {
         H264SequenceParameterSet sps = Sps();
