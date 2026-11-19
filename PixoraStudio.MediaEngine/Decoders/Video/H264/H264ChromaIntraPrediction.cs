@@ -80,8 +80,11 @@ public static class H264ChromaIntraPrediction
         bool hasLeft)
     {
         // Chroma DC is derived independently for each 4x4 prediction region.
-        // Interior regions average their corresponding top and left segments;
-        // regions on an unavailable edge fall back to 128.
+        // With both edges available, top-left and interior-right regions
+        // combine their corresponding top and left segments; top-right uses
+        // top only and the remaining left-column regions use left only.
+        // With a single available edge, its corresponding segment supplies
+        // every 4x4 region in that column (top) or row (left).
         int blockColumns = width / 4;
         int blockRows = height / 4;
 
@@ -89,22 +92,31 @@ public static class H264ChromaIntraPrediction
         {
             for (int blockX = 0; blockX < blockColumns; blockX++)
             {
-                bool interior = blockX > 0 && blockY > 0 && hasTop && hasLeft;
-                bool useTop = hasTop && (blockY == 0 || interior);
-                bool useLeft = hasLeft && (blockX == 0 || interior);
                 int value;
-
-                if (useTop && useLeft)
+                if (hasTop && hasLeft)
                 {
-                    int topSum = Sum4(top, blockX * 4);
-                    int leftSum = Sum4(left, blockY * 4);
-                    value = (topSum + leftSum + 4) >> 3;
+                    bool useBothEdges = (blockX == 0 && blockY == 0) ||
+                        (blockX > 0 && blockY > 0);
+                    if (useBothEdges)
+                    {
+                        int topSum = Sum4(top, blockX * 4);
+                        int leftSum = Sum4(left, blockY * 4);
+                        value = (topSum + leftSum + 4) >> 3;
+                    }
+                    else if (blockY == 0)
+                    {
+                        value = (Sum4(top, blockX * 4) + 2) >> 2;
+                    }
+                    else
+                    {
+                        value = (Sum4(left, blockY * 4) + 2) >> 2;
+                    }
                 }
-                else if (useTop)
+                else if (hasTop)
                 {
                     value = (Sum4(top, blockX * 4) + 2) >> 2;
                 }
-                else if (useLeft)
+                else if (hasLeft)
                 {
                     value = (Sum4(left, blockY * 4) + 2) >> 2;
                 }
