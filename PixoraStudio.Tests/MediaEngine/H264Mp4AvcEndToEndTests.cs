@@ -119,8 +119,15 @@ public sealed class H264Mp4AvcEndToEndTests
         H264Mp4VideoSample b = CreateCabacSample(
             configuration, 3, 2, 1, false, CabacMainBNal);
 
+        string testResultsDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
+        Directory.CreateDirectory(testResultsDirectory);
+
         List<H264Mp4DecodedVideoFrame> frames = [];
         frames.AddRange(decoder.Decode(idr)!.ReadyFrames);
+        File.WriteAllLines(
+            Path.Combine(testResultsDirectory, "cabac-idr-bin-trace.txt"),
+            cabacTrace);
         string? idrHashWhenFirstReleased = null;
         cabacTrace.Clear();
         try
@@ -187,9 +194,6 @@ public sealed class H264Mp4AvcEndToEndTests
         ];
         string[] actualFrameHashes = displayOrder.Select(ComputeFrameHash).ToArray();
 
-        string testResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
         byte[] decodedYuvFrames = displayOrder
             .SelectMany(frame => frame.Surface.CopyLumaPlane()
                 .Concat(frame.Surface.CopyCbPlane())
