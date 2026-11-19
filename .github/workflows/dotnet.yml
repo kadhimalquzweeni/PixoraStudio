@@ -44,5 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pixorastudio-test-results
-          path: "**/TestResults/*.trx"
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/*.yuv
           if-no-files-found: warn
