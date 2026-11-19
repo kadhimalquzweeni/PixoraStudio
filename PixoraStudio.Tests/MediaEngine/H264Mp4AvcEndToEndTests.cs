@@ -104,9 +104,12 @@ public sealed class H264Mp4AvcEndToEndTests
             (reader, qpY, isIntra, cabacInitIdc) =>
             {
                 cabacTrace.Add($"slice-start intra={isIntra} qp={qpY} init={cabacInitIdc}");
-                return new TracingCabacSliceDataReader(
-                    new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
-                    cabacTrace);
+                H264CabacSliceDataReader sliceReader =
+                    new(reader, qpY, isIntra, cabacInitIdc);
+                cabacTrace.Add(
+                    $"cabac-start range={sliceReader.ArithmeticRange} " +
+                    $"offset={sliceReader.ArithmeticOffset} bitpos={sliceReader.BitPosition}");
+                return new TracingCabacSliceDataReader(sliceReader, cabacTrace);
             });
 
         H264Mp4VideoSample idr = CreateCabacSample(
@@ -834,28 +837,74 @@ public sealed class H264Mp4AvcEndToEndTests
         IH264CabacSliceDataReader inner,
         List<string> trace) : IH264CabacSliceDataReader, IH264CabacDiagnosticTraceSink
     {
+        private IH264CabacDiagnosticStateProvider? StateProvider =>
+            inner as IH264CabacDiagnosticStateProvider;
+
         public bool IsTerminated => inner.IsTerminated;
 
         public void TraceDiagnostic(string marker) => trace.Add($"-- {marker}");
 
         public int DecodeBin(int contextIndex)
         {
+            H264CabacContextModel? before = StateProvider?.GetContextModel(contextIndex);
+            int rangeBefore = StateProvider?.ArithmeticRange ?? 0;
+            int offsetBefore = StateProvider?.ArithmeticOffset ?? 0;
+            int bitPositionBefore = StateProvider?.BitPosition ?? 0;
+
             int bin = inner.DecodeBin(contextIndex);
-            trace.Add($"ctx[{contextIndex}]={bin}");
+
+            if (StateProvider is { } state)
+            {
+                H264CabacContextModel after = state.GetContextModel(contextIndex);
+                trace.Add(
+                    $"cabac decision ctx={contextIndex} bin={bin} " +
+                    $"model={before!.Value.State}/{before.Value.MostProbableSymbol}" +
+                    $"->{after.State}/{after.MostProbableSymbol} " +
+                    $"range={rangeBefore}->{state.ArithmeticRange} " +
+                    $"offset={offsetBefore}->{state.ArithmeticOffset} " +
+                    $"bitpos={bitPositionBefore}->{state.BitPosition}");
+            }
+            else
+            {
+                trace.Add($"ctx[{contextIndex}]={bin}");
+            }
+
             return bin;
         }
 
         public int DecodeBypass()
         {
+            int rangeBefore = StateProvider?.ArithmeticRange ?? 0;
+            int offsetBefore = StateProvider?.ArithmeticOffset ?? 0;
+            int bitPositionBefore = StateProvider?.BitPosition ?? 0;
             int bin = inner.DecodeBypass();
-            trace.Add($"bypass={bin}");
+
+            if (StateProvider is { } state)
+                trace.Add(
+                    $"cabac bypass bin={bin} range={rangeBefore}->{state.ArithmeticRange} " +
+                    $"offset={offsetBefore}->{state.ArithmeticOffset} " +
+                    $"bitpos={bitPositionBefore}->{state.BitPosition}");
+            else
+                trace.Add($"bypass={bin}");
+
             return bin;
         }
 
         public int DecodeTerminate()
         {
+            int rangeBefore = StateProvider?.ArithmeticRange ?? 0;
+            int offsetBefore = StateProvider?.ArithmeticOffset ?? 0;
+            int bitPositionBefore = StateProvider?.BitPosition ?? 0;
             int bin = inner.DecodeTerminate();
-            trace.Add($"terminate={bin}");
+
+            if (StateProvider is { } state)
+                trace.Add(
+                    $"cabac terminate bin={bin} range={rangeBefore}->{state.ArithmeticRange} " +
+                    $"offset={offsetBefore}->{state.ArithmeticOffset} " +
+                    $"bitpos={bitPositionBefore}->{state.BitPosition}");
+            else
+                trace.Add($"terminate={bin}");
+
             return bin;
         }
 
@@ -869,6 +918,10 @@ public sealed class H264Mp4AvcEndToEndTests
         {
             trace.Add("pcm-restart");
             inner.RestartAfterPcm();
+            if (StateProvider is { } state)
+                trace.Add(
+                    $"cabac-restart range={state.ArithmeticRange} " +
+                    $"offset={state.ArithmeticOffset} bitpos={state.BitPosition}");
         }
     }
 
