@@ -413,6 +413,79 @@ public sealed class H264Mp4AvcEndToEndTests
             1, 3, isSyncSample, configuration, nalUnits);
     }
 
+    [Fact]
+    public void ReadCabacMp4Samples_ShouldDecodeIAndPSkipAndBDirectThroughAccessUnitPipeline()
+    {
+        byte[] spsNal = BuildNal(0x67, CreateSpsRbsp(maxNumRefFrames: 2));
+        byte[] ppsNal = BuildNal(0x68, CreatePpsRbsp(entropyCodingModeFlag: true));
+        List<byte> avcC = [1, 66, 0, 30, 0xFD, 0xE1];
+        AddLengthPrefixedNal(avcC, spsNal);
+        avcC.Add(1);
+        AddLengthPrefixedNal(avcC, ppsNal);
+
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 16, 16, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc,
+            new Mp4CodecConfiguration(Mp4VideoCodec.Avc, "avcC",
+                avcC.ToArray(), 1, 66, 0, 30, 2));
+        Mp4Track track = new(
+            9, 16, 16, 1000, 1000, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+
+        H264Mp4VideoSample idrSample = ReadSample(
+            track, 1, 0, true,
+            BuildNal(0x65, CreateCabacIdrPcmSliceRbsp(80, 96, 160)));
+        H264Mp4VideoSample futurePSample = ReadSample(
+            track, 2, 40, false,
+            BuildNal(0x41, CreateCabacPSkipSliceRbsp(frameNum: 1, pocLsb: 4)),
+            presentationTimeTicks: 80);
+        H264Mp4VideoSample bSample = ReadSample(
+            track, 3, 80, false,
+            BuildNal(0x41, CreateCabacBSkipSliceRbsp(frameNum: 2, pocLsb: 2)),
+            presentationTimeTicks: 40);
+
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
+        Queue<IH264CabacSliceDataReader> cabacReaders =
+        [
+            new ScriptedCabacSliceDataReader([1], [1, 1]), // I_PCM mb_type and end-of-slice
+            new ScriptedCabacSliceDataReader([1], [1]),    // P_Skip and end-of-slice
+            new ScriptedCabacSliceDataReader([1], [1])     // B_Skip and end-of-slice
+        ];
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets,
+            2,
+            (reader, _, _, _) =>
+            {
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabacReaders.Dequeue();
+            });
+
+        H264Mp4AccessUnitDecodeResult idrResult = decoder.Decode(idrSample)!;
+        Assert.Equal(H264SliceType.I, idrResult.SliceHeader.SliceType);
+        Assert.True(idrResult.Surface.IsComplete);
+        Assert.All(idrResult.Surface.CopyLumaPlane(), value => Assert.Equal((byte)80, value));
+
+        H264Mp4AccessUnitDecodeResult pResult = decoder.Decode(futurePSample)!;
+        Assert.Equal(H264SliceType.P, pResult.SliceHeader.SliceType);
+        Assert.All(pResult.Surface.CopyLumaPlane(), value => Assert.Equal((byte)80, value));
+
+        H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(bSample)!;
+        Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
+        Assert.All(bResult.Surface.CopyLumaPlane(), value => Assert.Equal((byte)80, value));
+        Assert.Equal(1u, Assert.Single(bResult.ReadyFrames).SampleNumber);
+        Assert.Equal(0, Assert.Single(bResult.ReadyFrames).PictureOrderCount);
+
+        IReadOnlyList<H264Mp4DecodedVideoFrame> remaining = decoder.Flush();
+        Assert.Equal(new[] { 3u, 2u }, remaining.Select(frame => frame.SampleNumber));
+        Assert.Equal(new[] { 2, 4 }, remaining.Select(frame => frame.PictureOrderCount));
+        Assert.Equal(new long[] { 40, 80 }, remaining.Select(frame => frame.PresentationTimeTicks));
+        Assert.Empty(cabacReaders);
+        Assert.Equal(2, decoder.DecodedPictureBuffer.Count);
+    }
+
     private static H264Mp4VideoSample ReadSample(
         Mp4Track track,
         uint sampleNumber,
@@ -435,6 +508,66 @@ public sealed class H264Mp4AvcEndToEndTests
             },
             sampleData.ToArray());
         return new H264Mp4TrackSampleReader().Read(track, encoded);
+    }
+
+    private static byte[] CreateCabacIdrPcmSliceRbsp(
+        uint luma, uint cb, uint cr)
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(2); // I slice
+        bits.WriteUe(0); // pic_parameter_set_id
+        bits.WriteBits(0, 4); // frame_num
+        bits.WriteUe(0); // idr_pic_id
+        bits.WriteBits(0, 4); // pic_order_cnt_lsb
+        bits.WriteFlag(false); // no_output_of_prior_pics_flag
+        bits.WriteFlag(false); // long_term_reference_flag
+        bits.WriteSe(0); // slice_qp_delta
+        bits.AlignWithOneBits(); // cabac_alignment_one_bit
+        bits.WriteBits(0, 9); // arithmetic decoder initial offset
+        bits.AlignWithZeroes(); // pcm_alignment_zero_bit
+        for (int i = 0; i < 256; i++) bits.WriteBits(luma, 8);
+        for (int i = 0; i < 64; i++) bits.WriteBits(cb, 8);
+        for (int i = 0; i < 64; i++) bits.WriteBits(cr, 8);
+        return bits.ToRbsp();
+    }
+
+    private static byte[] CreateCabacPSkipSliceRbsp(uint frameNum, uint pocLsb)
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(0); // P slice
+        bits.WriteUe(0); // pic_parameter_set_id
+        bits.WriteBits(frameNum, 4); // frame_num
+        bits.WriteBits(pocLsb, 4); // pic_order_cnt_lsb
+        bits.WriteFlag(false); // num_ref_idx_active_override_flag
+        bits.WriteFlag(false); // ref_pic_list_modification_flag_l0
+        bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
+        bits.WriteUe(0); // cabac_init_idc
+        bits.WriteSe(0); // slice_qp_delta
+        bits.AlignWithOneBits();
+        bits.WriteBits(0, 9); // arithmetic decoder initial offset
+        return bits.ToRbsp();
+    }
+
+    private static byte[] CreateCabacBSkipSliceRbsp(uint frameNum, uint pocLsb)
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(1); // B slice
+        bits.WriteUe(0); // pic_parameter_set_id
+        bits.WriteBits(frameNum, 4); // frame_num
+        bits.WriteBits(pocLsb, 4); // pic_order_cnt_lsb
+        bits.WriteFlag(true); // direct_spatial_mv_pred_flag
+        bits.WriteFlag(false); // num_ref_idx_active_override_flag
+        bits.WriteFlag(false); // ref_pic_list_modification_flag_l0
+        bits.WriteFlag(false); // ref_pic_list_modification_flag_l1
+        bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
+        bits.WriteUe(0); // cabac_init_idc
+        bits.WriteSe(0); // slice_qp_delta
+        bits.AlignWithOneBits();
+        bits.WriteBits(0, 9); // arithmetic decoder initial offset
+        return bits.ToRbsp();
     }
 
     private static byte[] CreatePcmPSliceRbsp(
@@ -524,12 +657,12 @@ public sealed class H264Mp4AvcEndToEndTests
         return bits.ToRbsp();
     }
 
-    private static byte[] CreatePpsRbsp()
+    private static byte[] CreatePpsRbsp(bool entropyCodingModeFlag = false)
     {
         BitWriter bits = new();
         bits.WriteUe(0); // pic_parameter_set_id
         bits.WriteUe(0); // seq_parameter_set_id
-        bits.WriteFlag(false); // entropy_coding_mode_flag
+        bits.WriteFlag(entropyCodingModeFlag); // entropy_coding_mode_flag
         bits.WriteFlag(false); // bottom_field_pic_order_in_frame_present_flag
         bits.WriteUe(0); // num_slice_groups_minus1
         bits.WriteUe(0); // num_ref_idx_l0_default_active_minus1
@@ -594,6 +727,29 @@ public sealed class H264Mp4AvcEndToEndTests
         destination.Add(length[0]);
         destination.Add(length[1]);
         destination.AddRange(nal);
+    }
+
+    private sealed class ScriptedCabacSliceDataReader : IH264CabacSliceDataReader
+    {
+        private readonly Queue<int> _decisionBins;
+        private readonly Queue<int> _terminateBins;
+
+        public ScriptedCabacSliceDataReader(
+            IEnumerable<int> decisionBins,
+            IEnumerable<int> terminateBins)
+        {
+            _decisionBins = new Queue<int>(decisionBins);
+            _terminateBins = new Queue<int>(terminateBins);
+        }
+
+        public bool IsTerminated { get; private set; }
+
+        public int DecodeBin(int contextIndex) => _decisionBins.Dequeue();
+        public int DecodeBypass() =>
+            throw new InvalidOperationException("These MP4 integration fixtures do not use bypass bins.");
+        public int DecodeTerminate() => _terminateBins.Dequeue();
+        public void MarkTerminated() => IsTerminated = true;
+        public void RestartAfterPcm() { }
     }
 
     private sealed class BitWriter
