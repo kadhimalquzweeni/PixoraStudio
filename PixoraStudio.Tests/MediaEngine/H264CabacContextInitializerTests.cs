@@ -30,6 +30,46 @@ public sealed class H264CabacContextInitializerTests
         Assert.Equal(new H264CabacContextModel(expectedState, expectedMps), context);
     }
 
+    [Theory]
+    [InlineData(11, 0, 0, 1)]
+    [InlineData(11, 1, 8, 0)]
+    [InlineData(11, 2, 8, 0)]
+    [InlineData(40, 0, 0, 1)]
+    [InlineData(40, 1, 2, 1)]
+    [InlineData(40, 2, 9, 1)]
+    public void TryInitialize_ShouldSelectCompactPbColumnsForContextsElevenToFiftyThree(
+        int contextIndex,
+        int cabacInitIdc,
+        int expectedState,
+        int expectedMps)
+    {
+        bool initialized = H264CabacContextInitializer.TryInitialize(
+            contextIndex, sliceQpY: 22, isIntraSlice: false, cabacInitIdc,
+            out H264CabacContextModel context);
+
+        Assert.True(initialized);
+        Assert.Equal(new H264CabacContextModel(expectedState, expectedMps), context);
+    }
+
+    [Theory]
+    [InlineData(true, 0, 52, 0)]
+    [InlineData(false, 0, 18, 0)]
+    [InlineData(false, 1, 27, 0)]
+    [InlineData(false, 2, 18, 0)]
+    public void TryInitialize_ShouldUseStandardColumnsFromContextSixtyOnward(
+        bool isIntraSlice,
+        int cabacInitIdc,
+        int expectedState,
+        int expectedMps)
+    {
+        bool initialized = H264CabacContextInitializer.TryInitialize(
+            contextIndex: 70, sliceQpY: 26, isIntraSlice, cabacInitIdc,
+            out H264CabacContextModel context);
+
+        Assert.True(initialized);
+        Assert.Equal(new H264CabacContextModel(expectedState, expectedMps), context);
+    }
+
     [Fact]
     public void TryInitialize_ShouldClipPreContextStateToOneAnd126()
     {
@@ -49,11 +89,14 @@ public sealed class H264CabacContextInitializerTests
             276, 26, true, 0, out _));
     }
 
-    [Fact]
-    public void TryInitialize_ShouldReturnFalseForUnavailableContextInSliceClass()
+    [Theory]
+    [InlineData(11)]
+    [InlineData(40)]
+    [InlineData(54)]
+    public void TryInitialize_ShouldReturnFalseForUnusedIntraSliceContexts(int contextIndex)
     {
         Assert.False(H264CabacContextInitializer.TryInitialize(
-            54, 26, true, 0, out _));
+            contextIndex, 26, true, 0, out _));
     }
 
     [Theory]
