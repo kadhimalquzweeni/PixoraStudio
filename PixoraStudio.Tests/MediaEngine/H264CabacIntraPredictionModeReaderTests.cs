@@ -28,6 +28,16 @@ public sealed class H264CabacIntraPredictionModeReaderTests
     }
 
     [Fact]
+    public void ReadRemainingIntraPredictionMode_ShouldInterpretBinsMostSignificantFirst()
+    {
+        ScriptedCabacReader bins = new(1, 0, 0);
+        H264CabacSyntaxElementReader syntax = new(bins);
+
+        Assert.Equal(4, syntax.ReadRemainingIntraPredictionMode());
+        Assert.Equal(new[] { 69, 69, 69 }, bins.ContextIndices);
+    }
+
+    [Fact]
     public void Read_ShouldDecodeSixteenCabac4x4ModeEntries()
     {
         ScriptedCabacReader bins = new(Enumerable.Repeat(1, 16));
