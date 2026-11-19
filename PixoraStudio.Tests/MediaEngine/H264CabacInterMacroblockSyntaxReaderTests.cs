@@ -118,6 +118,15 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
             "mvd list=0 block=(0,0) region=(0,0,16,16) component=y value=0",
             bins.Diagnostics);
         Assert.Contains(
+            "mvd syntax base=40 increment=0 first_context=40 begin",
+            bins.Diagnostics);
+        Assert.Contains(
+            "mvd syntax first_bin context=40 value=0",
+            bins.Diagnostics);
+        Assert.Contains(
+            "mvd syntax complete value=0",
+            bins.Diagnostics);
+        Assert.Contains(
             "mvd list=0 block=(0,0) region=(0,0,16,16) complete value=(0,0)",
             bins.Diagnostics);
     }
