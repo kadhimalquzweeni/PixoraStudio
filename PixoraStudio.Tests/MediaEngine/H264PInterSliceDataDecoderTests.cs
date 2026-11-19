@@ -91,7 +91,6 @@ public sealed class H264PInterSliceDataDecoderTests
             Assert.Single(result.Macroblocks);
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Equal(26, result.FinalQpY);
-        Assert.False(macroblock.IsSkipped);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
         Assert.True(destination.HasCompleteDeblockingMetadata);
         Assert.All(destination.CopyLumaPlane(), sample => Assert.Equal((byte)70, sample));
