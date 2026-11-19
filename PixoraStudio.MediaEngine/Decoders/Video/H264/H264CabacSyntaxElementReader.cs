@@ -249,7 +249,7 @@ public sealed class H264CabacSyntaxElementReader
         for (int i = 0; i < 3; i++)
         {
             int bin = ReadFlagAtContext(69) ? 1 : 0;
-            value |= bin << i;
+            value = (value << 1) | bin;
         }
         return value;
     }
