@@ -47,4 +47,5 @@ jobs:
           path: |
             **/TestResults/*.trx
             **/TestResults/*.yuv
+            **/TestResults/*.txt
           if-no-files-found: warn
