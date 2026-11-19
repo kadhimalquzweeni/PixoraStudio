@@ -52,7 +52,7 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
-    public void Decode_CabacBSkipSlice_ShouldCarrySkipContextAcrossMacroblocks()
+    public void Decode_CabacBSlice_ShouldCarrySkipContextFromInterMacroblock()
     {
         H264SequenceParameterSet sps = Sps(2);
         H264PictureParameterSetHeader pps =
@@ -65,9 +65,11 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.Bits(0, 9);
         bits.TrailingBits();
 
-        // Two B_Skip macroblocks; the first end_of_slice_flag is zero,
-        // allowing the second macroblock to use the left-neighbour context.
-        ScriptedCabacSliceDataReader cabac = new([1, 1], [0, 1]);
+        // Decode B_L0_16x16 followed by B_Skip. The first macroblock is
+        // non-skipped, so it raises the left-neighbour skip context increment.
+        ScriptedCabacSliceDataReader cabac = new(
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [0, 1]);
         H264BInterSliceDataDecoder decoder = new(
             destination,
             new H264MotionVectorPictureState(2, 1),
@@ -87,11 +89,15 @@ public sealed class H264BInterSliceDataDecoderTests
 
         Assert.Equal(2, result.MacroblocksDecoded);
         Assert.Equal(2, result.InterMacroblocks.Count);
+        Assert.False(result.InterMacroblocks[0].IsSkipped);
+        Assert.True(result.InterMacroblocks[1].IsSkipped);
         Assert.All(Enumerable.Range(0, 2),
             x => Assert.True(destination.IsMacroblockDecoded(x, 0)));
         Assert.All(destination.CopyLumaPlane(),
             sample => Assert.Equal((byte)45, sample));
-        Assert.Equal(new[] { 24, 25 }, cabac.ContextIndices);
+        Assert.Equal(
+            new[] { 24, 27, 30, 32, 40, 47, 73, 74, 75, 76, 77, 25 },
+            cabac.ContextIndices);
         Assert.True(cabac.IsTerminated);
     }
 
