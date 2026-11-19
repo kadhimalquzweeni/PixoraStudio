@@ -196,9 +196,16 @@ public sealed class H264Mp4AvcEndToEndTests
                 .Concat(frame.Surface.CopyCbPlane())
                 .Concat(frame.Surface.CopyCrPlane())
                 .ToArray();
-            Assert.Equal(
-                "df7fa6b29395ce3a6fcfb65d7b3d6fc3af2889c58bdddc1c412622c14da81595",
-                Convert.ToHexString(SHA256.HashData(samples)).ToLowerInvariant());
+            string actualHash =
+                Convert.ToHexString(SHA256.HashData(samples)).ToLowerInvariant();
+            string diagnostics =
+                $"Y={string.Join(',', frame.Surface.CopyLumaPlane().Distinct().Order())}; " +
+                $"Cb={string.Join(',', frame.Surface.CopyCbPlane().Distinct().Order())}; " +
+                $"Cr={string.Join(',', frame.Surface.CopyCrPlane().Distinct().Order())}; " +
+                $"Y0={string.Join(',', frame.Surface.CopyLumaPlane().Take(32))}";
+            Assert.True(
+                actualHash == "df7fa6b29395ce3a6fcfb65d7b3d6fc3af2889c58bdddc1c412622c14da81595",
+                $"Frame {frame.SampleNumber} hash {actualHash}. {diagnostics}");
         });
     }
 
