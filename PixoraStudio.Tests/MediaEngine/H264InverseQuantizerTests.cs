@@ -30,6 +30,37 @@ public sealed class H264InverseQuantizerTests
         Assert.Equal(320, H264InverseQuantizer.Dequantize4x4(coefficients, 30, FlatScalingList)[0]);
     }
 
+
+    [Theory]
+    [InlineData(20, 26)]
+    [InlineData(36, 160)]
+    [InlineData(42, 320)]
+    public void DequantizeIntra16x16Dc_ShouldApplyH264EightPointFiveNineScaling(
+        int qpPrimeY,
+        int expected)
+    {
+        int[] coefficients = new int[16];
+        coefficients[0] = 1;
+
+        int[] result = H264InverseQuantizer.DequantizeIntra16x16Dc(
+            coefficients, qpPrimeY, CreateSps(), CreatePps());
+
+        Assert.Equal(expected, result[0]);
+        Assert.All(result.Skip(1), value => Assert.Equal(0, value));
+    }
+
+    [Fact]
+    public void DequantizeIntra16x16Dc_ShouldPreserveNegativeCoefficientSign()
+    {
+        int[] coefficients = new int[16];
+        coefficients[0] = -5;
+
+        int[] result = H264InverseQuantizer.DequantizeIntra16x16Dc(
+            coefficients, 20, CreateSps(), CreatePps());
+
+        Assert.Equal(-130, result[0]);
+    }
+
     [Fact]
     public void Dequantize4x4_ShouldResolveScalingListFromSpsAndPps()
     {
