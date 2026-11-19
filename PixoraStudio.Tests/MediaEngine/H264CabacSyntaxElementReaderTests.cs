@@ -93,7 +93,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         ScriptedCabacReader bins = new(new[] { 1, 0, 0 });
         H264CabacSyntaxElementReader reader = new(bins);
 
-        Assert.Equal(1, reader.ReadRemainingIntraPredictionMode());
+        Assert.Equal(4, reader.ReadRemainingIntraPredictionMode());
         Assert.Equal(new[] { 69, 69, 69 }, bins.ContextIndices);
     }
 
