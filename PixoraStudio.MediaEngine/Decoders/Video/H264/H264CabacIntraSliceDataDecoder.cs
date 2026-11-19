@@ -140,22 +140,6 @@ public sealed class H264CabacIntraSliceDataDecoder
                     $"intra mb[{macroblockAddress}] reconstructed_cr=" +
                     $"{string.Join(",", ExtractMacroblockSamples(pcmReconstructedCr, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
 
-                byte[] pcmReconstructedLuma = _surface.CopyLumaPlane();
-                byte[] pcmReconstructedCb = _surface.CopyCbPlane();
-                byte[] pcmReconstructedCr = _surface.CopyCrPlane();
-                H264CabacDiagnosticTrace.Mark(
-                    cabac,
-                    $"intra mb[{macroblockAddress}] reconstructed_y=" +
-                    $"{string.Join(",", ExtractMacroblockSamples(pcmReconstructedLuma, _surface.Width, macroblockX * 16, macroblockY * 16, 16, 16))}");
-                H264CabacDiagnosticTrace.Mark(
-                    cabac,
-                    $"intra mb[{macroblockAddress}] reconstructed_cb=" +
-                    $"{string.Join(",", ExtractMacroblockSamples(pcmReconstructedCb, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
-                H264CabacDiagnosticTrace.Mark(
-                    cabac,
-                    $"intra mb[{macroblockAddress}] reconstructed_cr=" +
-                    $"{string.Join(",", ExtractMacroblockSamples(pcmReconstructedCr, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
-
                 _macroblockNeighbours.RecordMacroblock(
                     macroblockAddress, macroblockX, macroblockY, sliceId,
                     isIntraNxN: false,
@@ -244,6 +228,22 @@ public sealed class H264CabacIntraSliceDataDecoder
                         macroblockX, macroblockY, sliceId,
                         header, macroblockSyntax, residual, qpY, sps, pps);
                 }
+
+                byte[] reconstructedLuma = _surface.CopyLumaPlane();
+                byte[] reconstructedCb = _surface.CopyCbPlane();
+                byte[] reconstructedCr = _surface.CopyCrPlane();
+                H264CabacDiagnosticTrace.Mark(
+                    cabac,
+                    $"intra mb[{macroblockAddress}] reconstructed_y=" +
+                    $"{string.Join(",", ExtractMacroblockSamples(reconstructedLuma, _surface.Width, macroblockX * 16, macroblockY * 16, 16, 16))}");
+                H264CabacDiagnosticTrace.Mark(
+                    cabac,
+                    $"intra mb[{macroblockAddress}] reconstructed_cb=" +
+                    $"{string.Join(",", ExtractMacroblockSamples(reconstructedCb, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
+                H264CabacDiagnosticTrace.Mark(
+                    cabac,
+                    $"intra mb[{macroblockAddress}] reconstructed_cr=" +
+                    $"{string.Join(",", ExtractMacroblockSamples(reconstructedCr, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
 
                 _macroblockNeighbours.RecordMacroblock(
                     macroblockAddress,
