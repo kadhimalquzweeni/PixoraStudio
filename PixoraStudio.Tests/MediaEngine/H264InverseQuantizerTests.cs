@@ -13,9 +13,23 @@ public sealed class H264InverseQuantizerTests
         int[] result = H264InverseQuantizer.Dequantize4x4(
             Enumerable.Repeat(1, 16).ToArray(), 0, FlatScalingList);
         Assert.Equal(10, result[0]);
-        Assert.Equal(16, result[1]);
-        Assert.Equal(13, result[5]);
+        Assert.Equal(13, result[1]);
+        Assert.Equal(16, result[5]);
         Assert.Equal(10, result[10]);
+    }
+
+    [Fact]
+    public void Dequantize4x4_ShouldUseNormativePositionClassOrderingAtQpTwenty()
+    {
+        int[] coefficients = new int[16];
+        coefficients[1] = 1; // mixed row/column parity: class 1
+        coefficients[5] = 1; // odd row and odd column: class 2
+
+        int[] result = H264InverseQuantizer.Dequantize4x4(
+            coefficients, 20, FlatScalingList);
+
+        Assert.Equal(128, result[1]); // LevelScale[1, 2] * 16 / 2
+        Assert.Equal(160, result[5]); // LevelScale[2, 2] * 16 / 2
     }
 
     [Fact]
