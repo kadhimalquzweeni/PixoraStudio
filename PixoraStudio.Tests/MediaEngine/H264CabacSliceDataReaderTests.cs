@@ -35,7 +35,7 @@ public sealed class H264CabacSliceDataReaderTests
         Assert.InRange(bin, 0, 1);
         Assert.InRange(reader.ArithmeticRange, 256, 510);
         Assert.InRange(reader.ArithmeticOffset, 0, reader.ArithmeticRange - 1);
-        Assert.InRange(reader.BitPosition, 9, bits.PositionBits);
+        Assert.Equal(bits.PositionBits, reader.BitPosition);
         H264CabacContextModel after = reader.GetContextModel(0);
         Assert.InRange(after.State, 0, 63);
         Assert.InRange(after.MostProbableSymbol, 0, 1);
