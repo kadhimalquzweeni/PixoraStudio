@@ -64,7 +64,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
     [Fact]
     public void Read_ShouldDeriveChromaArrayTypeFromSpsFor422()
     {
-        ScriptedCabacReader bins = new(new[] { 0, 0, 0, 0, 0, 0 });
+        ScriptedCabacReader bins = new(new[] { 0, 0, 0, 0, 0 });
         H264CabacInterMacroblockResidualSyntaxReader reader =
             new(new H264CabacSyntaxElementReader(bins),
                 new H264CabacIntraMacroblockNeighbourContext());
@@ -81,7 +81,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
     [Fact]
     public void Read_ShouldUseNoPreviousMacroblockForFirstAddress()
     {
-        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0, 0, 1, 0 });
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 0, 0, 0, 1, 0 });
         H264CabacIntraMacroblockNeighbourContext neighbours = new();
         H264CabacInterMacroblockResidualSyntaxReader reader =
             new(new H264CabacSyntaxElementReader(bins), neighbours);
