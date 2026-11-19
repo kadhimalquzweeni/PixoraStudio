@@ -540,6 +540,22 @@ public sealed class H264PInterSliceDataDecoderTests
         decoder.ResetPictureContexts();
     }
 
+    private static BitWriter WriteCabacPSliceHeader()
+    {
+        BitWriter bits = new();
+        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(0); // P slice
+        bits.WriteUe(0); // PPS id
+        bits.WriteBits(0, 4); // frame_num
+        bits.WriteBits(0, 4); // pic_order_cnt_lsb
+        bits.WriteFlag(false); // num_ref_idx_active_override_flag
+        bits.WriteFlag(false); // ref_pic_list_modification_flag_l0
+        bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
+        bits.WriteUe(0); // cabac_init_idc
+        bits.WriteSe(0); // slice_qp_delta
+        return bits;
+    }
+
     private static byte[] CreateCabacPSliceHeader(uint firstMacroblock)
     {
         BitWriter bits = new();
