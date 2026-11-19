@@ -462,7 +462,8 @@ public sealed class H264BInterSliceDataDecoder
 
         if (decodedCount == 0)
             throw new FormatException("The CABAC B slice contains no macroblock data.");
-        reader.ConsumeCabacTrailingBits();
+        // CABAC's arithmetic decoder reads ahead across the RBSP stop bit; its
+        // bit-reader cursor is not a syntax boundary for separate trailing-bit parsing.
         return new H264BInterSliceDecodeResult(
             slice, decodedCount, qpY, reader.PositionBits,
             interResults, intraAddresses)
