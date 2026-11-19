@@ -779,6 +779,12 @@ public sealed class H264Mp4AvcEndToEndTests
             ? checked((uint)(-2L * value))
             : checked((uint)(2L * value - 1)));
 
+        public void AlignWithOneBits()
+        {
+            while (_bits.Count % 8 != 0)
+                _bits.Add(true);
+        }
+
         public void AlignWithZeroes()
         {
             while (_bits.Count % 8 != 0)
