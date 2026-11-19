@@ -28,12 +28,12 @@ public sealed class H264CabacIntraPredictionModeReaderTests
     }
 
     [Fact]
-    public void ReadRemainingIntraPredictionMode_ShouldInterpretBinsMostSignificantFirst()
+    public void ReadRemainingIntraPredictionMode_ShouldInterpretBinsLeastSignificantFirst()
     {
         ScriptedCabacReader bins = new(1, 0, 0);
         H264CabacSyntaxElementReader syntax = new(bins);
 
-        Assert.Equal(4, syntax.ReadRemainingIntraPredictionMode());
+        Assert.Equal(1, syntax.ReadRemainingIntraPredictionMode());
         Assert.Equal(new[] { 69, 69, 69 }, bins.ContextIndices);
     }
 
