@@ -432,7 +432,6 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.Flag(false); // num_ref_idx_active_override_flag
         bits.Flag(false); // ref_pic_list_modification_flag_l0
         bits.Flag(false); // adaptive_ref_pic_marking_mode_flag
-        if (cabac) bits.Ue(0); // cabac_init_idc
         bits.Se(0); // slice_qp_delta
         return bits;
     }
@@ -458,6 +457,7 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.Flag(false); // ref_pic_list_modification_flag_l0
         bits.Flag(false); // ref_pic_list_modification_flag_l1
         bits.Flag(false); // adaptive_ref_pic_marking_mode_flag
+        if (cabac) bits.Ue(0); // cabac_init_idc
         bits.Se(0); // slice_qp_delta
         return bits;
     }
