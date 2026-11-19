@@ -45,10 +45,10 @@ public static class H264CabacResidualBlockContext
         return contextBlockCategory switch
         {
             0 => CreateLinear(0, 16, 85, 105, 166, 227, 0),
-            1 => CreateLinear(1, 15, 89, 120, 181, 237, 0),
+            1 => CreateLinear(1, 15, 89, 120, 181, 237, 0, scanPositionOffset: 1),
             2 => CreateLinear(2, 16, 93, 134, 195, 247, 0),
             3 => CreateLinear(3, 4, 97, 149, 210, 257, 0),
-            4 => CreateLinear(4, 15, 101, 152, 213, 266, 0),
+            4 => CreateLinear(4, 15, 101, 152, 213, 266, 0, scanPositionOffset: 1),
             5 => new H264CabacResidualBlockContextMap(
                 64, 0, 5, null, 402, 417, 426,
                 Significant8X8.Take(63).ToArray(), LastSignificant8X8.Take(63).ToArray(), true, 0),
@@ -64,10 +64,11 @@ public static class H264CabacResidualBlockContext
         int significantOffset,
         int lastSignificantOffset,
         int absoluteLevelOffset,
-        int startIndex)
+        int startIndex,
+        int scanPositionOffset = 0)
     {
         int mapLength = maximumCoefficients - 1 - startIndex;
-        int[] increments = Enumerable.Range(0, mapLength).ToArray();
+        int[] increments = Enumerable.Range(scanPositionOffset, mapLength).ToArray();
         return new H264CabacResidualBlockContextMap(
             maximumCoefficients, startIndex, category,
             codedBlockFlagOffset, significantOffset, lastSignificantOffset, absoluteLevelOffset,
