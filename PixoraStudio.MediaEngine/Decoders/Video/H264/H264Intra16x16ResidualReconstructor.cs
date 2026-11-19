@@ -113,8 +113,8 @@ public static class H264Intra16x16ResidualReconstructor
             long c = coefficients[offset + 2], d = coefficients[offset + 3];
             horizontal[offset] = a + b + c + d;
             horizontal[offset + 1] = a + b - c - d;
-            horizontal[offset + 2] = a - b - c + d;
-            horizontal[offset + 3] = a - b + c - d;
+            horizontal[offset + 2] = a - b + c - d;
+            horizontal[offset + 3] = a - b - c + d;
         }
 
         int[] result = new int[16];
