@@ -77,6 +77,17 @@ public sealed class H264CabacMotionVectorNeighbourContextTests
     }
 
     [Fact]
+    public void GetMotionVectorDifferenceContextIncrement_ShouldUseAbsoluteValuesForNegativeMvdComponents()
+    {
+        H264CabacMotionVectorNeighbourContext context = new();
+        context.Record(0, 0, 1, 1, 0, false, -2, -1);
+        context.Record(0, 1, 0, 1, 0, false, 0, 0);
+
+        Assert.Equal(1, context.GetMotionVectorDifferenceContextIncrement(
+            0, 1, 1, sliceId: 1));
+    }
+
+    [Fact]
     public void GetMotionVectorDifferenceContextIncrement_ShouldIgnoreOtherSlices()
     {
         H264CabacMotionVectorNeighbourContext context = new();
