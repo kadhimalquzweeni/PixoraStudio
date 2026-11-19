@@ -5,6 +5,99 @@ namespace PixoraStudio.Tests.MediaEngine;
 
 public sealed class H264BInterSliceDataDecoderTests
 {
+
+    [Fact]
+    public void Decode_CabacBSkipSlice_ShouldTraverseAndReconstructMacroblock()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264PictureParameterSetHeader pps = Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 47);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader(cabac: true);
+        bits.AlignWithOneBits();
+        bits.Bits(0, 9);
+        bits.TrailingBits();
+
+        ScriptedCabacSliceDataReader cabac = new([1], [1]);
+        H264BInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(1, 1),
+            new H264MotionVectorPictureState(1, 1),
+            new H264BInterMacroblockReconstructor(),
+            (reader, qpY, isIntra, cabacInitIdc) =>
+            {
+                Assert.Equal(26, qpY);
+                Assert.False(isIntra);
+                Assert.Equal(0, cabacInitIdc);
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabac;
+            });
+
+        H264BInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, pps, dpb, 0, 0,
+            collocatedContextProvider: (_, _, _, _) => null);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        H264BInterMacroblockReconstructionResult skipped =
+            Assert.Single(result.InterMacroblocks);
+        Assert.True(skipped.IsSkipped);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.HasCompleteDeblockingMetadata);
+        Assert.Equal((byte)47, destination.GetLumaSample(0, 0));
+        Assert.True(cabac.IsTerminated);
+        Assert.Equal(new[] { 24 }, cabac.ContextIndices);
+    }
+
+    [Fact]
+    public void Decode_CabacBInterSlice_ShouldDecodeL0MacroblockAndReconstruct()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264PictureParameterSetHeader pps = Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 53);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader(cabac: true);
+        bits.AlignWithOneBits();
+        bits.Bits(0, 9);
+        bits.TrailingBits();
+
+        ScriptedCabacSliceDataReader cabac = new(
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1]);
+        H264BInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(1, 1),
+            new H264MotionVectorPictureState(1, 1),
+            new H264BInterMacroblockReconstructor(),
+            (reader, qpY, isIntra, cabacInitIdc) =>
+            {
+                Assert.Equal(26, qpY);
+                Assert.False(isIntra);
+                Assert.Equal(0, cabacInitIdc);
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabac;
+            });
+
+        H264BInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, pps, dpb, 0, 0,
+            collocatedContextProvider: (_, _, _, _) => null);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        H264BInterMacroblockReconstructionResult inter =
+            Assert.Single(result.InterMacroblocks);
+        Assert.False(inter.IsSkipped);
+        Assert.Equal(26, inter.QpY);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.HasCompleteDeblockingMetadata);
+        Assert.Equal((byte)53, destination.GetLumaSample(0, 0));
+        Assert.True(cabac.IsTerminated);
+    }
+
     [Fact]
     public void Decode_BSlice_ShouldTraverseAndCommitInterMacroblock()
     {
@@ -254,6 +347,37 @@ public sealed class H264BInterSliceDataDecoderTests
             Pps() with { NumSliceGroupsMinus1 = 1 }, dpb, 0, 0));
     }
 
+
+    private sealed class ScriptedCabacSliceDataReader : IH264CabacSliceDataReader
+    {
+        private readonly Queue<int> _decisionBins;
+        private readonly Queue<int> _terminateBins;
+
+        public ScriptedCabacSliceDataReader(
+            IEnumerable<int> decisionBins, IEnumerable<int> terminateBins)
+        {
+            _decisionBins = new Queue<int>(decisionBins);
+            _terminateBins = new Queue<int>(terminateBins);
+        }
+
+        public List<int> ContextIndices { get; } = [];
+        public bool IsTerminated { get; private set; }
+
+        public int DecodeBin(int contextIndex)
+        {
+            ContextIndices.Add(contextIndex);
+            return _decisionBins.Dequeue();
+        }
+
+        public int DecodeBypass() =>
+            throw new InvalidOperationException("These B-slice tests do not use bypass bins.");
+
+        public int DecodeTerminate() => _terminateBins.Dequeue();
+        public void MarkTerminated() => IsTerminated = true;
+        public void RestartAfterPcm() =>
+            throw new InvalidOperationException("These B-slice tests do not contain PCM.");
+    }
+
     private static H264BInterSliceDataDecoder Decoder(H264DecodedPictureSurface surface) =>
         new(surface, new H264MotionVectorPictureState(surface.MacroblockWidth, surface.MacroblockHeight),
             new H264MotionVectorPictureState(surface.MacroblockWidth, surface.MacroblockHeight));
@@ -308,13 +432,15 @@ public sealed class H264BInterSliceDataDecoderTests
         bits.Flag(false); // num_ref_idx_active_override_flag
         bits.Flag(false); // ref_pic_list_modification_flag_l0
         bits.Flag(false); // adaptive_ref_pic_marking_mode_flag
+        if (cabac) bits.Ue(0); // cabac_init_idc
         bits.Se(0); // slice_qp_delta
         return bits;
     }
 
     private static BitWriter WriteBSliceHeader(
         uint sliceType = 1, bool directSpatial = true,
-        bool overrideReferenceCounts = false, uint numRefIdxL0ActiveMinus1 = 0)
+        bool overrideReferenceCounts = false, uint numRefIdxL0ActiveMinus1 = 0,
+        bool cabac = false)
     {
         BitWriter bits = new();
         bits.Ue(0); // first_mb_in_slice
@@ -343,6 +469,10 @@ public sealed class H264BInterSliceDataDecoderTests
         public void AlignToByte()
         {
             while ((_bits.Count & 7) != 0) Flag(false);
+        }
+        public void AlignWithOneBits()
+        {
+            while ((_bits.Count & 7) != 0) Flag(true);
         }
         public void Bits(uint value, int count)
         {
