@@ -13,8 +13,8 @@ CABAC is implemented in the managed decoder. This document separates implementat
 | CABAC I-slice traversal | Intra4x4 reconstruction and I_PCM alignment/restart | Intra8x8, Intra16x16, non-zero residual and multi-slice picture traversal using real arithmetic-coded input |
 | CABAC P-slice traversal | P_Skip; coded P_L0_16x16 inter prediction with zero MVD/CBP; non-zero 4x4 luma residual reconstruction through the full slice path; Intra_NxN and I_PCM macroblocks; PCM arithmetic-engine restart; multi-macroblock skip-context carry; two-slice picture traversal proving left-neighbour skip context is unavailable across slice IDs; reference and deblocking metadata | Wider inter partitions and broader new-picture lifecycle coverage |
 | CABAC B-slice traversal | B_Skip including two-macroblock skip-context carry and coded-inter-to-skip context derivation; coded list-0, list-1 and bi-predicted macroblock syntax/reconstruction; spatial B_Direct_16x16 and B_8x8 with four direct 8x8 regions; non-zero 4x4 luma residual reconstruction through the B_Direct_16x16 slice path; both-list reference/deblocking metadata; two-slice picture traversal proving left-neighbour skip context is unavailable across slice IDs | Wider residual-bearing B partition combinations and broader multi-slice picture lifecycle coverage |
-| MP4 integration | Synthetic CABAC I_PCM, P_Skip and B_Skip fixtures traverse avcC, NAL extraction, access-unit dispatch, DPB and POC output using an injected scripted CABAC reader; a genuine x264 Main-profile arithmetic-coded CABAC I/P/B MP4 sample sequence is also decoded through the production arithmetic engine and checked against fixed Y/Cb/Cr frame hashes | Broader real-stream corpus and independently regenerated reference outputs for varied motion, residual, slice and picture structures |
-| Real-stream conformance | One compact x264 Main-profile CABAC I/P/B sequence has fixed expected Y/Cb/Cr hashes and checks display ordering; the fixture records no encoder command or independently reproducible reference-decoder provenance | Expand the corpus and record encoder settings, trusted-decoder version, generation commands and per-frame reference outputs |
+| MP4 integration | Synthetic CABAC I_PCM, P_Skip and B_Skip fixtures traverse avcC, NAL extraction, access-unit dispatch, DPB and POC output using an injected scripted CABAC reader; a genuine x264 Main-profile arithmetic-coded CABAC I/P/B MP4 sample sequence is decoded through the production arithmetic engine and checked against fixed Y/Cb/Cr frame hashes; `scripts/Generate-H264CabacReferenceCorpus.ps1` now generates multi-dimension Main-profile CABAC MP4 streams with B-frames and two slices per picture, plus FFmpeg-decoded per-frame YUV SHA-256 manifests | Import generated streams and independently generated reference hashes into automated regression fixtures; broaden residual/motion and slice-structure coverage |
+| Real-stream conformance | The existing compact x264 Main-profile CABAC I/P/B sequence has fixed expected Y/Cb/Cr hashes and checks display ordering, but its historical encoder provenance is not known. A new reproducible corpus-generation script records FFmpeg/libx264 version, exact encoder/decoder arguments, stream metadata and per-frame reference hashes in a manifest | Run the generator with a pinned FFmpeg build, retain its MP4/manifest artifacts, import cases into automated tests and compare managed output against the independently decoded reference frames |
 
 The test files currently carrying the focused coverage include:
 
@@ -27,13 +27,40 @@ The test files currently carrying the focused coverage include:
 - `H264BInterSliceDataDecoderTests`
 - `H264Mp4AvcEndToEndTests` (synthetic CABAC MP4 fixtures plus a genuine arithmetic-coded x264 Main-profile I/P/B sequence)
 
+## Reproducible real-stream corpus generation
+
+A reproducible corpus generator is available at `scripts/Generate-H264CabacReferenceCorpus.ps1`. It requires an FFmpeg build that exposes `libx264`, plus `ffprobe`, and creates three deterministic Main-profile test patterns:
+
+- 128x96 moving `testsrc2`
+- 176x144 moving `testsrc2` to exercise a different macroblock grid
+- 128x96 animated `mandelbrot` for higher spatial detail
+
+Each stream is encoded as 48 frames at 24 fps with CABAC enabled, two slices per picture, B-frames, three reference frames, a fixed GOP, and single-threaded encoding. The script decodes each generated MP4 with the FFmpeg software H.264 decoder and writes a SHA-256 hash for every complete planar Y/Cb/Cr frame. The JSON manifest records the FFmpeg version, exact argument arrays, stream metadata, dimensions, frame counts, artifact names and reference hashes.
+
+Run it from the repository root:
+
+```powershell
+.\scripts\Generate-H264CabacReferenceCorpus.ps1
+```
+
+Or specify tool paths and an output directory:
+
+```powershell
+.\scripts\Generate-H264CabacReferenceCorpus.ps1 `
+    -FfmpegPath "C:\Tools\ffmpeg\bin\ffmpeg.exe" `
+    -FfprobePath "C:\Tools\ffmpeg\bin\ffprobe.exe" `
+    -OutputDirectory "C:\Pixora-H264-Corpus"
+```
+
+The generator is now committed, but it has not been executed in this environment. Its outputs have therefore not been treated as validated fixtures or checked-in golden hashes. Keep each MP4 with its matching manifest; pin and record the FFmpeg build before comparing results across machines. The existing embedded x264 I/P/B fixture's original provenance remains unknown and is not retroactively attributed to this generator.
+
 ## Completion criteria
 
 1. CABAC P-slice regression coverage now includes a coded P_L0 macroblock with a non-zero 4x4 luma residual, Intra_NxN, I_PCM and slice-boundary skip-context isolation. The new residual-bearing integration case asserts changed reconstructed luma, unchanged chroma, QP, motion/deblocking metadata, context-bin sequence and end-of-slice handling. The user still needs to run the full suite to validate the additions.
 2. Extend B-slice CABAC tests to cover list-1/bi-prediction, spatial direct prediction and residual-bearing macroblocks. Assert both reference lists and per-block motion/reference metadata. List-1, bi-prediction, spatial B_Direct_16x16 and four-region direct B_8x8 now have scripted regression coverage; a non-zero 4x4 luma residual is now exercised end-to-end through B_Direct_16x16; broader residual-bearing partition combinations remain open.
 3. Decoder-level P- and B-slice tests now reuse one picture decoder across two slices and prove that left-neighbour skip context remains slice-scoped. Broader new-picture lifecycle/reset coverage remains open.
 4. Keep CABAC I/P/B MP4 access-unit coverage using valid arithmetic-coded NAL units in length-prefixed MP4 samples. A compact genuine x264 Main-profile I/P/B sequence and scripted PCM/skip fixtures now cover complete surfaces, DPB state, sample timestamps and presentation ordering; add more stream shapes before claiming broad compatibility.
-5. Expand the existing genuine arithmetic-coded x264 Main-profile I/P/B fixture into a broader real-stream corpus. Compare managed Y/Cb/Cr planes with independently decoded reference outputs for varied motion, residual, slice and picture structures; retain the scripted fixtures for deterministic branch coverage. Record stream-generation commands, encoder settings, expected hashes/tolerances and any known exclusions.
+5. Run `scripts/Generate-H264CabacReferenceCorpus.ps1` with a pinned FFmpeg/libx264 build, retain its MP4/manifest outputs, and import selected streams plus independent reference hashes into automated tests. Expand coverage to varied motion, residual, slice and picture structures; retain the scripted fixtures for deterministic branch coverage.
 6. Run the complete solution test suite and record the exact commit and command used. A passing synthetic suite alone is not a claim of full H.264 conformance.
 
 ## Local verification
