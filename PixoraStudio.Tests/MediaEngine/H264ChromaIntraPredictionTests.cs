@@ -81,26 +81,45 @@ public sealed class H264ChromaIntraPredictionTests
     }
 
     [Theory]
-    [InlineData(true, false, 40, 128)]
-    [InlineData(false, true, 80, 128)]
-    public void Predict_DcWithSingleEdge_ShouldUseOnlyTheAvailableBoundary(
-        bool hasTop, bool hasLeft, byte expectedTopLeft, byte expectedInterior)
+    [InlineData(1, 8)]
+    [InlineData(2, 16)]
+    public void Predict_DcWithTopOnly_ShouldReplicateEachTopSegmentAcrossAllBlockRows(
+        uint chromaFormat, int height)
     {
-        byte[] top = Enumerable.Repeat((byte)40, 8).ToArray();
-        byte[] left = Enumerable.Repeat((byte)80, 16).ToArray();
+        byte[] top = [40, 40, 40, 40, 80, 80, 80, 80];
+        byte[] left = new byte[height];
         byte[] result = H264ChromaIntraPrediction.Predict(
-            0, 2, top, left, 0, hasTop, hasLeft, false);
+            0, chromaFormat, top, left, 0, true, false, false);
 
-        for (int blockY = 0; blockY < 4; blockY++)
+        for (int blockY = 0; blockY < height / 4; blockY++)
         {
-            for (int blockX = 0; blockX < 2; blockX++)
+            for (int y = blockY * 4; y < blockY * 4 + 4; y++)
             {
-                byte expected = hasTop
-                    ? (blockY == 0 ? expectedTopLeft : expectedInterior)
-                    : (blockX == 0 ? expectedTopLeft : expectedInterior);
-                for (int y = blockY * 4; y < blockY * 4 + 4; y++)
-                    Assert.All(result.Skip(y * 8 + blockX * 4).Take(4),
-                        sample => Assert.Equal(expected, sample));
+                Assert.All(result.Skip(y * 8).Take(4), sample => Assert.Equal((byte)40, sample));
+                Assert.All(result.Skip(y * 8 + 4).Take(4), sample => Assert.Equal((byte)80, sample));
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(1, 8)]
+    [InlineData(2, 16)]
+    public void Predict_DcWithLeftOnly_ShouldReplicateEachLeftSegmentAcrossAllBlockColumns(
+        uint chromaFormat, int height)
+    {
+        byte[] top = new byte[8];
+        byte[] left = Enumerable.Range(0, height)
+            .Select(i => (byte)(40 + (i / 4) * 20)).ToArray();
+        byte[] result = H264ChromaIntraPrediction.Predict(
+            0, chromaFormat, top, left, 0, false, true, false);
+
+        for (int blockY = 0; blockY < height / 4; blockY++)
+        {
+            byte expected = (byte)(40 + blockY * 20);
+            for (int y = blockY * 4; y < blockY * 4 + 4; y++)
+            {
+                Assert.All(result.Skip(y * 8).Take(4), sample => Assert.Equal(expected, sample));
+                Assert.All(result.Skip(y * 8 + 4).Take(4), sample => Assert.Equal(expected, sample));
             }
         }
     }
