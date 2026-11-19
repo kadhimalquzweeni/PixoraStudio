@@ -52,6 +52,56 @@ public sealed class H264PInterSliceDataDecoderTests
 
 
     [Fact]
+    public void Decode_CabacPSlices_ShouldNotCarryNeighbourSkipContextAcrossSliceBoundary()
+    {
+        H264SequenceParameterSet sps = Sps(2);
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
+        H264DecodedPictureSurface destination = new(sps);
+        H264PInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(2, 1),
+            new H264PInterMacroblockReconstructor(),
+            (_, _, _, _) => throw new InvalidOperationException(
+                "The per-decode CABAC reader factory must be supplied by the overload."));
+
+        ScriptedCabacSliceDataReader firstSliceCabac = new(
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1]);
+        decoder = new H264PInterSliceDataDecoder(
+            destination,
+            new H264MotionVectorPictureState(2, 1),
+            new H264PInterMacroblockReconstructor(),
+            (_, _, _, _) => firstSliceCabac);
+
+        H264PInterSliceDecodeResult first = decoder.Decode(
+            new H264NalUnit(0x41, CreateCabacPSliceHeader(firstMacroblock: 0)),
+            sps, pps, [reference], 10, [new H264ReferencePicture(0, 0)]);
+
+        Assert.Equal(1, first.MacroblocksDecoded);
+        Assert.Equal(11, firstSliceCabac.ContextIndices[0]);
+
+        ScriptedCabacSliceDataReader secondSliceCabac = new([1], [1]);
+        // Reuse the same picture decoder/state, but use a new slice ID. The
+        // left macroblock belongs to another slice and is unavailable here.
+        H264PInterSliceDataDecoder secondSliceDecoder = new(
+            destination,
+            new H264MotionVectorPictureState(2, 1),
+            new H264PInterMacroblockReconstructor(),
+            (_, _, _, _) => secondSliceCabac);
+
+        H264PInterSliceDecodeResult second = secondSliceDecoder.Decode(
+            new H264NalUnit(0x41, CreateCabacPSliceHeader(firstMacroblock: 1)),
+            sps, pps, [reference], 11, [new H264ReferencePicture(0, 0)]);
+
+        Assert.Equal(1, second.MacroblocksDecoded);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.IsMacroblockDecoded(1, 0));
+        Assert.Equal(new[] { 11 }, secondSliceCabac.ContextIndices);
+        Assert.True(secondSliceCabac.IsTerminated);
+    }
+
+    [Fact]
     public void Decode_CabacPIntraNxNSlice_ShouldDecodeIntraModesAndReconstructMacroblock()
     {
         H264SequenceParameterSet sps = Sps(1);
@@ -501,10 +551,10 @@ public sealed class H264PInterSliceDataDecoderTests
         decoder.ResetPictureContexts();
     }
 
-    private static BitWriter WriteCabacPSliceHeader()
+    private static byte[] CreateCabacPSliceHeader(uint firstMacroblock)
     {
         BitWriter bits = new();
-        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(firstMacroblock); // first_mb_in_slice
         bits.WriteUe(0); // P slice
         bits.WriteUe(0); // PPS id
         bits.WriteBits(0, 4); // frame_num
@@ -514,7 +564,10 @@ public sealed class H264PInterSliceDataDecoderTests
         bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
         bits.WriteUe(0); // cabac_init_idc
         bits.WriteSe(0); // slice_qp_delta
-        return bits;
+        bits.AlignWithOneBits();
+        bits.WriteBits(0, 9);
+        bits.WriteRbspTrailingBits();
+        return bits.ToArray();
     }
 
     private sealed class ScriptedCabacSliceDataReader : IH264CabacSliceDataReader
