@@ -6,7 +6,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 
 | Area | Current status |
 |---|---|
-| Slice traversal | Frame-coded CAVLC and CABAC I, P and B paths are implemented for the supported subset; CABAC has focused synthetic slice tests, but MP4-level CABAC stream validation remains outstanding |
+| Slice traversal | Frame-coded CAVLC and CABAC I, P and B paths are implemented for the supported subset; CABAC has focused synthetic slice tests plus a genuine arithmetic-coded x264 Main-profile I/P/B MP4 regression sequence with fixed output hashes |
 | P macroblocks | P_L0 partitions, P_8x8 sub-macroblocks, P_Skip, I_NxN, I_16x16 and I_PCM |
 | B macroblocks | B inter types 0–22, B_8x8 sub-macroblocks, B_Skip, spatial and temporal direct (DPB-backed collocated metadata with optional caller override), I_NxN, I_16x16 and I_PCM |
 | Motion compensation | List 0 and list 1; luma fractional interpolation and 4:2:0/4:2:2 chroma interpolation |
@@ -22,7 +22,7 @@ The current implementation on `feature/h264-decoder-complete-integration` has ad
 | MP4-to-decoder regression | Synthetic AVC MP4 samples are exercised through avcC parsing, SPS/PPS resolution, NAL extraction, two-slice I_PCM assembly, P-skip reference prediction and B-direct bi-prediction with POC reordering |
 | MP4 access-unit decoding | The MP4 track decoder enumerates samples in decode order, dispatches each complete frame-coded picture through managed I/P/B slice decoders, assembles consistent multi-slice pictures, stores references in the DPB and yields MP4-timestamped output in POC presentation order |
 | MP4 output scheduling | Decoded surfaces retain their source sample's exact timing metadata while the POC queue reorders output; IDR no-output handling and reset clear discarded timestamp associations; keyframe-based seek planning and decode-forward output filtering are implemented |
-| Automated tests | CABAC arithmetic/context/syntax, I/P/B slice reconstruction and MP4 access-unit dispatch have regression tests; MP4 tests include a genuine x264 Main-profile CABAC I/P/B stream with reference-frame hashes plus scripted PCM/skip fixtures; the full branch has not yet had a full build/test run |
+| Automated tests | CABAC arithmetic/context/syntax, I/P/B slice reconstruction and MP4 access-unit dispatch have regression tests; MP4 tests include a genuine x264 Main-profile CABAC I/P/B stream with fixed frame hashes plus scripted PCM/skip fixtures; the full branch test suite is intentionally awaiting the user's consolidated test run |
 
 **Supported decoder subset:** frame-coded, 8-bit, non-separate 4:2:0 and 4:2:2 CAVLC and CABAC pictures, subject to the explicit syntax/tool limitations recorded below and in [the CABAC validation plan](H264_CABAC_VALIDATION.md).
 
