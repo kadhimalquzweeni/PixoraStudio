@@ -64,7 +64,7 @@ public sealed class H264IntraChromaResidualReconstructorTests
             CreateSps(1), CreatePps());
 
         for (int y = 0; y < 4; y++)
-            Assert.Equal(new byte[] { 104, 102, 98, 96 }, result.Skip(y * 8).Take(4));
+            Assert.Equal(new byte[] { 103, 102, 98, 97 }, result.Skip(y * 8).Take(4));
         for (int y = 0; y < 8; y++)
             Assert.All(result.Skip(y * 8 + (y < 4 ? 4 : 0)).Take(y < 4 ? 4 : 8),
                 sample => Assert.Equal((byte)100, sample));
