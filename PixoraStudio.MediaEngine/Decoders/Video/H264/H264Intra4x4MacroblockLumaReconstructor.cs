@@ -56,8 +56,6 @@ public sealed class H264Intra4x4MacroblockLumaReconstructor
             throw new NotSupportedException("This path reconstructs sixteen Intra4x4 blocks only.");
         if (residualBlocks.Count != 16)
             throw new FormatException("An I_NxN Intra4x4 macroblock must contain sixteen luma residual blocks.");
-        if (pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("CABAC Intra4x4 reconstruction is not implemented.");
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
         if (sps.BitDepthLumaMinus8 != 0)
