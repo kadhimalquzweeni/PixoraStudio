@@ -26,19 +26,19 @@ public sealed class H264CabacResidualBlockContextTests
     }
 
     [Theory]
-    [InlineData(0, 16)]
-    [InlineData(1, 15)]
-    [InlineData(2, 16)]
-    [InlineData(3, 4)]
-    [InlineData(4, 15)]
-    public void Create_ShouldUseSequentialScanPositionIncrements(
-        int category, int expectedCount)
+    [InlineData(0, 16, 0)]
+    [InlineData(1, 15, 1)]
+    [InlineData(2, 16, 0)]
+    [InlineData(3, 4, 0)]
+    [InlineData(4, 15, 1)]
+    public void Create_ShouldUseScanPositionIncrementsFromTheCategoryStart(
+        int category, int expectedCount, int firstScanPosition)
     {
         H264CabacResidualBlockContextMap map =
             H264CabacResidualBlockContext.Create(category);
 
         Assert.Equal(expectedCount - 1, map.SignificantContextIncrements.Count);
-        Assert.Equal(Enumerable.Range(0, expectedCount - 1),
+        Assert.Equal(Enumerable.Range(firstScanPosition, expectedCount - 1),
             map.SignificantContextIncrements);
         Assert.Equal(map.SignificantContextIncrements,
             map.LastSignificantContextIncrements);
