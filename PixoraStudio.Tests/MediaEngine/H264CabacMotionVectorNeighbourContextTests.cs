@@ -28,7 +28,7 @@ public sealed class H264CabacMotionVectorNeighbourContextTests
 
     [Theory]
     [InlineData(2, 0, 0)]
-    [InlineData(2, 1, 0)]
+    [InlineData(2, 1, 1)]
     [InlineData(20, 15, 2)]
     public void GetMotionVectorDifferenceContextIncrement_ShouldApplyThresholdsToSelectedComponent(
         int leftMvd, int topMvd, int expected)
@@ -60,7 +60,7 @@ public sealed class H264CabacMotionVectorNeighbourContextTests
     public void GetMotionVectorDifferenceContextIncrement_ShouldCombineSelectedComponentFromLeftAndTop()
     {
         H264CabacMotionVectorNeighbourContext context = new();
-        context.Record(0, 0, 1, 1, 0, false, 2, 30);
+        context.Record(0, 0, 1, 1, 0, false, 2, 31);
         context.Record(0, 1, 0, 1, 0, false, 1, 2);
 
         Assert.Equal(1, context.GetMotionVectorDifferenceContextIncrement(
