@@ -63,7 +63,7 @@ public sealed class H264PInterSliceDataDecoderTests
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1]);
         ScriptedCabacSliceDataReader secondSliceCabac = new([1], [1]);
         Queue<IH264CabacSliceDataReader> readers = new(
-            [firstSliceCabac, secondSliceCabac]);
+            new IH264CabacSliceDataReader[] { firstSliceCabac, secondSliceCabac });
         H264PInterSliceDataDecoder decoder = new(
             destination,
             new H264MotionVectorPictureState(2, 1),
