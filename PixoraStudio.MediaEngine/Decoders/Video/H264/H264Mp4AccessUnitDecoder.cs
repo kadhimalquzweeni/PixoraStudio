@@ -14,6 +14,7 @@ public sealed class H264Mp4AccessUnitDecoder
     private readonly H264DecodedPictureBuffer _decodedPictureBuffer = new();
     private readonly H264Mp4VideoOutputScheduler _outputScheduler = new();
     private readonly int? _maxNumReorderFramesFallback;
+    private readonly Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> _cabacReaderFactory;
     private uint? _trackId;
     private uint? _timescale;
     private uint? _lastSampleNumber;
@@ -23,8 +24,21 @@ public sealed class H264Mp4AccessUnitDecoder
     public H264Mp4AccessUnitDecoder(
         H264AvcParameterSetCollection parameterSets,
         int? maxNumReorderFramesFallback = null)
+        : this(
+            parameterSets,
+            maxNumReorderFramesFallback,
+            static (reader, qpY, isIntra, cabacInitIdc) =>
+                new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc))
+    {
+    }
+
+    internal H264Mp4AccessUnitDecoder(
+        H264AvcParameterSetCollection parameterSets,
+        int? maxNumReorderFramesFallback,
+        Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> cabacReaderFactory)
     {
         ArgumentNullException.ThrowIfNull(parameterSets);
+        ArgumentNullException.ThrowIfNull(cabacReaderFactory);
         if (parameterSets.SequenceParameterSets.Count == 0 ||
             parameterSets.PictureParameterSets.Count == 0)
             throw new NotSupportedException(
@@ -33,6 +47,7 @@ public sealed class H264Mp4AccessUnitDecoder
             throw new ArgumentOutOfRangeException(nameof(maxNumReorderFramesFallback));
         _parameterSets = parameterSets;
         _maxNumReorderFramesFallback = maxNumReorderFramesFallback;
+        _cabacReaderFactory = cabacReaderFactory;
     }
 
     /// <summary>
@@ -175,7 +190,9 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
-                pDecoder = new H264PInterSliceDataDecoder(surface, motionStateL0);
+                pDecoder = new H264PInterSliceDataDecoder(
+                    surface, motionStateL0, new H264PInterMacroblockReconstructor(),
+                    _cabacReaderFactory);
             }
             else if (firstSlice.SliceType == H264SliceType.B)
             {
@@ -184,13 +201,14 @@ public sealed class H264Mp4AccessUnitDecoder
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 bDecoder = new H264BInterSliceDataDecoder(
-                    surface, motionStateL0, motionStateL1);
+                    surface, motionStateL0, motionStateL1,
+                    new H264BInterMacroblockReconstructor(), _cabacReaderFactory);
             }
             else if (firstSlice.SliceType == H264SliceType.I)
             {
                 if (activePps.EntropyCodingModeFlag)
                 {
-                    cabacIntraDecoder = new H264CabacIntraSliceDataDecoder(surface);
+                    cabacIntraDecoder = new H264CabacIntraSliceDataDecoder(surface, _cabacReaderFactory);
                     cabacIntraDecoder.ResetPictureContexts();
                 }
                 else
