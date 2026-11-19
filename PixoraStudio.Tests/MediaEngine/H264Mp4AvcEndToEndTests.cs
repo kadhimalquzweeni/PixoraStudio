@@ -162,6 +162,46 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.Equal(expectedFrameHashes, actualFrameHashes);
     }
 
+
+    [Fact]
+    public void Decode_CabacPOnlySkipStream_ShouldDecodeAllPictures()
+    {
+        H264AvcDecoderConfiguration configuration =
+            new H264AvcDecoderConfigurationReader().Read(
+                Convert.FromBase64String(CabacPSkipAvcC));
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(configuration);
+        H264Mp4AccessUnitDecoder decoder = new(parameterSets, 0);
+
+        H264Mp4VideoSample idr = CreateCabacSample(
+            configuration, 1, 0, 0, true, CabacPSkipIdrNal);
+        H264Mp4VideoSample p1 = CreateCabacSample(
+            configuration, 2, 1, 1, false, CabacPSkipP1Nal);
+        H264Mp4VideoSample p2 = CreateCabacSample(
+            configuration, 3, 2, 2, false, CabacPSkipP2Nal);
+
+        List<H264Mp4DecodedVideoFrame> frames = [];
+        frames.AddRange(decoder.Decode(idr)!.ReadyFrames);
+        frames.AddRange(decoder.Decode(p1)!.ReadyFrames);
+        frames.AddRange(decoder.Decode(p2)!.ReadyFrames);
+        frames.AddRange(decoder.Flush());
+
+        Assert.Equal(new uint[] { 1, 2, 3 },
+            frames.OrderBy(frame => frame.PresentationTimeTicks)
+                .Select(frame => frame.SampleNumber));
+        Assert.All(frames, frame => Assert.True(frame.Surface.IsComplete));
+        Assert.All(frames, frame =>
+        {
+            byte[] samples = frame.Surface.CopyLumaPlane()
+                .Concat(frame.Surface.CopyCbPlane())
+                .Concat(frame.Surface.CopyCrPlane())
+                .ToArray();
+            Assert.Equal(
+                "df7fa6b29395ce3a6fcfb65d7b3d6fc3af2889c58bdddc1c412622c14da81595",
+                Convert.ToHexString(SHA256.HashData(samples)).ToLowerInvariant());
+        });
+    }
+
     [Fact]
     public void ReadMp4Samples_ShouldDecodeBDirectPictureBetweenPastAndFutureReferences()
     {
@@ -399,6 +439,13 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.Single(result.ReadyFrames);
     }
 
+
+
+    private const string CabacPSkipAvcC =
+        "AU1ACv/hABVnTUAK2nsBEAAAAwAQAAADAGDxImoBAARo7g/I";
+    private const string CabacPSkipIdrNal = "ZYiEOv7tz7/h";
+    private const string CabacPSkipP1Nal = "QZoiCNf+4A==";
+    private const string CabacPSkipP2Nal = "QZpCCNf+4Q==";
 
     private const string CabacMainAvcC =
         "AU1ACv/hABZnTUAK9ktgIgAAAwACAAADAAweJEpwAQAEaO4PyA==";
