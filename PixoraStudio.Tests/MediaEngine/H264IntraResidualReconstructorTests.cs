@@ -47,13 +47,13 @@ public sealed class H264IntraResidualReconstructorTests
 
         // The first AC coefficient is scan position 1 (raster position 1),
         // not the DC position. At QP-prime 24 its transformed residual is
-        // [4, 2, -2, -4] on each row.
+        // [3, 2, -2, -3] on each row.
         Assert.Equal(new byte[]
         {
-            104, 102, 98, 96,
-            104, 102, 98, 96,
-            104, 102, 98, 96,
-            104, 102, 98, 96
+            103, 102, 98, 97,
+            103, 102, 98, 97,
+            103, 102, 98, 97,
+            103, 102, 98, 97
         }, result);
     }
 
