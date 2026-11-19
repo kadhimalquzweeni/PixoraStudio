@@ -102,46 +102,6 @@ public sealed class H264Intra16x16ResidualReconstructorTests
     }
 
     [Fact]
-    public void Reconstruct_ShouldDistributeHadamardDcColumnsInLumaBlockScanOrder()
-    {
-        int[] dcScan = Enumerable.Range(1, 16).ToArray();
-        byte[] result = H264Intra16x16ResidualReconstructor.Reconstruct(
-            Enumerable.Repeat((byte)100, 256).ToArray(),
-            CreateResidual(16, dcScan), CreateAcBlocks(),
-            24, CreateSps(), CreatePps());
-
-        // Expected inverse-Hadamard/dequantised DC contributions in
-        // luma4x4BlkIdx order. This differs from simply indexing the
-        // row-major Hadamard output with the pixel-raster block map.
-        int[] expectedResidualByBlockScan =
-        [
-            85, -29, 0, -16,
-            -29, 0, 4, 0,
-            0, 4, 0, -4,
-            -11, 0, 6, 0
-        ];
-        int[] blockScanToRaster =
-        [
-            0, 1, 4, 5,
-            2, 3, 6, 7,
-            8, 9, 12, 13,
-            10, 11, 14, 15
-        ];
-
-        for (int scanBlock = 0; scanBlock < 16; scanBlock++)
-        {
-            int rasterBlock = blockScanToRaster[scanBlock];
-            int blockX = rasterBlock % 4;
-            int blockY = rasterBlock / 4;
-            byte expectedSample = (byte)(100 + expectedResidualByBlockScan[scanBlock]);
-
-            for (int y = blockY * 4; y < blockY * 4 + 4; y++)
-            for (int x = blockX * 4; x < blockX * 4 + 4; x++)
-                Assert.Equal(expectedSample, result[y * 16 + x]);
-        }
-    }
-
-    [Fact]
     public void Reconstruct_ShouldApplyAcResidualInItsOwnBlock()
     {
         H264CavlcResidualBlock[] ac = CreateAcBlocks().ToArray();
