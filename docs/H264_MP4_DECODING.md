@@ -97,7 +97,7 @@ One MP4 sample represents one coded picture. Multiple VCL slices in that sample 
 ## Supported bitstream subset
 
 - Frame-coded, 8-bit AVC.
-- CAVLC entropy coding.
+- CAVLC and CABAC entropy coding for the implemented frame-coded subset.
 - 4:2:0 and 4:2:2 chroma.
 - I, P and B slices, including the implemented intra/inter macroblock types, direct prediction, weighted prediction and CAVLC residual reconstruction.
 - Short- and long-term reference management, POC types 0/1/2, frame output reordering and in-loop deblocking.
@@ -105,6 +105,6 @@ One MP4 sample represents one coded picture. Multiple VCL slices in that sample 
 
 ## Explicit limitations
 
-The decoder rejects unsupported syntax instead of silently approximating it. Current exclusions include CABAC, FMO, field/MBAFF/interlaced pictures, separate colour planes, 4:4:4, high bit depth, SP/SI reconstruction and partitioned slice NAL units. Field pairing, streaming recovery and wiring the managed decoded frames into the WPF playback surface remain separate tasks. BGRA colour conversion and keyframe-based MP4 seeking are implemented in the media engine.
+The decoder rejects unsupported syntax instead of silently approximating it. Current exclusions include FMO, field/MBAFF/interlaced pictures, separate colour planes, 4:4:4, high bit depth, SP/SI reconstruction and partitioned slice NAL units. CABAC has arithmetic/context/syntax unit coverage and focused I/P/B slice-level synthetic tests; the existing MP4 end-to-end suite still uses CAVLC streams, so CABAC-through-avcC/MP4 and independently decoded real-stream comparisons are not yet verified. Field pairing, streaming recovery and wiring the managed decoded frames into the WPF playback surface remain separate tasks. BGRA colour conversion and keyframe-based MP4 seeking are implemented in the media engine.
 
 The supported subset still requires real-stream conformance validation against independently decoded reference output. Synthetic tests exercise parser, reconstruction, DPB, deblocking and MP4 integration paths, but do not establish complete H.264 conformance.
