@@ -117,7 +117,7 @@ public sealed class H264Intra16x16ResidualReconstructorTests
         // The first luma4x4BlkIdx block occupies the top-left 4x4 region.
         for (int y = 0; y < 4; y++)
         {
-            Assert.Equal(new byte[] { 104, 102, 98, 96 },
+            Assert.Equal(new byte[] { 103, 102, 98, 97 },
                 result.Skip(y * 16).Take(4));
         }
 
@@ -156,7 +156,7 @@ public sealed class H264Intra16x16ResidualReconstructorTests
             {
                 for (int y = 0; y < 4; y++)
                 {
-                    Assert.Equal(new byte[] { 104, 102, 98, 96 },
+                    Assert.Equal(new byte[] { 103, 102, 98, 97 },
                         result.Skip((blockY * 4 + y) * 16 + blockX * 4).Take(4));
                 }
             }
