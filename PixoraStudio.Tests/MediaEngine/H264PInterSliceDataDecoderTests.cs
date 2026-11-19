@@ -93,7 +93,7 @@ public sealed class H264PInterSliceDataDecoderTests
 
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Equal(26, result.FinalQpY);
-        Assert.Equal(new[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
         Assert.True(destination.HasCompleteDeblockingMetadata);
         Assert.All(destination.CopyLumaPlane(), sample => Assert.Equal((byte)128, sample));
@@ -149,7 +149,7 @@ public sealed class H264PInterSliceDataDecoderTests
 
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Equal(26, result.FinalQpY);
-        Assert.Equal(new[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
         Assert.Equal(1, cabac.RestartAfterPcmCount);
         Assert.True(cabac.IsTerminated);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
