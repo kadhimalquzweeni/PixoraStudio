@@ -330,12 +330,7 @@ public sealed class H264PInterSliceDataDecoder
         while (!cabac.IsTerminated)
         {
             if (address >= pictureMacroblockCount)
-            {
-                if (decodedCount == pictureMacroblockCount)
-                    break;
-
                 throw new FormatException("CABAC P-slice data contains more macroblocks than remain in the picture.");
-            }
 
             int macroblockX = checked((int)(address % pictureWidth));
             int macroblockY = checked((int)(address / pictureWidth));
