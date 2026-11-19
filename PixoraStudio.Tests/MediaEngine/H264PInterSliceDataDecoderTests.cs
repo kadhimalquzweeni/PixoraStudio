@@ -149,7 +149,7 @@ public sealed class H264PInterSliceDataDecoderTests
 
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Equal(26, result.FinalQpY);
-        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal(0u, Assert.Single(result.IntraMacroblockAddresses));
         Assert.Equal(1, cabac.RestartAfterPcmCount);
         Assert.True(cabac.IsTerminated);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
@@ -332,7 +332,7 @@ public sealed class H264PInterSliceDataDecoderTests
 
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Empty(result.Macroblocks);
-        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal(0u, Assert.Single(result.IntraMacroblockAddresses));
         Assert.Equal((byte)101, destination.GetLumaSample(0, 0));
         Assert.Equal((byte)111, destination.GetChromaSample(1, 0, 0));
         Assert.Equal((byte)121, destination.GetChromaSample(2, 0, 0));
@@ -451,7 +451,7 @@ public sealed class H264PInterSliceDataDecoderTests
 
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Empty(result.Macroblocks);
-        Assert.Equal(new uint[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal(0u, Assert.Single(result.IntraMacroblockAddresses));
         Assert.True(destination.IsMacroblockDecoded(0, 0));
 
         BitWriter p = WritePSliceHeader();
