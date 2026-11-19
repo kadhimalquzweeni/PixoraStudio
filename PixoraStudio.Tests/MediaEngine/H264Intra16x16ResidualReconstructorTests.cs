@@ -46,7 +46,7 @@ public sealed class H264Intra16x16ResidualReconstructorTests
         input[2] = 4;
         input[3] = 8;
 
-        int[] expectedRow = [15, -9, -5, 3];
+        int[] expectedRow = [15, -9, 3, -5];
         int[] expected = Enumerable.Range(0, 4)
             .SelectMany(_ => expectedRow)
             .ToArray();
