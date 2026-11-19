@@ -23,6 +23,19 @@ public sealed class H264Intra4x4MacroblockLumaReconstructorTests
             Assert.Equal(2u, context.GetPredictedMode(x, y, 1));
     }
 
+
+    [Fact]
+    public void Reconstruct_ShouldAcceptCabacPpsWithSharedResidualModel()
+    {
+        byte[] result = new H264Intra4x4MacroblockLumaReconstructor().Reconstruct(
+            0, 0, 1, new byte[16], new byte[16], 0,
+            false, false, false, CreateModes(), CreateResiduals(),
+            new H264Intra4x4PredictionContext(), 24, CreateSps(),
+            CreatePps() with { EntropyCodingModeFlag = true });
+
+        Assert.Equal(Enumerable.Repeat((byte)128, 256), result);
+    }
+
     [Fact]
     public void Reconstruct_ShouldUseReconstructedTopAndLeftSamplesForLaterBlocks()
     {
