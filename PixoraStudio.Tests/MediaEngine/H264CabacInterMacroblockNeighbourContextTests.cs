@@ -34,6 +34,15 @@ public sealed class H264CabacInterMacroblockNeighbourContextTests
     }
 
     [Fact]
+    public void GetBSliceMacroblockTypeContextIncrement_ShouldIgnoreOtherSliceNeighbours()
+    {
+        H264CabacInterMacroblockNeighbourContext context = new();
+        context.RecordMacroblock(0, 0, 1, 2, isSkipped: false, isDirect: false);
+
+        Assert.Equal(0, context.GetBSliceMacroblockTypeContextIncrement(1, 1, 3));
+    }
+
+    [Fact]
     public void Reset_ShouldClearSpatialNeighbourState()
     {
         H264CabacInterMacroblockNeighbourContext context = new();
