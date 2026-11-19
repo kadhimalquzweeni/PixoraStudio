@@ -85,8 +85,7 @@ public sealed class H264PInterSliceDataDecoderTests
             new H264NalUnit(0x41, CreateCabacPSliceHeader(firstMacroblock: 0)),
             sps, pps, [reference], 12, [new H264ReferencePicture(0, 0)]);
 
-        H264InterMacroblockReconstructionResult macroblock =
-            Assert.Single(result.Macroblocks);
+        Assert.Single(result.Macroblocks);
         Assert.Equal(1, result.MacroblocksDecoded);
         Assert.Equal(27, result.FinalQpY);
         Assert.True(destination.IsMacroblockDecoded(0, 0));
