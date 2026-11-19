@@ -526,13 +526,35 @@ public sealed class H264CabacInterMacroblockSyntaxReader
         int sliceId)
     {
         (int blockX, int blockY) = GetBlockOrigin(shape, macroblockX, macroblockY);
+        string location =
+            $"mvd list={list} block=({blockX},{blockY}) " +
+            $"region=({shape.X},{shape.Y},{shape.Width},{shape.Height})";
+        H264CabacDiagnosticTrace.Mark(reader.BinReader, $"{location} begin");
+
         int horizontalIncrement = context.GetMotionVectorDifferenceContextIncrement(
             list, blockX, blockY, component: 0, sliceId);
+        H264CabacDiagnosticTrace.Mark(
+            reader.BinReader,
+            $"{location} component=x context={40 + horizontalIncrement} " +
+                $"increment={horizontalIncrement} begin");
         int horizontal = reader.ReadMotionVectorDifference(40, horizontalIncrement);
+        H264CabacDiagnosticTrace.Mark(
+            reader.BinReader, $"{location} component=x value={horizontal}");
+
         int verticalIncrement = context.GetMotionVectorDifferenceContextIncrement(
             list, blockX, blockY, component: 1, sliceId);
+        H264CabacDiagnosticTrace.Mark(
+            reader.BinReader,
+            $"{location} component=y context={47 + verticalIncrement} " +
+                $"increment={verticalIncrement} begin");
         int vertical = reader.ReadMotionVectorDifference(47, verticalIncrement);
-        return new H264MotionVectorDifference(horizontal, vertical);
+        H264CabacDiagnosticTrace.Mark(
+            reader.BinReader, $"{location} component=y value={vertical}");
+
+        H264MotionVectorDifference result = new(horizontal, vertical);
+        H264CabacDiagnosticTrace.Mark(
+            reader.BinReader, $"{location} complete value=({horizontal},{vertical})");
+        return result;
     }
 
     private static void RecordPartition(
