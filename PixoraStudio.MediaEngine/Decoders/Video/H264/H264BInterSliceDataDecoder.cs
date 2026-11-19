@@ -32,6 +32,7 @@ public sealed class H264BInterSliceDataDecoder
     private readonly H264CabacIntraMacroblockNeighbourContext _cabacMacroblockNeighbours = new();
     private readonly H264CabacMotionVectorNeighbourContext _cabacMotionNeighbours = new();
     private readonly H264CabacResidualNeighbourContext _cabacResidualNeighbours = new();
+    private readonly Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> _cabacReaderFactory;
 
     public H264BInterSliceDataDecoder(
         H264DecodedPictureSurface destination,
@@ -47,11 +48,25 @@ public sealed class H264BInterSliceDataDecoder
         H264MotionVectorPictureState motionVectorStateL0,
         H264MotionVectorPictureState motionVectorStateL1,
         H264BInterMacroblockReconstructor interReconstructor)
+        : this(destination, motionVectorStateL0, motionVectorStateL1,
+            interReconstructor,
+            static (reader, qpY, isIntra, cabacInitIdc) =>
+                new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc))
+    {
+    }
+
+    internal H264BInterSliceDataDecoder(
+        H264DecodedPictureSurface destination,
+        H264MotionVectorPictureState motionVectorStateL0,
+        H264MotionVectorPictureState motionVectorStateL1,
+        H264BInterMacroblockReconstructor interReconstructor,
+        Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> cabacReaderFactory)
     {
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(motionVectorStateL0);
         ArgumentNullException.ThrowIfNull(motionVectorStateL1);
         ArgumentNullException.ThrowIfNull(interReconstructor);
+        ArgumentNullException.ThrowIfNull(cabacReaderFactory);
         if (motionVectorStateL0.MacroblockWidth != destination.MacroblockWidth ||
             motionVectorStateL0.MacroblockHeight != destination.MacroblockHeight ||
             motionVectorStateL1.MacroblockWidth != destination.MacroblockWidth ||
@@ -62,6 +77,7 @@ public sealed class H264BInterSliceDataDecoder
         _motionVectorStateL1 = motionVectorStateL1;
         _interReconstructor = interReconstructor;
         _intraReconstructor = new H264IntraMacroblockReconstructor(destination);
+        _cabacReaderFactory = cabacReaderFactory;
     }
 
     public void ResetPictureContexts()
@@ -276,8 +292,8 @@ public sealed class H264BInterSliceDataDecoder
             throw new FormatException("A CABAC B slice must provide a valid cabac_init_idc.");
 
         int qpY = initialQpY;
-        H264CabacSliceDataReader cabac = new(
-            reader, qpY, isIntraSlice: false, checked((int)cabacInitIdc));
+        IH264CabacSliceDataReader cabac = _cabacReaderFactory(
+            reader, qpY, false, checked((int)cabacInitIdc));
         H264CabacSyntaxElementReader syntaxReader = new(cabac);
         H264CabacInterMacroblockResidualSyntaxReader interResidualSyntaxReader =
             new(syntaxReader, _cabacMacroblockNeighbours);
