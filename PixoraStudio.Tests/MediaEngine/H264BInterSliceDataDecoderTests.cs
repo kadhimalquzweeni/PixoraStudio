@@ -210,6 +210,71 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_CabacBDirect8x8Macroblock_ShouldReconstructFourSpatialDirectRegions()
+    {
+        H264SequenceParameterSet sps = Sps() with { Direct8X8InferenceFlag = true };
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 62);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader(cabac: true);
+        bits.AlignWithOneBits();
+        bits.Bits(0, 9);
+        bits.TrailingBits();
+
+        // mb_skip_flag=0; mb_type=22 (B_8x8); four direct sub_mb_type=0;
+        // zero coded_block_pattern; end_of_slice_flag=1.
+        ScriptedCabacSliceDataReader cabac = new(
+            [
+                0,             // mb_skip_flag
+                1, 1, 1, 1, 1, // B_8x8 macroblock type
+                0, 0, 0, 0,    // four direct 8x8 sub-macroblock types
+                0, 0, 0, 0, 0  // zero luma/chroma coded_block_pattern
+            ],
+            [1]);
+        H264BInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(1, 1),
+            new H264MotionVectorPictureState(1, 1),
+            new H264BInterMacroblockReconstructor(),
+            (reader, _, _, _) =>
+            {
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabac;
+            });
+
+        H264BInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, pps, dpb, 2, 7,
+            collocatedContextProvider: (_, _, _, _) => null);
+
+        H264BInterMacroblockReconstructionResult macroblock =
+            Assert.Single(result.InterMacroblocks);
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.False(macroblock.IsSkipped);
+        Assert.Equal(4, macroblock.Partitions.Count);
+        Assert.All(macroblock.Partitions, partition =>
+        {
+            Assert.Equal(2, partition.Width);
+            Assert.Equal(2, partition.Height);
+            Assert.Equal(0, partition.ReferenceIndexL0);
+            Assert.Equal(0, partition.ReferenceIndexL1);
+            Assert.Equal(new H264MotionVector(0, 0), partition.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(0, 0), partition.MotionVectorL1);
+        });
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.HasCompleteDeblockingMetadata);
+        Assert.All(destination.CopyLumaPlane(),
+            sample => Assert.Equal((byte)62, sample));
+        Assert.Equal(
+            new[] { 24, 27, 30, 32, 32, 32, 32, 36, 36, 36, 36, 73, 74, 75, 76, 77 },
+            cabac.ContextIndices);
+        Assert.True(cabac.IsTerminated);
+    }
+
+    [Fact]
     public void Decode_CabacBList1InterSlice_ShouldReconstructUsingList1Reference()
     {
         H264SequenceParameterSet sps = Sps();
