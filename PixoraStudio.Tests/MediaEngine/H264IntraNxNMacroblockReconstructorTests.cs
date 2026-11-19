@@ -132,7 +132,7 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
     }
 
     [Fact]
-    public void ReconstructIntraNxN4x4_ShouldRejectWrongMacroblockTypeAndCabac()
+    public void ReconstructIntraNxN4x4_ShouldRejectWrongMacroblockTypeAndAcceptCabac()
     {
         H264SequenceParameterSet sps = CreateSps(1);
         H264DecodedPictureSurface surface = new(sps);
@@ -144,10 +144,11 @@ public sealed class H264IntraNxNMacroblockReconstructorTests
                 0, 0, 0, CreateHeader(0) with { IsIntra16x16 = true },
                 CreateSyntax(1), residual, 24, sps, CreatePps()));
 
-        Assert.Throws<NotSupportedException>(() =>
-            reconstructor.ReconstructIntraNxN4x4(
-                0, 0, 0, CreateHeader(0), CreateSyntax(1),
-                residual, 24, sps, CreatePps() with { EntropyCodingModeFlag = true }));
+        reconstructor.ReconstructIntraNxN4x4(
+            0, 0, 0, CreateHeader(0), CreateSyntax(1),
+            residual, 24, sps, CreatePps() with { EntropyCodingModeFlag = true });
+
+        Assert.True(surface.IsMacroblockDecoded(0, 0));
     }
 
     [Fact]
