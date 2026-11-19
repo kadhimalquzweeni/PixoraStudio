@@ -66,7 +66,7 @@ public sealed class H264PInterSliceDataDecoderTests
         // mb_skip_flag=0; P_L0_16x16; zero horizontal/vertical MVD;
         // zero luma/chroma coded_block_pattern; end_of_slice_flag=1.
         ScriptedCabacSliceDataReader cabac = new(
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [1]);
         H264PInterSliceDataDecoder decoder = new(
             destination,
@@ -102,7 +102,7 @@ public sealed class H264PInterSliceDataDecoderTests
             Assert.Equal(new H264MotionVector(0, 0), block.MotionVectorL0);
             Assert.Null(block.ReferencePictureL1);
         });
-        Assert.Equal(new[] { 11, 14, 15, 16, 40, 47, 73, 74, 75, 76 },
+        Assert.Equal(new[] { 11, 14, 15, 16, 40, 47, 73, 74, 75, 76, 77 },
             cabac.ContextIndices);
         Assert.True(cabac.IsTerminated);
     }
@@ -123,7 +123,7 @@ public sealed class H264PInterSliceDataDecoderTests
         // First macroblock is P_L0_16x16; the second is P_Skip. Its
         // mb_skip_flag context is 12 because the left macroblock is coded.
         ScriptedCabacSliceDataReader cabac = new(
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [0, 1]);
         H264PInterSliceDataDecoder decoder = new(
             destination,
