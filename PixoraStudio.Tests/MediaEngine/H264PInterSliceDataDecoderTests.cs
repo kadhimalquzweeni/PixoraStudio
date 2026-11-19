@@ -52,6 +52,47 @@ public sealed class H264PInterSliceDataDecoderTests
 
 
     [Fact]
+    public void Decode_CabacPSkipFollowedByInterMacroblock_ShouldUseSkippedNeighbourForLumaCbpContexts()
+    {
+        H264SequenceParameterSet sps = Sps(2);
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
+        H264DecodedPictureSurface destination = new(sps);
+
+        // Macroblock 0 is skipped. Macroblock 1 is P_L0_16x16 with no
+        // residual. Its luma coded_block_pattern contexts must see the
+        // skipped left macroblock as an available neighbour with CBP zero.
+        ScriptedCabacSliceDataReader cabac = new(
+            [
+                1,             // MB0: mb_skip_flag = 1
+                0,             // MB1: mb_skip_flag = 0
+                0, 0, 0,       // MB1: P_L0_16x16 mb_type
+                0, 0,          // MB1: horizontal/vertical MVD
+                0, 0, 0, 0, 0 // MB1: zero luma and chroma CBP
+            ],
+            [0, 1]);           // MB0 end flag = 0; MB1 end flag = 1
+
+        H264PInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(2, 1),
+            new H264PInterMacroblockReconstructor(),
+            (_, _, _, _) => cabac);
+
+        H264PInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, CreateCabacPSliceHeader(firstMacroblock: 0)),
+            sps, pps, [reference], 15, [new H264ReferencePicture(0, 0)]);
+
+        Assert.Equal(2, result.MacroblocksDecoded);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.IsMacroblockDecoded(1, 0));
+        Assert.Equal(
+            new[] { 11, 11, 14, 15, 16, 40, 47, 74, 74, 76, 76, 77 },
+            cabac.ContextIndices);
+        Assert.True(cabac.IsTerminated);
+    }
+
+    [Fact]
     public void Decode_CabacPInterSlice_WithNonZeroLumaResidual_ShouldReconstructResidual()
     {
         H264SequenceParameterSet sps = Sps(1);
