@@ -204,25 +204,30 @@ public sealed class H264CabacIntraResidualMacroblockReader
             H264CabacResidualBlockContext.Create(4);
         int chromaBlockOriginX = checked(macroblockX * 2);
         int chromaBlockOriginY = checked(macroblockY * chromaBlocksHigh);
+        H264CavlcResidualBlock?[] chromaDc = new H264CavlcResidualBlock?[2];
+
+        // residual syntax orders both chroma DC blocks before either
+        // component's AC blocks. Keep this phase separate from the AC pass.
+        if (codedChroma != 0)
+        {
+            for (int componentIndex = 0; componentIndex < 2; componentIndex++)
+            {
+                int plane = componentIndex + 1;
+                int dcPlane = componentIndex + 4;
+                int contextIncrement = neighbourContext.GetContextIndexIncrement(
+                    dcPlane, macroblockX, macroblockY, 1, 1, sliceId,
+                    currentMacroblockIsIntra: true);
+                chromaDc[componentIndex] = _residualReader.ReadBlockWithCodedBlockFlag(
+                    binReader, chromaDcMap, contextIncrement);
+                neighbourContext.RecordBlock(
+                    dcPlane, macroblockX, macroblockY, sliceId,
+                    chromaDc[componentIndex]!.TotalCoefficients != 0);
+            }
+        }
 
         for (byte component = 1; component <= 2; component++)
         {
             int plane = component;
-            int dcPlane = component + 3;
-            H264CavlcResidualBlock? dc = null;
-
-            if (codedChroma != 0)
-            {
-                int dcContextIncrement = neighbourContext.GetContextIndexIncrement(
-                    dcPlane, macroblockX, macroblockY, 1, 1, sliceId,
-                    currentMacroblockIsIntra: true);
-                dc = _residualReader.ReadBlockWithCodedBlockFlag(
-                    binReader, chromaDcMap, dcContextIncrement);
-                neighbourContext.RecordBlock(
-                    dcPlane, macroblockX, macroblockY, sliceId,
-                    dc.TotalCoefficients != 0);
-            }
-
             List<H264IntraChromaResidualBlock> acBlocks = [];
             for (int blockY = 0; blockY < chromaBlocksHigh; blockY++)
             for (int blockX = 0; blockX < 2; blockX++)
@@ -253,7 +258,7 @@ public sealed class H264CabacIntraResidualMacroblockReader
             }
 
             chromaComponents.Add(new H264IntraChromaResidualComponent(
-                component, dc, acBlocks));
+                component, chromaDc[component - 1], acBlocks));
         }
 
         uint macroblockAddress = checked(
