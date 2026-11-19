@@ -35,7 +35,7 @@ A reproducible corpus generator is available at `scripts/Generate-H264CabacRefer
 - 176x144 moving `testsrc2` to exercise a different macroblock grid
 - 128x96 animated `mandelbrot` for higher spatial detail
 
-Each stream is encoded as 48 frames at 24 fps with CABAC enabled, two slices per picture, B-frames, three reference frames, a fixed GOP, and single-threaded encoding. The script decodes each generated MP4 with the FFmpeg software H.264 decoder and writes a SHA-256 hash for every complete planar Y/Cb/Cr frame. The JSON manifest records the FFmpeg version, exact argument arrays, stream metadata, dimensions, frame counts, artifact names and reference hashes.
+Each stream is encoded as 48 frames at 24 fps with CABAC enabled, two slices per picture, B-frames, three reference frames, a fixed GOP, and single-threaded encoding. The script decodes each generated MP4 with the FFmpeg software H.264 decoder and writes a SHA-256 hash for every complete planar Y/Cb/Cr frame. The JSON manifest records FFmpeg and ffprobe versions, the libx264 encoder build banner, exact argument arrays, stream metadata, dimensions, frame counts, artifact names and reference hashes.
 
 Run it from the repository root:
 
