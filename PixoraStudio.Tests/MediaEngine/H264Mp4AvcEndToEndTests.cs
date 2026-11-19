@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
 using PixoraStudio.MediaEngine.Models;
 using PixoraStudio.MediaEngine.Models.General;
@@ -81,6 +82,65 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.Equal(0, trackFrame.PictureOrderCount);
         Assert.All(trackFrame.Surface.CopyLumaPlane(),
             sample => Assert.Equal((byte)80, sample));
+    }
+
+
+    [Fact]
+    public void Decode_CabacMainProfileIAndPBStream_ShouldMatchReferenceDecoder()
+    {
+        // Three 32x32 Main-profile pictures encoded with x264 CABAC:
+        // IDR I, reference P, then B in decode order. The tiny fixture keeps
+        // real arithmetic-coded slice data in the test suite without an
+        // encoder or FFmpeg runtime dependency.
+        H264AvcDecoderConfiguration configuration =
+            new H264AvcDecoderConfigurationReader().Read(
+                Convert.FromBase64String(CabacMainAvcC));
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(configuration);
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets, maxNumReorderFramesFallback: 2);
+
+        H264Mp4VideoSample idr = CreateCabacSample(
+            configuration, 1, 0, 0, true, CabacMainIdrNal);
+        H264Mp4VideoSample p = CreateCabacSample(
+            configuration, 2, 1, 2, false, CabacMainPNal);
+        H264Mp4VideoSample b = CreateCabacSample(
+            configuration, 3, 2, 1, false, CabacMainBNal);
+
+        List<H264Mp4DecodedVideoFrame> frames = [];
+        frames.AddRange(decoder.Decode(idr)!.ReadyFrames);
+        frames.AddRange(decoder.Decode(p)!.ReadyFrames);
+        frames.AddRange(decoder.Decode(b)!.ReadyFrames);
+        frames.AddRange(decoder.Flush());
+
+        Assert.Equal(3, frames.Count);
+        H264Mp4DecodedVideoFrame[] displayOrder = frames
+            .OrderBy(frame => frame.PresentationTimeTicks)
+            .ToArray();
+        Assert.Equal(new uint[] { 1, 3, 2 },
+            displayOrder.Select(frame => frame.SampleNumber));
+        Assert.Equal(new[] { 0, 2, 4 },
+            displayOrder.Select(frame => frame.PictureOrderCount));
+        Assert.All(displayOrder, frame => Assert.True(frame.Surface.IsComplete));
+        Assert.All(displayOrder, frame =>
+            Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
+
+        string[] expectedFrameHashes =
+        [
+            "fced2e3477559d7819c0d5103914b4083521dd813345ed76b173819584c3e639",
+            "9884d66af8fd0c7362e124d32535382232ac3f6147c3aac2253ab904bc946303",
+            "e65b186f669f54288e84fe4dfd3b8891a0f1b01109110a999d1ee511d5cc3a9c"
+        ];
+        string[] actualFrameHashes = displayOrder.Select(frame =>
+        {
+            byte[] samples = frame.Surface.CopyLumaPlane()
+                .Concat(frame.Surface.CopyCbPlane())
+                .Concat(frame.Surface.CopyCrPlane())
+                .ToArray();
+            return Convert.ToHexString(SHA256.HashData(samples)).ToLowerInvariant();
+        }).ToArray();
+
+        Assert.Equal(expectedFrameHashes, actualFrameHashes);
     }
 
     [Fact]
@@ -318,6 +378,39 @@ public sealed class H264Mp4AvcEndToEndTests
             Assert.Equal(sample.x < 8 ? (byte)160 : (byte)200, sample.value);
         });
         Assert.Single(result.ReadyFrames);
+    }
+
+
+    private const string CabacMainAvcC =
+        "AU1ACv/hABZnTUAK9ktgIgAAAwACAAADAAweJEpwAQAEaO4PyA==";
+
+    private const string CabacMainIdrNal =
+        "ZYiEA6/8G5DK0tdsy79UEFKyNF4ZhtbWUuG1qSwyAkd5wAJHByfXSdHv+hfWfQMJho1ymU9rW5haiOU5hKsh1z+i1YS1KYYP1vf0XMcRwf0vFvkuOpLN4Q2sePnUfKrvugAyZIIG/XUlaVPW0JuDzVLxxIS/8f9BeuwiIyUmXG+RrGV9MimpFIQgLuYQ4BSyPpOILmoCovdoYB3aefol81Yjz6063fS1/FkBaA31ag/iOKmi+LtwVkKAshDjoYbVrKg4xn14RYnSady7ry/ABDKeh5T8Knewng2mDrvJqTEYCmMzWgRSfmW35k0utHo3h/yRX5ItdVGeL5nWC3QwkMuvG2TuDxr8xiSsvSIsei7V3D7fkc5mGK90e2WOjeXKix7/u6gXzgIvKSLCcmjocoQpR6qQ1eAHXUo9owjYRMUaY+rM+fm0r1XJrsD8erNY0HzqcT2Py5yl4LDR+nBgRHt3LGe701UNZQ0fU5XIXNcmBK5LLwdbp0hJL+XFE404NpSWdhfqQQFb5WybNblaUewfZcSC2tx/LJR4iswmIXm1aWMQRandvURUAaSPY6sRiHvzqAG8DFH6vdRf3UgdWPMtQpxQC9NbFOAoWgD//P2miQD1doT8gyBsARJgxWhQDgIarw8efW09cZF4W2mF4rsywzojfLphAjK6bkggrfXXqeyPStWUqJ0WVCVj0VP4C4b82v1j+KDjHkpZ2SiTGCEQ4iAHyupeuYszmSoqpMgsTDrvwU8=";
+
+    private const string CabacMainPNal =
+        "QZooLX/TJ7afUEMuL098ZK7c+y0W0ygw7kdvqMxciyw74LXTJGoKF2aR8zeVzlsDCr22Y6f3//oWRtwPFdccongjTFSwgppG1/xDzwfDy2zXZeR2aWGsv7XZBsF4/6kVPTLY7lU2nAtOpqY7+URbbA==";
+
+    private const string CabacMainBNal =
+        "AZ5FFL/oRXHyIuHhkp+WVl47U0KUPZHymPYjKU7cUfX7uZaHlXl8FZtyc/gT56gfaKdY9qXg+3j7xNU+Jvs=";
+
+    private static H264Mp4VideoSample CreateCabacSample(
+        H264AvcDecoderConfiguration configuration,
+        uint sampleNumber,
+        ulong decodeTimeTicks,
+        long presentationTimeTicks,
+        bool isSyncSample,
+        string nalBase64)
+    {
+        byte[] nalBytes = Convert.FromBase64String(nalBase64);
+        byte[] annexB = new byte[nalBytes.Length + 4];
+        annexB[3] = 1;
+        Buffer.BlockCopy(nalBytes, 0, annexB, 4, nalBytes.Length);
+        IReadOnlyList<H264NalUnit> nalUnits =
+            new H264NalUnitReader().ReadAnnexB(annexB);
+
+        return new H264Mp4VideoSample(
+            9, sampleNumber, decodeTimeTicks, presentationTimeTicks,
+            1, 3, isSyncSample, configuration, nalUnits);
     }
 
     private static H264Mp4VideoSample ReadSample(
