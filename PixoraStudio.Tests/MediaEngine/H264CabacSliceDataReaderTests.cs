@@ -17,6 +17,31 @@ public sealed class H264CabacSliceDataReaderTests
     }
 
     [Fact]
+    public void DiagnosticState_ShouldExposeArithmeticAndContextStateWithoutChangingDecode()
+    {
+        H264BitReader bits = new(new byte[] { 0x00, 0x00, 0x00 });
+        H264CabacSliceDataReader reader = new(bits, 26, true, 0);
+
+        Assert.Equal(510, reader.ArithmeticRange);
+        Assert.Equal(0, reader.ArithmeticOffset);
+        Assert.Equal(9, reader.BitPosition);
+
+        H264CabacContextModel before = reader.GetContextModel(0);
+        Assert.InRange(before.State, 0, 63);
+        Assert.InRange(before.MostProbableSymbol, 0, 1);
+
+        int bin = reader.DecodeBin(0);
+
+        Assert.InRange(bin, 0, 1);
+        Assert.InRange(reader.ArithmeticRange, 256, 510);
+        Assert.InRange(reader.ArithmeticOffset, 0, reader.ArithmeticRange - 1);
+        Assert.InRange(reader.BitPosition, 9, bits.PositionBits);
+        H264CabacContextModel after = reader.GetContextModel(0);
+        Assert.InRange(after.State, 0, 63);
+        Assert.InRange(after.MostProbableSymbol, 0, 1);
+    }
+
+    [Fact]
     public void Constructor_ShouldRejectZeroCabacAlignmentBit()
     {
         H264BitReader bits = new(new byte[] { 0x80, 0x00, 0x00 });
