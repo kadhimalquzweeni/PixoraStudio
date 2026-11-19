@@ -120,13 +120,17 @@ public sealed class H264Mp4AvcEndToEndTests
             configuration, 3, 2, 1, false, CabacMainBNal);
 
         List<H264Mp4DecodedVideoFrame> frames = [];
-        H264Mp4DecodedVideoFrame idrFrame = Assert.Single(decoder.Decode(idr)!.ReadyFrames);
-        string idrHashImmediatelyAfterDecode = ComputeFrameHash(idrFrame);
-        frames.Add(idrFrame);
+        frames.AddRange(decoder.Decode(idr)!.ReadyFrames);
+        string? idrHashWhenFirstReleased = null;
         cabacTrace.Clear();
         try
         {
-            frames.AddRange(decoder.Decode(p)!.ReadyFrames);
+            H264Mp4DecodedVideoFrame[] pReadyFrames = decoder.Decode(p)!.ReadyFrames.ToArray();
+            H264Mp4DecodedVideoFrame? idrReleasedAfterP =
+                pReadyFrames.FirstOrDefault(frame => frame.SampleNumber == 1);
+            if (idrReleasedAfterP is not null)
+                idrHashWhenFirstReleased = ComputeFrameHash(idrReleasedAfterP);
+            frames.AddRange(pReadyFrames);
             Assert.Contains(cabacTrace, entry =>
                 entry.Contains("mb[0] header skip=False intra=False pcm=False mb_type=0"));
             Assert.Contains(cabacTrace, entry =>
@@ -149,8 +153,19 @@ public sealed class H264Mp4AvcEndToEndTests
                 exception.Message + Environment.NewLine + string.Join(Environment.NewLine, cabacTrace),
                 exception);
         }
-        frames.AddRange(decoder.Decode(b)!.ReadyFrames);
-        frames.AddRange(decoder.Flush());
+        H264Mp4DecodedVideoFrame[] bReadyFrames = decoder.Decode(b)!.ReadyFrames.ToArray();
+        H264Mp4DecodedVideoFrame? idrReleasedAfterB =
+            bReadyFrames.FirstOrDefault(frame => frame.SampleNumber == 1);
+        if (idrHashWhenFirstReleased is null && idrReleasedAfterB is not null)
+            idrHashWhenFirstReleased = ComputeFrameHash(idrReleasedAfterB);
+        frames.AddRange(bReadyFrames);
+
+        H264Mp4DecodedVideoFrame[] flushedFrames = decoder.Flush().ToArray();
+        H264Mp4DecodedVideoFrame? idrReleasedOnFlush =
+            flushedFrames.FirstOrDefault(frame => frame.SampleNumber == 1);
+        if (idrHashWhenFirstReleased is null && idrReleasedOnFlush is not null)
+            idrHashWhenFirstReleased = ComputeFrameHash(idrReleasedOnFlush);
+        frames.AddRange(flushedFrames);
 
         Assert.Equal(3, frames.Count);
         H264Mp4DecodedVideoFrame[] displayOrder = frames
@@ -174,7 +189,7 @@ public sealed class H264Mp4AvcEndToEndTests
 
         Assert.True(
             expectedFrameHashes.SequenceEqual(actualFrameHashes),
-            $"IDR hash immediately after decode: {idrHashImmediatelyAfterDecode}{Environment.NewLine}" +
+            $"IDR hash when first released: {idrHashWhenFirstReleased ?? "not released"}{Environment.NewLine}" +
             $"Expected: {string.Join(", ", expectedFrameHashes)}{Environment.NewLine}" +
             $"Actual:   {string.Join(", ", actualFrameHashes)}");
     }
