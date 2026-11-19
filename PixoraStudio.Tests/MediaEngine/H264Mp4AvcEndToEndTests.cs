@@ -120,7 +120,9 @@ public sealed class H264Mp4AvcEndToEndTests
             configuration, 3, 2, 1, false, CabacMainBNal);
 
         List<H264Mp4DecodedVideoFrame> frames = [];
-        frames.AddRange(decoder.Decode(idr)!.ReadyFrames);
+        H264Mp4DecodedVideoFrame idrFrame = Assert.Single(decoder.Decode(idr)!.ReadyFrames);
+        string idrHashImmediatelyAfterDecode = ComputeFrameHash(idrFrame);
+        frames.Add(idrFrame);
         cabacTrace.Clear();
         try
         {
@@ -168,16 +170,13 @@ public sealed class H264Mp4AvcEndToEndTests
             "9884d66af8fd0c7362e124d32535382232ac3f6147c3aac2253ab904bc946303",
             "e65b186f669f54288e84fe4dfd3b8891a0f1b01109110a999d1ee511d5cc3a9c"
         ];
-        string[] actualFrameHashes = displayOrder.Select(frame =>
-        {
-            byte[] samples = frame.Surface.CopyLumaPlane()
-                .Concat(frame.Surface.CopyCbPlane())
-                .Concat(frame.Surface.CopyCrPlane())
-                .ToArray();
-            return Convert.ToHexString(SHA256.HashData(samples)).ToLowerInvariant();
-        }).ToArray();
+        string[] actualFrameHashes = displayOrder.Select(ComputeFrameHash).ToArray();
 
-        Assert.Equal(expectedFrameHashes, actualFrameHashes);
+        Assert.True(
+            expectedFrameHashes.SequenceEqual(actualFrameHashes),
+            $"IDR hash immediately after decode: {idrHashImmediatelyAfterDecode}{Environment.NewLine}" +
+            $"Expected: {string.Join(", ", expectedFrameHashes)}{Environment.NewLine}" +
+            $"Actual:   {string.Join(", ", actualFrameHashes)}");
     }
 
 
@@ -494,6 +493,15 @@ public sealed class H264Mp4AvcEndToEndTests
 
     private const string CabacMainBNal =
         "AZ5FFL/oRXHyIuHhkp+WVl47U0KUPZHymPYjKU7cUfX7uZaHlXl8FZtyc/gT56gfaKdY9qXg+3j7xNU+Jvs=";
+
+    private static string ComputeFrameHash(H264Mp4DecodedVideoFrame frame)
+    {
+        byte[] samples = frame.Surface.CopyLumaPlane()
+            .Concat(frame.Surface.CopyCbPlane())
+            .Concat(frame.Surface.CopyCrPlane())
+            .ToArray();
+        return Convert.ToHexString(SHA256.HashData(samples)).ToLowerInvariant();
+    }
 
     private static H264Mp4VideoSample CreateCabacSample(
         H264AvcDecoderConfiguration configuration,
