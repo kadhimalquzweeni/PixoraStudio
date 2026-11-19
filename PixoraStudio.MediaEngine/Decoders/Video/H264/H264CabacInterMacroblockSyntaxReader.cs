@@ -510,10 +510,10 @@ public sealed class H264CabacInterMacroblockSyntaxReader
     {
         (int blockX, int blockY) = GetBlockOrigin(shape, macroblockX, macroblockY);
         int horizontalIncrement = context.GetMotionVectorDifferenceContextIncrement(
-            list, blockX, blockY, component: 0, sliceId);
+            list, blockX, blockY, sliceId);
         int horizontal = reader.ReadMotionVectorDifference(40, horizontalIncrement);
         int verticalIncrement = context.GetMotionVectorDifferenceContextIncrement(
-            list, blockX, blockY, component: 1, sliceId);
+            list, blockX, blockY, sliceId);
         int vertical = reader.ReadMotionVectorDifference(47, verticalIncrement);
         return new H264MotionVectorDifference(horizontal, vertical);
     }
