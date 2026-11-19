@@ -187,6 +187,18 @@ public sealed class H264Mp4AvcEndToEndTests
         ];
         string[] actualFrameHashes = displayOrder.Select(ComputeFrameHash).ToArray();
 
+        string testResultsDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
+        Directory.CreateDirectory(testResultsDirectory);
+        byte[] decodedYuvFrames = displayOrder
+            .SelectMany(frame => frame.Surface.CopyLumaPlane()
+                .Concat(frame.Surface.CopyCbPlane())
+                .Concat(frame.Surface.CopyCrPlane()))
+            .ToArray();
+        File.WriteAllBytes(
+            Path.Combine(testResultsDirectory, "cabac-decoded-frames.yuv"),
+            decodedYuvFrames);
+
         Assert.True(
             expectedFrameHashes.SequenceEqual(actualFrameHashes),
             $"IDR hash when first released: {idrHashWhenFirstReleased ?? "not released"}{Environment.NewLine}" +
