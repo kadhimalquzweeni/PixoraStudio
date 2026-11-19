@@ -52,12 +52,10 @@ public static class H264Intra16x16ResidualReconstructor
         int[] dcRaster = H264CoefficientScanner.ToRasterOrder(dcScan);
         int[] transformedDc = InverseHadamard4x4(dcRaster);
 
-        // Intra16x16 luma DC uses the special inverse-quantisation scale
-        // (four times the ordinary 4x4 DC scale).
+        // H.264 8.5.9 applies the inverse Hadamard first, then the
+        // dedicated Intra16x16 DC scaling with its six-bit normalisation.
         int[] dcDequantized = H264InverseQuantizer.DequantizeIntra16x16Dc(
             transformedDc, qpPrimeY, sps, pps, scalingListIndex);
-        for (int i = 0; i < dcDequantized.Length; i++)
-            dcDequantized[i] = checked(dcDequantized[i] * 4);
 
         byte[] output = new byte[256];
         for (int scanBlock = 0; scanBlock < 16; scanBlock++)
