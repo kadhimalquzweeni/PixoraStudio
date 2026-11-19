@@ -235,7 +235,13 @@ public sealed class H264CabacInterMacroblockSyntaxReader
     {
         int[] subTypes = new int[4];
         for (int i = 0; i < 4; i++)
+        {
+            H264CabacDiagnosticTrace.Mark(
+                reader.BinReader, $"mb({macroblockX},{macroblockY}) sub_mb_type[{i}] begin");
             subTypes[i] = reader.ReadPSubMacroblockType();
+            H264CabacDiagnosticTrace.Mark(
+                reader.BinReader, $"mb({macroblockX},{macroblockY}) sub_mb_type[{i}]={subTypes[i]}");
+        }
 
         PartitionShape[][] subShapes = new PartitionShape[4][];
         PartitionShape[] parentShapes = new PartitionShape[4];
@@ -251,10 +257,14 @@ public sealed class H264CabacInterMacroblockSyntaxReader
         uint[] references = new uint[4];
         for (int i = 0; i < 4; i++)
         {
+            H264CabacDiagnosticTrace.Mark(
+                reader.BinReader, $"mb({macroblockX},{macroblockY}) ref_idx_l0[{i}] begin");
             references[i] = forceReferenceZero
                 ? 0
                 : ReadReferenceIndex(reader, context, 0, parentShapes[i],
                     macroblockX, macroblockY, sliceId, activeReferencesMinus1, isBSlice: false);
+            H264CabacDiagnosticTrace.Mark(
+                reader.BinReader, $"mb({macroblockX},{macroblockY}) ref_idx_l0[{i}]={references[i]}");
             RecordPartition(context, 0, parentShapes[i], macroblockX, macroblockY,
                 sliceId, checked((int)references[i]), isDirect: false, 0, 0);
         }
@@ -266,8 +276,15 @@ public sealed class H264CabacInterMacroblockSyntaxReader
             for (int j = 0; j < subShapes[i].Length; j++)
             {
                 PartitionShape shape = subShapes[i][j];
+                H264CabacDiagnosticTrace.Mark(
+                    reader.BinReader,
+                    $"mb({macroblockX},{macroblockY}) mvd_l0[{i},{j}] " +
+                        $"region=({shape.X},{shape.Y},{shape.Width},{shape.Height}) begin");
                 H264MotionVectorDifference mvd = ReadMvd(reader, context, 0, shape,
                     macroblockX, macroblockY, sliceId);
+                H264CabacDiagnosticTrace.Mark(
+                    reader.BinReader,
+                    $"mb({macroblockX},{macroblockY}) mvd_l0[{i},{j}]=({mvd.Horizontal},{mvd.Vertical})");
                 RecordPartition(context, 0, shape, macroblockX, macroblockY,
                     sliceId, checked((int)references[i]), isDirect: false,
                     mvd.Horizontal, mvd.Vertical);
