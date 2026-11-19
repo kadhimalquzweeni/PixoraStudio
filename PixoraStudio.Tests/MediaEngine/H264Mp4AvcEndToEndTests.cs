@@ -548,6 +548,7 @@ public sealed class H264Mp4AvcEndToEndTests
         bits.WriteSe(0); // slice_qp_delta
         bits.AlignWithOneBits();
         bits.WriteBits(0, 9); // arithmetic decoder initial offset
+        bits.WriteRbspTrailingBits();
         return bits.ToRbsp();
     }
 
@@ -568,6 +569,7 @@ public sealed class H264Mp4AvcEndToEndTests
         bits.WriteSe(0); // slice_qp_delta
         bits.AlignWithOneBits();
         bits.WriteBits(0, 9); // arithmetic decoder initial offset
+        bits.WriteRbspTrailingBits();
         return bits.ToRbsp();
     }
 
