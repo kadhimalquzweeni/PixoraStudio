@@ -97,6 +97,9 @@ public sealed class H264CabacInterResidualMacroblockReader
             for (int blockIndex = 0; blockIndex < 4; blockIndex++)
             {
                 (int blockX, int blockY) = blockPositions[blockIndex];
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual luma8x8[{blockIndex}] " +
+                        $"coded={((codedLuma & (1u << blockIndex)) != 0)} begin");
                 bool isCoded = (codedLuma & (1u << blockIndex)) != 0;
                 int[] coefficients;
                 if (isCoded)
@@ -112,6 +115,8 @@ public sealed class H264CabacInterResidualMacroblockReader
 
                 lumaBlocks8x8.Add(new H264Intra8x8LumaResidualBlock(
                     blockX, blockY, isCoded, coefficients));
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual luma8x8[{blockIndex}] complete");
 
                 for (int subY = 0; subY < 2; subY++)
                 for (int subX = 0; subX < 2; subX++)
@@ -128,8 +133,12 @@ public sealed class H264CabacInterResidualMacroblockReader
             H264CabacResidualBlockContextMap map =
                 H264CabacResidualBlockContext.Create(2);
 
+            int lumaBlockIndex = 0;
             foreach ((int localX, int localY) in LumaBlockScan)
             {
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual luma4x4[{lumaBlockIndex}] " +
+                        $"position=({localX},{localY}) begin");
                 int group = (localX >> 1) + ((localY >> 1) << 1);
                 bool isGroupCoded = (codedLuma & (1u << group)) != 0;
                 int pictureX = lumaBlockOriginX + localX;
@@ -154,6 +163,10 @@ public sealed class H264CabacInterResidualMacroblockReader
                 neighbourContext.RecordBlock(
                     0, pictureX, pictureY, sliceId,
                     residual.TotalCoefficients != 0);
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual luma4x4[{lumaBlockIndex}] " +
+                        $"total_coeff={residual.TotalCoefficients} complete");
+                lumaBlockIndex++;
             }
         }
 
@@ -171,6 +184,8 @@ public sealed class H264CabacInterResidualMacroblockReader
         {
             for (int componentIndex = 0; componentIndex < 2; componentIndex++)
             {
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual chroma_dc[{componentIndex}] begin");
                 int dcPlane = componentIndex + 4;
                 int contextIncrement = neighbourContext.GetContextIndexIncrement(
                     dcPlane, macroblockX, macroblockY, 1, 1, sliceId,
@@ -180,6 +195,9 @@ public sealed class H264CabacInterResidualMacroblockReader
                 neighbourContext.RecordBlock(
                     dcPlane, macroblockX, macroblockY, sliceId,
                     chromaDc[componentIndex]!.TotalCoefficients != 0);
+                H264CabacDiagnosticTrace.Mark(
+                    binReader, $"mb({macroblockX},{macroblockY}) residual chroma_dc[{componentIndex}] " +
+                        $"total_coeff={chromaDc[componentIndex]!.TotalCoefficients} complete");
             }
         }
 
