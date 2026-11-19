@@ -446,12 +446,13 @@ public sealed class H264Mp4AvcEndToEndTests
 
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
-        Queue<IH264CabacSliceDataReader> cabacReaders =
-        [
-            new ScriptedCabacSliceDataReader([1], [1, 1]), // I_PCM mb_type and end-of-slice
-            new ScriptedCabacSliceDataReader([1], [1]),    // P_Skip and end-of-slice
-            new ScriptedCabacSliceDataReader([1], [1])     // B_Skip and end-of-slice
-        ];
+        Queue<IH264CabacSliceDataReader> cabacReaders = new(
+            new IH264CabacSliceDataReader[]
+            {
+                new ScriptedCabacSliceDataReader([1], [1, 1]), // I_PCM mb_type and end-of-slice
+                new ScriptedCabacSliceDataReader([1], [1]),    // P_Skip and end-of-slice
+                new ScriptedCabacSliceDataReader([1], [1])     // B_Skip and end-of-slice
+            });
         H264Mp4AccessUnitDecoder decoder = new(
             parameterSets,
             2,
