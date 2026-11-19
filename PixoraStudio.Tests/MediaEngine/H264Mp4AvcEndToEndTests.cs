@@ -97,8 +97,17 @@ public sealed class H264Mp4AvcEndToEndTests
                 Convert.FromBase64String(CabacMainAvcC));
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(configuration);
+        List<string> cabacTrace = [];
         H264Mp4AccessUnitDecoder decoder = new(
-            parameterSets, maxNumReorderFramesFallback: 2);
+            parameterSets,
+            2,
+            (reader, qpY, isIntra, cabacInitIdc) =>
+            {
+                cabacTrace.Add($"slice-start intra={isIntra} qp={qpY} init={cabacInitIdc}");
+                return new TracingCabacSliceDataReader(
+                    new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
+                    cabacTrace);
+            });
 
         H264Mp4VideoSample idr = CreateCabacSample(
             configuration, 1, 0, 0, true, CabacMainIdrNal);
@@ -109,7 +118,17 @@ public sealed class H264Mp4AvcEndToEndTests
 
         List<H264Mp4DecodedVideoFrame> frames = [];
         frames.AddRange(decoder.Decode(idr)!.ReadyFrames);
-        frames.AddRange(decoder.Decode(p)!.ReadyFrames);
+        cabacTrace.Clear();
+        try
+        {
+            frames.AddRange(decoder.Decode(p)!.ReadyFrames);
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                exception.Message + Environment.NewLine + string.Join(Environment.NewLine, cabacTrace),
+                exception);
+        }
         frames.AddRange(decoder.Decode(b)!.ReadyFrames);
         frames.AddRange(decoder.Flush());
 
@@ -524,6 +543,9 @@ public sealed class H264Mp4AvcEndToEndTests
         bits.WriteFlag(false); // no_output_of_prior_pics_flag
         bits.WriteFlag(false); // long_term_reference_flag
         bits.WriteSe(0); // slice_qp_delta
+        bits.WriteUe(0); // disable_deblocking_filter_idc
+        bits.WriteSe(0); // slice_alpha_c0_offset_div2
+        bits.WriteSe(0); // slice_beta_offset_div2
         bits.AlignWithOneBits(); // cabac_alignment_one_bit
         bits.WriteBits(0, 9); // arithmetic decoder initial offset
         bits.AlignWithZeroes(); // pcm_alignment_zero_bit
@@ -546,6 +568,9 @@ public sealed class H264Mp4AvcEndToEndTests
         bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
         bits.WriteUe(0); // cabac_init_idc
         bits.WriteSe(0); // slice_qp_delta
+        bits.WriteUe(0); // disable_deblocking_filter_idc
+        bits.WriteSe(0); // slice_alpha_c0_offset_div2
+        bits.WriteSe(0); // slice_beta_offset_div2
         bits.AlignWithOneBits();
         bits.WriteBits(0, 9); // arithmetic decoder initial offset
         bits.WriteRbspTrailingBits();
@@ -567,6 +592,9 @@ public sealed class H264Mp4AvcEndToEndTests
         bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
         bits.WriteUe(0); // cabac_init_idc
         bits.WriteSe(0); // slice_qp_delta
+        bits.WriteUe(0); // disable_deblocking_filter_idc
+        bits.WriteSe(0); // slice_alpha_c0_offset_div2
+        bits.WriteSe(0); // slice_beta_offset_div2
         bits.AlignWithOneBits();
         bits.WriteBits(0, 9); // arithmetic decoder initial offset
         bits.WriteRbspTrailingBits();
@@ -730,6 +758,46 @@ public sealed class H264Mp4AvcEndToEndTests
         destination.Add(length[0]);
         destination.Add(length[1]);
         destination.AddRange(nal);
+    }
+
+    private sealed class TracingCabacSliceDataReader(
+        IH264CabacSliceDataReader inner,
+        List<string> trace) : IH264CabacSliceDataReader
+    {
+        public bool IsTerminated => inner.IsTerminated;
+
+        public int DecodeBin(int contextIndex)
+        {
+            int bin = inner.DecodeBin(contextIndex);
+            trace.Add($"ctx[{contextIndex}]={bin}");
+            return bin;
+        }
+
+        public int DecodeBypass()
+        {
+            int bin = inner.DecodeBypass();
+            trace.Add($"bypass={bin}");
+            return bin;
+        }
+
+        public int DecodeTerminate()
+        {
+            int bin = inner.DecodeTerminate();
+            trace.Add($"terminate={bin}");
+            return bin;
+        }
+
+        public void MarkTerminated()
+        {
+            trace.Add("marked-terminated");
+            inner.MarkTerminated();
+        }
+
+        public void RestartAfterPcm()
+        {
+            trace.Add("pcm-restart");
+            inner.RestartAfterPcm();
+        }
     }
 
     private sealed class ScriptedCabacSliceDataReader : IH264CabacSliceDataReader
