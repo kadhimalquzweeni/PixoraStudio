@@ -210,6 +210,71 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_CabacBDirectInterSlice_WithNonZeroLumaResidual_ShouldReconstructResidual()
+    {
+        H264SequenceParameterSet sps = Sps();
+        H264PictureParameterSetHeader pps = Pps() with
+        {
+            EntropyCodingModeFlag = true,
+            Transform8X8ModeFlag = true
+        };
+        H264DecodedPictureSurface reference = Reference(sps, 61);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteBSliceHeader(cabac: true);
+        bits.AlignWithOneBits();
+        bits.Bits(0, 9);
+        bits.TrailingBits();
+
+        // B_Direct_16x16, luma CBP group 0, QP delta +1 and one
+        // positive non-zero 4x4 luma DC coefficient.
+        ScriptedCabacSliceDataReader cabac = new(
+            [
+                0,       // mb_skip_flag
+                0,       // B_Direct_16x16 mb_type
+                1, 0, 0, 0, 0, // coded_block_pattern
+                0,       // transform_size_8x8_flag
+                1, 0,    // mb_qp_delta = +1
+                1, 1, 1, 0, 0, 0, 0 // residual CBF/significance/level/CBFs
+            ],
+            [1],
+            [0]);
+        H264BInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(1, 1),
+            new H264MotionVectorPictureState(1, 1),
+            new H264BInterMacroblockReconstructor(),
+            (_, _, _, _) => cabac);
+
+        H264BInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, pps, dpb, 13, 8,
+            collocatedContextProvider: (_, _, _, _) => null);
+
+        H264BInterMacroblockReconstructionResult macroblock =
+            Assert.Single(result.InterMacroblocks);
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Equal(27, macroblock.QpY);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.Contains(destination.CopyLumaPlane(), sample => sample != 61);
+        Assert.All(destination.CopyCbPlane(), sample => Assert.Equal((byte)61, sample));
+        Assert.All(destination.CopyCrPlane(), sample => Assert.Equal((byte)61, sample));
+        Assert.All(destination.GetDeblockingMetadata(0, 0)!.LumaBlocks, block =>
+        {
+            Assert.Equal(new H264ReferencePicture(0, 0), block.ReferencePictureL0);
+            Assert.Equal(new H264ReferencePicture(0, 0), block.ReferencePictureL1);
+        });
+        Assert.Equal(
+            new[]
+            {
+                24, 27,
+                73, 73, 73, 76, 77, 399, 60, 62,
+                93, 134, 195, 248, 94, 95, 93
+            },
+            cabac.ContextIndices);
+        Assert.True(cabac.IsTerminated);
+    }
+
+    [Fact]
     public void Decode_CabacBDirect8x8Macroblock_ShouldReconstructFourSpatialDirectRegions()
     {
         H264SequenceParameterSet sps = Sps() with { Direct8X8InferenceFlag = true };
@@ -642,12 +707,16 @@ public sealed class H264BInterSliceDataDecoderTests
     {
         private readonly Queue<int> _decisionBins;
         private readonly Queue<int> _terminateBins;
+        private readonly Queue<int> _bypassBins;
 
         public ScriptedCabacSliceDataReader(
-            IEnumerable<int> decisionBins, IEnumerable<int> terminateBins)
+            IEnumerable<int> decisionBins,
+            IEnumerable<int> terminateBins,
+            IEnumerable<int>? bypassBins = null)
         {
             _decisionBins = new Queue<int>(decisionBins);
             _terminateBins = new Queue<int>(terminateBins);
+            _bypassBins = new Queue<int>(bypassBins ?? []);
         }
 
         public List<int> ContextIndices { get; } = [];
@@ -659,8 +728,7 @@ public sealed class H264BInterSliceDataDecoderTests
             return _decisionBins.Dequeue();
         }
 
-        public int DecodeBypass() =>
-            throw new InvalidOperationException("These B-slice tests do not use bypass bins.");
+        public int DecodeBypass() => _bypassBins.Dequeue();
 
         public int DecodeTerminate() => _terminateBins.Dequeue();
         public void MarkTerminated() => IsTerminated = true;
