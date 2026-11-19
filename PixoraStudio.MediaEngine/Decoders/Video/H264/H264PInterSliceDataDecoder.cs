@@ -341,6 +341,12 @@ public sealed class H264PInterSliceDataDecoder
 
             if (header.IsSkipped)
             {
+                // A skipped macroblock has an implicit zero coded-block pattern.
+                // Record it so following macroblocks derive CABAC CBP contexts
+                // from an available neighbour rather than treating it as unavailable.
+                RecordCabacMacroblockState(
+                    address, macroblockX, macroblockY, sliceId,
+                    false, false, false, 0, 0, null, null, false);
                 results.Add(_macroblockReconstructor.DecodeSkippedAndReconstruct(
                     header, activeReferenceList0, _motionVectorState,
                     _destination, macroblockX, macroblockY, sliceId, qpY, sps,
