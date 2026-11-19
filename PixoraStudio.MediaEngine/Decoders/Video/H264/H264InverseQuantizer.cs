@@ -181,9 +181,12 @@ public static class H264InverseQuantizer
         for (int i = 0; i < 16; i++)
         {
             long product = checked((long)coefficients[i] * scale);
-            long value = qpDiv6 >= 4
-                ? checked(product << (qpDiv6 - 4))
-                : (product + (1L << (3 - qpDiv6))) >> (4 - qpDiv6);
+            // H.264 8.5.9: inverse Hadamard is followed by DC scaling
+            // with a six-bit normalisation shift (not the ordinary 4x4
+            // inverse-quantisation shift).
+            long value = qpPrimeY >= 36
+                ? checked(product << (qpDiv6 - 6))
+                : (product + (1L << (5 - qpDiv6))) >> (6 - qpDiv6);
             if (value is > int.MaxValue or < int.MinValue)
                 throw new FormatException("Intra16x16 DC inverse-quantised coefficient exceeds Int32.");
             result[i] = (int)value;
