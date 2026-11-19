@@ -38,6 +38,24 @@ public sealed class H264Intra16x16ResidualReconstructorTests
     }
 
     [Fact]
+    public void InverseHadamard4x4_ShouldPreserveDistinctHorizontalFrequencyOrder()
+    {
+        int[] input = new int[16];
+        input[0] = 1;
+        input[1] = 2;
+        input[2] = 4;
+        input[3] = 8;
+
+        int[] expectedRow = [15, -9, -5, 3];
+        int[] expected = Enumerable.Range(0, 4)
+            .SelectMany(_ => expectedRow)
+            .ToArray();
+
+        Assert.Equal(expected,
+            H264Intra16x16ResidualReconstructor.InverseHadamard4x4(input));
+    }
+
+    [Fact]
     public void Reconstruct_ShouldPreservePredictionWhenDcAndAcAreZero()
     {
         byte[] prediction = Enumerable.Range(0, 256).Select(i => (byte)(i % 256)).ToArray();
