@@ -50,6 +50,114 @@ public sealed class H264PInterSliceDataDecoderTests
         Assert.True(cabac.IsTerminated);
     }
 
+
+    [Fact]
+    public void Decode_CabacPIntraNxNSlice_ShouldDecodeIntraModesAndReconstructMacroblock()
+    {
+        H264SequenceParameterSet sps = Sps(1);
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteCabacPSliceHeader();
+        bits.AlignWithOneBits();
+        bits.WriteBits(0, 9);
+        bits.WriteRbspTrailingBits();
+
+        int[] decisionBins =
+        [
+            0, 1, 0,
+            .. Enumerable.Repeat(1, 16),
+            0,
+            0, 0, 0, 0, 0
+        ];
+        ScriptedCabacSliceDataReader cabac = new(decisionBins, [1]);
+        H264PInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(1, 1),
+            new H264PInterMacroblockReconstructor(),
+            (reader, qpY, isIntra, cabacInitIdc) =>
+            {
+                Assert.Equal(26, qpY);
+                Assert.False(isIntra);
+                Assert.Equal(0, cabacInitIdc);
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabac;
+            });
+
+        H264PInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, pps,
+            [reference], 4, [new H264ReferencePicture(0, 0)]);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Equal(26, result.FinalQpY);
+        Assert.Equal(new[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.HasCompleteDeblockingMetadata);
+        Assert.All(destination.CopyLumaPlane(), sample => Assert.Equal((byte)128, sample));
+        Assert.All(destination.CopyCbPlane(), sample => Assert.Equal((byte)128, sample));
+        Assert.All(destination.CopyCrPlane(), sample => Assert.Equal((byte)128, sample));
+        Assert.Equal(
+            new[] { 11, 14, 17 }
+                .Concat(Enumerable.Repeat(68, 16))
+                .Concat(new[] { 64, 73, 74, 75, 76, 77 }),
+            cabac.ContextIndices);
+        Assert.True(cabac.IsTerminated);
+    }
+
+    [Fact]
+    public void Decode_CabacPPcmSlice_ShouldReadRawSamplesAndRestartArithmeticEngine()
+    {
+        H264SequenceParameterSet sps = Sps(1);
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
+        H264DecodedPictureSurface destination = new(sps);
+        BitWriter bits = WriteCabacPSliceHeader();
+        bits.AlignWithOneBits();
+        bits.WriteBits(0, 9);
+        bits.AlignToByte();
+        bits.WriteRepeatedByte(101, 256);
+        bits.WriteRepeatedByte(111, 64);
+        bits.WriteRepeatedByte(121, 64);
+        bits.WriteBits(0, 9); // CABAC engine reinitialisation after pcm samples
+        bits.WriteRbspTrailingBits();
+
+        ScriptedCabacSliceDataReader cabac = new(
+            [0, 1, 1],
+            [1, 1]);
+        H264PInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(1, 1),
+            new H264PInterMacroblockReconstructor(),
+            (reader, qpY, isIntra, cabacInitIdc) =>
+            {
+                Assert.Equal(26, qpY);
+                Assert.False(isIntra);
+                Assert.Equal(0, cabacInitIdc);
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return cabac;
+            });
+
+        H264PInterSliceDecodeResult result = decoder.Decode(
+            new H264NalUnit(0x41, bits.ToArray()), sps, pps,
+            [reference], 4, [new H264ReferencePicture(0, 0)]);
+
+        Assert.Equal(1, result.MacroblocksDecoded);
+        Assert.Equal(26, result.FinalQpY);
+        Assert.Equal(new[] { 0 }, result.IntraMacroblockAddresses);
+        Assert.Equal(1, cabac.RestartAfterPcmCount);
+        Assert.True(cabac.IsTerminated);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.All(destination.CopyLumaPlane(), sample => Assert.Equal((byte)101, sample));
+        Assert.All(destination.CopyCbPlane(), sample => Assert.Equal((byte)111, sample));
+        Assert.All(destination.CopyCrPlane(), sample => Assert.Equal((byte)121, sample));
+    }
+
     [Fact]
     public void Decode_CabacPInterSlice_ShouldDecodeInterMacroblockAndReconstructReferencePrediction()
     {
@@ -435,8 +543,9 @@ public sealed class H264PInterSliceDataDecoderTests
 
         public int DecodeTerminate() => _terminateBins.Dequeue();
         public void MarkTerminated() => IsTerminated = true;
-        public void RestartAfterPcm() =>
-            throw new InvalidOperationException("The P_Skip test does not contain PCM.");
+        public int RestartAfterPcmCount { get; private set; }
+
+        public void RestartAfterPcm() => RestartAfterPcmCount++;
     }
 
     private static H264SequenceParameterSet Sps(int width) =>
@@ -542,6 +651,12 @@ public sealed class H264PInterSliceDataDecoderTests
                 ? checked((uint)(-2L * value))
                 : checked((uint)(2L * value - 1));
             WriteUe(codeNum);
+        }
+
+        public void WriteRepeatedByte(byte value, int count)
+        {
+            for (int i = 0; i < count; i++)
+                WriteBits(value, 8);
         }
 
         public void WriteRbspTrailingBits()
