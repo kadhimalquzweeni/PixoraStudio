@@ -19,6 +19,17 @@ public static class H264Intra16x16ResidualReconstructor
         10, 11, 14, 15
     ];
 
+    // The inverse Hadamard result is raster ordered, but H.264 distributes
+    // its columns through luma4x4BlkIdx order. Keep this separate from the
+    // block-to-pixel raster mapping above.
+    private static readonly int[] BlockScanToDcTransform =
+    [
+        0, 4, 8, 12,
+        1, 5, 9, 13,
+        2, 6, 10, 14,
+        3, 7, 11, 15
+    ];
+
     /// <summary>
     /// Reconstructs one 16x16 luma macroblock. dcResidual contains the sixteen
     /// Intra16x16 luma DC levels in 4x4 zig-zag scan order. acResidualBlocks
@@ -65,7 +76,7 @@ public static class H264Intra16x16ResidualReconstructor
             ValidateResidual(ac, 15, $"acResidualBlocks[{scanBlock}]");
 
             int[] coefficients = new int[16];
-            coefficients[0] = dcDequantized[BlockScanToRaster[scanBlock]];
+            coefficients[0] = dcDequantized[BlockScanToDcTransform[scanBlock]];
 
             // Intra16x16 AC syntax omits scan position zero. The remaining
             // fifteen levels occupy 4x4 scan positions one through fifteen.
@@ -78,7 +89,7 @@ public static class H264Intra16x16ResidualReconstructor
 
             // The DC coefficient has already used the special Intra16x16
             // scaling rule, so replace the ordinary dequantised DC value.
-            dequantizedAc[0] = dcDequantized[BlockScanToRaster[scanBlock]];
+            dequantizedAc[0] = dcDequantized[BlockScanToDcTransform[scanBlock]];
             int[] spatialResidual = H264InverseTransform.Inverse4x4(dequantizedAc);
 
             int blockRaster = BlockScanToRaster[scanBlock];
