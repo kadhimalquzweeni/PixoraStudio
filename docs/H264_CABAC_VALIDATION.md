@@ -33,7 +33,7 @@ The test files currently carrying the focused coverage include:
 2. Extend B-slice CABAC tests to cover list-1/bi-prediction, direct prediction and residual-bearing macroblocks. Assert both reference lists and per-block motion/reference metadata.
 3. Add multi-macroblock and multi-slice CABAC tests that prove picture-relative contexts are retained across slices and reset only at picture boundaries.
 4. Add CABAC I/P/B MP4 access-unit tests using valid arithmetic-coded NAL units in length-prefixed MP4 samples. Assert complete surfaces, DPB state, sample timestamps and presentation ordering.
-5. Replace or supplement scripted MP4 CABAC fixtures with genuine arithmetic-coded CABAC NAL units (at minimum I/P/B, 4:2:0, 8-bit, frame-coded) and compare the managed Y/Cb/Cr planes with an independently decoded reference. Record stream-generation commands, encoder settings, expected hashes/tolerances and any known exclusions.
+5. Expand the existing genuine arithmetic-coded x264 Main-profile I/P/B fixture into a broader real-stream corpus. Compare managed Y/Cb/Cr planes with independently decoded reference outputs for varied motion, residual, slice and picture structures; retain the scripted fixtures for deterministic branch coverage. Record stream-generation commands, encoder settings, expected hashes/tolerances and any known exclusions.
 6. Run the complete solution test suite and record the exact commit and command used. A passing synthetic suite alone is not a claim of full H.264 conformance.
 
 ## Local verification
