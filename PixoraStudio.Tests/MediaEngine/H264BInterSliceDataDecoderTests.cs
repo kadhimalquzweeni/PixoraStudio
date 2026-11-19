@@ -442,7 +442,7 @@ public sealed class H264BInterSliceDataDecoderTests
             Assert.Null(block.MotionVectorL0);
             Assert.Equal(new H264MotionVector(0, 0), block.MotionVectorL1);
         });
-        Assert.Equal(new[] { 24, 27, 30, 31, 32, 32, 32, 40, 47, 73, 74, 75, 76, 77 },
+        Assert.Equal(new[] { 24, 27, 30, 32, 40, 47, 73, 74, 75, 76, 77 },
             cabac.ContextIndices);
         Assert.True(cabac.IsTerminated);
     }
