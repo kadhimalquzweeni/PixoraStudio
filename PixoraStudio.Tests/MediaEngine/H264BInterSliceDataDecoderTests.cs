@@ -115,7 +115,7 @@ public sealed class H264BInterSliceDataDecoderTests
         // mb_skip_flag=0; B_L1_16x16; zero list-1 MVD; zero CBP;
         // end_of_slice_flag=1.
         ScriptedCabacSliceDataReader cabac = new(
-            [0, 1, 0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
             [1]);
         H264BInterSliceDataDecoder decoder = new(
             destination,
@@ -152,7 +152,7 @@ public sealed class H264BInterSliceDataDecoderTests
             Assert.Null(block.MotionVectorL0);
             Assert.Equal(new H264MotionVector(0, 0), block.MotionVectorL1);
         });
-        Assert.Equal(new[] { 24, 27, 30, 32, 40, 47, 73, 74, 75, 76 },
+        Assert.Equal(new[] { 24, 27, 30, 32, 40, 47, 73, 74, 75, 76, 77 },
             cabac.ContextIndices);
         Assert.True(cabac.IsTerminated);
     }
@@ -174,7 +174,7 @@ public sealed class H264BInterSliceDataDecoderTests
         // mb_skip_flag=0; B_Bi_16x16; zero MVD for both lists;
         // zero coded_block_pattern; end_of_slice_flag=1.
         ScriptedCabacSliceDataReader cabac = new(
-            [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [1]);
         H264BInterSliceDataDecoder decoder = new(
             destination,
@@ -207,7 +207,7 @@ public sealed class H264BInterSliceDataDecoderTests
             Assert.Equal(new H264MotionVector(0, 0), block.MotionVectorL1);
         });
         Assert.Equal(
-            new[] { 24, 27, 30, 31, 32, 32, 32, 40, 47, 40, 47, 73, 74, 75, 76 },
+            new[] { 24, 27, 30, 31, 32, 32, 32, 40, 47, 40, 47, 73, 74, 75, 76, 77 },
             cabac.ContextIndices);
         Assert.True(cabac.IsTerminated);
     }
