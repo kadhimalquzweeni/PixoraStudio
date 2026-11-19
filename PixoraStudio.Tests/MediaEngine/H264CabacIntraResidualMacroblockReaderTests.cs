@@ -75,6 +75,33 @@ public sealed class H264CabacIntraResidualMacroblockReaderTests
         Assert.Equal(new[] { 100, 100 }, bins.ContextIndices);
     }
 
+
+    [Fact]
+    public void Read_ShouldDecodeBothChromaDcBlocksBeforeEitherAcPlane()
+    {
+        ScriptedCabacReader bins = new(Enumerable.Repeat(0, 10).ToArray());
+        H264IntraMacroblockSyntax syntax = new(
+            false, null, 0,
+            new H264CodedBlockPattern(32, 0, 2, 1),
+            null);
+
+        H264IntraLumaResidualMacroblock result =
+            new H264CabacIntraResidualMacroblockReader().Read(
+                bins, CreateIntraNxNHeader(), syntax,
+                CreateSps(1), 0, 0, 1,
+                new H264CabacResidualNeighbourContext());
+
+        Assert.All(result.ChromaComponents, component =>
+        {
+            Assert.NotNull(component.Dc);
+            Assert.Equal(4, component.Blocks.Count);
+            Assert.All(component.Blocks, block => Assert.True(block.IsCoded));
+        });
+        Assert.Equal(
+            new[] { 100, 100, 104, 103, 102, 101, 104, 103, 102, 101 },
+            bins.ContextIndices);
+    }
+
     [Fact]
     public void Read_ShouldUseEightCoefficientChromaDcMapFor422()
     {
