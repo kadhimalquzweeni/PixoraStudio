@@ -72,6 +72,33 @@ public sealed class H264CabacResidualBlockReaderTests
     }
 
     [Fact]
+    public void ReadBlock_ShouldTraceSignificanceAndEveryDecodedCoefficientLevel()
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: new[] { 0 },
+            bypassBins: new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        int[] coefficients = reader.ReadBlock(
+            bins, 1, 0, 0, 105, 166, 227,
+            Array.Empty<int>(), Array.Empty<int>());
+
+        Assert.Equal(new[] { 1 }, coefficients);
+        Assert.Contains(
+            "residual final_significant_position=0 inferred=True",
+            bins.Diagnostics);
+        Assert.Contains(
+            "residual coefficient position=0 abs_level_minus1 begin state=0",
+            bins.Diagnostics);
+        Assert.Contains(
+            "residual coefficient position=0 abs_level_minus1=0 level=1 next_state=1",
+            bins.Diagnostics);
+        Assert.Contains(
+            "residual coefficient position=0 sign=0 value=1 complete",
+            bins.Diagnostics);
+    }
+
+    [Fact]
     public void ReadBlock_ShouldRejectInvalidContextMapLengthBeforeConsumingBins()
     {
         ScriptedCabacReader bins = new();
@@ -305,7 +332,7 @@ public sealed class H264CabacResidualBlockReaderTests
         Assert.Empty(bins.ContextIndices);
     }
 
-    private sealed class ScriptedCabacReader : IH264CabacBinReader
+    private sealed class ScriptedCabacReader : IH264CabacBinReader, IH264CabacDiagnosticTraceSink
     {
         private readonly Queue<int> _decisionBins;
         private readonly Queue<int> _bypassBins;
@@ -319,6 +346,9 @@ public sealed class H264CabacResidualBlockReaderTests
         }
 
         public List<int> ContextIndices { get; } = [];
+        public List<string> Diagnostics { get; } = [];
+        public void TraceDiagnostic(string marker) => Diagnostics.Add(marker);
+
         public int DecodeBin(int contextIndex)
         {
             ContextIndices.Add(contextIndex);
