@@ -825,9 +825,11 @@ public sealed class H264Mp4AvcEndToEndTests
 
     private sealed class TracingCabacSliceDataReader(
         IH264CabacSliceDataReader inner,
-        List<string> trace) : IH264CabacSliceDataReader
+        List<string> trace) : IH264CabacSliceDataReader, IH264CabacDiagnosticTraceSink
     {
         public bool IsTerminated => inner.IsTerminated;
+
+        public void TraceDiagnostic(string marker) => trace.Add($"-- {marker}");
 
         public int DecodeBin(int contextIndex)
         {
