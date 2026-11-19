@@ -102,6 +102,55 @@ public sealed class H264BInterSliceDataDecoderTests
     }
 
     [Fact]
+    public void Decode_CabacBSlices_ShouldNotCarryNeighbourSkipContextAcrossSliceBoundary()
+    {
+        H264SequenceParameterSet sps = Sps(2);
+        H264PictureParameterSetHeader pps =
+            Pps() with { EntropyCodingModeFlag = true };
+        H264DecodedPictureSurface reference = Reference(sps, 45);
+        H264DecodedPictureBuffer dpb = Dpb(reference);
+        H264DecodedPictureSurface destination = new(sps);
+        ScriptedCabacSliceDataReader firstSliceCabac = new(
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1]);
+        ScriptedCabacSliceDataReader secondSliceCabac = new([1], [1]);
+        Queue<IH264CabacSliceDataReader> readers = new(
+            new IH264CabacSliceDataReader[] { firstSliceCabac, secondSliceCabac });
+        H264BInterSliceDataDecoder decoder = new(
+            destination,
+            new H264MotionVectorPictureState(2, 1),
+            new H264MotionVectorPictureState(2, 1),
+            new H264BInterMacroblockReconstructor(),
+            (_, _, _, _) => readers.Dequeue());
+
+        BitWriter firstBits = WriteBSliceHeader(cabac: true, firstMacroblock: 0);
+        firstBits.AlignWithOneBits();
+        firstBits.Bits(0, 9);
+        firstBits.TrailingBits();
+        H264BInterSliceDecodeResult first = decoder.Decode(
+            new H264NalUnit(0x41, firstBits.ToArray()), sps, pps, dpb, 14, 8,
+            collocatedContextProvider: (_, _, _, _) => null);
+
+        Assert.Equal(1, first.MacroblocksDecoded);
+        Assert.Equal(24, firstSliceCabac.ContextIndices[0]);
+
+        // The second slice starts at the adjacent macroblock but must not
+        // treat the previous slice's coded macroblock as an available neighbour.
+        BitWriter secondBits = WriteBSliceHeader(cabac: true, firstMacroblock: 1);
+        secondBits.AlignWithOneBits();
+        secondBits.Bits(0, 9);
+        secondBits.TrailingBits();
+        H264BInterSliceDecodeResult second = decoder.Decode(
+            new H264NalUnit(0x41, secondBits.ToArray()), sps, pps, dpb, 15, 8,
+            collocatedContextProvider: (_, _, _, _) => null);
+
+        Assert.Equal(1, second.MacroblocksDecoded);
+        Assert.True(destination.IsMacroblockDecoded(0, 0));
+        Assert.True(destination.IsMacroblockDecoded(1, 0));
+        Assert.Equal(new[] { 24 }, secondSliceCabac.ContextIndices);
+        Assert.True(secondSliceCabac.IsTerminated);
+    }
+
+    [Fact]
     public void Decode_CabacBInterSlice_ShouldDecodeL0MacroblockAndReconstruct()
     {
         H264SequenceParameterSet sps = Sps();
@@ -797,10 +846,10 @@ public sealed class H264BInterSliceDataDecoderTests
     private static BitWriter WriteBSliceHeader(
         uint sliceType = 1, bool directSpatial = true,
         bool overrideReferenceCounts = false, uint numRefIdxL0ActiveMinus1 = 0,
-        bool cabac = false)
+        bool cabac = false, uint firstMacroblock = 0)
     {
         BitWriter bits = new();
-        bits.Ue(0); // first_mb_in_slice
+        bits.Ue(firstMacroblock); // first_mb_in_slice
         bits.Ue(sliceType);
         bits.Ue(0); // pic_parameter_set_id
         bits.Bits(1, 4); // frame_num
