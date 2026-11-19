@@ -4,7 +4,9 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 public static class H264CabacContextInitializer
 {
     private const sbyte NotAvailable = -128;
-    // Columns: I/SI, PB cabac_init_idc 0, PB cabac_init_idc 1, PB cabac_init_idc 2.
+    // Contexts 11-53 contain only the three PB initialisation sets in columns 0-2.
+    // Contexts 54-459 use columns I/SI, PB cabac_init_idc 0, 1 and 2.
+    // Contexts 0-10 are identical across all initialisation sets.
     private static readonly sbyte[,] M =
     {
         { 20, 20, 20, 20 },
@@ -945,7 +947,19 @@ public static class H264CabacContextInitializer
             throw new ArgumentOutOfRangeException(nameof(cabacInitIdc));
         if (contextIndex == 276)
             return false;
-        int column = isIntraSlice ? 0 : cabacInitIdc + 1;
+
+        // The I-slice table has no entries for contexts 11-59. In the
+        // compact table above, contexts 11-53 therefore store PB0/PB1/PB2
+        // in columns 0-2, while contexts 54-459 use the usual
+        // I/PB0/PB1/PB2 column layout.
+        if (isIntraSlice && contextIndex is >= 11 and <= 59)
+            return false;
+
+        int column = isIntraSlice
+            ? 0
+            : contextIndex is >= 11 and <= 53
+                ? cabacInitIdc
+                : cabacInitIdc + 1;
         int m = M[contextIndex, column];
         int n = N[contextIndex, column];
         if (m == NotAvailable || n == NotAvailable)
