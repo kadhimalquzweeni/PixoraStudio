@@ -43,7 +43,7 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
     [Fact]
     public void ReadPSlice_ShouldDecodeFourEightByEightSubMacroblocks()
     {
-        ScriptedCabacReader bins = new(Enumerable.Repeat(0, 12).ToArray());
+        ScriptedCabacReader bins = new(new[] { 1, 1, 1, 1 }.Concat(Enumerable.Repeat(0, 8)).ToArray());
         H264CabacMotionVectorNeighbourContext context = new();
         H264InterMacroblockSyntax syntax = new H264CabacInterMacroblockSyntaxReader()
             .ReadPSlice(new H264CabacSyntaxElementReader(bins), CreateHeader(3),
@@ -60,7 +60,7 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
     [Fact]
     public void ReadPSlice_ShouldForceReferenceZeroForP8x8Ref0()
     {
-        ScriptedCabacReader bins = new(Enumerable.Repeat(0, 12).ToArray());
+        ScriptedCabacReader bins = new(new[] { 1, 1, 1, 1 }.Concat(Enumerable.Repeat(0, 8)).ToArray());
         H264CabacMotionVectorNeighbourContext context = new();
         H264InterMacroblockSyntax syntax = new H264CabacInterMacroblockSyntaxReader()
             .ReadPSlice(new H264CabacSyntaxElementReader(bins), CreateHeader(4),
