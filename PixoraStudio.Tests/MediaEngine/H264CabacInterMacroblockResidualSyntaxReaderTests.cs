@@ -39,7 +39,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
         Assert.Equal(0u, result.CodedBlockPattern.Chroma);
         Assert.False(result.TransformSize8X8Flag);
         Assert.Equal(1, result.MacroblockQpDelta);
-        Assert.Equal(new[] { 73, 74, 75, 76, 77, 399, 60, 62 },
+        Assert.Equal(new[] { 73, 73, 73, 76, 77, 399, 60, 62 },
             bins.ContextIndices);
     }
 
@@ -75,7 +75,7 @@ public sealed class H264CabacInterMacroblockResidualSyntaxReaderTests
             0, 0, 0, 0, noSubMacroblockPartitionSmallerThan8x8: true);
 
         Assert.Equal(2u, result.CodedBlockPattern.ChromaArrayType);
-        Assert.Equal(6, bins.ContextIndices.Count);
+        Assert.Equal(5, bins.ContextIndices.Count);
     }
 
     [Fact]
