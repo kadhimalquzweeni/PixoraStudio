@@ -37,18 +37,34 @@ New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 # decode/display reordering. Single-threaded encoding improves reproducibility.
 $cases = @(
     @{
-        Name = "testsrc2-main-cabac"
+        Name = "testsrc2-128x96-main-cabac"
         Input = "testsrc2=size=128x96:rate=24:duration=2"
+        Width = 128
+        Height = 96
         Description = "Moving colour bars and geometric test pattern"
+    },
+    @{
+        Name = "testsrc2-176x144-main-cabac"
+        Input = "testsrc2=size=176x144:rate=24:duration=2"
+        Width = 176
+        Height = 144
+        Description = "Larger moving test pattern with additional macroblock rows and columns"
+    },
+    @{
+        Name = "mandelbrot-128x96-main-cabac"
+        Input = "mandelbrot=size=128x96:rate=24:duration=2"
+        Width = 128
+        Height = 96
+        Description = "High-detail animated fractal pattern"
     }
 )
 
-$frameBytes = 128 * 96 * 3 / 2
 $manifestCases = @()
 
 foreach ($case in $cases) {
     $mp4Path = Join-Path $OutputDirectory "$($case.Name).mp4"
     $rawPath = Join-Path $OutputDirectory "$($case.Name)-reference.yuv"
+    $frameBytes = [int]($case.Width * $case.Height * 3 / 2)
 
     $encodeArguments = @(
         "-hide_banner", "-loglevel", "error", "-y",
@@ -80,8 +96,11 @@ foreach ($case in $cases) {
     $stream = [System.IO.File]::OpenRead($rawPath)
     try {
         $frame = [byte[]]::new([int]$frameBytes)
-        while (($read = $stream.Read($frame, 0, $frame.Length)) -gt 0) {
-            if ($read -ne $frame.Length) {
+        while ($stream.Position -lt $stream.Length) {
+            try {
+                $stream.ReadExactly($frame)
+            }
+            catch ([System.IO.EndOfStreamException]) {
                 throw "Reference output '$rawPath' ended with a partial YUV frame."
             }
 
@@ -106,6 +125,8 @@ foreach ($case in $cases) {
         StreamInfo = ($streamInfo | ConvertFrom-Json)
         Mp4File = [System.IO.Path]::GetFileName($mp4Path)
         ReferenceYuvFile = [System.IO.Path]::GetFileName($rawPath)
+        Width = $case.Width
+        Height = $case.Height
         ReferenceFrameCount = $hashes.Count
         FrameSha256 = @($hashes)
     }
@@ -122,7 +143,7 @@ $manifest = [pscustomobject]@{
     ReferenceDecoder = "FFmpeg software H.264 decoder (version recorded above)"
     ReferencePixelFormat = "yuv420p"
     FrameHash = "SHA-256 over each complete decoded Y, Cb, Cr frame in planar order"
-    FrameDimensions = "128x96"
+    FrameDimensions = "Recorded per case"
     Notes = @(
         "The generated MP4 is the encoded input corpus, not a PixoraStudio decoder output.",
         "Reference hashes are produced by decoding that exact MP4 with the recorded FFmpeg build.",
