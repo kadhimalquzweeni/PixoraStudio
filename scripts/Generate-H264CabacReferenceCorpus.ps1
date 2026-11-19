@@ -30,6 +30,19 @@ if ($LASTEXITCODE -ne 0) {
 }
 $ffmpegVersion = ($versionOutput -split '\r?\n' | Select-Object -First 1)
 
+$ffprobeVersionOutput = (& $FfprobePath -version 2>&1 | Out-String)
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to run ffprobe at '$FfprobePath'. Install ffprobe and ensure it is available."
+}
+$ffprobeVersion = ($ffprobeVersionOutput -split '\r?\n' | Select-Object -First 1)
+
+# A one-frame probe records the actual libx264 build banner in addition to
+# FFmpeg's version/configuration line.
+$encoderProbeOutput = (& $FfmpegPath -hide_banner -loglevel info -f lavfi -i "color=c=black:s=16x16:r=1:d=1" -frames:v 1 -c:v libx264 -f null - 2>&1 | Out-String)
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to probe the selected libx264 encoder."
+}
+
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 
 # testsrc2 is deterministic and contains both spatial detail and motion.
@@ -142,6 +155,8 @@ $manifest = [pscustomobject]@{
     FfmpegExecutable = $FfmpegPath
     FfprobeExecutable = $FfprobePath
     FfmpegVersion = $ffmpegVersion
+    FfprobeVersion = $ffprobeVersion
+    Libx264EncoderProbe = $encoderProbeOutput
     ReferenceDecoder = "FFmpeg software H.264 decoder (version recorded above)"
     ReferencePixelFormat = "yuv420p"
     FrameHash = "SHA-256 over each complete decoded Y, Cb, Cr frame in planar order"
