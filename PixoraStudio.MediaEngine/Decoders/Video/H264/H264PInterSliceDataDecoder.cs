@@ -346,9 +346,6 @@ public sealed class H264PInterSliceDataDecoder
                     _destination, macroblockX, macroblockY, sliceId, qpY, sps,
                     slice.PredictionWeights, referencePictureList0,
                     deblockingParameters, pps));
-                // A skipped macroblock is still an available CABAC neighbour.
-                // It has no coded residual, no intra state and no mb_qp_delta;
-                // recording its zero CBP state is required by later CBP/QP contexts.
                 RecordCabacMacroblockState(
                     address, macroblockX, macroblockY, sliceId,
                     false, false, false, 0, 0, null, null, false);
