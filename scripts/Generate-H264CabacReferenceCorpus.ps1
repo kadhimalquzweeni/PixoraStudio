@@ -160,6 +160,7 @@ $manifest = [pscustomobject]@{
     ReferenceDecoder = "FFmpeg software H.264 decoder (version recorded above)"
     ReferencePixelFormat = "yuv420p"
     FrameHash = "SHA-256 over each complete decoded Y, Cb, Cr frame in planar order"
+    FrameHashOrder = "FFmpeg presentation order; the generated clips are constant-frame-rate at 24 fps"
     FrameDimensions = "Recorded per case"
     Notes = @(
         "The generated MP4 is the encoded input corpus, not a PixoraStudio decoder output.",
