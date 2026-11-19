@@ -56,7 +56,7 @@ public sealed class H264PInterSliceDataDecoderTests
     {
         H264SequenceParameterSet sps = Sps(1);
         H264PictureParameterSetHeader pps =
-            Pps() with { EntropyCodingModeFlag = true };
+            Pps() with { EntropyCodingModeFlag = true, Transform8X8ModeFlag = true };
         H264DecodedPictureSurface reference = Reference(sps, 70, 80, 90);
         H264DecodedPictureSurface destination = new(sps);
 
