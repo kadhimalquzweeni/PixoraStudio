@@ -37,10 +37,9 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
             syntax.Partitions[0].SubPartitions[0].MotionVectorDifferences[0]);
         Assert.Equal(new H264MotionVectorDifference(0, 0),
             syntax.Partitions[1].SubPartitions[0].MotionVectorDifferences[0]);
-        // The second partition's horizontal MVD context sees the first
-        // partition's horizontal value (1), while its vertical context sees
-        // the first partition's vertical value (0).
-        Assert.Equal(new[] { 40, 43, 47, 41, 47 }, bins.ContextIndices);
+        // The first partition's horizontal MVD is 1, below the context
+        // threshold of 3; its vertical MVD is zero.
+        Assert.Equal(new[] { 40, 43, 47, 40, 47 }, bins.ContextIndices);
     }
 
     
