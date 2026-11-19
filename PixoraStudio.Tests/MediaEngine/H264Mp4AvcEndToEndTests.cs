@@ -786,12 +786,6 @@ public sealed class H264Mp4AvcEndToEndTests
                 _bits.Add(true);
         }
 
-        public void AlignWithOneBits()
-        {
-            while (_bits.Count % 8 != 0)
-                _bits.Add(true);
-        }
-
         public void AlignWithZeroes()
         {
             while (_bits.Count % 8 != 0)
