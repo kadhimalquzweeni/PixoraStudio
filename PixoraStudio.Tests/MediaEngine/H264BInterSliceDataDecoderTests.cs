@@ -140,7 +140,7 @@ public sealed class H264BInterSliceDataDecoderTests
         secondBits.Bits(0, 9);
         secondBits.TrailingBits();
         H264BInterSliceDecodeResult second = decoder.Decode(
-            new H264NalUnit(0x41, secondBits.ToArray()), sps, pps, dpb, 15, 8,
+            new H264NalUnit(0x41, secondBits.ToArray()), sps, pps, dpb, 15, 9,
             collocatedContextProvider: (_, _, _, _) => null);
 
         Assert.Equal(1, second.MacroblocksDecoded);
