@@ -55,30 +55,9 @@ public sealed class H264CabacMotionVectorNeighbourContext
     }
 
     /// <summary>
-    /// mvd_lX ctxIdxInc is derived from the sum of the absolute horizontal
-    /// and vertical MVD components of the available left and top neighbours.
-    /// The same increment is used for both components of the current MVD.
-    /// </summary>
-    public int GetMotionVectorDifferenceContextIncrement(
-        int list,
-        int blockX,
-        int blockY,
-        int sliceId)
-    {
-        ValidateList(list);
-        ValidatePosition(blockX, blockY, sliceId);
-
-        int left = GetNeighbour(list, blockX - 1, blockY, sliceId,
-            state => checked(Math.Abs(state.MvdX) + Math.Abs(state.MvdY)));
-        int top = GetNeighbour(list, blockX, blockY - 1, sliceId,
-            state => checked(Math.Abs(state.MvdX) + Math.Abs(state.MvdY)));
-        int sum = checked(left + top);
-        return sum < 3 ? 0 : sum < 33 ? 1 : 2;
-    }
-
-    /// <summary>
-    /// Compatibility overload. The component does not affect the normative
-    /// context increment; both MVD components share the same neighbour sum.
+    /// mvd_lX ctxIdxInc is derived independently for each component from the
+    /// absolute values of that component in the available left and top
+    /// neighbours. Component 0 is horizontal; component 1 is vertical.
     /// </summary>
     public int GetMotionVectorDifferenceContextIncrement(
         int list,
@@ -87,11 +66,17 @@ public sealed class H264CabacMotionVectorNeighbourContext
         int component,
         int sliceId)
     {
+        ValidateList(list);
+        ValidatePosition(blockX, blockY, sliceId);
         if (component is not (0 or 1))
             throw new ArgumentOutOfRangeException(nameof(component));
 
-        return GetMotionVectorDifferenceContextIncrement(
-            list, blockX, blockY, sliceId);
+        int left = GetNeighbour(list, blockX - 1, blockY, sliceId,
+            state => Math.Abs(component == 0 ? state.MvdX : state.MvdY));
+        int top = GetNeighbour(list, blockX, blockY - 1, sliceId,
+            state => Math.Abs(component == 0 ? state.MvdX : state.MvdY));
+        int sum = checked(left + top);
+        return sum < 3 ? 0 : sum < 33 ? 1 : 2;
     }
 
     private int GetNeighbour(
