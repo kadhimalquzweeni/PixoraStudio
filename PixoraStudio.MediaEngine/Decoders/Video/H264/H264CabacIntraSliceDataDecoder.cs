@@ -140,6 +140,22 @@ public sealed class H264CabacIntraSliceDataDecoder
                     $"intra mb[{macroblockAddress}] reconstructed_cr=" +
                     $"{string.Join(",", ExtractMacroblockSamples(reconstructedCr, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
 
+                byte[] reconstructedLuma = _surface.CopyLumaPlane();
+                byte[] reconstructedCb = _surface.CopyCbPlane();
+                byte[] reconstructedCr = _surface.CopyCrPlane();
+                H264CabacDiagnosticTrace.Mark(
+                    cabac,
+                    $"intra mb[{macroblockAddress}] reconstructed_y=" +
+                    $"{string.Join(",", ExtractMacroblockSamples(reconstructedLuma, _surface.Width, macroblockX * 16, macroblockY * 16, 16, 16))}");
+                H264CabacDiagnosticTrace.Mark(
+                    cabac,
+                    $"intra mb[{macroblockAddress}] reconstructed_cb=" +
+                    $"{string.Join(",", ExtractMacroblockSamples(reconstructedCb, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
+                H264CabacDiagnosticTrace.Mark(
+                    cabac,
+                    $"intra mb[{macroblockAddress}] reconstructed_cr=" +
+                    $"{string.Join(",", ExtractMacroblockSamples(reconstructedCr, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
+
                 _macroblockNeighbours.RecordMacroblock(
                     macroblockAddress, macroblockX, macroblockY, sliceId,
                     isIntraNxN: false,
@@ -173,8 +189,9 @@ public sealed class H264CabacIntraSliceDataDecoder
                     qpY = UpdateQpY(qpY, delta);
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
-                    $"intra mb[{macroblockAddress}] syntax chroma_mode=" +
-                    $"{macroblockSyntax.IntraChromaPredictionMode} " +
+                    $"intra mb[{macroblockAddress}] syntax intra16_mode={header.Intra16x16PredMode} " +
+                    $"luma_modes={FormatLumaModes(macroblockSyntax.LumaPredictionModes)} " +
+                    $"chroma_mode={macroblockSyntax.IntraChromaPredictionMode} " +
                     $"cbp_luma={macroblockSyntax.CodedBlockPattern.Luma} " +
                     $"cbp_chroma={macroblockSyntax.CodedBlockPattern.Chroma} qp={qpY}");
 
@@ -258,6 +275,12 @@ public sealed class H264CabacIntraSliceDataDecoder
         return new H264IntraSliceDecodeResult(
             slice, decodedCount, qpY, bitReader.PositionBits);
     }
+
+    private static string FormatLumaModes(H264IntraPredictionModeSyntax? syntax) =>
+        syntax is null
+            ? "none"
+            : string.Join(",", syntax.Modes.Select(
+                mode => mode.PreviousModeFlag ? "prev" : mode.RemainderMode?.ToString() ?? "missing"));
 
     private static byte[] ExtractMacroblockSamples(
         byte[] plane, int stride, int x, int y, int width, int height)
