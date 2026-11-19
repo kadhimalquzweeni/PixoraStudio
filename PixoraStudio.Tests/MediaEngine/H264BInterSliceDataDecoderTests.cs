@@ -228,7 +228,7 @@ public sealed class H264BInterSliceDataDecoderTests
         ScriptedCabacSliceDataReader cabac = new(
             [
                 0,             // mb_skip_flag
-                1, 1, 1, 1, 1, // B_8x8 macroblock type
+                1, 1, 1, 1, 1, 1, // B_8x8 macroblock type
                 0, 0, 0, 0,    // four direct 8x8 sub-macroblock types
                 0, 0, 0, 0, 0  // zero luma/chroma coded_block_pattern
             ],
