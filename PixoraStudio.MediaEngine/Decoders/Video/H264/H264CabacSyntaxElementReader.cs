@@ -13,6 +13,9 @@ public sealed class H264CabacSyntaxElementReader
         _reader = reader;
     }
 
+    /// <summary>The underlying bin reader, exposed for optional diagnostic annotations.</summary>
+    internal IH264CabacBinReader BinReader => _reader;
+
     /// <summary>
     /// Decodes mb_type for an I slice: I_NxN (0), I16x16 (1..24), or
     /// I_PCM (25). The caller supplies the neighbour-derived first-bin
