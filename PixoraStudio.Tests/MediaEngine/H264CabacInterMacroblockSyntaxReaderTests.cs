@@ -65,6 +65,28 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
     }
 
     [Fact]
+    public void ReadPSlice_ShouldTraceMvdEscapePrefixSuffixAndSign()
+    {
+        int[] decisions = [1, 1, 1, 1, 1, 1, 1, 1, 1, 0];
+        int[] bypass = [0, 0, 1, 1, 1];
+        ScriptedCabacReader bins = new(decisions, bypass);
+        H264CabacMotionVectorNeighbourContext context = new();
+
+        H264InterMacroblockSyntax syntax = new H264CabacInterMacroblockSyntaxReader()
+            .ReadPSlice(new H264CabacSyntaxElementReader(bins), CreateHeader(0),
+                0, 0, 0, 1, context);
+
+        Assert.Equal(new H264MotionVectorDifference(-12, 0),
+            syntax.Partitions[0].SubPartitions[0].MotionVectorDifferences[0]);
+        Assert.Contains("mvd syntax escape_prefix[0]=0", bins.Diagnostics);
+        Assert.Contains("mvd syntax escape_suffix bit=2 value=0", bins.Diagnostics);
+        Assert.Contains("mvd syntax escape_suffix bit=1 value=1", bins.Diagnostics);
+        Assert.Contains("mvd syntax escape_suffix bit=0 value=1", bins.Diagnostics);
+        Assert.Contains("mvd syntax sign=1", bins.Diagnostics);
+        Assert.Contains("mvd syntax complete value=-12", bins.Diagnostics);
+    }
+
+    [Fact]
     public void ReadPSlice_ShouldDecodeFourEightByEightSubMacroblocks()
     {
         ScriptedCabacReader bins = new(new[] { 1, 1, 1, 1 }.Concat(Enumerable.Repeat(0, 8)).ToArray());
