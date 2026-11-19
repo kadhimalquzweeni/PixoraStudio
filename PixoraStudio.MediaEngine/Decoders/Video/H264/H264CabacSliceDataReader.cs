@@ -5,7 +5,7 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// bypass and termination bins. Syntax-element binarisation is implemented
 /// by the slice and macroblock syntax readers.
 /// </summary>
-public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader
+public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264CabacDiagnosticStateProvider
 {
     private readonly H264BitReader _reader;
     private H264CabacArithmeticDecoder _arithmeticDecoder;
@@ -44,6 +44,24 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader
     }
 
     public bool IsTerminated => _terminated;
+
+    public int ArithmeticRange => _arithmeticDecoder.Range;
+
+    public int ArithmeticOffset => _arithmeticDecoder.Offset;
+
+    public int BitPosition => _reader.PositionBits;
+
+    public H264CabacContextModel GetContextModel(int contextIndex)
+    {
+        if (contextIndex is < 0 or >= 460)
+            throw new ArgumentOutOfRangeException(nameof(contextIndex));
+        if (!_initialized[contextIndex])
+            throw new ArgumentException(
+                $"CABAC context index {contextIndex} is not defined for this slice type.",
+                nameof(contextIndex));
+
+        return _contexts[contextIndex];
+    }
 
     /// <summary>
     /// Restarts the arithmetic engine after PCM samples. Probability contexts
