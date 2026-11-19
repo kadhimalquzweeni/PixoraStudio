@@ -12,7 +12,6 @@ public sealed class H264PInterMacroblockReconstructorTests
     {
         H264SequenceParameterSet sps = Sps();
         H264DecodedPictureSurface reference = Surface(sps, 100, 110, 120);
-        H264DecodedPictureSurface unusedReference = Surface(sps, 20, 30, 40);
         H264DecodedPictureSurface destination = new(sps);
 
         H264InterMacroblockReconstructionResult result = _decoder.DecodeAndReconstruct(
@@ -107,6 +106,7 @@ public sealed class H264PInterMacroblockReconstructorTests
         H264SequenceParameterSet sps = Sps();
         H264PictureParameterSetHeader cabacPps = new(0, 0, true, false, 0);
         H264DecodedPictureSurface reference = Surface(sps, 100, 110, 120);
+        H264DecodedPictureSurface unusedReference = Surface(sps, 20, 30, 40);
         H264DecodedPictureSurface destination = new(sps);
         H264MotionVectorPictureState motionState = new(1, 1);
         H264InterMacroblockSyntax syntax = new(
