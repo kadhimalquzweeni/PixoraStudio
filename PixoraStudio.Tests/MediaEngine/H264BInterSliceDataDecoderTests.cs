@@ -383,7 +383,7 @@ public sealed class H264BInterSliceDataDecoderTests
         Assert.All(destination.CopyLumaPlane(),
             sample => Assert.Equal((byte)62, sample));
         Assert.Equal(
-            new[] { 24, 27, 30, 32, 32, 32, 32, 36, 36, 36, 36, 73, 74, 75, 76, 77 },
+            new[] { 24, 27, 30, 31, 32, 32, 32, 36, 36, 36, 36, 73, 74, 75, 76, 77 },
             cabac.ContextIndices);
         Assert.True(cabac.IsTerminated);
     }
