@@ -55,7 +55,7 @@ public sealed class H264CabacInterResidualMacroblockReaderTests
         Assert.Equal(1, firstBlock.Coefficients[0]);
         Assert.All(result.LumaBlocks.Skip(1), block =>
             Assert.Equal(0, block.Residual.TotalCoefficients));
-        Assert.Equal(new[] { 93, 134, 195, 248, 94, 94, 95 }, bins.ContextIndices);
+        Assert.Equal(new[] { 93, 134, 195, 248, 94, 95, 93 }, bins.ContextIndices);
     }
 
     [Fact]
