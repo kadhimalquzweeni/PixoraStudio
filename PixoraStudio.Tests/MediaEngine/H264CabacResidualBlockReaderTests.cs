@@ -75,17 +75,23 @@ public sealed class H264CabacResidualBlockReaderTests
     public void ReadBlock_ShouldTraceSignificanceAndEveryDecodedCoefficientLevel()
     {
         ScriptedCabacReader bins = new(
-            decisionBins: new[] { 0 },
+            decisionBins: new[] { 1, 1, 0 },
             bypassBins: new[] { 0 });
         H264CabacResidualBlockReader reader = new();
 
         int[] coefficients = reader.ReadBlock(
-            bins, 1, 0, 0, 105, 166, 227,
-            Array.Empty<int>(), Array.Empty<int>());
+            bins, 2, 0, 1, 105, 166, 227,
+            new[] { 0 }, new[] { 0 });
 
-        Assert.Equal(new[] { 1 }, coefficients);
+        Assert.Equal(new[] { 1, 0 }, coefficients);
         Assert.Contains(
-            "residual final_significant_position=0 inferred=True",
+            "residual significant_coeff_flag position=0 context=105 value=1",
+            bins.Diagnostics);
+        Assert.Contains(
+            "residual last_significant_coeff_flag position=0 value=1",
+            bins.Diagnostics);
+        Assert.Contains(
+            "residual final_significant_position=0 inferred=False",
             bins.Diagnostics);
         Assert.Contains(
             "residual coefficient position=0 abs_level_minus1 begin state=0",
