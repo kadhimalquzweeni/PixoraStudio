@@ -11,8 +11,8 @@ public static class H264IntraChromaResidualReconstructor
     private static readonly int[,] LevelScale =
     {
         { 10, 11, 13, 14, 16, 18 },
-        { 16, 18, 20, 23, 25, 29 },
-        { 13, 14, 16, 18, 20, 23 }
+        { 13, 14, 16, 18, 20, 23 },
+        { 16, 18, 20, 23, 25, 29 }
     };
 
     private static readonly int[] ChromaQpMap =
