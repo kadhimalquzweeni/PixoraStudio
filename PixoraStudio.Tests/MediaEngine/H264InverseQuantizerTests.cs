@@ -129,13 +129,18 @@ public sealed class H264InverseQuantizerTests
     public void Dequantize8x8_ShouldApplySixPositionClassesAndQpScaling()
     {
         int[] coefficients = new int[64];
-        coefficients[0] = coefficients[1] = coefficients[2] = coefficients[9] = 1;
+        coefficients[0] = coefficients[1] = coefficients[2] = 1;
+        coefficients[9] = coefficients[10] = coefficients[18] = 1;
         int[] flat = Enumerable.Repeat(16, 64).ToArray();
         int[] result = H264InverseQuantizer.Dequantize8x8(coefficients, 0, flat);
-        Assert.Equal(5, result[0]);
-        Assert.Equal(7, result[1]);
-        Assert.Equal(8, result[2]);
-        Assert.Equal(6, result[9]);
+
+        // Cover all six normative 8x8 inverse-quantisation position classes.
+        Assert.Equal(5, result[0]);   // class 0
+        Assert.Equal(5, result[1]);   // class 3
+        Assert.Equal(6, result[2]);   // class 4
+        Assert.Equal(5, result[9]);   // class 1
+        Assert.Equal(6, result[10]);  // class 5
+        Assert.Equal(8, result[18]);  // class 2
         Assert.Equal(10, H264InverseQuantizer.Dequantize8x8(coefficients, 6, flat)[0]);
         Assert.Equal(320, H264InverseQuantizer.Dequantize8x8(coefficients, 36, flat)[0]);
     }
