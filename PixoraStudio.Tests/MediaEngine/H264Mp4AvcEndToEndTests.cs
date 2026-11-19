@@ -596,7 +596,6 @@ public sealed class H264Mp4AvcEndToEndTests
         bits.WriteSe(0); // slice_beta_offset_div2
         bits.AlignWithOneBits();
         bits.WriteBits(0, 9); // arithmetic decoder initial offset
-        bits.WriteRbspTrailingBits();
         return bits.ToRbsp();
     }
 
