@@ -47,10 +47,10 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
     [Fact]
     public void ReadPSlice_ShouldDeriveSecondPartitionMvdContextsIndependentlyByComponent()
     {
-        // First partition: MVDx=0, MVDy=1. The second partition must
+        // First partition: MVDx=0, MVDy=3. The second partition must
         // therefore use ctxIdx 40 for horizontal and ctxIdx 48 for vertical.
         ScriptedCabacReader bins = new(
-            decisionBins: new[] { 0, 1, 0, 0, 0, 0 },
+            decisionBins: new[] { 0, 1, 1, 1, 0, 0, 0 },
             bypassBins: new[] { 0 });
         H264CabacMotionVectorNeighbourContext context = new();
         H264InterMacroblockSyntax syntax = new H264CabacInterMacroblockSyntaxReader()
@@ -58,11 +58,11 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
                 0, 0, 0, 1, context);
 
         Assert.Equal(2, syntax.Partitions.Count);
-        Assert.Equal(new H264MotionVectorDifference(0, 1),
+        Assert.Equal(new H264MotionVectorDifference(0, 3),
             syntax.Partitions[0].SubPartitions[0].MotionVectorDifferences[0]);
         Assert.Equal(new H264MotionVectorDifference(0, 0),
             syntax.Partitions[1].SubPartitions[0].MotionVectorDifferences[0]);
-        Assert.Equal(new[] { 40, 47, 50, 40, 48 }, bins.ContextIndices);
+        Assert.Equal(new[] { 40, 47, 50, 51, 52, 40, 48 }, bins.ContextIndices);
     }
 
     [Fact]
