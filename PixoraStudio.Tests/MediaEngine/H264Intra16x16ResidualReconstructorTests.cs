@@ -64,9 +64,9 @@ public sealed class H264Intra16x16ResidualReconstructorTests
         input[8] = 4;
         input[12] = 8;
 
-        int[] expectedColumn = [15, -9, 3, -5];
-        int[] expected = Enumerable.Range(0, 4)
-            .SelectMany(_ => expectedColumn)
+        int[] expectedRows = [15, -9, 3, -5];
+        int[] expected = expectedRows
+            .SelectMany(value => Enumerable.Repeat(value, 4))
             .ToArray();
 
         Assert.Equal(expected,
