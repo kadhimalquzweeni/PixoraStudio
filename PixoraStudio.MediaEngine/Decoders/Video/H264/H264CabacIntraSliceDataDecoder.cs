@@ -201,7 +201,7 @@ public sealed class H264CabacIntraSliceDataDecoder
                     H264CabacDiagnosticTrace.Mark(
                         cabac,
                         $"intra mb[{macroblockAddress}] chroma_dc[{component.ComponentId}]=" +
-                        $"{(component.Dc is null ? "none" : string.Join(",", component.DcResidual.Coefficients))}");
+                        $"{(component.Dc is null ? "none" : string.Join(",", component.Dc.Coefficients))}");
                     foreach (H264IntraChromaResidualBlock block in component.Blocks)
                         H264CabacDiagnosticTrace.Mark(
                             cabac,
