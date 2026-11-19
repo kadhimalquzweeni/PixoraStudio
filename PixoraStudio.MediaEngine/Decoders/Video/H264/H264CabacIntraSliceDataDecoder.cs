@@ -191,7 +191,7 @@ public sealed class H264CabacIntraSliceDataDecoder
                     cabac,
                     $"intra mb[{macroblockAddress}] residual dc=" +
                     $"{(residual.Intra16x16Dc is null ? "none" : string.Join(",", residual.Intra16x16Dc.Coefficients))}");
-                foreach (H264IntraLumaResidualBlock block in residual.LumaBlocks)
+                foreach (H264IntraLumaResidualBlock block in residual.Blocks)
                     H264CabacDiagnosticTrace.Mark(
                         cabac,
                         $"intra mb[{macroblockAddress}] luma_block[{block.BlockX},{block.BlockY}] " +
@@ -201,7 +201,7 @@ public sealed class H264CabacIntraSliceDataDecoder
                     H264CabacDiagnosticTrace.Mark(
                         cabac,
                         $"intra mb[{macroblockAddress}] chroma_dc[{component.ComponentId}]=" +
-                        $"{(component.DcResidual is null ? "none" : string.Join(",", component.DcResidual.Coefficients))}");
+                        $"{(component.Dc is null ? "none" : string.Join(",", component.DcResidual.Coefficients))}");
                     foreach (H264IntraChromaResidualBlock block in component.Blocks)
                         H264CabacDiagnosticTrace.Mark(
                             cabac,
