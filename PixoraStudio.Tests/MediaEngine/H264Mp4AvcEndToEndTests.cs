@@ -171,7 +171,17 @@ public sealed class H264Mp4AvcEndToEndTests
                 Convert.FromBase64String(CabacPSkipAvcC));
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(configuration);
-        H264Mp4AccessUnitDecoder decoder = new(parameterSets, 0);
+        List<string> cabacTrace = [];
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets,
+            0,
+            (reader, qpY, isIntra, cabacInitIdc) =>
+            {
+                cabacTrace.Add($"slice-start intra={isIntra} qp={qpY} init={cabacInitIdc}");
+                return new TracingCabacSliceDataReader(
+                    new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
+                    cabacTrace);
+            });
 
         H264Mp4VideoSample idr = CreateCabacSample(
             configuration, 1, 0, 0, true, CabacPSkipIdrNal);
@@ -202,7 +212,8 @@ public sealed class H264Mp4AvcEndToEndTests
                 $"Y={string.Join(",", frame.Surface.CopyLumaPlane().Distinct().Order())}; " +
                 $"Cb={string.Join(",", frame.Surface.CopyCbPlane().Distinct().Order())}; " +
                 $"Cr={string.Join(",", frame.Surface.CopyCrPlane().Distinct().Order())}; " +
-                $"Y0={string.Join(",", frame.Surface.CopyLumaPlane().Take(32))}";
+                $"Y0={string.Join(",", frame.Surface.CopyLumaPlane().Take(32))}; " +
+                $"CABAC={string.Join(" | ", cabacTrace)}";
             Assert.True(
                 actualHash == "df7fa6b29395ce3a6fcfb65d7b3d6fc3af2889c58bdddc1c412622c14da81595",
                 $"Frame {frame.SampleNumber} hash {actualHash}. {diagnostics}");
