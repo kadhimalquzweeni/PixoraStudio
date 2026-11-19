@@ -124,8 +124,8 @@ public static class H264Intra16x16ResidualReconstructor
             long c = horizontal[8 + column], d = horizontal[12 + column];
             result[column] = ToInt32(a + b + c + d);
             result[4 + column] = ToInt32(a + b - c - d);
-            result[8 + column] = ToInt32(a - b + c - d);
-            result[12 + column] = ToInt32(a - b - c + d);
+            result[8 + column] = ToInt32(a - b - c + d);
+            result[12 + column] = ToInt32(a - b + c - d);
         }
         return result;
     }
