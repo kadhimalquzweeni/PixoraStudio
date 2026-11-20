@@ -37,6 +37,7 @@ public partial class VideoEditorView : UserControl
     private bool _isPreparingVideo;
     private bool _resumePlaybackAfterSeek;
     private int _seekOperationVersion;
+    private int _audioSyncInProgress;
     private int _videoLoadVersion;
     private LibVLC? _libVLC;
 
@@ -762,14 +763,17 @@ public partial class VideoEditorView : UserControl
 
     private async Task SynchroniseAudioAsync(TimeSpan videoPosition)
     {
-        int seekVersion = Volatile.Read(ref _seekOperationVersion);
-        bool resumeVideo = _mediaPlayer?.IsPlaying == true;
-
-        if (resumeVideo)
-            _mediaPlayer?.Pause();
+        // Timer ticks arrive every 200 ms. Never overlap expensive AAC
+        // decoder rebuilds; the active operation will compare against the
+        // latest video clock on the next tick if another correction is needed.
+        if (Interlocked.CompareExchange(ref _audioSyncInProgress, 1, 0) != 0)
+            return;
 
         try
         {
+            // LibVLC is the master clock. Correct only the independently
+            // clocked audio output; pausing/restarting video for every drift
+            // check introduces visible stutter even when no correction is due.
             await _aacAudioPlaybackService.SynchroniseAsync(videoPosition);
         }
         catch (OperationCanceledException)
@@ -783,12 +787,7 @@ public partial class VideoEditorView : UserControl
         }
         finally
         {
-            if (resumeVideo &&
-                seekVersion == Volatile.Read(ref _seekOperationVersion) &&
-                _mediaPlayer is not null)
-            {
-                _mediaPlayer.Play();
-            }
+            Interlocked.Exchange(ref _audioSyncInProgress, 0);
         }
     }
 
