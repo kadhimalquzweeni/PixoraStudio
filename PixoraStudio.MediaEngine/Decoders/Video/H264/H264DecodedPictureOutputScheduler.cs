@@ -212,6 +212,6 @@ public sealed class H264DecodedPictureOutputScheduler
         // H.264 infers max_num_reorder_frames from MaxDpbFrames when the
         // bitstream restriction syntax is absent. No container-specific
         // override is required for a conforming SPS.
-        return levelMaximum;
+        return H264DecodedPictureBufferLimits.ResolveMaxDpbFrames(sps);
     }
 }
