@@ -42,10 +42,13 @@ public sealed class H264IntraPredictionTests
         byte[] result = H264IntraPrediction.Predict4x4(
             4, Top4, Left4, 15, true, true, true);
 
-        Assert.Equal((byte)14, result[0]);
-        Assert.Equal((byte)23, result[4]);
-        Assert.Equal((byte)44, result[8]);
-        Assert.Equal((byte)60, result[12]);
+        Assert.Equal(new byte[]
+        {
+            23, 14, 20, 30,
+            44, 23, 14, 20,
+            60, 44, 23, 14,
+            70, 60, 44, 23
+        }, result);
     }
 
     [Fact]
