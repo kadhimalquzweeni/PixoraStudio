@@ -196,11 +196,32 @@ public sealed class H264Mp4AvcEndToEndTests
 
         List<string> highProfileCabacTrace = [];
         List<byte[]> preDeblockingFrames = [];
+        List<string> deblockingMetadataTrace = [];
         H264Mp4VideoOutputScheduler diagnosticOutputScheduler = new(
             new H264DecodedPictureOutputScheduler(surface =>
+            {
                 preDeblockingFrames.Add(surface.CopyLumaPlane()
                     .Concat(surface.CopyCbPlane())
-                    .Concat(surface.CopyCrPlane()).ToArray())));
+                    .Concat(surface.CopyCrPlane()).ToArray());
+                for (int mbY = 0; mbY < surface.MacroblockHeight; mbY++)
+                for (int mbX = 0; mbX < surface.MacroblockWidth; mbX++)
+                {
+                    H264DeblockingMacroblockMetadata metadata =
+                        surface.GetDeblockingMetadata(mbX, mbY)
+                        ?? throw new InvalidOperationException("Missing diagnostic deblocking metadata.");
+                    deblockingMetadataTrace.Add(
+                        $"mb({mbX},{mbY}) qpY={metadata.QpY} qpCb={metadata.QpCb} " +
+                        $"qpCr={metadata.QpCr} transform8x8={metadata.TransformSize8x8Flag}");
+                    for (int blockIndex = 0; blockIndex < metadata.LumaBlocks.Count; blockIndex++)
+                    {
+                        H264DeblockingBlockMetadata block = metadata.LumaBlocks[blockIndex];
+                        deblockingMetadataTrace.Add(
+                            $"  luma[{blockIndex}] nz={block.HasNonZeroCoefficients} " +
+                            $"r0={block.ReferencePictureL0} mv0={block.MotionVectorL0} " +
+                            $"r1={block.ReferencePictureL1} mv1={block.MotionVectorL1}");
+                    }
+                }
+            }));
         H264Mp4AccessUnitDecoder diagnosticDecoder = new(
             parameterSets,
             2,
@@ -268,6 +289,9 @@ public sealed class H264Mp4AvcEndToEndTests
         File.WriteAllBytes(
             Path.Combine(testResultsDirectory, "cabac-high-profile-prefilter-b-frame.yuv"),
             preDeblockingBFrame);
+        File.WriteAllLines(
+            Path.Combine(testResultsDirectory, "cabac-high-profile-b-deblocking-metadata.txt"),
+            deblockingMetadataTrace);
 
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
