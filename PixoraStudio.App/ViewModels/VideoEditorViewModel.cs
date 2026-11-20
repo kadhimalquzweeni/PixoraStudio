@@ -415,21 +415,19 @@ public partial class VideoEditorViewModel : ObservableObject
         IReadOnlyList<TimeSpan> positions =
             VideoThumbnailPlan.CreatePositions(_videoInfo.Duration);
 
-        using SemaphoreSlim concurrency = new(
-            VideoThumbnailPlan.MaxConcurrentGenerations);
-
-        async Task<BitmapImage?> GenerateFrameAsync(int index)
+        // The managed H.264 decoder is CPU- and memory-intensive. Decode one
+        // seek target at a time: running several independent 1080p decoders
+        // concurrently can exhaust memory and cause every thumbnail to fail.
+        // Add each completed image immediately so the filmstrip progressively
+        // appears instead of waiting for all targets to finish.
+        for (int index = 0; index < positions.Count; index++)
         {
             string thumbnailPath = Path.Combine(
                 Path.GetTempPath(),
                 $"Pixora_Frame_{Guid.NewGuid()}.png");
 
-            bool acquired = false;
             try
             {
-                await concurrency.WaitAsync();
-                acquired = true;
-
                 string generatedPath =
                     await _videoService.GenerateThumbnailAsync(
                         filePath,
@@ -439,10 +437,10 @@ public partial class VideoEditorViewModel : ObservableObject
                 if (string.IsNullOrWhiteSpace(generatedPath) ||
                     !File.Exists(generatedPath))
                 {
-                    return null;
+                    continue;
                 }
 
-                return await Task.Run(() =>
+                BitmapImage frame = await Task.Run(() =>
                 {
                     using FileStream stream = new(
                         generatedPath,
@@ -450,27 +448,25 @@ public partial class VideoEditorViewModel : ObservableObject
                         FileAccess.Read,
                         FileShare.ReadWrite);
 
-                    BitmapImage frame = new();
-                    frame.BeginInit();
-                    frame.CacheOption = BitmapCacheOption.OnLoad;
-                    frame.DecodePixelWidth = 240;
-                    frame.StreamSource = stream;
-                    frame.EndInit();
-                    frame.Freeze();
-                    return frame;
+                    BitmapImage image = new();
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.DecodePixelWidth = 240;
+                    image.StreamSource = stream;
+                    image.EndInit();
+                    image.Freeze();
+                    return image;
                 });
+
+                VideoFrames.Add(frame);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
-                    $"Thumbnail {index} failed: {ex.Message}");
-                return null;
+                    $"Thumbnail {index} failed: {ex}");
             }
             finally
             {
-                if (acquired)
-                    concurrency.Release();
-
                 if (File.Exists(thumbnailPath))
                 {
                     try
@@ -484,18 +480,6 @@ public partial class VideoEditorViewModel : ObservableObject
                     }
                 }
             }
-        }
-
-        // Decode a small number of representative frames concurrently rather
-        // than serially seeking/decoding twenty times. Keep collection updates
-        // on the UI thread and preserve chronological filmstrip order.
-        BitmapImage?[] frames = await Task.WhenAll(
-            Enumerable.Range(0, positions.Count).Select(GenerateFrameAsync));
-
-        foreach (BitmapImage? frame in frames)
-        {
-            if (frame is not null)
-                VideoFrames.Add(frame);
         }
     }
 }
