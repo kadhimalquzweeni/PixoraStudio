@@ -176,6 +176,30 @@ public sealed class H264CabacSyntaxElementReaderTests
         Assert.Equal(new[] { expectedContext }, bins.ContextIndices);
     }
 
+    [Fact]
+    public void ReadMacroblockSkipFlag_ShouldEmitDiagnosticWithSelectedContextAndBin()
+    {
+        ScriptedCabacReader bins = new(1);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.True(reader.ReadMacroblockSkipFlag(isBSlice: false, contextIndexIncrement: 2));
+
+        Assert.Contains(bins.DiagnosticMarkers, marker =>
+            marker.Contains("mb_skip_flag_p ctx=13 inc=2 bin=1", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ReadEndOfSliceFlag_ShouldEmitDiagnosticWithDecodedTerminationBin()
+    {
+        ScriptedCabacReader bins = new(1);
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.True(reader.ReadEndOfSliceFlag());
+
+        Assert.Contains(bins.DiagnosticMarkers, marker =>
+            marker.Contains("end_of_slice_flag bin=1", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(3)]
@@ -630,7 +654,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         }
     }
 
-    private sealed class ScriptedCabacReader : IH264CabacBinReader
+    private sealed class ScriptedCabacReader : IH264CabacBinReader, IH264CabacDiagnosticTraceSink
     {
         private readonly Queue<int> _decisionBins;
         private readonly Queue<int> _bypassBins;
@@ -654,6 +678,8 @@ public sealed class H264CabacSyntaxElementReaderTests
         }
 
         public List<int> ContextIndices { get; } = [];
+        public List<string> DiagnosticMarkers { get; } = [];
+        public void TraceDiagnostic(string marker) => DiagnosticMarkers.Add(marker);
         public bool Terminated { get; private set; }
 
         public int DecodeBin(int contextIndex)
