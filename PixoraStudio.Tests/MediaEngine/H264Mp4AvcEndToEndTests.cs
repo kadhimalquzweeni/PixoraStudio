@@ -732,11 +732,12 @@ public sealed class H264Mp4AvcEndToEndTests
         string nalBase64)
     {
         byte[] nalBytes = Convert.FromBase64String(nalBase64);
-        byte[] annexB = new byte[nalBytes.Length + 4];
-        annexB[3] = 1;
-        Buffer.BlockCopy(nalBytes, 0, annexB, 4, nalBytes.Length);
+        byte[] lengthPrefixed = new byte[nalBytes.Length + 4];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(
+            lengthPrefixed, checked((uint)nalBytes.Length));
+        Buffer.BlockCopy(nalBytes, 0, lengthPrefixed, 4, nalBytes.Length);
         IReadOnlyList<H264NalUnit> nalUnits =
-            new H264NalUnitReader().ReadAnnexB(annexB);
+            new H264NalUnitReader().ReadLengthPrefixed(lengthPrefixed, 4);
 
         return new H264Mp4VideoSample(
             9, sampleNumber, decodeTimeTicks, presentationTimeTicks,
