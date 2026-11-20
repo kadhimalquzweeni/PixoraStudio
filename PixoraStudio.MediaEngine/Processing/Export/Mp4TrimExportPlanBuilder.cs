@@ -27,8 +27,13 @@ public sealed class Mp4TrimExportPlanBuilder
         if (endSeconds > mediaInfo.DurationSeconds + TimeToleranceSeconds)
             throw new ArgumentOutOfRangeException(nameof(endSeconds), "Trim end exceeds the movie duration.");
 
-        Mp4MediaTrack videoTrack = mediaInfo.GetTracks(Mp4HandlerType.Video).FirstOrDefault()
-            ?? throw new NotSupportedException("The MP4 file does not contain a video track.");
+        IReadOnlyList<Mp4MediaTrack> videoTracks = mediaInfo.GetTracks(Mp4HandlerType.Video);
+        if (videoTracks.Count == 0)
+            throw new NotSupportedException("The MP4 file does not contain a video track.");
+        if (videoTracks.Count > 1)
+            throw new NotSupportedException("Managed trim export currently supports one video track.");
+
+        Mp4MediaTrack videoTrack = videoTracks[0];
 
         if (videoTrack.EditList is not null)
             throw new NotSupportedException("Source video edit lists are not yet supported by managed trim export.");
