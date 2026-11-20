@@ -358,8 +358,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         TaskCompletionSource<bool>? framePresented,
         CancellationToken cancellationToken)
     {
-        bool waitingForRequestedFrame = firstFrameSampleNumber.HasValue;
-        double? requestedFramePresentationTimeSeconds = null;
+        H264Mp4FramePresentationGate gate = new(firstFrameSampleNumber);
         try
         {
             await foreach (H264Mp4DecodedVideoFrame frame in
@@ -367,32 +366,19 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (waitingForRequestedFrame)
-                {
-                    if (frame.SourceSample.SampleNumber != firstFrameSampleNumber)
-                        continue;
+                if (!gate.TryAcceptFrame(frame, out bool isRequestedFrame))
+                    continue;
 
-                    waitingForRequestedFrame = false;
-                    requestedFramePresentationTimeSeconds =
-                        frame.SourceSample.PresentationTimeSeconds;
-                }
-
-                if (requestedFramePresentationTimeSeconds is double requestedTime &&
-                    frame.SourceSample.SampleNumber != firstFrameSampleNumber &&
-                    frame.SourceSample.PresentationTimeSeconds <= requestedTime + 0.005)
+                while (gate.ShouldWaitForFrame(
+                    frame, Math.Max(0, playbackClock())))
                 {
-                    double releaseClockTime = Math.Max(0, requestedTime) + 0.005;
-                    while (Math.Max(0, playbackClock()) <= releaseClockTime)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        await Task.Delay(TimeSpan.FromMilliseconds(5), cancellationToken)
-                            .ConfigureAwait(false);
-                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await Task.Delay(TimeSpan.FromMilliseconds(5), cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 H264FramePresentationDecision decision;
-                if (firstFrameSampleNumber.HasValue &&
-                    frame.SourceSample.SampleNumber == firstFrameSampleNumber.Value)
+                if (isRequestedFrame)
                 {
                     decision = new H264FramePresentationDecision(
                         H264FramePresentationAction.Present, TimeSpan.Zero);
@@ -429,11 +415,12 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                     frame.SourceSample.PresentationTimeTicks,
                     frame.SourceSample.Timescale);
                 publish(bitmap);
-                if (firstFrameSampleNumber == frame.SourceSample.SampleNumber)
+
+                if (isRequestedFrame)
                     framePresented?.TrySetResult(true);
             }
 
-            if (waitingForRequestedFrame)
+            if (!gate.HasReachedRequestedFrame)
             {
                 throw new InvalidOperationException(
                     $"The managed H.264 decoder did not emit requested MP4 sample {firstFrameSampleNumber}.");
