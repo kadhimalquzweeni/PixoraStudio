@@ -126,14 +126,11 @@ public sealed class H264BitReader
     {
         if (count is < 0 or > 32) throw new ArgumentOutOfRangeException(nameof(count));
         if (count > RemainingBits) throw new EndOfStreamException("The H.264 bitstream ended unexpectedly.");
-        uint value = 0;
-        for (int i = 0; i < count; i++)
-        {
-            int byteIndex = _position >> 3;
-            int bitIndex = 7 - (_position & 7);
-            value = (value << 1) | (uint)((_data.Span[byteIndex] >> bitIndex) & 1);
-            _position++;
-        }
+
+        ReadOnlySpan<byte> data = _data.Span;
+        int position = _position;
+        uint value = ReadBitsCore(data, ref position, count);
+        _position = position;
         return value;
     }
 
@@ -147,15 +144,32 @@ public sealed class H264BitReader
         if (bitOffset > RemainingBits || count > RemainingBits - bitOffset)
             throw new EndOfStreamException("The H.264 bitstream ended unexpectedly.");
 
-        uint value = 0;
         int position = _position + bitOffset;
-        for (int i = 0; i < count; i++)
+        return ReadBitsCore(_data.Span, ref position, count);
+    }
+
+    /// <summary>
+    /// Reads up to 32 bits a byte-chunk at a time. This avoids a loop iteration,
+    /// bounds calculation and span access for every individual bit.
+    /// </summary>
+    private static uint ReadBitsCore(ReadOnlySpan<byte> data, ref int position, int count)
+    {
+        uint value = 0;
+        int remaining = count;
+
+        while (remaining > 0)
         {
-            int byteIndex = position >> 3;
-            int bitIndex = 7 - (position & 7);
-            value = (value << 1) | (uint)((_data.Span[byteIndex] >> bitIndex) & 1);
-            position++;
+            int bitOffset = position & 7;
+            int bitsFromByte = Math.Min(remaining, 8 - bitOffset);
+            int shift = 8 - bitOffset - bitsFromByte;
+            uint mask = (1u << bitsFromByte) - 1u;
+            uint chunk = ((uint)data[position >> 3] >> shift) & mask;
+
+            value = (value << bitsFromByte) | chunk;
+            position += bitsFromByte;
+            remaining -= bitsFromByte;
         }
+
         return value;
     }
 
