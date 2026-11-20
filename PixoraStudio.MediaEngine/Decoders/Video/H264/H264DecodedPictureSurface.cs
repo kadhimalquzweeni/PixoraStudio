@@ -200,6 +200,8 @@ public sealed class H264DecodedPictureSurface
 
     /// <summary>
     /// Stores a decoded macroblock and records whether it was intra-coded.
+    /// Concurrent writes and cross-slice duplicates are rejected. A same-slice
+    /// rewrite is permitted only after deblocking metadata has been attached.
     /// This distinction is required by constrained_intra_pred_flag when
     /// reference samples are gathered for later macroblocks.
     /// </summary>
