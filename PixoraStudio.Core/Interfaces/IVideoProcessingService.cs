@@ -1,4 +1,3 @@
-﻿
 using PixoraStudio.Core.Models;
 
 namespace PixoraStudio.Core.Interfaces
@@ -11,8 +10,7 @@ namespace PixoraStudio.Core.Interfaces
             string filePath,
             TimeSpan position,
             string outputPath);
-    }
-        
+
         Task GenerateThumbnailsAsync(
             string filePath,
             IReadOnlyList<TimeSpan> positions,
@@ -20,3 +18,4 @@ namespace PixoraStudio.Core.Interfaces
             IProgress<VideoThumbnailResult>? progress = null,
             CancellationToken cancellationToken = default);
     }
+}
