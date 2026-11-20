@@ -254,11 +254,11 @@ public sealed class H264Mp4AvcEndToEndTests
             Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
 
         string[] actualFrameHashes = frames.Select(ComputeFrameHash).ToArray();
-        string testResultsDirectory = Path.GetFullPath(
+        string highProfileOutputDirectory = Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
+        Directory.CreateDirectory(highProfileOutputDirectory);
         File.WriteAllBytes(
-            Path.Combine(testResultsDirectory, "cabac-high-profile-decoded-frames.yuv"),
+            Path.Combine(highProfileOutputDirectory, "cabac-high-profile-decoded-frames.yuv"),
             frames.SelectMany(frame => frame.Surface.CopyLumaPlane()
                 .Concat(frame.Surface.CopyCbPlane())
                 .Concat(frame.Surface.CopyCrPlane())).ToArray());
