@@ -31,17 +31,17 @@ public sealed class Mp4TrimMoovWriterTests
         Mp4Box rewrittenMoov = Assert.Single(new Mp4Reader().ReadBoxTree(output));
 
         Mp4Box mvhd = Assert.Single(rewrittenMoov.Children, box => box.Type == "mvhd");
-        Assert.Equal(2000UL, new Mp4MovieHeaderReader().Read(output, mvhd).DurationTicks);
+        Assert.Equal(1000UL, new Mp4MovieHeaderReader().Read(output, mvhd).DurationTicks);
 
         Mp4Box trak = Assert.Single(rewrittenMoov.Children, box => box.Type == "trak");
         Mp4Box tkhd = Assert.Single(trak.Children, box => box.Type == "tkhd");
-        Assert.Equal(2000UL, ReadDuration(output, tkhd, 20, 4));
+        Assert.Equal(1000UL, ReadDuration(output, tkhd, 20, 4));
 
         Mp4Box edts = Assert.Single(trak.Children, box => box.Type == "edts");
         Mp4EditList editList = new Mp4EditListReader().Read(
             output,
             Assert.Single(edts.Children));
-        Assert.Equal(new[] { new Mp4EditListEntry(2000, 0, 1, 0) }, editList.Entries);
+        Assert.Equal(new[] { new Mp4EditListEntry(1000, 500, 1, 0) }, editList.Entries);
 
         Mp4Box mdia = Assert.Single(trak.Children, box => box.Type == "mdia");
         Mp4Box mdhd = Assert.Single(mdia.Children, box => box.Type == "mdhd");
@@ -146,7 +146,7 @@ public sealed class Mp4TrimMoovWriterTests
             timeline);
 
         Mp4TrimTrackPlan trackPlan = new(1, Mp4HandlerType.Video, track.SampleLocations.Samples);
-        Mp4TrimExportPlan plan = new(0.5, 1.5, 0, 2, [trackPlan]);
+        Mp4TrimExportPlan plan = new(0.5, 1.5, 0.5, 1.5, [trackPlan]);
         return (info, plan);
     }
 
