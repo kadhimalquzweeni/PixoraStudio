@@ -607,8 +607,12 @@ public partial class VideoEditorView : UserControl
                     TimeSpan.FromMilliseconds(targetMilliseconds),
                     resumePlayback: false);
             }
-            catch (Exception audioException) when (
-                audioException is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                // A newer frame step or video operation superseded this audio seek.
+                return;
+            }
+            catch (Exception audioException)
             {
                 // If custom AAC cannot follow the frame seek, switch back to
                 // LibVLC audio at the same media timestamp rather than resume
