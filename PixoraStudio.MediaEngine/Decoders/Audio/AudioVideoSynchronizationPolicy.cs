@@ -21,6 +21,9 @@ public static class AudioVideoSynchronizationPolicy
         if (threshold < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(correctionThreshold));
 
-        return (audioPosition - videoPosition).Duration() >= threshold;
+        // Compare tick values as doubles so the absolute difference cannot
+        // overflow TimeSpan when callers supply extreme values.
+        return Math.Abs((double)audioPosition.Ticks - videoPosition.Ticks) >=
+            threshold.Ticks;
     }
 }
