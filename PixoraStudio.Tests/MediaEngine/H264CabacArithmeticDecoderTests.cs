@@ -115,6 +115,35 @@ public sealed class H264CabacArithmeticDecoderTests
         Assert.Equal(new H264CabacContextModel(0, 1), context);
     }
 
+    [Theory]
+    [InlineData(2, 7)]
+    [InlineData(3, 7)]
+    [InlineData(63, 3)]
+    [InlineData(127, 2)]
+    [InlineData(128, 1)]
+    [InlineData(239, 1)]
+    [InlineData(240, 1)]
+    public void DecodeDecision_ShouldReadAllRenormalisationBitsInOneBatch(int rangeLps, int expectedShift)
+    {
+        byte[,] rangeTable = new byte[64, 4];
+        for (int state = 0; state < 64; state++)
+        for (int rangeClass = 0; rangeClass < 4; rangeClass++)
+            rangeTable[state, rangeClass] = 2;
+        rangeTable[0, 3] = (byte)rangeLps;
+
+        byte[] transitionMps = Enumerable.Range(0, 64).Select(state => (byte)state).ToArray();
+        byte[] transitionLps = Enumerable.Range(0, 64).Select(state => (byte)state).ToArray();
+        H264BitReader reader = new(new byte[] { 0xFE, 0x80, 0x00 }, 24);
+        H264CabacArithmeticDecoder decoder = new(reader, rangeTable, transitionMps, transitionLps);
+        H264CabacContextModel context = new(0, 0);
+
+        Assert.Equal(1, decoder.DecodeDecision(ref context));
+
+        Assert.Equal(rangeLps << expectedShift, decoder.Range);
+        Assert.Equal((rangeLps - 1) << expectedShift, decoder.Offset);
+        Assert.Equal(9 + expectedShift, reader.PositionBits);
+    }
+
     [Fact]
     public void DecodeDecision_ShouldRejectInvalidContextState()
     {
