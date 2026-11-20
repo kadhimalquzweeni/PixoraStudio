@@ -200,8 +200,8 @@ public sealed class H264DecodedPictureSurface
 
     /// <summary>
     /// Stores a decoded macroblock and records whether it was intra-coded.
-    /// Concurrent writes and cross-slice duplicates are rejected. A same-slice
-    /// rewrite is permitted only after deblocking metadata has been attached.
+    /// Concurrent writes and cross-slice duplicates are rejected. Same-slice
+    /// rewrites remain supported and invalidate previously attached metadata.
     /// This distinction is required by constrained_intra_pred_flag when
     /// reference samples are gathered for later macroblocks.
     /// </summary>
@@ -234,11 +234,10 @@ public sealed class H264DecodedPictureSurface
             if (previousState == 1)
                 throw new InvalidOperationException(
                     "A macroblock cannot be reconstructed concurrently.");
-            if (previousState == 2 &&
-                (_sliceIds[index] != sliceId || _deblockingMetadata[index] is null))
+            if (previousState == 2 && _sliceIds[index] != sliceId)
             {
                 throw new InvalidOperationException(
-                    "A macroblock cannot be reconstructed again by another slice or before its deblocking metadata is attached.");
+                    "A macroblock cannot be reconstructed by more than one slice.");
             }
             if (Interlocked.CompareExchange(
                     ref _macroblockStates[index], 1, previousState) != previousState)
