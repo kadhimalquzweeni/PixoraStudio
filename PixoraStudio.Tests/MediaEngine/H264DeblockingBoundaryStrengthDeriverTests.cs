@@ -36,6 +36,7 @@ public sealed class H264DeblockingBoundaryStrengthDeriverTests
         H264DeblockingBlockMetadata p = Inter() with
         {
             ReferencePictureL0 = Reference0,
+            ReferenceIndexL0 = 0,
             MotionVectorL0 = new H264MotionVector(12, -8)
         };
         H264DeblockingBlockMetadata q = p with
@@ -53,12 +54,32 @@ public sealed class H264DeblockingBoundaryStrengthDeriverTests
         H264DeblockingBlockMetadata p = Inter() with
         {
             ReferencePictureL0 = Reference0,
+            ReferenceIndexL0 = 0,
             MotionVectorL0 = new H264MotionVector(0, 0)
         };
         H264DeblockingBlockMetadata q = Inter() with
         {
             ReferencePictureL0 = Reference1,
+            ReferenceIndexL0 = 1,
             MotionVectorL0 = new H264MotionVector(0, 0)
+        };
+
+        Assert.Equal(1,
+            H264DeblockingBoundaryStrengthDeriver.Derive(p, q, false));
+    }
+
+    [Fact]
+    public void Derive_WhenSameReferencePictureUsesDifferentListIndices_ShouldReturnOne()
+    {
+        H264DeblockingBlockMetadata p = Inter() with
+        {
+            ReferencePictureL0 = Reference0,
+            ReferenceIndexL0 = 0,
+            MotionVectorL0 = new H264MotionVector(0, 0)
+        };
+        H264DeblockingBlockMetadata q = p with
+        {
+            ReferenceIndexL0 = 1
         };
 
         Assert.Equal(1,
@@ -71,11 +92,13 @@ public sealed class H264DeblockingBoundaryStrengthDeriverTests
         H264DeblockingBlockMetadata p = Inter() with
         {
             ReferencePictureL0 = new H264ReferencePicture(2, 10),
+            ReferenceIndexL0 = 0,
             MotionVectorL0 = new H264MotionVector(0, 0)
         };
         H264DeblockingBlockMetadata q = Inter() with
         {
             ReferencePictureL0 = new H264ReferencePicture(3, 10),
+            ReferenceIndexL0 = 1,
             MotionVectorL0 = new H264MotionVector(0, 0)
         };
 
@@ -93,6 +116,7 @@ public sealed class H264DeblockingBoundaryStrengthDeriverTests
         H264DeblockingBlockMetadata p = Inter() with
         {
             ReferencePictureL0 = Reference0,
+            ReferenceIndexL0 = 0,
             MotionVectorL0 = new H264MotionVector(0, 0)
         };
         H264DeblockingBlockMetadata q = p with
@@ -110,15 +134,19 @@ public sealed class H264DeblockingBoundaryStrengthDeriverTests
         H264DeblockingBlockMetadata p = Inter() with
         {
             ReferencePictureL0 = Reference0,
+            ReferenceIndexL0 = 0,
             MotionVectorL0 = new H264MotionVector(4, 8),
             ReferencePictureL1 = Reference1,
+            ReferenceIndexL1 = 1,
             MotionVectorL1 = new H264MotionVector(-4, 0)
         };
         H264DeblockingBlockMetadata q = Inter() with
         {
             ReferencePictureL0 = Reference1,
+            ReferenceIndexL0 = 1,
             MotionVectorL0 = new H264MotionVector(-3, 1),
             ReferencePictureL1 = Reference0,
+            ReferenceIndexL1 = 0,
             MotionVectorL1 = new H264MotionVector(5, 7)
         };
 
@@ -132,11 +160,13 @@ public sealed class H264DeblockingBoundaryStrengthDeriverTests
         H264DeblockingBlockMetadata p = Inter() with
         {
             ReferencePictureL0 = Reference0,
+            ReferenceIndexL0 = 0,
             MotionVectorL0 = new H264MotionVector(0, 0)
         };
         H264DeblockingBlockMetadata q = Inter() with
         {
             ReferencePictureL0 = Reference0,
+            ReferenceIndexL0 = 0,
             MotionVectorL0 = new H264MotionVector(4, 0)
         };
 
