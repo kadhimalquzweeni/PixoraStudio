@@ -108,6 +108,54 @@ public sealed class H264DecodedPictureSurfaceTests
         Assert.Equal(new uint[] { 1, 3, 5 }, surface.GetUndecodedMacroblockAddresses());
     }
 
+    [Fact]
+    public void WriteMacroblock_ShouldAllowOnlyOneConcurrentWriterPerMacroblock()
+    {
+        H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
+        int successfulWrites = 0;
+        int rejectedWrites = 0;
+
+        Parallel.For(0, 64, _ =>
+        {
+            try
+            {
+                surface.WriteMacroblock(0, 0, 3, false,
+                    new byte[256], new byte[64], new byte[64]);
+                Interlocked.Increment(ref successfulWrites);
+            }
+            catch (InvalidOperationException)
+            {
+                Interlocked.Increment(ref rejectedWrites);
+            }
+        });
+
+        Assert.Equal(1, successfulWrites);
+        Assert.Equal(63, rejectedWrites);
+        Assert.True(surface.IsMacroblockDecoded(0, 0));
+        Assert.True(surface.IsComplete);
+    }
+
+    [Fact]
+    public void WriteMacroblock_ShouldSupportConcurrentWritesToDistinctMacroblocks()
+    {
+        H264DecodedPictureSurface surface = new(CreateSps(1, 1, 0));
+
+        Parallel.For(0, 2, x =>
+        {
+            byte value = checked((byte)(x + 10));
+            surface.WriteMacroblock(x, 0, x, false,
+                Enumerable.Repeat(value, 256).ToArray(),
+                Enumerable.Repeat(value, 64).ToArray(),
+                Enumerable.Repeat(value, 64).ToArray());
+        });
+
+        Assert.True(surface.IsComplete);
+        Assert.Equal((byte)10, surface.GetLumaSample(0, 0));
+        Assert.Equal((byte)11, surface.GetLumaSample(16, 0));
+        Assert.True(surface.IsMacroblockAvailable(0, 0, 0, false));
+        Assert.True(surface.IsMacroblockAvailable(1, 0, 1, false));
+    }
+
     private static H264SequenceParameterSet CreateSps(
         uint format, uint widthMinus1, uint heightMinus1) =>
         new(0, 66, 30, format, false, 0, 0, 0, 0, 0, 1,

@@ -230,6 +230,46 @@ public sealed class H264Mp4AccessUnitDecoder
                     $"Slice type {firstSlice.SliceType} is not supported by the MP4 access-unit decoder.");
             }
 
+            if (firstSlice.SliceType == H264SliceType.I && slices.Count > 1)
+            {
+                // Each I-slice gets isolated entropy and neighbour contexts.
+                // The shared surface atomically rejects duplicate macroblock writes.
+                H264IntraSliceDecodeResult?[] results = new H264IntraSliceDecodeResult?[slices.Count];
+                Parallel.For(
+                    0,
+                    slices.Count,
+                    new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
+                    i =>
+                    {
+                        H264NalUnit nalUnit = slices[i].NalUnit;
+                        int currentSliceId = checked(firstSliceId + i);
+                        H264IntraSliceDecodeResult result;
+                        if (activePps.EntropyCodingModeFlag)
+                        {
+                            H264CabacIntraSliceDataDecoder decoder = new(surface, _cabacReaderFactory);
+                            decoder.ResetPictureContexts();
+                            result = decoder.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                        }
+                        else
+                        {
+                            H264IntraSliceDataDecoder decoder = new(surface);
+                            result = decoder.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                        }
+
+                        results[i] = result;
+                    });
+
+                // Keep diagnostics stable regardless of task completion order.
+                for (int i = 0; i < results.Length; i++)
+                {
+                    H264IntraSliceDecodeResult result = results[i] ??
+                        throw new InvalidOperationException($"Parallel I-slice {i} did not return a result.");
+                    sliceDecodeSummaries.Add(
+                        $"slice[{i}] first_mb={slices[i].Header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}");
+                }
+            }
+            else
+            {
             for (int i = 0; i < slices.Count; i++)
             {
                 (H264NalUnit nalUnit, H264SliceHeader header) = slices[i];
@@ -294,6 +334,7 @@ public sealed class H264Mp4AccessUnitDecoder
                 }
             }
 
+            }
             if (!surface.IsComplete)
             {
                 IReadOnlyList<uint> missingMacroblocks =
@@ -361,6 +402,16 @@ public sealed class H264Mp4AccessUnitDecoder
         _lastSampleNumber = null;
         _lastDecodeTimeTicks = null;
         _requiresReset = false;
+    }
+
+    private static int GetMaxSliceParallelism()
+    {
+        string? configured = Environment.GetEnvironmentVariable("PIXORA_H264_SLICE_WORKERS");
+        if (int.TryParse(configured, out int requested) && requested > 0)
+            return Math.Clamp(requested, 1, 4);
+
+        // A small nested worker pool composes with parallel thumbnail workers.
+        return Math.Clamp(Environment.ProcessorCount / 4, 1, 2);
     }
 
     private void ValidateConfigurationIdentity(H264AvcDecoderConfiguration configuration)

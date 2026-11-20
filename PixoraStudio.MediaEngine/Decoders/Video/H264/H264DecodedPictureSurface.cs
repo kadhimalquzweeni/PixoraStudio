@@ -13,7 +13,7 @@ public sealed class H264DecodedPictureSurface
     private readonly byte[] _cb;
     private readonly byte[] _cr;
     private readonly int[] _sliceIds;
-    private readonly bool[] _decoded;
+    private readonly int[] _macroblockStates; // 0=unwritten, 1=writing, 2=published
     private readonly bool[] _intra;
     private readonly H264DeblockingMacroblockMetadata?[] _deblockingMetadata;
     private bool _deblockingFilterApplied;
@@ -41,7 +41,7 @@ public sealed class H264DecodedPictureSurface
         int macroblockCount = checked(MacroblockWidth * MacroblockHeight);
         _sliceIds = new int[macroblockCount];
         Array.Fill(_sliceIds, -1);
-        _decoded = new bool[macroblockCount];
+        _macroblockStates = new int[macroblockCount];
         _intra = new bool[macroblockCount];
         _deblockingMetadata = new H264DeblockingMacroblockMetadata?[macroblockCount];
     }
@@ -53,7 +53,19 @@ public sealed class H264DecodedPictureSurface
     public int MacroblockWidth { get; }
     public int MacroblockHeight { get; }
     public uint ChromaFormatIdc { get; }
-    public bool IsComplete => _decoded.All(decoded => decoded);
+    public bool IsComplete
+    {
+        get
+        {
+            for (int index = 0; index < _macroblockStates.Length; index++)
+            {
+                if (Volatile.Read(ref _macroblockStates[index]) != 2)
+                    return false;
+            }
+
+            return true;
+        }
+    }
     public bool HasCompleteDeblockingMetadata =>
         _deblockingMetadata.All(metadata => metadata is not null);
     public bool IsDeblockingFilterApplied => _deblockingFilterApplied;
@@ -68,7 +80,7 @@ public sealed class H264DecodedPictureSurface
             throw new InvalidOperationException("Deblocking metadata cannot change after picture filtering.");
         ValidateMacroblock(macroblockX, macroblockY);
         int index = GetMacroblockIndex(macroblockX, macroblockY);
-        if (!_decoded[index])
+        if (Volatile.Read(ref _macroblockStates[index]) != 2)
             throw new InvalidOperationException("Deblocking metadata can only be attached after macroblock reconstruction.");
         metadata.Validate(checked((int)ChromaFormatIdc));
         _deblockingMetadata[index] = metadata.DeepCopy();
@@ -138,7 +150,7 @@ public sealed class H264DecodedPictureSurface
     public bool IsMacroblockDecoded(int macroblockX, int macroblockY)
     {
         ValidateMacroblock(macroblockX, macroblockY);
-        return _decoded[GetMacroblockIndex(macroblockX, macroblockY)];
+        return Volatile.Read(ref _macroblockStates[GetMacroblockIndex(macroblockX, macroblockY)]) == 2;
     }
 
     /// <summary>
@@ -148,9 +160,9 @@ public sealed class H264DecodedPictureSurface
     public IReadOnlyList<uint> GetUndecodedMacroblockAddresses()
     {
         List<uint> addresses = [];
-        for (int index = 0; index < _decoded.Length; index++)
+        for (int index = 0; index < _macroblockStates.Length; index++)
         {
-            if (!_decoded[index])
+            if (Volatile.Read(ref _macroblockStates[index]) != 2)
                 addresses.Add(checked((uint)index));
         }
 
@@ -167,7 +179,7 @@ public sealed class H264DecodedPictureSurface
         if (currentSliceId < 0)
             throw new ArgumentOutOfRangeException(nameof(currentSliceId));
         int index = GetMacroblockIndex(macroblockX, macroblockY);
-        return _decoded[index] &&
+        return Volatile.Read(ref _macroblockStates[index]) == 2 &&
             _sliceIds[index] == currentSliceId &&
             (!constrainedIntraPrediction || _intra[index]);
     }
@@ -175,6 +187,7 @@ public sealed class H264DecodedPictureSurface
     /// <summary>
     /// Stores one completely reconstructed macroblock. The decoded/availability
     /// marker is published only after all three planes have been copied.
+    /// Concurrent calls may write distinct macroblocks; duplicate writes are rejected.
     /// </summary>
     public void WriteIntraMacroblock(
         int macroblockX,
@@ -211,6 +224,11 @@ public sealed class H264DecodedPictureSurface
         if (luma.Count != 256 || cb.Count != chromaSamples || cr.Count != chromaSamples)
             throw new ArgumentException("Macroblock plane buffers do not match the active chroma format.");
 
+        int index = GetMacroblockIndex(macroblockX, macroblockY);
+        if (Interlocked.CompareExchange(ref _macroblockStates[index], 1, 0) != 0)
+            throw new InvalidOperationException(
+                "A macroblock cannot be reconstructed more than once or concurrently.");
+
         int lumaX = macroblockX * 16;
         int lumaY = macroblockY * 16;
         CopyBlock(luma, _luma, Width, lumaX, lumaY, 16, 16);
@@ -220,11 +238,10 @@ public sealed class H264DecodedPictureSurface
         CopyBlock(cb, _cb, ChromaWidth, chromaX, chromaY, 8, chromaBlockHeight);
         CopyBlock(cr, _cr, ChromaWidth, chromaX, chromaY, 8, chromaBlockHeight);
 
-        int index = GetMacroblockIndex(macroblockX, macroblockY);
         _sliceIds[index] = sliceId;
         _intra[index] = isIntra;
         _deblockingMetadata[index] = null;
-        _decoded[index] = true;
+        Volatile.Write(ref _macroblockStates[index], 2);
     }
 
     private static void CopyBlock(
