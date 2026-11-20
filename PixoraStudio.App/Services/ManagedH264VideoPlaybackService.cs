@@ -59,6 +59,23 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             track, currentPresentationTimeSeconds, direction);
     }
 
+    public H264Mp4FrameNavigationTarget? FindAdjacentFrame(
+        H264Mp4FrameNavigationTarget currentFrame,
+        H264Mp4FrameNavigationDirection direction)
+    {
+        ArgumentNullException.ThrowIfNull(currentFrame);
+        Mp4MediaInfo? info = _mediaInfo;
+        if (info is null)
+            return null;
+
+        Mp4MediaTrack track = info.GetTrack(_trackId) ??
+            throw new InvalidOperationException(
+                $"The loaded MP4 video track {_trackId} is no longer available.");
+
+        return _frameNavigationPlanner.FindAdjacentFrame(
+            track, currentFrame, direction);
+    }
+
     public async Task<bool> TryStartAsync(
         string filePath,
         Func<double> playbackClock,
