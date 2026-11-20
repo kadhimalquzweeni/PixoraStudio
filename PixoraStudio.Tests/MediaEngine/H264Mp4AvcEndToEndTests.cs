@@ -777,10 +777,25 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.True(bResult.Surface.HasCompleteDeblockingMetadata);
         Assert.Equal(H264SliceType.P, pResult.SliceHeader.SliceType);
         Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
-        Assert.All(pResult.Surface.CopyLumaPlane(),
-            value => Assert.Contains(value, new byte[] { 80, 120 }));
-        Assert.All(bResult.Surface.CopyLumaPlane(),
-            value => Assert.Contains(value, new byte[] { 80, 120 }));
+        foreach (H264DecodedPictureSurface surface in
+            new[] { pResult.Surface, bResult.Surface })
+        {
+            Assert.All(surface.CopyLumaPlane().Select((value, index) =>
+                (value, x: index % 32)), sample =>
+            {
+                Assert.Equal(sample.x < 16 ? (byte)80 : (byte)120, sample.value);
+            });
+            Assert.All(surface.CopyCbPlane().Select((value, index) =>
+                (value, x: index % 16)), sample =>
+            {
+                Assert.Equal(sample.x < 8 ? (byte)96 : (byte)140, sample.value);
+            });
+            Assert.All(surface.CopyCrPlane().Select((value, index) =>
+                (value, x: index % 16)), sample =>
+            {
+                Assert.Equal(sample.x < 8 ? (byte)160 : (byte)200, sample.value);
+            });
+        }
     }
 
 
