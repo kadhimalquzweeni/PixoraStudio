@@ -248,7 +248,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
-    public void Reconstruct_SpatialDirect_ShouldApplyCollocatedColZeroFlag()
+    public void Reconstruct_SpatialDirect_ShouldIgnoreTemporalColZeroFlag()
     {
         H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
             new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
@@ -275,8 +275,8 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
         Assert.Equal(4, result.Count);
         Assert.All(result, item =>
         {
-            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL0);
-            Assert.Equal(new H264MotionVector(0, 0), item.MotionVectorL1);
+            Assert.Equal(new H264MotionVector(20, 0), item.MotionVectorL0);
+            Assert.Equal(new H264MotionVector(20, 0), item.MotionVectorL1);
         });
     }
 
@@ -340,7 +340,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
-    public void SpatialDirect_WithColZeroFlagAndReferenceZero_ShouldZeroBothListVectors()
+    public void SpatialDirect_WithReferenceZero_ShouldNotApplyTemporalColZeroFlag()
     {
         var state0 = new H264MotionVectorPictureState(2, 2);
         var state1 = new H264MotionVectorPictureState(2, 2);
@@ -352,13 +352,12 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
         H264ReconstructedBInterSubPartition result = Assert.Single(
             new H264BSpatialDirectMotionVectorDeriver().Derive(
                 state0, state1, 1, 1, 0, 0, 2, 2,
-                0, 0, direct8x8InferenceFlag: true,
-                colZeroFlagProvider: (_, _, _, _) => true));
+                0, 0, direct8x8InferenceFlag: true));
 
         Assert.Equal((int?)0, result.ReferenceIndexL0);
         Assert.Equal((int?)0, result.ReferenceIndexL1);
-        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL0);
-        Assert.Equal(new H264MotionVector(0, 0), result.MotionVectorL1);
+        Assert.Equal(new H264MotionVector(20, 0), result.MotionVectorL0);
+        Assert.Equal(new H264MotionVector(5, 5), result.MotionVectorL1);
     }
 
     [Fact]
