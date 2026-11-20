@@ -97,7 +97,12 @@ public sealed class H264CabacResidualBlockReader
             contextMap.LastSignificantContextIncrements,
             contextMap.AbsoluteLevelContextAdjust);
 
-        int totalCoefficients = coefficients.Count(value => value != 0);
+        int totalCoefficients = 0;
+        for (int index = 0; index < coefficients.Length; index++)
+        {
+            if (coefficients[index] != 0)
+                totalCoefficients++;
+        }
         if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader,

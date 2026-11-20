@@ -33,9 +33,30 @@ public static class H264InterMacroblockResidualReconstructor
         if (residual.LumaBlocks is null || residual.Luma8x8Blocks is null ||
             residual.ChromaComponents is null)
             throw new ArgumentException("Residual block collections cannot be null.", nameof(residual));
+        H264IntraChromaResidualComponent? cbResidual = null;
+        H264IntraChromaResidualComponent? crResidual = null;
+        foreach (H264IntraChromaResidualComponent? component in residual.ChromaComponents)
+        {
+            if (component is null)
+                throw new FormatException("Inter chroma residual components cannot be null.");
+
+            switch (component.ComponentId)
+            {
+                case 1 when cbResidual is null:
+                    cbResidual = component;
+                    break;
+                case 2 when crResidual is null:
+                    crResidual = component;
+                    break;
+                default:
+                    throw new FormatException(
+                        "Inter residuals must contain exactly one Cb and one Cr component.");
+            }
+        }
+
         if (residual.ChromaComponents.Count != 2 ||
-            residual.ChromaComponents.Count(component => component is not null && component.ComponentId == 1) != 1 ||
-            residual.ChromaComponents.Count(component => component is not null && component.ComponentId == 2) != 1)
+            cbResidual is null ||
+            crResidual is null)
             throw new FormatException("Inter residuals must contain exactly one Cb and one Cr component.");
 
         int chromaHeight = sps.ChromaFormatIdc == 1 ? 8 : 16;
@@ -119,8 +140,6 @@ public static class H264InterMacroblockResidualReconstructor
                 throw new FormatException("The inter luma residual block grid is incomplete.");
         }
 
-        H264IntraChromaResidualComponent cbResidual = residual.ChromaComponents.Single(c => c.ComponentId == 1);
-        H264IntraChromaResidualComponent crResidual = residual.ChromaComponents.Single(c => c.ComponentId == 2);
         byte[] cb = H264IntraChromaResidualReconstructor.Reconstruct(
             prediction.Cb, cbResidual, qpY, sps, pps, scalingListIndexOverride: 4);
         byte[] cr = H264IntraChromaResidualReconstructor.Reconstruct(
