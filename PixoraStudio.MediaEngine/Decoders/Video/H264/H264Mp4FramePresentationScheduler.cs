@@ -30,7 +30,7 @@ public sealed class H264Mp4FramePresentationScheduler
         if (!double.IsFinite(frameDurationSeconds) || frameDurationSeconds <= 0)
             throw new ArgumentOutOfRangeException(nameof(frameDurationSeconds));
 
-        return Math.Max(0.020, frameDurationSeconds * 2.0);
+        return Math.Clamp(frameDurationSeconds * 2.0, 0.020, 0.080);
     }
 
     public H264FramePresentationDecision Evaluate(
