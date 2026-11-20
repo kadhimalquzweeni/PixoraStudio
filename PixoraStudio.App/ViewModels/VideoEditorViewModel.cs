@@ -64,11 +64,11 @@ public partial class VideoEditorViewModel : ObservableObject
     private string exportStatusMessage = string.Empty;
 
     private bool CanExportTrimmedVideo() =>
-        !IsLoading &&
-        !IsExporting &&
-        !string.IsNullOrWhiteSpace(VideoPath) &&
-        string.Equals(Path.GetExtension(VideoPath), ".mp4", StringComparison.OrdinalIgnoreCase) &&
-        TrimDuration > 0;
+        VideoExportEligibility.CanExport(
+            VideoPath,
+            IsExporting,
+            TrimStart,
+            TrimEnd);
 
     private bool CanCancelExport() => IsExporting;
 
