@@ -149,13 +149,27 @@ public sealed class H264Mp4AvcEndToEndTests
                     new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
                     trace));
 
-        Assert.NotNull(decoder.Decode(CreateCabacSample(
-            configuration, 1, 0, 0, true, CabacMainResidual32IdrNal)));
-        Assert.NotNull(decoder.Decode(CreateCabacSample(
-            configuration, 2, 1, 2, false, CabacMainResidual32PNal)));
-        H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(CreateCabacSample(
-            configuration, 3, 2, 1, false, CabacMainResidual32BNal))!;
+        string testResultsDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
+        Directory.CreateDirectory(testResultsDirectory);
+        H264Mp4AccessUnitDecodeResult? bResult = null;
+        try
+        {
+            Assert.NotNull(decoder.Decode(CreateCabacSample(
+                configuration, 1, 0, 0, true, CabacMainResidual32IdrNal)));
+            Assert.NotNull(decoder.Decode(CreateCabacSample(
+                configuration, 2, 1, 2, false, CabacMainResidual32PNal)));
+            bResult = decoder.Decode(CreateCabacSample(
+                configuration, 3, 2, 1, false, CabacMainResidual32BNal));
+        }
+        finally
+        {
+            File.WriteAllLines(
+                Path.Combine(testResultsDirectory, "cabac-main-multiblock-b-trace.txt"),
+                trace);
+        }
 
+        Assert.NotNull(bResult);
         Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
         Assert.Contains(trace, entry =>
             entry.Contains("stage=residual-syntax complete cbp_luma=15"));
