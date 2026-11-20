@@ -300,7 +300,19 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(1, reader.ReadInterSliceIntraMacroblockType(17));
-        Assert.Equal(new[] { 17, 20, 21, 22, 22 }, bins.ContextIndices);
+        Assert.Equal(new[] { 17, 20, 21, 23, 24 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadInterSliceIntraMacroblockType_ShouldUseDistinctContextsForChromaAndPredictionSuffix()
+    {
+        // prefix, terminate, luma-CBP, chroma-CBP, chroma-CBP value,
+        // prediction-mode high bit, prediction-mode low bit.
+        ScriptedCabacReader bins = new(new[] { 1, 0, 0, 1, 1, 1, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(11, reader.ReadInterSliceIntraMacroblockType(17));
+        Assert.Equal(new[] { 17, 20, 21, 22, 23, 24 }, bins.ContextIndices);
     }
 
     [Fact]
@@ -310,7 +322,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(24, reader.ReadInterSliceIntraMacroblockType(32));
-        Assert.Equal(new[] { 32, 35, 36, 36, 37, 37 }, bins.ContextIndices);
+        Assert.Equal(new[] { 32, 35, 36, 37, 38, 39 }, bins.ContextIndices);
     }
 
     [Fact]
@@ -472,7 +484,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         H264CabacSyntaxElementReader reader = new(bins);
 
         Assert.Equal(6, reader.ReadPSliceMacroblockType());
-        Assert.Equal(new[] { 14, 17, 20, 21, 22, 22 }, bins.ContextIndices);
+        Assert.Equal(new[] { 14, 17, 20, 21, 23, 24 }, bins.ContextIndices);
     }
 
     [Fact]
