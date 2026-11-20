@@ -144,11 +144,14 @@ public sealed class H264MotionVectorPictureState
             return null;
 
         Cell? cell = _cells[x, y];
-        if (cell is not { } value || value.SliceId != sliceId ||
-            value.ReferenceIndex is not int referenceIndex)
+        if (cell is not { } value || value.SliceId != sliceId)
             return null;
 
-        return new H264MotionVectorCandidate(referenceIndex, value.MotionVector);
+        // Intra-coded neighbours have ref_idx == -1 and a zero motion vector.
+        // Keep that distinct from an unavailable partition (null): H.264 only
+        // substitutes D for C when C is unavailable, not when C is intra.
+        return new H264MotionVectorCandidate(
+            value.ReferenceIndex ?? -1, value.MotionVector);
     }
 
     private void WriteRegion(
