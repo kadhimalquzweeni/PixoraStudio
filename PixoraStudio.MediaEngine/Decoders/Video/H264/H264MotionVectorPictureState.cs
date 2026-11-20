@@ -70,8 +70,9 @@ public sealed class H264MotionVectorPictureState
     }
 
     /// <summary>
-    /// Marks a decoded intra region as unavailable for inter motion-vector
-    /// prediction while retaining its occupancy and slice identity.
+    /// Records a decoded intra region with the normative unused-reference
+    /// sentinel (-1) and a zero motion vector. It remains distinct from an
+    /// unavailable neighbour, which has no stored cell.
     /// </summary>
     public void RecordUnavailableRegion(
         int x, int y, int width, int height, int sliceId)
