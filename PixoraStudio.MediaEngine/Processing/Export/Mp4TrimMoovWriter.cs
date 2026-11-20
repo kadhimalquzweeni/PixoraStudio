@@ -200,7 +200,7 @@ public sealed class Mp4TrimMoovWriter
 
                 string[] supportedSampleTableBoxes =
                 [
-                    "stsd", "stts", "stsc", "stsz", "stco", "co64", "stss", "ctts", "free"
+                    "stsd", "stts", "stsc", "stsz", "stco", "co64", "stss", "ctts"
                 ];
                 string? unsupportedBox = child.Children
                     .Select(box => box.Type)
