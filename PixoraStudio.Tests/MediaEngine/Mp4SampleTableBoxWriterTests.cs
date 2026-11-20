@@ -1,5 +1,7 @@
 using PixoraStudio.MediaEngine.Containers.Mp4;
 using PixoraStudio.MediaEngine.Models.General;
+using PixoraStudio.MediaEngine.Exceptions;
+using PixoraStudio.MediaEngine.Readers.Mp4;
 using PixoraStudio.MediaEngine.Processing.Export;
 
 namespace PixoraStudio.Tests.MediaEngine;
@@ -115,7 +117,7 @@ public sealed class Mp4SampleTableBoxWriterTests
         ]);
 
         using MemoryStream stream = new();
-        Assert.Throws<InvalidDataException>(() => _writer.Write(stream, plan, [1000]));
+        Assert.Throws<Mp4ParsingException>(() => _writer.Write(stream, plan, [1000]));
     }
 
     private static Mp4TrimTrackPlan CreatePlan(
