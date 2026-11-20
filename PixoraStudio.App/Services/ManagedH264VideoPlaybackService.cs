@@ -359,6 +359,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         H264Mp4FramePresentationGate gate = new(firstFrameSampleNumber);
+        Dictionary<H264AvcDecoderConfiguration, H264AvcParameterSetCollection>
+            parameterSetCache = new(ReferenceEqualityComparer.Instance);
         try
         {
             await foreach (H264Mp4DecodedVideoFrame frame in
@@ -401,8 +403,15 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                 if (decision.Action == H264FramePresentationAction.Drop)
                     continue;
 
-                H264AvcParameterSetCollection parameterSets =
-                    _parameterSetReader.Read(frame.SourceSample.Configuration);
+                H264AvcDecoderConfiguration configuration =
+                    frame.SourceSample.Configuration;
+                if (!parameterSetCache.TryGetValue(
+                        configuration, out H264AvcParameterSetCollection? parameterSets))
+                {
+                    parameterSets = _parameterSetReader.Read(configuration);
+                    parameterSetCache.Add(configuration, parameterSets);
+                }
+
                 H264SequenceParameterSet sps =
                     parameterSets.SequenceParameterSets.Values.First();
                 H264BgraFrame bgra = _converter.Convert(frame.Surface, sps);
