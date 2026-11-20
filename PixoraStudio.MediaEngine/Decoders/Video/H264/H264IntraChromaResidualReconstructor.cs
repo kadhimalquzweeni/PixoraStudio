@@ -102,6 +102,8 @@ public static class H264IntraChromaResidualReconstructor
             component.Dc, blocksHigh, qpPrimeC, scalingList);
 
         byte[] output = new byte[width * height];
+        for (int sample = 0; sample < output.Length; sample++)
+            output[sample] = prediction[sample];
         for (int blockIndex = 0; blockIndex < blockCount; blockIndex++)
         {
             H264IntraChromaResidualBlock block = component.Blocks[blockIndex]
@@ -109,6 +111,12 @@ public static class H264IntraChromaResidualReconstructor
             if (block.BlockX != blockIndex % 2 || block.BlockY != blockIndex / 2)
                 throw new FormatException("Chroma AC blocks must be supplied in raster block order.");
             ValidateResidual(block.Residual, 15, $"component.Blocks[{blockIndex}]");
+
+            // An all-zero AC block with no DC contribution is identical to
+            // prediction. Skip scan conversion, dequantisation and the inverse
+            // transform for this common sparse-residual case.
+            if (dc[blockIndex] == 0 && block.Residual.TotalCoefficients == 0)
+                continue;
 
             int[] scan = new int[16];
             scan[0] = dc[blockIndex];
