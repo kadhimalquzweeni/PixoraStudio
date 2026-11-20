@@ -186,10 +186,19 @@ public sealed class Mp4TrimExportFileWriter
             if (outputTrack.SampleCount != plannedTrack.Samples.Count)
                 throw new Mp4ParsingException($"The exported track {plannedTrack.TrackId} has an unexpected sample count.");
 
-            if (plannedTrack.HandlerType == Mp4HandlerType.Video &&
-                !outputTrack.SampleLocations.GetSample(1).IsSyncSample)
+            if (plannedTrack.HandlerType == Mp4HandlerType.Video)
             {
-                throw new Mp4ParsingException("The exported video does not begin with a sync sample.");
+                if (!outputTrack.SampleLocations.GetSample(1).IsSyncSample)
+                    throw new Mp4ParsingException("The exported video does not begin with a sync sample.");
+
+                Mp4EditListEntry[] edits = outputTrack.EditList?.Entries.ToArray() ?? [];
+                if (edits.Length != 1 || edits[0].MediaTime < 0)
+                    throw new Mp4ParsingException("The exported video is missing its single frame-trim presentation edit.");
+
+                double editDuration = edits[0].SegmentDuration / (double)output.MovieHeader.Timescale;
+                double expectedTrackDuration = plan.EffectiveEndSeconds - plan.EffectiveStartSeconds;
+                if (Math.Abs(editDuration - expectedTrackDuration) > 1.0 / output.MovieHeader.Timescale + 0.000001)
+                    throw new Mp4ParsingException("The exported video edit list does not match the selected frame interval.");
             }
         }
 
