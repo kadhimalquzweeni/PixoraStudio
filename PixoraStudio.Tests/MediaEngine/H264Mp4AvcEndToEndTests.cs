@@ -149,25 +149,12 @@ public sealed class H264Mp4AvcEndToEndTests
                     new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
                     trace));
 
-        string testResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
-        H264Mp4AccessUnitDecodeResult? bResult = null;
-        try
-        {
-            Assert.NotNull(decoder.Decode(CreateCabacSample(
-                configuration, 1, 0, 0, true, CabacMainResidual32IdrNal)));
-            Assert.NotNull(decoder.Decode(CreateCabacSample(
-                configuration, 2, 1, 2, false, CabacMainResidual32PNal)));
-            bResult = decoder.Decode(CreateCabacSample(
-                configuration, 3, 2, 1, false, CabacMainResidual32BNal));
-        }
-        finally
-        {
-            File.WriteAllLines(
-                Path.Combine(testResultsDirectory, "cabac-main-multiblock-b-trace.txt"),
-                trace);
-        }
+        Assert.NotNull(decoder.Decode(CreateCabacSample(
+            configuration, 1, 0, 0, true, CabacMainResidual32IdrNal)));
+        Assert.NotNull(decoder.Decode(CreateCabacSample(
+            configuration, 2, 1, 2, false, CabacMainResidual32PNal)));
+        H264Mp4AccessUnitDecodeResult? bResult = decoder.Decode(CreateCabacSample(
+            configuration, 3, 2, 1, false, CabacMainResidual32BNal));
 
         Assert.NotNull(bResult);
         Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
@@ -193,106 +180,6 @@ public sealed class H264Mp4AvcEndToEndTests
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(configuration);
         Assert.True(parameterSets.PictureParameterSets[0].Transform8X8ModeFlag);
-
-        List<string> highProfileCabacTrace = [];
-        List<byte[]> preDeblockingFrames = [];
-        List<string> deblockingMetadataTrace = [];
-        H264Mp4VideoOutputScheduler diagnosticOutputScheduler = new(
-            new H264DecodedPictureOutputScheduler(surface =>
-            {
-                preDeblockingFrames.Add(surface.CopyLumaPlane()
-                    .Concat(surface.CopyCbPlane())
-                    .Concat(surface.CopyCrPlane()).ToArray());
-                for (int mbY = 0; mbY < surface.MacroblockHeight; mbY++)
-                for (int mbX = 0; mbX < surface.MacroblockWidth; mbX++)
-                {
-                    H264DeblockingMacroblockMetadata metadata =
-                        surface.GetDeblockingMetadata(mbX, mbY)
-                        ?? throw new InvalidOperationException("Missing diagnostic deblocking metadata.");
-                    deblockingMetadataTrace.Add(
-                        $"mb({mbX},{mbY}) qpY={metadata.QpY} qpCb={metadata.QpCb} " +
-                        $"qpCr={metadata.QpCr} disable={metadata.DisableDeblockingFilterIdc} " +
-                        $"alphaOffset={metadata.AlphaOffsetDiv2} betaOffset={metadata.BetaOffsetDiv2} " +
-                        $"transform8x8={metadata.TransformSize8x8Flag}");
-                    if (mbX > 0)
-                    {
-                        H264DeblockingMacroblockMetadata left =
-                            surface.GetDeblockingMetadata(mbX - 1, mbY)!;
-                        for (int row = 0; row < 4; row++)
-                        {
-                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                                left.LumaBlocks[row * 4 + 3],
-                                metadata.LumaBlocks[row * 4], true);
-                            deblockingMetadataTrace.Add($"  external-vertical row={row} bS={strength}");
-                        }
-                    }
-                    if (mbY > 0)
-                    {
-                        H264DeblockingMacroblockMetadata top =
-                            surface.GetDeblockingMetadata(mbX, mbY - 1)!;
-                        for (int column = 0; column < 4; column++)
-                        {
-                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                                top.LumaBlocks[12 + column],
-                                metadata.LumaBlocks[column], true);
-                            deblockingMetadataTrace.Add($"  external-horizontal column={column} bS={strength}");
-                        }
-                    }
-                    for (int edge = 1; edge < 4; edge++)
-                    {
-                        for (int row = 0; row < 4; row++)
-                        {
-                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                                metadata.LumaBlocks[row * 4 + edge - 1],
-                                metadata.LumaBlocks[row * 4 + edge], false);
-                            deblockingMetadataTrace.Add(
-                                $"  internal-vertical edge={edge} row={row} bS={strength}");
-                        }
-                        for (int column = 0; column < 4; column++)
-                        {
-                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
-                                metadata.LumaBlocks[(edge - 1) * 4 + column],
-                                metadata.LumaBlocks[edge * 4 + column], false);
-                            deblockingMetadataTrace.Add(
-                                $"  internal-horizontal edge={edge} column={column} bS={strength}");
-                        }
-                    }
-                    for (int blockIndex = 0; blockIndex < metadata.LumaBlocks.Count; blockIndex++)
-                    {
-                        H264DeblockingBlockMetadata block = metadata.LumaBlocks[blockIndex];
-                        deblockingMetadataTrace.Add(
-                            $"  luma[{blockIndex}] nz={block.HasNonZeroCoefficients} " +
-                            $"r0={block.ReferencePictureL0} mv0={block.MotionVectorL0} " +
-                            $"r1={block.ReferencePictureL1} mv1={block.MotionVectorL1}");
-                    }
-                }
-            }));
-        H264Mp4AccessUnitDecoder diagnosticDecoder = new(
-            parameterSets,
-            2,
-            (reader, qpY, isIntra, cabacInitIdc) =>
-                new TracingCabacSliceDataReader(
-                    new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
-                    highProfileCabacTrace),
-            diagnosticOutputScheduler);
-        string testResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
-        try
-        {
-            diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 1, 0, 0, true, CabacHighIdrNal));
-            diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 2, 1, 2, false, CabacHighPNal));
-            diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 3, 2, 1, false, CabacHighBNal));
-        }
-        finally
-        {
-            File.WriteAllLines(
-                Path.Combine(testResultsDirectory, "cabac-high-profile-idr-trace.txt"),
-                highProfileCabacTrace);
-        }
 
         Mp4CodecConfiguration codecConfiguration = new(
             Mp4VideoCodec.Avc, "avcC", avcC, 1,
@@ -325,19 +212,6 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.All(frames, frame => Assert.True(frame.Surface.IsComplete));
         Assert.All(frames, frame =>
             Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
-        File.WriteAllBytes(
-            Path.Combine(testResultsDirectory, "cabac-high-profile-b-frame.yuv"),
-            frames[1].Surface.CopyLumaPlane()
-                .Concat(frames[1].Surface.CopyCbPlane())
-                .Concat(frames[1].Surface.CopyCrPlane()).ToArray());
-        byte[] preDeblockingBFrame = Assert.Single(preDeblockingFrames);
-        File.WriteAllBytes(
-            Path.Combine(testResultsDirectory, "cabac-high-profile-prefilter-b-frame.yuv"),
-            preDeblockingBFrame);
-        File.WriteAllLines(
-            Path.Combine(testResultsDirectory, "cabac-high-profile-b-deblocking-metadata.txt"),
-            deblockingMetadataTrace);
-
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
         [
@@ -377,14 +251,6 @@ public sealed class H264Mp4AvcEndToEndTests
 
         Assert.Equal(new uint[] { 1, 3, 2 },
             frames.Select(frame => frame.SampleNumber));
-        string testResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
-        File.WriteAllBytes(
-            Path.Combine(testResultsDirectory, "cavlc-residual32-b-frame.yuv"),
-            frames[1].Surface.CopyLumaPlane()
-                .Concat(frames[1].Surface.CopyCbPlane())
-                .Concat(frames[1].Surface.CopyCrPlane()).ToArray());
         string[] expectedFrameHashes =
         [
             "cddf82b138499e6adca25899a5395b8d2e7bcb0af4e849b5862c6af6dcb8b9b7",
@@ -425,14 +291,6 @@ public sealed class H264Mp4AvcEndToEndTests
             frames.Select(frame => frame.SampleNumber));
         Assert.Equal(new[] { 0, 2, 4 },
             frames.Select(frame => frame.PictureOrderCount));
-        string testResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
-        File.WriteAllBytes(
-            Path.Combine(testResultsDirectory, "cabac-main-residual32-b-frame.yuv"),
-            frames[1].Surface.CopyLumaPlane()
-                .Concat(frames[1].Surface.CopyCbPlane())
-                .Concat(frames[1].Surface.CopyCrPlane()).ToArray());
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
         [
@@ -477,15 +335,8 @@ public sealed class H264Mp4AvcEndToEndTests
         H264Mp4VideoSample b = CreateCabacSample(
             configuration, 3, 2, 1, false, CabacMainBNal);
 
-        string testResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
-
         List<H264Mp4DecodedVideoFrame> frames = [];
         frames.AddRange(decoder.Decode(idr)!.ReadyFrames);
-        File.WriteAllLines(
-            Path.Combine(testResultsDirectory, "cabac-idr-bin-trace.txt"),
-            cabacTrace);
         string? idrHashWhenFirstReleased = null;
         cabacTrace.Clear();
         try
@@ -521,9 +372,6 @@ public sealed class H264Mp4AvcEndToEndTests
         cabacTrace.Clear();
         H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(b)!;
         H264Mp4DecodedVideoFrame[] bReadyFrames = bResult.ReadyFrames.ToArray();
-        File.WriteAllLines(
-            Path.Combine(testResultsDirectory, "cabac-b-slice-trace.txt"),
-            cabacTrace);
 
         // The real CABAC B-slice fixture must traverse inter prediction,
         // coded-block-pattern/QP syntax, residual coefficients and final
@@ -575,15 +423,6 @@ public sealed class H264Mp4AvcEndToEndTests
             "e65b186f669f54288e84fe4dfd3b8891a0f1b01109110a999d1ee511d5cc3a9c"
         ];
         string[] actualFrameHashes = displayOrder.Select(ComputeFrameHash).ToArray();
-
-        byte[] decodedYuvFrames = displayOrder
-            .SelectMany(frame => frame.Surface.CopyLumaPlane()
-                .Concat(frame.Surface.CopyCbPlane())
-                .Concat(frame.Surface.CopyCrPlane()))
-            .ToArray();
-        File.WriteAllBytes(
-            Path.Combine(testResultsDirectory, "cabac-decoded-frames.yuv"),
-            decodedYuvFrames);
 
         Assert.True(
             expectedFrameHashes.SequenceEqual(actualFrameHashes),
