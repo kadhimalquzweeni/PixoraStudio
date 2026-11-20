@@ -612,8 +612,11 @@ public sealed class H264Mp4AvcEndToEndTests
         bool isSyncSample,
         string nalBase64)
     {
-        List<byte> sampleData = [];
-        AddLengthPrefixedNal(sampleData, Convert.FromBase64String(nalBase64));
+        byte[] nal = Convert.FromBase64String(nalBase64);
+        Span<byte> length = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(length, checked((uint)nal.Length));
+        List<byte> sampleData = [.. length.ToArray()];
+        sampleData.AddRange(nal);
         Mp4SampleLocation location = new(
             sampleNumber, 1, 0, (uint)sampleData.Count,
             decodeTimeTicks, 1, isSyncSample)
