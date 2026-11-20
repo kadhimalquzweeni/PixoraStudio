@@ -63,6 +63,6 @@ Every export integration test should reopen the output using `Mp4FileReader` and
 - successful H.264 decode from the first output sync sample;
 - audio/video timeline alignment where audio is present.
 
-The current implementation is a GOP-aligned remuxer, not a frame-accurate re-encoder. It rejects fragmented MP4, source edit lists, multiple video tracks, non-audio/video tracks, unsupported top-level boxes and unsupported sample-table extensions. These cases must fail explicitly rather than produce an output that may lose media or metadata.
+The current implementation is a GOP-aligned remuxer, not a frame-accurate re-encoder. It currently accepts MP4 source files only and rejects fragmented MP4, source edit lists, multiple video tracks, non-audio/video tracks, unsupported top-level boxes and unsupported sample-table extensions. These cases must fail explicitly rather than produce an output that may lose media or metadata.
 
 The output is reopened and validated by PixoraStudio's reader. The H.264 decoder should also be exercised against exported real-world samples before describing the exporter as broadly production-ready.
