@@ -357,6 +357,9 @@ public partial class VideoEditorView : UserControl
                         _managedH264PlaybackService.LastPresentedFrame;
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
+                        if (loadVersion != _videoLoadVersion)
+                            return;
+
                         ManagedVideoFrame.Source = bitmap;
                         ManagedVideoFrame.Visibility = Visibility.Visible;
                         _lastDisplayedFrame = presentedFrame;
