@@ -442,8 +442,9 @@ public partial class VideoEditorViewModel : ObservableObject
         // Progress<T> marshals completed thumbnails back to the UI context.
         // The decoder itself runs off-thread and reuses one decode pass.
         IProgress<VideoThumbnailResult> progress =
-            new Progress<VideoThumbnailResult>(result =>
-            {
+            new SynchronousProgress<VideoThumbnailResult>(result =>
+                Application.Current.Dispatcher.Invoke(() =>
+                {
                 if (cancellationToken.IsCancellationRequested)
                 {
                     TryDeleteThumbnail(result.OutputPath);
@@ -476,7 +477,7 @@ public partial class VideoEditorViewModel : ObservableObject
                 {
                     TryDeleteThumbnail(result.OutputPath);
                 }
-            });
+                }));
 
         try
         {
@@ -492,6 +493,11 @@ public partial class VideoEditorViewModel : ObservableObject
             foreach (string outputPath in outputPaths)
                 TryDeleteThumbnail(outputPath);
         }
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
     }
 
     private static void TryDeleteThumbnail(string path)
