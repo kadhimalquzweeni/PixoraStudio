@@ -162,6 +162,10 @@ public sealed class H264Mp4AvcEndToEndTests
         {
             diagnosticDecoder.Decode(CreateCabacSample(
                 configuration, 1, 0, 0, true, CabacHighIdrNal));
+            diagnosticDecoder.Decode(CreateCabacSample(
+                configuration, 2, 1, 2, false, CabacHighPNal));
+            diagnosticDecoder.Decode(CreateCabacSample(
+                configuration, 3, 2, 1, false, CabacHighBNal));
         }
         finally
         {
