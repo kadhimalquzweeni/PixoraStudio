@@ -196,4 +196,34 @@ public sealed class H264BitReaderTests
         Assert.Throws<FormatException>(() => reader.ConsumeCabacTrailingBits());
     }
 
+
+    [Fact]
+    public void ReadBitsAndPeekBits_ShouldMatchReferenceAcrossAlignmentsAndWidths()
+    {
+        byte[] data = new byte[16];
+        new Random(1729).NextBytes(data);
+
+        for (int start = 0; start <= 95; start++)
+        {
+            for (int count = 0; count <= 32 && start + count <= data.Length * 8; count++)
+            {
+                H264BitReader reader = new(data);
+                reader.SkipBits(start);
+
+                uint expected = 0;
+                for (int bit = 0; bit < count; bit++)
+                {
+                    int position = start + bit;
+                    uint next = (uint)((data[position >> 3] >> (7 - (position & 7))) & 1);
+                    expected = (expected << 1) | next;
+                }
+
+                Assert.Equal(expected, reader.PeekBits(count));
+                Assert.Equal(start, reader.PositionBits);
+                Assert.Equal(expected, reader.ReadBits(count));
+                Assert.Equal(start + count, reader.PositionBits);
+            }
+        }
+    }
+
 }
