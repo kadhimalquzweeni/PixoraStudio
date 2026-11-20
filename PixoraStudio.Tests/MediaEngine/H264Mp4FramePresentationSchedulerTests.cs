@@ -49,11 +49,20 @@ public sealed class H264Mp4FramePresentationSchedulerTests
     }
 
     [Fact]
-    public void GetMaximumLatenessSeconds_LowFrameRate_ShouldAllowTwoFrameDurations()
+    public void GetMaximumLatenessSeconds_LowFrameRate_ShouldRespectMaximumBound()
     {
         Assert.Equal(
-            2.0 / 24.0,
+            0.080,
             H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(1.0 / 24.0),
+            8);
+    }
+
+    [Fact]
+    public void GetMaximumLatenessSeconds_MediumFrameRate_ShouldAllowTwoFrameDurations()
+    {
+        Assert.Equal(
+            2.0 / 60.0,
+            H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(1.0 / 60.0),
             8);
     }
 
