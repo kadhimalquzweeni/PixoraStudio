@@ -1,14 +1,16 @@
 using PixoraStudio.MediaEngine.Models.General;
+using System.Runtime.CompilerServices;
 
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
-/// Maps a presentation timestamp to a decode-order random-access sample.
-/// H.264 pictures after that sample are decoded continuously so the DPB and
-/// POC state are rebuilt before the requested presentation interval is emitted.
+/// Maps presentation timestamps to decode-order random-access samples.
+/// Track timing is indexed once and reused for subsequent seek requests.
 /// </summary>
 public sealed class H264Mp4VideoSeekPlanner
 {
+    private readonly ConditionalWeakTable<Mp4MediaTrack, SeekIndex> _indexes = new();
+
     public H264Mp4VideoSeekPlan Plan(
         Mp4MediaTrack track,
         double targetPresentationTimeSeconds)
@@ -22,8 +24,6 @@ public sealed class H264Mp4VideoSeekPlanner
         if (!double.IsFinite(targetPresentationTimeSeconds) ||
             targetPresentationTimeSeconds < 0)
             throw new ArgumentOutOfRangeException(nameof(targetPresentationTimeSeconds));
-        if (track.SampleCount == 0)
-            throw new FormatException("The MP4 video track contains no samples.");
 
         long requestedTicks;
         try
@@ -39,11 +39,24 @@ public sealed class H264Mp4VideoSeekPlanner
                 $"The requested seek time exceeds the MP4 track clock range: {exception.Message}");
         }
 
+        SeekIndex index = _indexes.GetValue(track, static key => BuildIndex(key));
+        long targetTicks = Math.Min(requestedTicks, index.PresentationEndTicks - 1);
+        uint firstSample = FindPrecedingSyncSample(index.SyncSamples, targetTicks);
+
+        return new H264Mp4VideoSeekPlan(firstSample, targetTicks, track.Timescale);
+    }
+
+    private static SeekIndex BuildIndex(Mp4MediaTrack track)
+    {
         Mp4SampleLocation[] samples = track.SampleLocations.Samples.ToArray();
         if ((uint)samples.Length != track.SampleCount)
             throw new FormatException("The MP4 video sample-location count is inconsistent.");
+        if (samples.Length == 0)
+            throw new FormatException("The MP4 video track contains no samples.");
 
         long presentationEnd = long.MinValue;
+        List<SyncSample> syncSamples = [];
+
         for (int index = 0; index < samples.Length; index++)
         {
             Mp4SampleLocation sample = samples[index];
@@ -59,40 +72,59 @@ public sealed class H264Mp4VideoSeekPlanner
             }
             catch (OverflowException exception)
             {
-                throw new FormatException("An MP4 video sample presentation interval overflows.", exception);
+                throw new FormatException(
+                    "An MP4 video sample presentation interval overflows.", exception);
             }
 
             presentationEnd = Math.Max(presentationEnd, end);
+            if (sample.IsSyncSample)
+                syncSamples.Add(new SyncSample(sample.PresentationTimeTicks, sample.SampleNumber));
         }
 
-        // Seeking beyond the media clamps to the final representable tick of
-        // the presentation timeline, allowing the final picture to be shown.
-        long targetTicks = Math.Min(requestedTicks, presentationEnd - 1);
-
-        Mp4SampleLocation[] randomAccessSamples = samples
-            .Where(sample => sample.IsSyncSample)
-            .ToArray();
-        if (randomAccessSamples.Length == 0)
+        if (syncSamples.Count == 0)
             throw new NotSupportedException(
                 "The MP4 video track has no sync sample from which H.264 decoding can safely begin.");
 
-        Mp4SampleLocation? precedingSync = randomAccessSamples
-            .Where(sample => sample.PresentationTimeTicks <= targetTicks)
-            .OrderByDescending(sample => sample.PresentationTimeTicks)
-            .ThenBy(sample => sample.SampleNumber)
-            .FirstOrDefault();
+        // Composition offsets can make presentation order differ from decode order.
+        // Sort once and binary-search this index for every subsequent thumbnail.
+        syncSamples.Sort(static (left, right) =>
+        {
+            int comparison = left.PresentationTimeTicks.CompareTo(right.PresentationTimeTicks);
+            return comparison != 0 ? comparison : left.SampleNumber.CompareTo(right.SampleNumber);
+        });
 
-        // A target before the first sync picture must still start at a valid
-        // random-access point; output filtering handles the requested time.
-        Mp4SampleLocation selectedSync = precedingSync ??
-            randomAccessSamples
-                .OrderBy(sample => sample.PresentationTimeTicks)
-                .ThenBy(sample => sample.SampleNumber)
-                .First();
-
-        return new H264Mp4VideoSeekPlan(
-            selectedSync.SampleNumber,
-            targetTicks,
-            track.Timescale);
+        return new SeekIndex(presentationEnd, [.. syncSamples]);
     }
+
+    private static uint FindPrecedingSyncSample(
+        SyncSample[] syncSamples,
+        long targetPresentationTimeTicks)
+    {
+        int low = 0;
+        int high = syncSamples.Length;
+        while (low < high)
+        {
+            int middle = low + ((high - low) / 2);
+            if (syncSamples[middle].PresentationTimeTicks <= targetPresentationTimeTicks)
+                low = middle + 1;
+            else
+                high = middle;
+        }
+
+        if (low == 0)
+            return syncSamples[0].SampleNumber;
+
+        long selectedTimestamp = syncSamples[low - 1].PresentationTimeTicks;
+        int firstAtTimestamp = low - 1;
+        while (firstAtTimestamp > 0 &&
+               syncSamples[firstAtTimestamp - 1].PresentationTimeTicks == selectedTimestamp)
+            firstAtTimestamp--;
+
+        // Match the original tie-break: choose the lowest sample number for equal PTS.
+        return syncSamples[firstAtTimestamp].SampleNumber;
+    }
+
+    private sealed record SeekIndex(long PresentationEndTicks, SyncSample[] SyncSamples);
+
+    private readonly record struct SyncSample(long PresentationTimeTicks, uint SampleNumber);
 }
