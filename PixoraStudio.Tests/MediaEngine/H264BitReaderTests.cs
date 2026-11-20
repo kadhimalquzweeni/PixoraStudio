@@ -226,4 +226,25 @@ public sealed class H264BitReaderTests
         }
     }
 
+
+    [Fact]
+    public void ReadUnsignedExpGolomb_ShouldRoundTripValuesAcrossPrefixLengths()
+    {
+        for (uint value = 0; value <= 4095; value++)
+        {
+            byte[] encoded = EncodeUnsignedExpGolomb(value);
+            H264BitReader reader = new(encoded);
+
+            Assert.Equal(value, reader.ReadUnsignedExpGolomb());
+        }
+    }
+
+    [Fact]
+    public void ReadUnsignedExpGolomb_ShouldRejectThirtyTwoLeadingZeroBits()
+    {
+        H264BitReader reader = new(new byte[4]);
+
+        Assert.Throws<FormatException>(() => reader.ReadUnsignedExpGolomb());
+    }
+
 }
