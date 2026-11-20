@@ -485,6 +485,9 @@ public partial class VideoEditorView : UserControl
             catch (Exception exception)
             {
                 _usesManagedH264Video = false;
+                if (DataContext is VideoEditorViewModel failedSeekVm)
+                    failedSeekVm.CanStepFrames = false;
+                _pendingFrameStepTarget = null;
                 ManagedVideoFrame.Source = null;
                 ManagedVideoFrame.Visibility = Visibility.Collapsed;
                 System.Diagnostics.Debug.WriteLine(
