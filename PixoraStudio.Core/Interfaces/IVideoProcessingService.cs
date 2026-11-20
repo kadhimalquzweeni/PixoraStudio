@@ -12,4 +12,11 @@ namespace PixoraStudio.Core.Interfaces
             TimeSpan position,
             string outputPath);
     }
-}
+        
+        Task GenerateThumbnailsAsync(
+            string filePath,
+            IReadOnlyList<TimeSpan> positions,
+            IReadOnlyList<string> outputPaths,
+            IProgress<VideoThumbnailResult>? progress = null,
+            CancellationToken cancellationToken = default);
+    }
