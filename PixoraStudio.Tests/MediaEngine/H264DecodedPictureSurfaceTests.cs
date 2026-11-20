@@ -109,29 +109,26 @@ public sealed class H264DecodedPictureSurfaceTests
     }
 
     [Fact]
-    public void WriteMacroblock_ShouldAllowOnlyOneConcurrentWriterPerMacroblock()
+    public async Task WriteMacroblock_ShouldRejectWriterWhileSameMacroblockIsBeingReconstructed()
     {
         H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
-        int successfulWrites = 0;
-        int rejectedWrites = 0;
+        using BlockingReadOnlyByteList blockingLuma =
+            new(Enumerable.Repeat((byte)10, 256).ToArray());
 
-        Parallel.For(0, 64, _ =>
-        {
-            try
-            {
-                surface.WriteMacroblock(0, 0, 3, false,
-                    new byte[256], new byte[64], new byte[64]);
-                Interlocked.Increment(ref successfulWrites);
-            }
-            catch (InvalidOperationException)
-            {
-                Interlocked.Increment(ref rejectedWrites);
-            }
-        });
+        Task firstWriter = Task.Run(() => surface.WriteMacroblock(
+            0, 0, 3, false, blockingLuma, new byte[64], new byte[64]));
 
-        Assert.Equal(1, successfulWrites);
-        Assert.Equal(63, rejectedWrites);
+        Assert.True(blockingLuma.WaitUntilRead(TimeSpan.FromSeconds(5)));
+
+        Assert.Throws<InvalidOperationException>(() => surface.WriteMacroblock(
+            0, 0, 4, false, new byte[256], new byte[64], new byte[64]));
+
+        blockingLuma.Release();
+        await firstWriter;
+
         Assert.True(surface.IsMacroblockDecoded(0, 0));
+        Assert.True(surface.IsMacroblockAvailable(0, 0, 3, false));
+        Assert.False(surface.IsMacroblockAvailable(0, 0, 4, false));
         Assert.True(surface.IsComplete);
     }
 
@@ -177,6 +174,41 @@ public sealed class H264DecodedPictureSurfaceTests
         Assert.Equal((byte)20, surface.GetLumaSample(0, 0));
         Assert.Equal((byte)21, surface.GetChromaSample(1, 0, 0));
         Assert.Equal((byte)22, surface.GetChromaSample(2, 0, 0));
+    }
+
+    private sealed class BlockingReadOnlyByteList(byte[] values) :
+        IReadOnlyList<byte>, IDisposable
+    {
+        private readonly ManualResetEventSlim _entered = new(false);
+        private readonly ManualResetEventSlim _release = new(false);
+
+        public int Count => values.Length;
+
+        public byte this[int index]
+        {
+            get
+            {
+                _entered.Set();
+                _release.Wait();
+                return values[index];
+            }
+        }
+
+        public bool WaitUntilRead(TimeSpan timeout) => _entered.Wait(timeout);
+
+        public void Release() => _release.Set();
+
+        public IEnumerator<byte> GetEnumerator() =>
+            ((IEnumerable<byte>)values).GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            values.GetEnumerator();
+
+        public void Dispose()
+        {
+            _entered.Dispose();
+            _release.Dispose();
+        }
     }
 
     private static H264SequenceParameterSet CreateSps(
