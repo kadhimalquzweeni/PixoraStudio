@@ -356,7 +356,9 @@ public partial class VideoEditorViewModel : ObservableObject
         try
         {
             IProgress<double> progress = new Progress<double>(value =>
-                ExportProgress = Math.Clamp(value * 100, 0, 100));
+                ExportProgress = Math.Max(
+                    ExportProgress,
+                    Math.Clamp(value * 100, 0, 100)));
 
             VideoExportResult result = await _videoExportService.ExportTrimmedVideoAsync(
                 VideoPath,
