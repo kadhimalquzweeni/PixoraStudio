@@ -90,12 +90,18 @@ public sealed class H264CabacSyntaxElementReader
         int contextIndex = (isBSlice ? 24 : 11) + contextIndexIncrement;
         string syntaxName = isBSlice ? "mb_skip_flag_b" : "mb_skip_flag_p";
         (int rangeBefore, int offsetBefore, int bitBefore) = GetDiagnosticState();
+        H264CabacContextModel? contextBefore = GetDiagnosticContext(contextIndex);
         int bin = _reader.DecodeBin(contextIndex);
         (int rangeAfter, int offsetAfter, int bitAfter) = GetDiagnosticState();
+        H264CabacContextModel? contextAfter = GetDiagnosticContext(contextIndex);
+        string contextState = contextBefore is H264CabacContextModel before &&
+            contextAfter is H264CabacContextModel after
+                ? $" ctx_state={before.State}/{before.MostProbableSymbol}->{after.State}/{after.MostProbableSymbol}"
+                : string.Empty;
         H264CabacDiagnosticTrace.Mark(
             _reader,
-            $"{syntaxName} ctx={contextIndex} inc={contextIndexIncrement} bin={bin} " +
-            $"range={rangeBefore}->{rangeAfter} offset={offsetBefore}->{offsetAfter} " +
+            $"{syntaxName} ctx={contextIndex} inc={contextIndexIncrement} bin={bin}" +
+            contextState + $" range={rangeBefore}->{rangeAfter} offset={offsetBefore}->{offsetAfter} " +
             $"bit={bitBefore}->{bitAfter}");
         if (bin is not (0 or 1))
             throw new FormatException("CABAC decision bins must be zero or one.");
@@ -156,6 +162,11 @@ public sealed class H264CabacSyntaxElementReader
         }
         throw new FormatException("CABAC terminating bins must be zero or one.");
     }
+
+    private H264CabacContextModel? GetDiagnosticContext(int contextIndex) =>
+        _reader is IH264CabacDiagnosticStateProvider state
+            ? state.GetContextModel(contextIndex)
+            : null;
 
     private (int Range, int Offset, int BitPosition) GetDiagnosticState() =>
         _reader is IH264CabacDiagnosticStateProvider state
