@@ -180,6 +180,44 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     [Fact]
+    public void DecodeSamples_MainProfileCavlcResidual32IAndPBTrack_ShouldMatchReferenceDecoder()
+    {
+        byte[] avcC = Convert.FromBase64String(CavlcResidual32AvcC);
+        H264AvcDecoderConfiguration configuration =
+            new H264AvcDecoderConfigurationReader().Read(avcC);
+        Mp4CodecConfiguration codecConfiguration = new(
+            Mp4VideoCodec.Avc, "avcC", avcC, 1,
+            configuration.Profile, configuration.Compatibility,
+            configuration.Level, configuration.NaluLengthSize);
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 32, 32, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc, codecConfiguration);
+        Mp4Track track = new(
+            8, 32, 32, 1, 3, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+        Mp4EncodedSample[] samples =
+        [
+            CreateCabacEncodedSample(1, 0, 0, true, CavlcResidual32IdrNal),
+            CreateCabacEncodedSample(2, 1, 2, false, CavlcResidual32PNal),
+            CreateCabacEncodedSample(3, 2, 1, false, CavlcResidual32BNal)
+        ];
+
+        H264Mp4DecodedVideoFrame[] frames =
+            new H264Mp4TrackDecoder().DecodeSamples(
+                track, samples, maxNumReorderFramesFallback: 2).ToArray();
+
+        Assert.Equal(new uint[] { 1, 3, 2 },
+            frames.Select(frame => frame.SampleNumber));
+        string[] expectedFrameHashes =
+        [
+            "cddf82b138499e6adca25899a5395b8d2e7bcb0af4e849b5862c6af6dcb8b9b7",
+            "27e2f7ea611ddf5287222dc76c9991166369fcace1c9b3ba41a1df0271541bbb",
+            "b6a5d1570d632e9d6840dc7f07b1fb78f5a1adcb9d20c577266c4c1c5fa110b3"
+        ];
+        Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
+    }
+
+    [Fact]
     public void DecodeSamples_MainProfileResidual32IAndPBTrack_ShouldMatchReferenceDecoder()
     {
         byte[] avcC = Convert.FromBase64String(CabacMainResidual32AvcC);
@@ -778,6 +816,12 @@ public sealed class H264Mp4AvcEndToEndTests
         "QZooYiP/sf8KYjdJB6rDuyqe+s8cN3fLDPym1X8HpEqPs1d3QCy/+VbVY+aVFpc+AmG/KJpT8sRTICCGHLKRBIvl0f4JjDtaAr5F7ZLMRsetc6nS5Q0=";
     private const string CabacMainResidual32BNal =
         "AZ5FER/5CLE+D9mfqarlrDK7/SJaXnYQ/5eKTScVq4FFiVg1vk9QWNyoOwgIF9TDd1bCRTY4/4xGpdk=";
+
+    private const string CavlcResidual32AvcC = "AU1AHv/hABZnTUAe9ktgIgAAAwACAAADAAweLFpwAQAFaM+PLIA=";
+    private const string CavlcResidual32IdrNal = "ZYiEBfEIioAwIQ/AQo2YAD1qDDAAeF6cXkMpeGpO//AcEMFMg4gEAzLzUjEim5Y64NxLxlzEj4fyP/wWoNkkfZj7OQZ/9gqNvqdsEso//ddw1DCIX5/Hq9dThj8jyknq9IAPIRkxQF9/f+0Djs+rg3X/fAgABAGADAcbCCA4gQAA3xuaUhB8OOW7GHNegO3ixkjbiAOVv/9HAK4htYjSADcXCjTWOmSGV1bDwabgh9M3UCdUjP72MHKSqLJNxv92JgI+12pypAAEDVkA0UMgrq1eMWgrkJZrblMyGGBxAIBmUAJi8M6MaFQfyP/1qHscEU1Y2R6vApmmEpDkFQer1gb5BOiDdPv++cIYmoStCDqAfVniQkK+fWiyzQdDHkb/Tghi5yVKQdVBpcVMNpUf2wRAAEBwQAA4KA4fIyAXkcxgGmb1wia3oGY2AmUxSYgEqLb++wNMVy9gWpl377ugie3KI3LTx41g1qt8DpZJYM0NFtUPMV/64J1IzWOZ5YkADHCH4aPYBIg/ngA8QABAAaIAAaAAEBeQgZbj5YDoGW4eWCAADhgADXBCAbAcAA4YAA1wcgGxHgP/oNTwABAR/+eAA8QAAgAAIJkQJ5JVwWWCirh5YIEI9wQAQCMBxCPcHAEAjEA=";
+    private const string CavlcResidual32PNal = "QZooYEfxtQEJMRRK1Ld8HUrzWzVE9NW/XfewgADYCi1QiiBAASUiD2UdiTXtlu0o11xlXuz1ciuIAFDR9h2f0Cvb8Cx3rm7egeUCQA==";
+    private const string CavlcResidual32BNal = "AZ5FAjwu/hXCb0qJ6y969+wMURWAGubx3kVsmo6ob/qrJMaHYAjuQp7+YvjqOo+O+00k";
+
 
     private const string CabacHighAvcC =
         "AWQAHv/hABdnZAAerOyWwEQAAAMABAAAAwAYPFi04AEABWjvjyyL/fj4AA==";
