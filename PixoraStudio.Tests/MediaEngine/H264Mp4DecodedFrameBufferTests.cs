@@ -32,7 +32,7 @@ public sealed class H264Mp4DecodedFrameBufferTests
     }
 
     [Fact]
-    public async Task ReadAllAsync_ShouldPreserveDecodePresentationQueueOrder()
+    public async Task ReadAllAsync_ShouldPreserveFrameOrder()
     {
         H264Mp4DecodedFrameBuffer buffer = new(3);
         H264Mp4DecodedVideoFrame[] expected =
@@ -102,19 +102,19 @@ public sealed class H264Mp4DecodedFrameBufferTests
     private static H264Mp4DecodedVideoFrame CreateFrame(uint sampleNumber)
     {
         H264Mp4VideoSample sample = new(
-            1,
-            sampleNumber,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            0,
-            []);
+            TrackId: 1,
+            SampleNumber: sampleNumber,
+            DecodeTimeTicks: 0,
+            PresentationTimeTicks: 0,
+            DurationTicks: 1,
+            Timescale: 1,
+            IsSyncSample: true,
+            Configuration: null!,
+            NalUnits: []);
+
         return new H264Mp4DecodedVideoFrame(
-            null!,
-            checked((int)sampleNumber),
-            sample);
+            Surface: null!,
+            PictureOrderCount: checked((int)sampleNumber),
+            SourceSample: sample);
     }
 }
