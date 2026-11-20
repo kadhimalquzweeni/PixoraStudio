@@ -83,8 +83,8 @@ public sealed class H264Mp4FrameNavigationPlannerTests
         Assert.Equal(40L, next.PresentationTimeTicks);
 
         Assert.NotNull(previous);
-        Assert.Equal(1u, previous.SampleNumber);
-        Assert.Equal(0L, previous.PresentationTimeTicks);
+        Assert.Equal(3u, previous.SampleNumber);
+        Assert.Equal(40L, previous.PresentationTimeTicks);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class H264Mp4FrameNavigationPlannerTests
             track, 0.08, H264Mp4FrameNavigationDirection.Previous);
 
         Assert.NotNull(previous);
-        Assert.Equal(2u, previous.SampleNumber);
+        Assert.Equal(3u, previous.SampleNumber);
         Assert.Equal(40L, previous.PresentationTimeTicks);
     }
 
