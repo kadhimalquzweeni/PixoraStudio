@@ -138,9 +138,20 @@ public sealed class H264Intra8x8MacroblockLumaReconstructor
                 hasTopLeft = hasExternalTopLeft;
             }
 
-            byte[] prediction = H264Intra8x8Prediction.Predict(
-                mode, top, left, topLeft, hasTop, hasLeft,
-                hasTopLeft, hasTopRight);
+            byte[] prediction;
+            try
+            {
+                prediction = H264Intra8x8Prediction.Predict(
+                    mode, top, left, topLeft, hasTop, hasLeft,
+                    hasTopLeft, hasTopRight);
+            }
+            catch (FormatException exception)
+            {
+                throw new FormatException(
+                    $"Intra8x8 prediction failed at macroblock ({macroblockX},{macroblockY}), " +
+                    $"block ({blockX},{blockY}), resolved mode {mode}. {exception.Message}",
+                    exception);
+            }
             H264Intra8x8LumaResidualBlock residual = ordered[index];
             if (residual.CoefficientsInScanOrder.Count != 64)
                 throw new FormatException("An Intra8x8 residual block must contain 64 scan-order coefficients.");
