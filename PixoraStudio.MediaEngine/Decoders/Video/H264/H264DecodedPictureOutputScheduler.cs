@@ -135,8 +135,10 @@ public sealed class H264DecodedPictureOutputScheduler
             throw new InvalidOperationException(
                 "A picture must have complete deblocking metadata before presentation output.");
         if (!surface.IsDeblockingFilterApplied)
+        {
             _beforeDeblocking?.Invoke(surface);
-        H264DeblockingPictureFilter.Apply(surface);
+            H264DeblockingPictureFilter.Apply(surface);
+        }
     }
 
     private static void ValidateOutputContext(
