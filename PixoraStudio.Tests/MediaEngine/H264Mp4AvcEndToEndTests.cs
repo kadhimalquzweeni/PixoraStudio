@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
 using PixoraStudio.MediaEngine.Models;
@@ -836,7 +835,7 @@ public sealed class H264Mp4AvcEndToEndTests
 
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
-        ConcurrentQueue<IH264CabacSliceDataReader> readers = new(
+        Queue<IH264CabacSliceDataReader> readers = new(
             new IH264CabacSliceDataReader[]
             {
                 new ScriptedCabacSliceDataReader([1], [1, 1]),
@@ -854,9 +853,7 @@ public sealed class H264Mp4AvcEndToEndTests
                 while (!reader.IsByteAligned)
                     Assert.True(reader.ReadFlag());
                 _ = reader.ReadBits(9);
-                return readers.TryDequeue(out IH264CabacSliceDataReader sliceReader)
-                    ? sliceReader
-                    : throw new InvalidOperationException("No scripted CABAC reader remains.");
+                return readers.Dequeue();
             });
 
         H264Mp4AccessUnitDecodeResult idrResult = decoder.Decode(idrSample)!;
