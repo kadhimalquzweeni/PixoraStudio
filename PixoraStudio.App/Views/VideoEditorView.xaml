@@ -358,7 +358,7 @@
                                        FontSize="14"
                                        Margin="0,0,0,15"/>
 
-                            <TextBlock Text="Managed MP4 export preserves the original encoded quality. Trim points are aligned to keyframes, so the exported range may differ slightly from the selection."
+                            <TextBlock Text="Managed MP4 export preserves the original encoded quality. Trim points are aligned to keyframes, so the exported range may differ from the selection depending on keyframe spacing."
                                        Foreground="#AAAAAA"
                                        FontSize="11"
                                        TextWrapping="Wrap"
