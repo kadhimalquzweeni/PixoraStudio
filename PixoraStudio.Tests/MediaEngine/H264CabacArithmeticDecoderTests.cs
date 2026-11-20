@@ -184,6 +184,36 @@ public sealed class H264CabacArithmeticDecoderTests
     }
 
 
+    [Fact]
+    public void DecodeDecision_ShouldRecordDecisionAndRenormalizationTimingsWhenEnabled()
+    {
+        byte[,] rangeTable = new byte[64, 4];
+        for (int state = 0; state < 64; state++)
+        for (int rangeClass = 0; rangeClass < 4; rangeClass++)
+            rangeTable[state, rangeClass] = 2;
+        rangeTable[0, 3] = 240;
+
+        byte[] transitions = Enumerable.Range(0, 64)
+            .Select(state => (byte)state)
+            .ToArray();
+        H264CabacPerformanceProfiler profiler = new();
+        H264CabacArithmeticDecoder decoder = new(
+            new H264BitReader(new byte[] { 0xC8, 0x00, 0x00 }),
+            rangeTable, transitions, transitions, profiler);
+        H264CabacContextModel context = new(0, 0);
+
+        Assert.Equal(1, decoder.DecodeDecision(ref context));
+        _ = decoder.DecodeBypass();
+
+        H264CabacPerformanceSnapshot snapshot = profiler.GetSnapshot();
+        Assert.Equal(1, snapshot.DecisionBinCount);
+        Assert.Equal(1, snapshot.BypassBinCount);
+        Assert.Equal(1, snapshot.RenormalizationCount);
+        Assert.True(snapshot.DecisionElapsed >= TimeSpan.Zero);
+        Assert.True(snapshot.BypassElapsed >= TimeSpan.Zero);
+        Assert.True(snapshot.RenormalizationElapsed >= TimeSpan.Zero);
+    }
+
     private static H264CabacArithmeticDecoder CreateDecoder(int offset)
     {
         byte[] bytes = { (byte)(offset >> 1), (byte)((offset & 1) << 7) };

@@ -70,6 +70,22 @@ public class H264HotPathBenchmarks
         return checksum ^ decoder.Range ^ context.State;
     }
 
+    [Benchmark(OperationsPerInvoke = Iterations)]
+    public int CabacDecisionBinsWithProfiling()
+    {
+        H264CabacPerformanceProfiler profiler = new();
+        H264CabacArithmeticDecoder decoder = new(
+            new H264BitReader(new byte[Iterations]), profiler);
+        H264CabacContextModel context = new(10, 0);
+        int checksum = 0;
+        for (int i = 0; i < Iterations; i++)
+            checksum += decoder.DecodeDecision(ref context);
+
+        H264CabacPerformanceSnapshot snapshot = profiler.GetSnapshot();
+        return checksum ^ decoder.Range ^ context.State ^
+            (int)snapshot.DecisionBinCount ^ (int)snapshot.RenormalizationCount;
+    }
+
     [Benchmark(OperationsPerInvoke = 1)]
     public int Inverse8x8Transform()
     {
