@@ -156,6 +156,29 @@ public sealed class H264DecodedPictureSurfaceTests
         Assert.True(surface.IsMacroblockAvailable(1, 0, 1, false));
     }
 
+    [Fact]
+    public void WriteMacroblock_ShouldRepublishUpdatedDataAfterSequentialRewrite()
+    {
+        H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
+
+        surface.WriteMacroblock(0, 0, 1, false,
+            Enumerable.Repeat((byte)10, 256).ToArray(),
+            Enumerable.Repeat((byte)11, 64).ToArray(),
+            Enumerable.Repeat((byte)12, 64).ToArray());
+
+        surface.WriteMacroblock(0, 0, 2, true,
+            Enumerable.Repeat((byte)20, 256).ToArray(),
+            Enumerable.Repeat((byte)21, 64).ToArray(),
+            Enumerable.Repeat((byte)22, 64).ToArray());
+
+        Assert.True(surface.IsMacroblockDecoded(0, 0));
+        Assert.True(surface.IsMacroblockAvailable(0, 0, 2, true));
+        Assert.False(surface.IsMacroblockAvailable(0, 0, 1, false));
+        Assert.Equal((byte)20, surface.GetLumaSample(0, 0));
+        Assert.Equal((byte)21, surface.GetChromaSample(1, 0, 0));
+        Assert.Equal((byte)22, surface.GetChromaSample(2, 0, 0));
+    }
+
     private static H264SequenceParameterSet CreateSps(
         uint format, uint widthMinus1, uint heightMinus1) =>
         new(0, 66, 30, format, false, 0, 0, 0, 0, 0, 1,
