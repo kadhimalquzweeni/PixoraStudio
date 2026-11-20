@@ -225,23 +225,45 @@ public sealed class H264DecodedPictureSurface
             throw new ArgumentException("Macroblock plane buffers do not match the active chroma format.");
 
         int index = GetMacroblockIndex(macroblockX, macroblockY);
-        if (Interlocked.CompareExchange(ref _macroblockStates[index], 1, 0) != 0)
-            throw new InvalidOperationException(
-                "A macroblock cannot be reconstructed more than once or concurrently.");
+        int previousState;
+        while (true)
+        {
+            previousState = Volatile.Read(ref _macroblockStates[index]);
+            if (previousState == 1 ||
+                Interlocked.CompareExchange(ref _macroblockStates[index], 1, previousState) != previousState)
+            {
+                if (previousState == 1)
+                    throw new InvalidOperationException(
+                        "A macroblock cannot be reconstructed concurrently.");
+                continue;
+            }
 
-        int lumaX = macroblockX * 16;
-        int lumaY = macroblockY * 16;
-        CopyBlock(luma, _luma, Width, lumaX, lumaY, 16, 16);
-        int chromaX = macroblockX * 8;
-        int chromaY = macroblockY * (ChromaFormatIdc == 1 ? 8 : 16);
-        int chromaBlockHeight = ChromaFormatIdc == 1 ? 8 : 16;
-        CopyBlock(cb, _cb, ChromaWidth, chromaX, chromaY, 8, chromaBlockHeight);
-        CopyBlock(cr, _cr, ChromaWidth, chromaX, chromaY, 8, chromaBlockHeight);
+            break;
+        }
 
-        _sliceIds[index] = sliceId;
-        _intra[index] = isIntra;
-        _deblockingMetadata[index] = null;
-        Volatile.Write(ref _macroblockStates[index], 2);
+        try
+        {
+            int lumaX = macroblockX * 16;
+            int lumaY = macroblockY * 16;
+            CopyBlock(luma, _luma, Width, lumaX, lumaY, 16, 16);
+            int chromaX = macroblockX * 8;
+            int chromaY = macroblockY * (ChromaFormatIdc == 1 ? 8 : 16);
+            int chromaBlockHeight = ChromaFormatIdc == 1 ? 8 : 16;
+            CopyBlock(cb, _cb, ChromaWidth, chromaX, chromaY, 8, chromaBlockHeight);
+            CopyBlock(cr, _cr, ChromaWidth, chromaX, chromaY, 8, chromaBlockHeight);
+
+            _sliceIds[index] = sliceId;
+            _intra[index] = isIntra;
+            _deblockingMetadata[index] = null;
+            Volatile.Write(ref _macroblockStates[index], 2);
+        }
+        catch
+        {
+            // A partially copied macroblock must never remain published as
+            // decoded. Permit a later retry, but keep it unavailable meanwhile.
+            Volatile.Write(ref _macroblockStates[index], 0);
+            throw;
+        }
     }
 
     private static void CopyBlock(
