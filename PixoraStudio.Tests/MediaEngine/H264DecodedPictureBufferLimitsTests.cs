@@ -54,7 +54,7 @@ public sealed class H264DecodedPictureBufferLimitsTests
     [Fact]
     public void ResolveMaxDpbFrames_ShouldRejectPictureLargerThanLevelAllows()
     {
-        H264SequenceParameterSet sps = CreateSps(10, 2, 2);
+        H264SequenceParameterSet sps = CreateSps(10, 10, 10);
 
         Assert.Throws<FormatException>(() =>
             H264DecodedPictureBufferLimits.ResolveMaxDpbFrames(sps));
