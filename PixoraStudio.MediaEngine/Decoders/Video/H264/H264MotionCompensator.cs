@@ -210,17 +210,27 @@ public sealed class H264MotionCompensator
     }
 
     private static byte GetLumaClamped(
-        H264DecodedPictureSurface reference, int x, int y) =>
-        reference.GetLumaSample(
-            Math.Clamp(x, 0, reference.Width - 1),
-            Math.Clamp(y, 0, reference.Height - 1));
+        H264DecodedPictureSurface reference, int x, int y)
+    {
+        int clampedX = Math.Clamp(x, 0, reference.Width - 1);
+        int clampedY = Math.Clamp(y, 0, reference.Height - 1);
+        // This is an internal hot path: the frame dimensions and plane length
+        // are established when the surface is created, and clamping guarantees
+        // the resulting index is valid. Avoid the public accessor's repeated
+        // argument validation for every six-tap filter sample.
+        return reference.GetLumaPlaneReadOnlySpan()[clampedY * reference.Width + clampedX];
+    }
 
     private static byte GetChromaClamped(
-        H264DecodedPictureSurface reference, byte componentId, int x, int y) =>
-        reference.GetChromaSample(
-            componentId,
-            Math.Clamp(x, 0, reference.ChromaWidth - 1),
-            Math.Clamp(y, 0, reference.ChromaHeight - 1));
+        H264DecodedPictureSurface reference, byte componentId, int x, int y)
+    {
+        int clampedX = Math.Clamp(x, 0, reference.ChromaWidth - 1);
+        int clampedY = Math.Clamp(y, 0, reference.ChromaHeight - 1);
+        ReadOnlySpan<byte> plane = componentId == 1
+            ? reference.GetCbPlaneReadOnlySpan()
+            : reference.GetCrPlaneReadOnlySpan();
+        return plane[clampedY * reference.ChromaWidth + clampedX];
+    }
 
     private static byte Average(int first, int second) =>
         (byte)((first + second + 1) >> 1);

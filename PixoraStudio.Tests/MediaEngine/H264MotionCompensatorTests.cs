@@ -195,6 +195,56 @@ public sealed class H264MotionCompensatorTests
             _compensator.Predict(surface, 30, 0, 4, 4, new H264MotionVector(0, 0)));
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Predict_ShouldMatchStandaloneInterpolationAcrossMotionVectorFractions(uint format)
+    {
+        H264DecodedPictureSurface surface = CreateSurface(
+            format,
+            (x, y) => (byte)((x * 17 + y * 29) & 0xFF),
+            (x, y) => (byte)((x * 13 + y * 31) & 0xFF),
+            (x, y) => (byte)((x * 23 + y * 7) & 0xFF));
+
+        H264MotionVector[] vectors =
+        [
+            new(-5, -3), new(-1, 1), new(0, 0),
+            new(1, 3), new(2, 2), new(7, -6)
+        ];
+
+        foreach (H264MotionVector vector in vectors)
+        {
+            H264MotionCompensatedBlock actual = _compensator.Predict(
+                surface, 4, 4, 8, 8, vector);
+            int chromaSubsampleY = format == 1 ? 2 : 1;
+            int chromaBlockHeight = format == 1 ? 4 : 8;
+
+            for (int y = 0; y < 8; y++)
+            for (int x = 0; x < 8; x++)
+            {
+                byte expected = _compensator.InterpolateLuma(
+                    surface, (4 + x) * 4 + vector.Horizontal,
+                    (4 + y) * 4 + vector.Vertical);
+                Assert.Equal(expected, actual.Luma[y * 8 + x]);
+            }
+
+            for (int y = 0; y < chromaBlockHeight; y++)
+            for (int x = 0; x < 4; x++)
+            {
+                int sourceX8 = (2 + x) * 8 + vector.Horizontal;
+                int sourceY8 = (4 / chromaSubsampleY + y) * 8 +
+                    vector.Vertical * 2 / chromaSubsampleY;
+                int index = y * 4 + x;
+                Assert.Equal(
+                    _compensator.InterpolateChroma(surface, 1, sourceX8, sourceY8),
+                    actual.Cb[index]);
+                Assert.Equal(
+                    _compensator.InterpolateChroma(surface, 2, sourceX8, sourceY8),
+                    actual.Cr[index]);
+            }
+        }
+    }
+
     private static H264DecodedPictureSurface CreateSurface(
         uint format,
         Func<int, int, byte> lumaValue,
