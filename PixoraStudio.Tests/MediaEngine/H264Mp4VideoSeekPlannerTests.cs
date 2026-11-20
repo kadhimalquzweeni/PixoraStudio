@@ -37,8 +37,6 @@ public sealed class H264Mp4VideoSeekPlannerTests
 
         H264Mp4VideoSeekPlan plan = _planner.Plan(track, 3.5);
 
-        // Sample 3 is a sync sample at PTS 3 seconds even though it is later
-        // in decode order than sample 2, whose PTS is also 3 seconds.
         Assert.Equal(3u, plan.FirstSampleToDecode);
         Assert.Equal(3500L, plan.TargetPresentationTimeTicks);
     }
@@ -83,6 +81,40 @@ public sealed class H264Mp4VideoSeekPlannerTests
         H264Mp4VideoSeekPlan plan = _planner.Plan(track, 2.5);
 
         Assert.Equal(1u, plan.FirstSampleToDecode);
+    }
+
+    [Fact]
+    public void Plan_ShouldChooseLowestSampleNumberWhenSyncSamplesSharePresentationTime()
+    {
+        Mp4MediaTrack track = CreateTrack(
+            Sample(1, 0, 1000, true),
+            Sample(2, 1000, 1000, true, compositionOffset: 2000),
+            Sample(3, 2000, 1000, true, compositionOffset: 1000));
+
+        H264Mp4VideoSeekPlan plan = _planner.Plan(track, 3.5);
+
+        Assert.Equal(2u, plan.FirstSampleToDecode);
+    }
+
+    [Fact]
+    public async Task Plan_ShouldSupportConcurrentRequestsForTheSameTrack()
+    {
+        Mp4MediaTrack track = CreateTrack(
+            Sample(1, 0, 1000, true),
+            Sample(2, 1000, 1000, false),
+            Sample(3, 2000, 1000, true),
+            Sample(4, 3000, 1000, false),
+            Sample(5, 4000, 1000, true));
+
+        H264Mp4VideoSeekPlan[] plans = await Task.WhenAll(
+            Enumerable.Range(0, 32).Select(index => Task.Run(
+                () => _planner.Plan(track, index % 5))));
+
+        Assert.Equal(32, plans.Length);
+        Assert.All(plans, plan => Assert.Equal(1000u, plan.Timescale));
+        Assert.Equal(1u, plans[0].FirstSampleToDecode);
+        Assert.Equal(3u, plans[2].FirstSampleToDecode);
+        Assert.Equal(5u, plans[4].FirstSampleToDecode);
     }
 
     [Fact]
@@ -158,8 +190,7 @@ public sealed class H264Mp4VideoSeekPlannerTests
         uint timescale,
         params Mp4SampleLocation[] samples)
     {
-        Mp4Track track = new(
-            7, 1920, 1080, timescale, 0, handlerType, []);
+        Mp4Track track = new(7, 1920, 1080, timescale, 0, handlerType, []);
 
         Mp4SampleTable table = new(
             [], [],
