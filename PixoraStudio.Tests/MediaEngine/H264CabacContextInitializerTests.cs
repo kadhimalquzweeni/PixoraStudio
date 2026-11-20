@@ -73,7 +73,7 @@ public sealed class H264CabacContextInitializerTests
     [Theory]
     [InlineData(277, 26, 0, 19, 1)]
     [InlineData(399, 26, 0, 7, 1)]
-    [InlineData(402, 26, 0, 26, 1)]
+    [InlineData(402, 26, 0, 28, 1)]
     public void TryInitialize_ShouldSkipTerminateContextInCompactTables(
         int contextIndex, int qp, int cabacInitIdc,
         int expectedState, int expectedMps)
