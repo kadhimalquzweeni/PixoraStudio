@@ -249,11 +249,7 @@ public sealed class H264Mp4AccessUnitDecoder
                 // Each I-slice gets isolated entropy and neighbour contexts.
                 // The shared surface atomically rejects duplicate macroblock writes.
                 H264IntraSliceDecodeResult?[] results = new H264IntraSliceDecodeResult?[slices.Count];
-                Parallel.For(
-                    0,
-                    slices.Count,
-                    new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
-                    i =>
+                ForEachSlice(slices.Count, i =>
                     {
                         H264NalUnit nalUnit = slices[i].NalUnit;
                         int currentSliceId = checked(firstSliceId + i);
@@ -292,11 +288,7 @@ public sealed class H264Mp4AccessUnitDecoder
                 H264MotionVectorPictureState?[] sliceMotionStates =
                     new H264MotionVectorPictureState?[slices.Count];
 
-                Parallel.For(
-                    0,
-                    slices.Count,
-                    new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
-                    i =>
+                ForEachSlice(slices.Count, i =>
                     {
                         int currentSliceId = checked(firstSliceId + i);
                         H264MotionVectorPictureState localMotionState =
@@ -352,11 +344,7 @@ public sealed class H264Mp4AccessUnitDecoder
                 H264MotionVectorPictureState?[] sliceMotionStatesL1 =
                     new H264MotionVectorPictureState?[slices.Count];
 
-                Parallel.For(
-                    0,
-                    slices.Count,
-                    new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
-                    i =>
+                ForEachSlice(slices.Count, i =>
                     {
                         int currentSliceId = checked(firstSliceId + i);
                         H264MotionVectorPictureState localMotionStateL0 =
@@ -552,6 +540,25 @@ public sealed class H264Mp4AccessUnitDecoder
         // leaving the actual slice decoding fully parallel.
         lock (_cabacReaderFactoryLock)
             return _cabacReaderFactory(reader, qpY, isIntra, cabacInitIdc);
+    }
+
+    private static void ForEachSlice(int sliceCount, Action<int> decodeSlice)
+    {
+        try
+        {
+            Parallel.For(
+                0,
+                sliceCount,
+                new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
+                decodeSlice);
+        }
+        catch (AggregateException exception) when (exception.InnerExceptions.Count == 1)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                .Capture(exception.InnerExceptions[0])
+                .Throw();
+            throw;
+        }
     }
 
     private static int GetMaxSliceParallelism()
