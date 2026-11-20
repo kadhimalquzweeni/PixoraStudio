@@ -243,8 +243,11 @@ public sealed class H264Mp4AccessUnitDecoder
                     case H264SliceType.P:
                         H264PInterSliceDecodeResult pResult = pDecoder!.Decode(
                             nalUnit, activeSps, activePps, _decodedPictureBuffer, currentSliceId);
+                        string cabacTrace = pResult.CabacDiagnostics.Count == 0
+                            ? string.Empty
+                            : $" cabac_trace=[{string.Join(" | ", pResult.CabacDiagnostics.TakeLast(24))}]";
                         sliceDecodeSummaries.Add(
-                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={pResult.MacroblocksDecoded} bits={pResult.BitsConsumed}");
+                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={pResult.MacroblocksDecoded} bits={pResult.BitsConsumed}{cabacTrace}");
                         IReadOnlyList<H264ReferencePicture> currentList0 = pResult.ReferenceList0 ??
                             throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
                         if (referenceList0 is null)

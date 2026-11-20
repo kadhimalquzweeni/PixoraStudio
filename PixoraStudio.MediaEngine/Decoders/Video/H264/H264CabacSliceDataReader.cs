@@ -5,13 +5,15 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// bypass and termination bins. Syntax-element binarisation is implemented
 /// by the slice and macroblock syntax readers.
 /// </summary>
-public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264CabacDiagnosticStateProvider
+public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264CabacDiagnosticStateProvider, IH264CabacDiagnosticTraceSink
 {
     private readonly H264BitReader _reader;
     private H264CabacArithmeticDecoder _arithmeticDecoder;
     private readonly H264CabacContextModel[] _contexts = new H264CabacContextModel[460];
     private readonly bool[] _initialized = new bool[460];
     private bool _terminated;
+    private const int MaximumDiagnosticMarkers = 128;
+    private readonly List<string> _diagnosticTrace = [];
 
     public H264CabacSliceDataReader(
         H264BitReader reader,
@@ -44,6 +46,17 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
     }
 
     public bool IsTerminated => _terminated;
+
+    /// <summary>Most recent syntax annotations, retained for failure diagnostics.</summary>
+    public IReadOnlyList<string> DiagnosticTrace => _diagnosticTrace.ToArray();
+
+    public void TraceDiagnostic(string marker)
+    {
+        ArgumentNullException.ThrowIfNull(marker);
+        if (_diagnosticTrace.Count == MaximumDiagnosticMarkers)
+            _diagnosticTrace.RemoveAt(0);
+        _diagnosticTrace.Add(marker);
+    }
 
     public int ArithmeticRange => _arithmeticDecoder.Range;
 

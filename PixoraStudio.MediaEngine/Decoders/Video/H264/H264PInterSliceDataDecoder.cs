@@ -495,7 +495,10 @@ public sealed class H264PInterSliceDataDecoder
             slice, decodedCount, qpY, reader.PositionBits, results)
         {
             IntraMacroblockAddresses = intraAddresses,
-            ReferenceList0 = referencePictureList0
+            ReferenceList0 = referencePictureList0,
+            CabacDiagnostics = cabac is H264CabacSliceDataReader diagnosticReader
+                ? diagnosticReader.DiagnosticTrace
+                : []
         };
     }
 
