@@ -113,8 +113,11 @@ public sealed class VideoProcessingService : IVideoProcessingService
                     .FirstOrDefault();
 
                 if (frame is null)
-                    throw new InvalidDataException(
+                {
+                    System.Diagnostics.Debug.WriteLine(
                         $"The decoder could not produce a frame for thumbnail {index}.");
+                    continue;
+                }
 
                 try
                 {
