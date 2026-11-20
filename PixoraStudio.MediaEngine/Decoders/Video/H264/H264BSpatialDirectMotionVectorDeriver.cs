@@ -58,6 +58,34 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         int blockX = checked(macroblockX * 4 + partitionX);
         int blockY = checked(macroblockY * 4 + partitionY);
         int step = direct8x8InferenceFlag ? 2 : 1;
+
+        // Spatial direct derives its base reference indices and motion vectors
+        // from the macroblock's A/B/C neighbours. The same base prediction is
+        // then assigned to each direct region; col_zero_flag may override an
+        // individual region. Do not derive a new predictor from already
+        // reconstructed direct regions inside this macroblock.
+        H264MotionVectorNeighbourCandidates candidates0 =
+            motionVectorStateL0.GetCandidates(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+        H264MotionVectorNeighbourCandidates candidates1 =
+            motionVectorStateL1.GetCandidates(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+        int referenceIndex0 = MinimumReferenceIndex(candidates0);
+        int referenceIndex1 = MinimumReferenceIndex(candidates1);
+        bool directZeroPrediction = referenceIndex0 < 0 && referenceIndex1 < 0;
+        if (directZeroPrediction)
+        {
+            referenceIndex0 = 0;
+            referenceIndex1 = 0;
+        }
+
+        H264MotionVector baseVector0 = directZeroPrediction || referenceIndex0 < 0
+            ? new H264MotionVector(0, 0)
+            : _predictor.Predict(candidates0.Left, candidates0.Above,
+                candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
+        H264MotionVector baseVector1 = directZeroPrediction || referenceIndex1 < 0
+            ? new H264MotionVector(0, 0)
+            : _predictor.Predict(candidates1.Left, candidates1.Above,
+                candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
+
         List<H264ReconstructedBInterSubPartition> result = [];
         int subIndex = 0;
 
@@ -66,35 +94,13 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         {
             int regionX = blockX + x;
             int regionY = blockY + y;
-            H264MotionVectorNeighbourCandidates candidates0 =
-                motionVectorStateL0.GetCandidates(regionX, regionY, step, step, sliceId);
-            H264MotionVectorNeighbourCandidates candidates1 =
-                motionVectorStateL1.GetCandidates(regionX, regionY, step, step, sliceId);
-
-            int referenceIndex0 = MinimumReferenceIndex(candidates0);
-            int referenceIndex1 = MinimumReferenceIndex(candidates1);
-            bool directZeroPrediction = referenceIndex0 < 0 && referenceIndex1 < 0;
-            if (directZeroPrediction)
-            {
-                referenceIndex0 = 0;
-                referenceIndex1 = 0;
-            }
-
             bool colZeroFlag = colZeroFlagProvider?.Invoke(regionX, regionY, step, step) ?? false;
-            H264MotionVector vector0Value = directZeroPrediction ||
-                (referenceIndex0 == 0 && colZeroFlag)
+            H264MotionVector vector0Value = referenceIndex0 == 0 && colZeroFlag
                 ? new H264MotionVector(0, 0)
-                : referenceIndex0 < 0
-                    ? new H264MotionVector(0, 0)
-                    : _predictor.Predict(candidates0.Left, candidates0.Above,
-                        candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
-            H264MotionVector vector1Value = directZeroPrediction ||
-                (referenceIndex1 == 0 && colZeroFlag)
+                : baseVector0;
+            H264MotionVector vector1Value = referenceIndex1 == 0 && colZeroFlag
                 ? new H264MotionVector(0, 0)
-                : referenceIndex1 < 0
-                    ? new H264MotionVector(0, 0)
-                    : _predictor.Predict(candidates1.Left, candidates1.Above,
-                        candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
+                : baseVector1;
             H264MotionVector? vector0 = referenceIndex0 >= 0 ? vector0Value : null;
             H264MotionVector? vector1 = referenceIndex1 >= 0 ? vector1Value : null;
 
