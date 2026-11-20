@@ -53,7 +53,7 @@ public sealed class Mp4DurationBoxWriter
                 requiredPayloadSize = 96;
                 versionOne = true;
                 break;
-            whenUnsupported:
+            default:
                 throw new Mp4ParsingException($"Unsupported duration box '{box.Type}' version {versionBuffer[0]}.");
         }
 
