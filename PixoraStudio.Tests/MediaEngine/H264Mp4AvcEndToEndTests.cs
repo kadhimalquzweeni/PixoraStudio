@@ -133,6 +133,63 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     [Fact]
+    public void DecodeSamples_HighProfileCabac8x8IAndPBTrack_ShouldMatchReferenceDecoder()
+    {
+        byte[] avcC = Convert.FromBase64String(CabacHighAvcC);
+        H264AvcDecoderConfiguration configuration =
+            new H264AvcDecoderConfigurationReader().Read(avcC);
+        Assert.Equal((byte)100, configuration.Profile);
+        Assert.Equal((byte)1, configuration.ChromaFormat);
+        Assert.Equal((byte)0, configuration.BitDepthLumaMinus8);
+        Assert.Equal((byte)0, configuration.BitDepthChromaMinus8);
+
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(configuration);
+        Assert.True(parameterSets.PictureParameterSets[0].Transform8X8ModeFlag);
+
+        Mp4CodecConfiguration codecConfiguration = new(
+            Mp4VideoCodec.Avc, "avcC", avcC, 1,
+            configuration.Profile, configuration.Compatibility,
+            configuration.Level, configuration.NaluLengthSize);
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 32, 32, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc, codecConfiguration);
+        Mp4Track track = new(
+            9, 32, 32, 1, 3, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+
+        Mp4EncodedSample[] samples =
+        [
+            CreateCabacEncodedSample(1, 0, 0, true, CabacHighIdrNal),
+            CreateCabacEncodedSample(2, 1, 2, false, CabacHighPNal),
+            CreateCabacEncodedSample(3, 2, 1, false, CabacHighBNal)
+        ];
+
+        H264Mp4DecodedVideoFrame[] frames =
+            new H264Mp4TrackDecoder().DecodeSamples(
+                track, samples, maxNumReorderFramesFallback: 2).ToArray();
+
+        Assert.Equal(new uint[] { 1, 3, 2 },
+            frames.Select(frame => frame.SampleNumber));
+        Assert.Equal(new long[] { 0, 1, 2 },
+            frames.Select(frame => frame.PresentationTimeTicks));
+        Assert.Equal(new[] { 0, 2, 4 },
+            frames.Select(frame => frame.PictureOrderCount));
+        Assert.All(frames, frame => Assert.True(frame.Surface.IsComplete));
+        Assert.All(frames, frame =>
+            Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
+
+        // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
+        string[] expectedFrameHashes =
+        [
+            "74d1870d8599bd3cd340270b7c04a2e920d8f39433f67e3dd764d9ff4242b7c1",
+            "fb67b186d4dff36ad4809f9c20290b5afc4eab4924eeb4ef763010bda2f83558",
+            "115c74e0cfd5e28fa92c26fe0aa647f1f8d4ea4705606e6c15b7f81f33ed205b"
+        ];
+        Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
+    }
+
+    [Fact]
     public void Decode_CabacMainProfileIAndPBStream_ShouldMatchReferenceDecoder()
     {
         // Three 32x32 Main-profile pictures encoded with x264 CABAC:
@@ -583,6 +640,15 @@ public sealed class H264Mp4AvcEndToEndTests
     private const string CabacPSkipIdrNal = "ZYiEOv7tz7/h";
     private const string CabacPSkipP1Nal = "QZoiCNf+4A==";
     private const string CabacPSkipP2Nal = "QZpCCNf+4Q==";
+
+    private const string CabacHighAvcC =
+        "AWQACv/hABdnZAAKrOyWwEQAAAMABAAAAwAIPEiU4AEABmjvgjLIsP34+AA=";
+    private const string CabacHighIdrNal =
+        "ZYiEA/+XtxKk6bLEHPtEPoHZ0Xk5Ju8q6OYeoTwAzKE1TpbHskkPkn7uTobBozTHe4BBpHM438B2xYrQ2kdLA3BiXH2M+xwBHplX1RzGhycTMcikCv6N959GMofV7TrqsYnV7updya4oGu+p+eccPvYXqkH5ZJizj1+tNegyZl0za40SxzHtJaava8GXWRm5GZb9BfCgZ8KjxlOdJiZFH8/Gm+GGxyyLCVslY9KR2ijQmIGgwRXOXOZiEIvfP28iet9isa4XaIsZ7M6ZBCZwB1rI2U0W08LPmfT3qWwvZ8lk6xfuTZxwlFCZggD0lAESb9uR1XSNTPhGnxfQctZniJ8daMXZshUO1H5ndzBHo8sUJqY9Cb1Hp5y92+D1+BwFdQ7BFUYUj2A89ZBXjV9SEzJxjUITaOEgmBKZn/fKNWwwR+uSUNlKdaGxHkMAJJJ4uSbPXgWYKfx1b1zrq3yrqmtoTp94oVyCaNTb9GYXzG7muHpBRagM9cV289c3uLKH3ASFkhpRkbDfx9sFU7HZgWsC971s88nyG+1fmApOXj8n3uxAmXnno2Xf4BvOXBHf19vJxRud9mKPpuA9b/6zh+eetT+IYBeddHo8b2Wf7lZq16d/pIvF62Obg2SQ0kLSWQIlp90N50FbtrEQOeP2b1bdPOg84wx7C2WTtYwhRaOMbFYbGwhyaWwASjKatmtA/fzhUZ4IPVmLbx/tYKWEydwgXAHUFpWHWwph";
+    private const string CabacHighPNal =
+        "QZooY/9yn0SPzY16GSB3PotxZVpBk5r+pqTPwOdzGXytUe2FWi68k6w/oXrH7qVvunAwGPDk53CkLbFLUTwcB+fYGijqugWyyPnGAin6dgoT+dCGNvl6J/B8WodgLN22doK/vrhaesmyjB/NBguKB2LC6g9Cp09rXvsDbRC7U6VyKXmPSjrn//1FT5t08gGfZotfecHayLsVnRQlD0waipOzNcaPN5q3WGZoollgMjEnA5zA";
+    private const string CabacHighBNal =
+        "AZ5EH/VWm9AhsQdup4QrrYywnEqonJ35YkSVomFW7PUms/dQzBntHQMTetHfIZS32gWkn9XW+KDDkPyW+cP5nV6sEbFKyteLK2TXARPT16Ip";
 
     private const string CabacMainAvcC =
         "AU1ACv/hABZnTUAK9ktgIgAAAwACAAADAAweJEpwAQAEaO4PyA==";
