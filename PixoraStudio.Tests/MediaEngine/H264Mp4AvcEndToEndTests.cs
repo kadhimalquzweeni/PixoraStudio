@@ -831,20 +831,21 @@ public sealed class H264Mp4AvcEndToEndTests
             BuildNal(0x41, CreateCabacPSkipSliceRbsp(1, 4, 1)));
         H264Mp4VideoSample bSample = ReadSample(
             track, 3, 80, false,
-            BuildNal(0x01, CreateCabacBSkipSliceRbsp(2, 2, 0)),
-            BuildNal(0x01, CreateCabacBSkipSliceRbsp(2, 2, 1)));
+            BuildNal(0x41, CreateCabacBSkipSliceRbsp(2, 2, 0)),
+            BuildNal(0x41, CreateCabacBSkipSliceRbsp(2, 2, 1)));
 
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
         ConcurrentQueue<IH264CabacSliceDataReader> readers = new(
-        [
-            new ScriptedCabacSliceDataReader([1], [1, 1]),
-            new ScriptedCabacSliceDataReader([1], [1, 1]),
-            new ScriptedCabacSliceDataReader([1], [1]),
-            new ScriptedCabacSliceDataReader([1], [1]),
-            new ScriptedCabacSliceDataReader([1], [1]),
-            new ScriptedCabacSliceDataReader([1], [1])
-        ]);
+            new IH264CabacSliceDataReader[]
+            {
+                new ScriptedCabacSliceDataReader([1], [1, 1]),
+                new ScriptedCabacSliceDataReader([1], [1, 1]),
+                new ScriptedCabacSliceDataReader([1], [1]),
+                new ScriptedCabacSliceDataReader([1], [1]),
+                new ScriptedCabacSliceDataReader([1], [1]),
+                new ScriptedCabacSliceDataReader([1], [1])
+            });
         H264Mp4AccessUnitDecoder decoder = new(
             parameterSets,
             2,
@@ -853,7 +854,7 @@ public sealed class H264Mp4AvcEndToEndTests
                 while (!reader.IsByteAligned)
                     Assert.True(reader.ReadFlag());
                 _ = reader.ReadBits(9);
-                return readers.TryDequeue(out IH264CabacSliceDataReader? sliceReader)
+                return readers.TryDequeue(out IH264CabacSliceDataReader sliceReader)
                     ? sliceReader
                     : throw new InvalidOperationException("No scripted CABAC reader remains.");
             });
