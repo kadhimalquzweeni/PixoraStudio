@@ -6,17 +6,19 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class H264CabacDiagnosticTraceTests
 {
     [Fact]
-    public void TraceDiagnostic_ShouldRetainOnlyTheMostRecent128Markers()
+    public void TraceDiagnostic_ShouldPreserveInitialAndMostRecent256Markers()
     {
         H264CabacSliceDataReader reader = new(
             new H264BitReader(new byte[] { 0x00, 0x00 }), 26, false, 0);
 
-        for (int index = 0; index < 140; index++)
+        for (int index = 0; index < 600; index++)
             reader.TraceDiagnostic($"marker-{index}");
 
-        Assert.Equal(128, reader.DiagnosticTrace.Count);
-        Assert.Equal("marker-12", reader.DiagnosticTrace[0]);
-        Assert.Equal("marker-139", reader.DiagnosticTrace[^1]);
+        Assert.Equal(512, reader.DiagnosticTrace.Count);
+        Assert.Equal("marker-0", reader.DiagnosticTrace[0]);
+        Assert.Equal("marker-255", reader.DiagnosticTrace[255]);
+        Assert.Equal("marker-344", reader.DiagnosticTrace[256]);
+        Assert.Equal("marker-599", reader.DiagnosticTrace[^1]);
     }
 
     [Fact]
