@@ -109,7 +109,7 @@ public sealed class H264Mp4FrameNavigationPlanner
             throw new ArgumentOutOfRangeException(nameof(direction));
     }
 
-    private static H264Mp4FrameNavigationTarget? FindAdjacentFrameCore(
+    private H264Mp4FrameNavigationTarget? FindAdjacentFrameCore(
         Mp4MediaTrack track,
         long currentTicks,
         uint? currentSampleNumber,
