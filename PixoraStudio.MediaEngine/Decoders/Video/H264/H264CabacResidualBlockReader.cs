@@ -181,6 +181,10 @@ public sealed class H264CabacResidualBlockReader
             reader, $"residual final_significant_position={finalPosition} " +
                 $"inferred={(finalPosition == endIndex)}");
 
+        // H.264 7.3.5.3.3 decodes each coefficient's magnitude immediately
+        // followed by its bypass-coded sign, in reverse scan order. Keeping
+        // these reads paired is essential: the sign bins are interleaved with
+        // the next coefficient's magnitude bins in the CABAC stream.
         int levelContextState = 0;
         for (int position = finalPosition; position >= startIndex; position--)
         {
