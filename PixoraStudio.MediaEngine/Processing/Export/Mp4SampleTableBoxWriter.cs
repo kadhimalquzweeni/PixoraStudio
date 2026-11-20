@@ -12,11 +12,15 @@ namespace PixoraStudio.MediaEngine.Processing.Export;
 public sealed class Mp4SampleTableBoxWriter
 {
     private readonly Mp4BoxWriter _boxWriter = new();
+    private readonly Mp4BoxTreeWriter _boxTreeWriter = new();
 
     public void Write(
         Stream destination,
         Mp4TrimTrackPlan plan,
-        IReadOnlyList<ulong> chunkOffsets)
+        IReadOnlyList<ulong> chunkOffsets,
+        bool force64BitChunkOffsets = false,
+        Stream? sourceStream = null,
+        Mp4Box? sampleDescriptionBox = null)
     {
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(plan);
@@ -28,12 +32,18 @@ public sealed class Mp4SampleTableBoxWriter
         if (plan.Samples.Count == 0)
             throw new ArgumentException("A sample table cannot be written without samples.", nameof(plan));
 
+        if ((sourceStream is null) != (sampleDescriptionBox is null))
+            throw new ArgumentException("The source stream and original stsd box must be provided together.");
+
         _boxWriter.WriteBox(destination, "stbl", sampleTable =>
         {
+            if (sourceStream is not null && sampleDescriptionBox is not null)
+                _boxTreeWriter.Write(sourceStream, sampleTable, [sampleDescriptionBox]);
+
             WriteTimeToSample(sampleTable, plan.Samples);
             WriteSampleToChunk(sampleTable, plan.Samples);
             WriteSampleSizes(sampleTable, plan.Samples);
-            WriteChunkOffsets(sampleTable, chunkOffsets);
+            WriteChunkOffsets(sampleTable, chunkOffsets, force64BitChunkOffsets);
 
             if (plan.HandlerType == Mp4HandlerType.Video)
                 WriteSyncSamples(sampleTable, plan.Samples);
@@ -101,9 +111,12 @@ public sealed class Mp4SampleTableBoxWriter
         });
     }
 
-    private void WriteChunkOffsets(Stream destination, IReadOnlyList<ulong> offsets)
+    private void WriteChunkOffsets(
+        Stream destination,
+        IReadOnlyList<ulong> offsets,
+        bool force64Bit)
     {
-        bool use64Bit = offsets.Any(offset => offset > uint.MaxValue);
+        bool use64Bit = force64Bit || offsets.Any(offset => offset > uint.MaxValue);
         string type = use64Bit ? "co64" : "stco";
 
         _boxWriter.WriteFullBox(destination, type, 0, 0, body =>
