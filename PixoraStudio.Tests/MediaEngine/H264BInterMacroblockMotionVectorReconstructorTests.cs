@@ -284,13 +284,13 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     {
         H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
             new H264BitReader(new byte[] { 0x80 }, 1), Header(0), 0, 0);
-        var state0 = new H264MotionVectorPictureState(2, 2);
-        var state1 = new H264MotionVectorPictureState(2, 2);
+        var state0 = new H264MotionVectorPictureState(3, 2);
+        var state1 = new H264MotionVectorPictureState(3, 2);
         foreach (H264MotionVectorPictureState state in new[] { state0, state1 })
         {
-            state.RecordInterPartition(3, 5, 1, 1, 0, 0, new H264MotionVector(10, 0));
-            state.RecordInterPartition(5, 3, 1, 1, 0, 0, new H264MotionVector(20, 0));
-            state.RecordInterPartition(6, 3, 1, 1, 0, 0, new H264MotionVector(30, 0));
+            state.RecordInterPartition(3, 7, 1, 1, 0, 0, new H264MotionVector(10, 0));
+            state.RecordInterPartition(7, 3, 1, 1, 0, 0, new H264MotionVector(20, 0));
+            state.RecordInterPartition(8, 3, 1, 1, 0, 0, new H264MotionVector(30, 0));
         }
 
         IReadOnlyList<H264ReconstructedBInterSubPartition> result =
@@ -315,11 +315,11 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     [Fact]
     public void SpatialDirect_ShouldSelectMinimumReferenceFromA_B_AndCAndIgnoreDWhenCExists()
     {
-        var state0 = new H264MotionVectorPictureState(2, 2);
-        var state1 = new H264MotionVectorPictureState(2, 2);
-        state0.RecordInterPartition(3, 5, 1, 1, 0, 2, new H264MotionVector(10, 0)); // A
-        state0.RecordInterPartition(5, 3, 1, 1, 0, 1, new H264MotionVector(20, 0)); // B
-        state0.RecordInterPartition(6, 3, 1, 1, 0, 3, new H264MotionVector(30, 0)); // C
+        var state0 = new H264MotionVectorPictureState(3, 2);
+        var state1 = new H264MotionVectorPictureState(3, 2);
+        state0.RecordInterPartition(3, 7, 1, 1, 0, 2, new H264MotionVector(10, 0)); // A
+        state0.RecordInterPartition(7, 3, 1, 1, 0, 1, new H264MotionVector(20, 0)); // B
+        state0.RecordInterPartition(8, 3, 1, 1, 0, 3, new H264MotionVector(30, 0)); // C
         state0.RecordInterPartition(3, 3, 1, 1, 0, 0, new H264MotionVector(99, 0)); // D, ignored
 
         H264ReconstructedBInterSubPartition result = Assert.Single(
@@ -354,11 +354,11 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     [Fact]
     public void SpatialDirect_WithReferenceIndexZeroAndAvailableNeighbours_ShouldKeepPredictedMotion()
     {
-        var state0 = new H264MotionVectorPictureState(2, 2);
-        var state1 = new H264MotionVectorPictureState(2, 2);
-        state0.RecordInterPartition(3, 5, 1, 1, 0, 0, new H264MotionVector(10, 0));
-        state0.RecordInterPartition(5, 3, 1, 1, 0, 0, new H264MotionVector(20, 0));
-        state0.RecordInterPartition(6, 3, 1, 1, 0, 0, new H264MotionVector(30, 0));
+        var state0 = new H264MotionVectorPictureState(3, 2);
+        var state1 = new H264MotionVectorPictureState(3, 2);
+        state0.RecordInterPartition(3, 7, 1, 1, 0, 0, new H264MotionVector(10, 0));
+        state0.RecordInterPartition(7, 3, 1, 1, 0, 0, new H264MotionVector(20, 0));
+        state0.RecordInterPartition(8, 3, 1, 1, 0, 0, new H264MotionVector(30, 0));
 
         H264ReconstructedBInterSubPartition result = Assert.Single(
             new H264BSpatialDirectMotionVectorDeriver().Derive(
@@ -374,12 +374,12 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     [Fact]
     public void SpatialDirect_WithColZeroFlagAndReferenceZero_ShouldZeroBothListVectors()
     {
-        var state0 = new H264MotionVectorPictureState(2, 2);
-        var state1 = new H264MotionVectorPictureState(2, 2);
-        state0.RecordInterPartition(3, 5, 1, 1, 0, 0, new H264MotionVector(10, 0));
-        state0.RecordInterPartition(5, 3, 1, 1, 0, 0, new H264MotionVector(20, 0));
-        state0.RecordInterPartition(6, 3, 1, 1, 0, 0, new H264MotionVector(30, 0));
-        state1.RecordInterPartition(3, 5, 1, 1, 0, 0, new H264MotionVector(5, 5));
+        var state0 = new H264MotionVectorPictureState(3, 2);
+        var state1 = new H264MotionVectorPictureState(3, 2);
+        state0.RecordInterPartition(3, 7, 1, 1, 0, 0, new H264MotionVector(10, 0));
+        state0.RecordInterPartition(7, 3, 1, 1, 0, 0, new H264MotionVector(20, 0));
+        state0.RecordInterPartition(8, 3, 1, 1, 0, 0, new H264MotionVector(30, 0));
+        state1.RecordInterPartition(3, 7, 1, 1, 0, 0, new H264MotionVector(5, 5));
 
         H264ReconstructedBInterSubPartition result = Assert.Single(
             new H264BSpatialDirectMotionVectorDeriver().Derive(
@@ -396,11 +396,11 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     [Fact]
     public void SpatialDirect_ShouldNotUseAboveLeftWhenAboveRightIsIntraCoded()
     {
-        var state0 = new H264MotionVectorPictureState(2, 2);
-        var state1 = new H264MotionVectorPictureState(2, 2);
-        state0.RecordInterPartition(3, 5, 1, 1, 0, 2, new H264MotionVector(10, 0)); // A
-        state0.RecordInterPartition(5, 3, 1, 1, 0, 1, new H264MotionVector(20, 0)); // B
-        state0.RecordUnavailableRegion(6, 3, 1, 1, 0); // C is intra, not unavailable
+        var state0 = new H264MotionVectorPictureState(3, 2);
+        var state1 = new H264MotionVectorPictureState(3, 2);
+        state0.RecordInterPartition(3, 7, 1, 1, 0, 2, new H264MotionVector(10, 0)); // A
+        state0.RecordInterPartition(7, 3, 1, 1, 0, 1, new H264MotionVector(20, 0)); // B
+        state0.RecordUnavailableRegion(8, 3, 1, 1, 0); // C is intra, not unavailable
         state0.RecordInterPartition(3, 3, 1, 1, 0, 0, new H264MotionVector(99, 0)); // D
 
         H264ReconstructedBInterSubPartition result = Assert.Single(
@@ -420,7 +420,7 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
         var state0 = new H264MotionVectorPictureState(2, 2);
         var state1 = new H264MotionVectorPictureState(2, 2);
         state0.RecordInterPartition(3, 3, 1, 1, 0, 2, new H264MotionVector(50, 0));
-        state1.RecordInterPartition(3, 5, 1, 1, 0, 1, new H264MotionVector(10, 0));
+        state1.RecordInterPartition(3, 7, 1, 1, 0, 1, new H264MotionVector(10, 0));
 
         H264ReconstructedBInterSubPartition result = Assert.Single(
             new H264BSpatialDirectMotionVectorDeriver().Derive(
