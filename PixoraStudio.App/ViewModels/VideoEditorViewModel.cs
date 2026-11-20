@@ -152,6 +152,7 @@ public partial class VideoEditorViewModel : ObservableObject
             VideoLoaded?.Invoke(filePath);
 
             _videoInfo = await _videoService.GetVideoInfoAsync(filePath);
+            thumbnailToken.ThrowIfCancellationRequested();
 
             TotalMilliseconds = Math.Max(0, _videoInfo.Duration.TotalMilliseconds);
             // Do not reset PlaybackPosition or CurrentTime here: playback may
