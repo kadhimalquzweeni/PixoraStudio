@@ -31,6 +31,7 @@ public partial class App : Application
         services.AddSingleton<VideoEditorViewModel>();
         services.AddSingleton<IImageProcessingService, ImageProcessingService>();
         services.AddSingleton<IVideoProcessingService, VideoProcessingService>();
+        services.AddSingleton<IVideoExportService, VideoExportService>();
 
         services.AddSingleton<MainWindow>();
 
