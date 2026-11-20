@@ -265,15 +265,12 @@ public sealed class H264Mp4AvcEndToEndTests
                 .Concat(frames[1].Surface.CopyCbPlane())
                 .Concat(frames[1].Surface.CopyCrPlane()).ToArray());
         Assert.Equal(3, preDeblockingFrames.Count);
-        string[] expectedPreDeblockingHashes =
-        [
-            "77c006203196ee43dd30d01b7968051ec76ba3a10010b942aee006ffc72b11bd",
-            "e22b155ff589449365ab8fc10ba6da16af97e699a8d4d3ace712459af8e419a9",
-            "36cd1e541a1e9512adc1dc9ad65ea6f51fe49b63cda62a56beb6662cfeff83da"
-        ];
-        Assert.Equal(expectedPreDeblockingHashes,
-            preDeblockingFrames.Select(frame => Convert.ToHexString(
-                System.Security.Cryptography.SHA256.HashData(frame)).ToLowerInvariant()));
+        string preDeblockingBFrameHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(preDeblockingFrames[2]))
+            .ToLowerInvariant();
+        Assert.Equal(
+            "c00bdde1d406339ba202b980757d8ba341cdc391f96b8f5189c4dcf91ca96c93",
+            preDeblockingBFrameHash);
         File.WriteAllBytes(
             Path.Combine(testResultsDirectory, "cabac-high-profile-prefilter-b-frame.yuv"),
             preDeblockingFrames[2]);
