@@ -32,7 +32,7 @@ public sealed class Mp4SampleTableBoxWriterTests
         Assert.Equal(new ulong[] { 1000, 1004, 1009 }, table.ChunkOffsets.Offsets);
         Assert.Equal(new uint[] { 1, 3 }, table.SyncSamples!.SampleNumbers);
         Assert.Equal(
-            [new Mp4TimeToSampleEntry(2, 100), new Mp4TimeToSampleEntry(1, 200)],
+            new[] { new Mp4TimeToSampleEntry(2, 100), new Mp4TimeToSampleEntry(1, 200) },
             table.TimeToSampleEntries);
     }
 
@@ -53,7 +53,7 @@ public sealed class Mp4SampleTableBoxWriterTests
         Mp4SampleTable table = new Mp4SampleTableReader().Read(stream, stbl);
 
         Assert.Equal(
-            [new Mp4CompositionTimeEntry(1, 20), new Mp4CompositionTimeEntry(1, -10)],
+            new[] { new Mp4CompositionTimeEntry(1, 20), new Mp4CompositionTimeEntry(1, -10) },
             table.CompositionTimes!.Entries);
     }
 
@@ -92,7 +92,7 @@ public sealed class Mp4SampleTableBoxWriterTests
         Mp4SampleTable table = new Mp4SampleTableReader().Read(stream, box);
 
         Assert.Equal(
-            [new Mp4SampleToChunkEntry(1, 1, 1), new Mp4SampleToChunkEntry(3, 1, 2)],
+            new[] { new Mp4SampleToChunkEntry(1, 1, 1), new Mp4SampleToChunkEntry(3, 1, 2) },
             table.SampleToChunkEntries);
     }
 
