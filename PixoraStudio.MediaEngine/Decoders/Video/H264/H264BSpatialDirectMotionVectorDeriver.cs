@@ -73,43 +73,34 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
 
             int referenceIndex0 = MinimumReferenceIndex(candidates0);
             int referenceIndex1 = MinimumReferenceIndex(candidates1);
-            bool directZeroPrediction = referenceIndex0 < 0 && referenceIndex1 < 0;
-            if (directZeroPrediction)
-            {
+            bool list0HasNoSpatialCandidate = referenceIndex0 < 0;
+            bool list1HasNoSpatialCandidate = referenceIndex1 < 0;
+
+            // H.264 spatial direct derives each list independently. If all
+            // three neighbours for one list are unavailable, that list still
+            // uses reference index 0 and a zero motion vector; it must not be
+            // omitted merely because the other list has an available candidate.
+            if (list0HasNoSpatialCandidate)
                 referenceIndex0 = 0;
+            if (list1HasNoSpatialCandidate)
                 referenceIndex1 = 0;
-            }
 
             bool colZeroFlag = colZeroFlagProvider?.Invoke(regionX, regionY, step, step) ?? false;
-            H264MotionVector vector0Value = directZeroPrediction ||
+            H264MotionVector vector0Value = list0HasNoSpatialCandidate ||
                 (referenceIndex0 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
-                : referenceIndex0 < 0
-                    ? new H264MotionVector(0, 0)
-                    : _predictor.Predict(candidates0.Left, candidates0.Above,
-                        candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
-            H264MotionVector vector1Value = directZeroPrediction ||
+                : _predictor.Predict(candidates0.Left, candidates0.Above,
+                    candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
+            H264MotionVector vector1Value = list1HasNoSpatialCandidate ||
                 (referenceIndex1 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
-                : referenceIndex1 < 0
-                    ? new H264MotionVector(0, 0)
-                    : _predictor.Predict(candidates1.Left, candidates1.Above,
-                        candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
-            H264MotionVector? vector0 = referenceIndex0 >= 0 ? vector0Value : null;
-            H264MotionVector? vector1 = referenceIndex1 >= 0 ? vector1Value : null;
+                : _predictor.Predict(candidates1.Left, candidates1.Above,
+                    candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
 
-            if (referenceIndex0 >= 0)
-                motionVectorStateL0.RecordInterPartition(
-                    regionX, regionY, step, step, sliceId, referenceIndex0, vector0Value);
-            else
-                motionVectorStateL0.RecordUnavailableRegion(
-                    regionX, regionY, step, step, sliceId);
-            if (referenceIndex1 >= 0)
-                motionVectorStateL1.RecordInterPartition(
-                    regionX, regionY, step, step, sliceId, referenceIndex1, vector1Value);
-            else
-                motionVectorStateL1.RecordUnavailableRegion(
-                    regionX, regionY, step, step, sliceId);
+            motionVectorStateL0.RecordInterPartition(
+                regionX, regionY, step, step, sliceId, referenceIndex0, vector0Value);
+            motionVectorStateL1.RecordInterPartition(
+                regionX, regionY, step, step, sliceId, referenceIndex1, vector1Value);
 
             result.Add(new H264ReconstructedBInterSubPartition(
                 macroblockPartitionIndex, subIndex++,
