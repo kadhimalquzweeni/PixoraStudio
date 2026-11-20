@@ -342,7 +342,7 @@ public sealed class H264PInterMacroblockReconstructor
             lumaBlocks[blockY * 4 + blockX] = new H264DeblockingBlockMetadata(
                 false, lumaNonZero[blockY * 4 + blockX],
                 referencePictureList0[candidate.ReferenceIndex], candidate.MotionVector,
-                null, null, candidate.ReferenceIndex, null);
+                null, null);
         }
 
         int chromaRows = sps.ChromaFormatIdc == 1 ? 2 : 4;
