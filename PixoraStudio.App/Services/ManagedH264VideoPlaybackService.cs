@@ -262,7 +262,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 
             H264Mp4DecodedFrameBuffer buffer = new(DecodeBufferCapacity);
             Task decodeTask = DecodeFramesAsync(
-                path, info, _trackId, startSeconds, buffer, cancellationToken);
+                path, info, _trackId, startSeconds, firstFrameSampleNumber,
+                buffer, cancellationToken);
             Task presentationTask = PresentFramesAsync(
                 buffer, clock, publish, firstFrameSampleNumber, cancellationToken);
 
@@ -283,6 +284,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         Mp4MediaInfo info,
         uint trackId,
         double startSeconds,
+        uint? firstFrameSampleNumber,
         H264Mp4DecodedFrameBuffer buffer,
         CancellationToken cancellationToken)
     {
@@ -291,7 +293,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         {
             using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             IEnumerable<H264Mp4DecodedVideoFrame> frames =
-                startSeconds <= 0 && _decodeCancellation?.IsCancellationRequested == false
+                startSeconds <= 0 && firstFrameSampleNumber is null
                     ? _decoder.Decode(stream, info, trackId, cancellationToken: cancellationToken)
                     : _decoder.DecodeFromTime(
                         stream, info, trackId, startSeconds,
@@ -347,13 +349,13 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                 else
                 {
                     while (true)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    decision = _presentationScheduler.Evaluate(
-                        frame.SourceSample.PresentationTimeSeconds,
-                        Math.Max(0, playbackClock()));
-                    if (decision.Action != H264FramePresentationAction.Wait)
-                        break;
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        decision = _presentationScheduler.Evaluate(
+                            frame.SourceSample.PresentationTimeSeconds,
+                            Math.Max(0, playbackClock()));
+                        if (decision.Action != H264FramePresentationAction.Wait)
+                            break;
 
                         await Task.Delay(decision.Delay, cancellationToken).ConfigureAwait(false);
                     }
