@@ -86,13 +86,23 @@ public sealed class H264IntraMacroblockReconstructor
         if (header.Intra16x16PredMode == 0 && !lumaReferences.HasTop ||
             header.Intra16x16PredMode == 1 && !lumaReferences.HasLeft ||
             header.Intra16x16PredMode == 3 &&
-                (!lumaReferences.HasTop || !lumaReferences.HasLeft || !lumaReferences.HasTopLeft))
-            throw new FormatException("The selected Intra16x16 luma mode requires unavailable reference samples.");
+                (!lumaReferences.HasTop || !lumaReferences.HasLeft))
+            throw new FormatException(
+                "The selected Intra16x16 luma mode requires unavailable top or left reference samples.");
+
+        // Plane prediction needs a top-left value for its gradients. When the
+        // top and left edges are available but their diagonal neighbour is not
+        // (for example, because it belongs to another slice), H.264 reference
+        // sample substitution uses the rounded average of the first top and
+        // first left samples.
+        byte topLeft = lumaReferences.HasTopLeft
+            ? lumaReferences.TopLeft
+            : (byte)((lumaReferences.Top[0] + lumaReferences.Left[0] + 1) >> 1);
 
         int qpPrimeY = H264InverseQuantizer.ToQpPrimeY(sps, qpY);
         byte[] lumaPrediction = H264IntraPrediction.Predict16x16(
             header.Intra16x16PredMode.Value,
-            lumaReferences.Top, lumaReferences.Left, lumaReferences.TopLeft,
+            lumaReferences.Top, lumaReferences.Left, topLeft,
             lumaReferences.HasTop, lumaReferences.HasLeft);
         H264CavlcResidualBlock[] acBlocks = OrderLumaAcBlocks(residual.Blocks);
         byte[] luma = H264Intra16x16ResidualReconstructor.Reconstruct(
