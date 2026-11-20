@@ -48,6 +48,22 @@ public sealed class H264DecodedPictureSurfaceDeblockingMetadataTests
     }
 
     [Fact]
+    public void FailedRewrite_ShouldInvalidateOldDeblockingMetadataAndAvailability()
+    {
+        H264DecodedPictureSurface surface = Surface(1);
+        WriteMacroblock(surface, 1);
+        surface.SetDeblockingMetadata(0, 0, Metadata(4));
+
+        Assert.Throws<InvalidOperationException>(() => surface.WriteMacroblock(
+            0, 0, 1, false,
+            new ThrowingReadOnlyByteList(256), new byte[64], new byte[64]));
+
+        Assert.False(surface.IsMacroblockDecoded(0, 0));
+        Assert.Null(surface.GetDeblockingMetadata(0, 0));
+        Assert.False(surface.HasCompleteDeblockingMetadata);
+    }
+
+    [Fact]
     public void SetDeblockingMetadata_ShouldRequireDecodedMacroblock()
     {
         H264DecodedPictureSurface surface = Surface(1);
@@ -93,6 +109,20 @@ public sealed class H264DecodedPictureSurfaceDeblockingMetadataTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             surface.GetDeblockingMetadata(-1, 0));
+    }
+
+    private sealed class ThrowingReadOnlyByteList(int count) : IReadOnlyList<byte>
+    {
+        public int Count => count;
+
+        public byte this[int index] =>
+            throw new InvalidOperationException("Synthetic macroblock copy failure.");
+
+        public IEnumerator<byte> GetEnumerator() =>
+            Enumerable.Repeat((byte)0, count).GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
     }
 
     private static H264DecodedPictureSurface Surface(uint chromaFormat) =>
