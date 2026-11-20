@@ -39,6 +39,12 @@ jobs:
       - name: Run automated tests
         run: dotnet test PixoraStudio.Tests/PixoraStudio.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=pixorastudio-tests.trx"
 
+      - name: Restore benchmark project
+        run: dotnet restore PixoraStudio.Benchmarks/PixoraStudio.Benchmarks.csproj
+
+      - name: Build benchmark project
+        run: dotnet build PixoraStudio.Benchmarks/PixoraStudio.Benchmarks.csproj --configuration Release --no-restore
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
