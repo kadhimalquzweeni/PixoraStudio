@@ -44,9 +44,9 @@ public sealed class VideoProcessingService : IVideoProcessingService
     }
 
     /// <summary>
-    /// Extracts multiple filmstrip images from one MP4 parse. Each target is
-    /// decoded from its preceding sync sample, avoiding a full-file decode
-    /// while reusing the parsed sample tables and open stream.
+    /// Extracts multiple filmstrip images from one MP4 parse and one continuous
+    /// H.264 decode. Requested frames are captured as the decoder reaches their
+    /// presentation timestamps, avoiding repeated GOP decoding for each image.
     /// </summary>
     public Task GenerateThumbnailsAsync(
         string filePath,
@@ -92,51 +92,103 @@ public sealed class VideoProcessingService : IVideoProcessingService
                 ?? throw new NotSupportedException(
                     "The MP4 file does not contain a video track.");
 
+            long presentationEndTicks = GetPresentationEndTicks(videoTrack);
+            long[] targetTicks = positions
+                .Select(position => ToTrackTicks(position, videoTrack.Timescale, presentationEndTicks))
+                .ToArray();
+
             H264AvcParameterSetCollectionReader parameterSetReader = new();
             H264YuvToBgraConverter converter = new();
+            int nextTargetIndex = 0;
 
-            // Keep memory bounded and avoid decoding the entire source just
-            // to reach the final filmstrip position. Reuse the parsed MP4
-            // sample tables and stream, but seek independently to each target
-            // so every decoder starts at its preceding sync sample.
-            for (int index = 0; index < positions.Count; index++)
+            // Decode in one continuous pass. DecodeFromTime per thumbnail
+            // replays the GOP from the preceding sync sample, which becomes
+            // increasingly expensive as the filmstrip spans a long video.
+            H264Mp4TrackDecoder decoder = new();
+            foreach (H264Mp4DecodedVideoFrame frame in decoder.Decode(
+                stream,
+                mediaInfo,
+                videoTrack.TrackId,
+                cancellationToken: cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                H264Mp4DecodedVideoFrame? frame =
-                    new H264Mp4TrackDecoder().DecodeFromTime(
-                        stream,
-                        mediaInfo,
-                        videoTrack.TrackId,
-                        positions[index].TotalSeconds,
-                        cancellationToken: cancellationToken)
-                    .FirstOrDefault();
+                long frameEndTicks = checked(
+                    frame.PresentationTimeTicks + frame.DurationTicks);
 
-                if (frame is null)
+                // Frames are emitted in presentation order. One decoded frame
+                // may satisfy duplicate or closely spaced thumbnail targets.
+                while (nextTargetIndex < targetTicks.Length &&
+                       frameEndTicks > targetTicks[nextTargetIndex])
                 {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"The decoder could not produce a frame for thumbnail {index}.");
-                    continue;
+                    try
+                    {
+                        SaveThumbnail(
+                            frame,
+                            outputPaths[nextTargetIndex],
+                            parameterSetReader,
+                            converter);
+                        progress?.Report(new VideoThumbnailResult(
+                            nextTargetIndex,
+                            Path.GetFullPath(outputPaths[nextTargetIndex])));
+                    }
+                    catch (Exception exception) when (
+                        exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"Thumbnail {nextTargetIndex} could not be generated: {exception}");
+                    }
+
+                    nextTargetIndex++;
                 }
 
-                try
-                {
-                    SaveThumbnail(
-                        frame,
-                        outputPaths[index],
-                        parameterSetReader,
-                        converter);
-                    progress?.Report(new VideoThumbnailResult(
-                        index, Path.GetFullPath(outputPaths[index])));
-                }
-                catch (Exception exception) when (
-                    exception is not OperationCanceledException)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"Thumbnail {index} could not be generated: {exception}");
-                }
+                if (nextTargetIndex == targetTicks.Length)
+                    break;
+            }
+
+            if (nextTargetIndex < targetTicks.Length)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"The decoder ended before producing {targetTicks.Length - nextTargetIndex} requested thumbnail(s).");
             }
         }, cancellationToken);
+    }
+
+    private static long GetPresentationEndTicks(Mp4MediaTrack track)
+    {
+        long presentationEndTicks = 0;
+
+        foreach (Mp4SampleLocation sample in track.SampleLocations.Samples)
+        {
+            long sampleEndTicks = checked(
+                sample.PresentationTimeTicks + sample.DurationTicks);
+            presentationEndTicks = Math.Max(presentationEndTicks, sampleEndTicks);
+        }
+
+        if (presentationEndTicks <= 0)
+            throw new InvalidDataException("The MP4 video track has no valid presentation duration.");
+
+        return presentationEndTicks;
+    }
+
+    private static long ToTrackTicks(
+        TimeSpan position,
+        uint timescale,
+        long presentationEndTicks)
+    {
+        if (timescale == 0)
+            throw new InvalidDataException("The MP4 video track timescale must be greater than zero.");
+
+        decimal requestedTicks = decimal.Floor(
+            (decimal)position.Ticks * timescale / TimeSpan.TicksPerSecond);
+
+        long targetTicks = requestedTicks >= long.MaxValue
+            ? long.MaxValue
+            : (long)requestedTicks;
+
+        // Match the seek planner's behaviour for positions beyond the end:
+        // request the final tick so the last picture is returned.
+        return Math.Min(targetTicks, presentationEndTicks - 1);
     }
 
     private static void SaveThumbnail(
