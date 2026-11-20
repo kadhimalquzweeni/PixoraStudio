@@ -46,7 +46,7 @@ public sealed class VideoProcessingServiceTests
         }
     }
     [Fact]
-    public async Task GenerateThumbnailsAsync_ShouldRejectMismatchedPositionsAndPaths()
+    public void GenerateThumbnailsAsync_ShouldRejectMismatchedPositionsAndPaths()
     {
         VideoProcessingService service = new();
         string filePath = Path.GetTempFileName();
@@ -110,5 +110,4 @@ public sealed class VideoProcessingServiceTests
             File.Delete(filePath);
         }
     }
-
 }
