@@ -13,14 +13,14 @@ public sealed class H264BSpatialDirectMotionVectorDeriverTests
         H264MotionVectorPictureState list0 = new(3, 3);
         H264MotionVectorPictureState list1 = new(3, 3);
 
-        // A=(3,4), B=(4,3), C=(5,3) for the top-left 4x4 block
+        // A=(3,4), B=(4,3), C=(8,3) for spatial-direct macroblock
         // of macroblock (1,1). The selected reference is B for each list.
         Record(list0, 3, 4, 2, 10, 20);
         Record(list0, 4, 3, 1, 30, 40);
-        Record(list0, 5, 3, 3, 50, 60);
+        Record(list0, 8, 3, 3, 50, 60);
         Record(list1, 3, 4, 4, 11, 21);
         Record(list1, 4, 3, 2, 70, 80);
-        Record(list1, 5, 3, 3, 51, 61);
+        Record(list1, 8, 3, 3, 51, 61);
 
         IReadOnlyList<H264ReconstructedBInterSubPartition> result = _deriver.Derive(
             list0, list1,
@@ -50,7 +50,7 @@ public sealed class H264BSpatialDirectMotionVectorDeriverTests
 
         Record(list0, 3, 4, 4, 10, 10); // A
         Record(list0, 4, 3, 5, 20, 20); // B
-        Record(list0, 3, 3, 1, 30, 40); // D; C=(5,3) is unavailable
+        Record(list0, 3, 3, 1, 30, 40); // D; C=(8,3) is unavailable
 
         IReadOnlyList<H264ReconstructedBInterSubPartition> result = _deriver.Derive(
             list0, list1,
