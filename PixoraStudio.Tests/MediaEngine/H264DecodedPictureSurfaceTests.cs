@@ -39,6 +39,31 @@ public sealed class H264DecodedPictureSurfaceTests
     }
 
     [Fact]
+    public void WriteMacroblock_ShouldCopyArrayBackedPlanesIntoCorrectFrameRegion()
+    {
+        H264DecodedPictureSurface surface = new(CreateSps(1, 1, 0));
+        byte[] luma = Enumerable.Range(0, 256).Select(value => (byte)value).ToArray();
+        byte[] cb = Enumerable.Range(1, 64).Select(value => (byte)value).ToArray();
+        byte[] cr = Enumerable.Range(101, 64).Select(value => (byte)value).ToArray();
+
+        surface.WriteMacroblock(1, 0, 0, false, luma, cb, cr);
+
+        Assert.Equal((byte)0, surface.GetLumaSample(16, 0));
+        Assert.Equal((byte)255, surface.GetLumaSample(31, 15));
+        Assert.Equal((byte)1, surface.GetChromaSample(1, 8, 0));
+        Assert.Equal((byte)64, surface.GetChromaSample(1, 15, 7));
+        Assert.Equal((byte)101, surface.GetChromaSample(2, 8, 0));
+        Assert.Equal((byte)164, surface.GetChromaSample(2, 15, 7));
+
+        luma[0] = 99;
+        cb[0] = 99;
+        cr[0] = 99;
+        Assert.Equal((byte)0, surface.GetLumaSample(16, 0));
+        Assert.Equal((byte)1, surface.GetChromaSample(1, 8, 0));
+        Assert.Equal((byte)101, surface.GetChromaSample(2, 8, 0));
+    }
+
+    [Fact]
     public void WriteMacroblock_ShouldDistinguishInterFromIntraForConstrainedPrediction()
     {
         var surface = new H264DecodedPictureSurface(CreateSps(1, 1, 0));

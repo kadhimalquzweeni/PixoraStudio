@@ -231,9 +231,30 @@ public sealed class H264DecodedPictureSurface
         IReadOnlyList<byte> source, byte[] destination, int stride,
         int x, int y, int width, int height)
     {
+        if (source is byte[] sourceArray)
+        {
+            // Reconstructed macroblock planes are normally byte arrays.
+            // Array.Copy uses the runtime's optimised bulk-copy path instead
+            // of performing one bounds-checked interface read per sample.
+            for (int row = 0; row < height; row++)
+            {
+                Array.Copy(
+                    sourceArray,
+                    row * width,
+                    destination,
+                    (y + row) * stride + x,
+                    width);
+            }
+            return;
+        }
+
         for (int row = 0; row < height; row++)
+        {
+            int sourceOffset = row * width;
+            int destinationOffset = (y + row) * stride + x;
             for (int column = 0; column < width; column++)
-                destination[(y + row) * stride + x + column] = source[row * width + column];
+                destination[destinationOffset + column] = source[sourceOffset + column];
+        }
     }
 
     private int GetMacroblockIndex(int x, int y) => y * MacroblockWidth + x;
