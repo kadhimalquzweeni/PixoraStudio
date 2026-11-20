@@ -32,6 +32,10 @@ public partial class VideoEditorView : UserControl
     private bool _usesManagedH264Video;
     private H264Mp4FrameNavigationTarget? _pendingFrameStepTarget;
     private H264Mp4FrameNavigationTarget? _lastDisplayedFrame;
+    private readonly object _managedFrameSync = new();
+    private BitmapSource? _pendingManagedBitmap;
+    private H264Mp4FrameNavigationTarget? _pendingManagedFrame;
+    private bool _managedFrameDispatchPending;
     private CancellationTokenSource? _videoLoadCancellation;
     private bool _usesCustomAacAudio;
     private bool _isPreparingVideo;
@@ -356,23 +360,7 @@ public partial class VideoEditorView : UserControl
                 {
                     H264Mp4FrameNavigationTarget? presentedFrame =
                         _managedH264PlaybackService.LastPresentedFrame;
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        if (loadVersion != _videoLoadVersion)
-                            return;
-
-                        ManagedVideoFrame.Source = bitmap;
-                        ManagedVideoFrame.Visibility = Visibility.Visible;
-                        _lastDisplayedFrame = presentedFrame;
-                        if (DataContext is VideoEditorViewModel previewVm)
-                            previewVm.CanStepFrames = true;
-
-                        if (_pendingFrameStepTarget is not null &&
-                            _pendingFrameStepTarget == presentedFrame)
-                        {
-                            _pendingFrameStepTarget = null;
-                        }
-                    }));
+                    QueueManagedFrame(bitmap, presentedFrame, loadVersion);
                 },
                 exception => Dispatcher.BeginInvoke(new Action(() =>
                 {
@@ -659,6 +647,59 @@ public partial class VideoEditorView : UserControl
             System.Diagnostics.Debug.WriteLine(
                 $"Managed H.264 frame stepping failed; LibVLC fallback remains active: {exception.Message}");
         }
+    }
+
+    /// <summary>
+    /// Coalesces preview updates so a busy WPF dispatcher renders the newest
+    /// due frame instead of accumulating a queue of already-stale bitmaps.
+    /// Frame stepping remains exact because the presentation gate holds the
+    /// decoder at the requested sample while the playback clock is paused.
+    /// </summary>
+    private void QueueManagedFrame(
+        BitmapSource bitmap,
+        H264Mp4FrameNavigationTarget? presentedFrame,
+        int loadVersion)
+    {
+        bool scheduleDispatch;
+        lock (_managedFrameSync)
+        {
+            _pendingManagedBitmap = bitmap;
+            _pendingManagedFrame = presentedFrame;
+            scheduleDispatch = !_managedFrameDispatchPending;
+            _managedFrameDispatchPending = true;
+        }
+
+        if (!scheduleDispatch)
+            return;
+
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            BitmapSource? nextBitmap;
+            H264Mp4FrameNavigationTarget? nextFrame;
+            lock (_managedFrameSync)
+            {
+                nextBitmap = _pendingManagedBitmap;
+                nextFrame = _pendingManagedFrame;
+                _pendingManagedBitmap = null;
+                _pendingManagedFrame = null;
+                _managedFrameDispatchPending = false;
+            }
+
+            if (loadVersion != _videoLoadVersion || nextBitmap is null)
+                return;
+
+            ManagedVideoFrame.Source = nextBitmap;
+            ManagedVideoFrame.Visibility = Visibility.Visible;
+            _lastDisplayedFrame = nextFrame;
+            if (DataContext is VideoEditorViewModel previewVm)
+                previewVm.CanStepFrames = true;
+
+            if (_pendingFrameStepTarget is not null &&
+                _pendingFrameStepTarget == nextFrame)
+            {
+                _pendingFrameStepTarget = null;
+            }
+        }));
     }
 
     private void MuteButton_Click(object sender, RoutedEventArgs e)
