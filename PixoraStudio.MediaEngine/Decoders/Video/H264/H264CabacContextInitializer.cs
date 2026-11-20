@@ -960,8 +960,12 @@ public static class H264CabacContextInitializer
             : contextIndex is >= 11 and <= 53
                 ? cabacInitIdc
                 : cabacInitIdc + 1;
-        int m = M[contextIndex, column];
-        int n = N[contextIndex, column];
+        // ctxIdx 276 (end_of_slice_flag) has no context model and is
+        // deliberately omitted from the compact initialisation tables.
+        // Every table row after it is therefore stored one index earlier.
+        int tableIndex = contextIndex > 276 ? contextIndex - 1 : contextIndex;
+        int m = M[tableIndex, column];
+        int n = N[tableIndex, column];
         if (m == NotAvailable || n == NotAvailable)
             return false;
         int preContextState = Math.Clamp(((m * sliceQpY) >> 4) + n, 1, 126);
