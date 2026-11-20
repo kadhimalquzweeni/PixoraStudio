@@ -5,7 +5,6 @@ namespace PixoraStudio.Tests.MediaEngine;
 /// <summary>Verifies bounded, immutable snapshots of production CABAC trace markers.</summary>
 public sealed class H264CabacDiagnosticTraceTests
 {
-
     [Fact]
     public void TraceDiagnostic_ShouldBeDisabledByDefault()
     {
@@ -51,7 +50,7 @@ public sealed class H264CabacDiagnosticTraceTests
     public void DiagnosticTrace_ShouldReturnSnapshotRatherThanMutableInternalCollection()
     {
         H264CabacSliceDataReader reader = new(
-            new H264BitReader(new byte[] { 0x00, 0x00 }), 26, false, 0);
+            new H264BitReader(new byte[] { 0x00, 0x00 }), 26, false, 0, enableDiagnosticTrace: true);
         reader.TraceDiagnostic("initial");
 
         IReadOnlyList<string> snapshot = reader.DiagnosticTrace;
