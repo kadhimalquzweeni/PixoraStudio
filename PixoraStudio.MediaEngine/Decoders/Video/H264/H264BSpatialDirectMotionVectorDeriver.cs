@@ -64,10 +64,14 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         // then assigned to each direct region; col_zero_flag may override an
         // individual region. Do not derive a new predictor from already
         // reconstructed direct regions inside this macroblock.
+        // Spatial-direct A/B/C are the neighbours of the macroblock's
+        // top-left 4x4 block, not the bottom-left/top-right neighbours of a
+        // 16x16 motion partition. Using a 4x4 region here selects different
+        // reference indices for B_Skip and B_Direct macroblocks.
         H264MotionVectorNeighbourCandidates candidates0 =
-            motionVectorStateL0.GetCandidates(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+            motionVectorStateL0.GetCandidates(macroblockX * 4, macroblockY * 4, 1, 1, sliceId);
         H264MotionVectorNeighbourCandidates candidates1 =
-            motionVectorStateL1.GetCandidates(macroblockX * 4, macroblockY * 4, 4, 4, sliceId);
+            motionVectorStateL1.GetCandidates(macroblockX * 4, macroblockY * 4, 1, 1, sliceId);
         int referenceIndex0 = MinimumReferenceIndex(candidates0);
         int referenceIndex1 = MinimumReferenceIndex(candidates1);
         bool directZeroPrediction = referenceIndex0 < 0 && referenceIndex1 < 0;
