@@ -440,12 +440,13 @@ public partial class VideoEditorViewModel : ObservableObject
                 $"Pixora_Frame_{Guid.NewGuid()}.png"))
             .ToArray();
 
-        // Progress<T> marshals completed thumbnails back to the UI context.
-        // The decoder itself runs off-thread and reuses one decode pass.
+        // Decode workers report from background threads. Load each PNG fully
+        // on that thread, then enqueue only the collection update on the UI
+        // dispatcher. Dispatcher.Invoke would block decoder workers and make
+        // thumbnail completion effectively serial.
         IProgress<VideoThumbnailResult> progress =
             new SynchronousProgress<VideoThumbnailResult>(result =>
-                Application.Current.Dispatcher.Invoke(() =>
-                {
+            {
                 if (cancellationToken.IsCancellationRequested)
                 {
                     TryDeleteThumbnail(result.OutputPath);
@@ -454,31 +455,46 @@ public partial class VideoEditorViewModel : ObservableObject
 
                 try
                 {
-                    using FileStream stream = new(
+                    BitmapImage image;
+                    using (FileStream stream = new(
                         result.OutputPath,
                         FileMode.Open,
                         FileAccess.Read,
-                        FileShare.ReadWrite);
+                        FileShare.Read))
+                    {
+                        image = new BitmapImage();
+                        image.BeginInit();
+                        image.CacheOption = BitmapCacheOption.OnLoad;
+                        image.DecodePixelWidth = 240;
+                        image.StreamSource = stream;
+                        image.EndInit();
+                        image.Freeze();
+                    }
 
-                    BitmapImage image = new();
-                    image.BeginInit();
-                    image.CacheOption = BitmapCacheOption.OnLoad;
-                    image.DecodePixelWidth = 240;
-                    image.StreamSource = stream;
-                    image.EndInit();
-                    image.Freeze();
-                    VideoFrames.Add(image);
+                    // The image is now detached from the file, so the worker
+                    // can delete its temporary PNG without waiting for WPF.
+                    TryDeleteThumbnail(result.OutputPath);
+
+                    Application.Current.Dispatcher.BeginInvoke(
+                        new Action(() =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                return;
+
+                            // Parallel workers finish out of order. Insert by
+                            // requested index so the filmstrip remains sorted.
+                            int insertionIndex = Math.Min(
+                                result.Index, VideoFrames.Count);
+                            VideoFrames.Insert(insertionIndex, image);
+                        }));
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine(
-                        $"Thumbnail {result.Index} could not be displayed: {ex}");
-                }
-                finally
-                {
+                        $"Thumbnail {result.Index} could not be loaded: {ex}");
                     TryDeleteThumbnail(result.OutputPath);
                 }
-                }));
+            });
 
         try
         {
