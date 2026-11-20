@@ -194,7 +194,8 @@ public sealed class Mp4TrimExportFileWriter
         }
 
         double expectedDuration = plan.EffectiveEndSeconds - plan.EffectiveStartSeconds;
-        if (Math.Abs(output.DurationSeconds - expectedDuration) > 0.002)
+        double durationTolerance = Math.Max(0.002, 1.0 / output.MovieHeader.Timescale + 0.000001);
+        if (Math.Abs(output.DurationSeconds - expectedDuration) > durationTolerance)
             throw new Mp4ParsingException("The exported MP4 movie duration does not match the trim plan.");
     }
 
