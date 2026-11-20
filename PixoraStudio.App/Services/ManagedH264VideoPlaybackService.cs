@@ -293,7 +293,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         {
             using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             IEnumerable<H264Mp4DecodedVideoFrame> frames =
-                startSeconds <= 0 && firstFrameSampleNumber is null
+                startSeconds <= 0
                     ? _decoder.Decode(stream, info, trackId, cancellationToken: cancellationToken)
                     : _decoder.DecodeFromTime(
                         stream, info, trackId, startSeconds,
