@@ -195,13 +195,20 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.True(parameterSets.PictureParameterSets[0].Transform8X8ModeFlag);
 
         List<string> highProfileCabacTrace = [];
+        List<byte[]> preDeblockingFrames = [];
+        H264Mp4VideoOutputScheduler diagnosticOutputScheduler = new(
+            new H264DecodedPictureOutputScheduler(surface =>
+                preDeblockingFrames.Add(surface.CopyLumaPlane()
+                    .Concat(surface.CopyCbPlane())
+                    .Concat(surface.CopyCrPlane()).ToArray())));
         H264Mp4AccessUnitDecoder diagnosticDecoder = new(
             parameterSets,
             2,
             (reader, qpY, isIntra, cabacInitIdc) =>
                 new TracingCabacSliceDataReader(
                     new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
-                    highProfileCabacTrace));
+                    highProfileCabacTrace),
+            diagnosticOutputScheduler);
         string testResultsDirectory = Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
         Directory.CreateDirectory(testResultsDirectory);
@@ -257,6 +264,19 @@ public sealed class H264Mp4AvcEndToEndTests
             frames[1].Surface.CopyLumaPlane()
                 .Concat(frames[1].Surface.CopyCbPlane())
                 .Concat(frames[1].Surface.CopyCrPlane()).ToArray());
+        Assert.Equal(3, preDeblockingFrames.Count);
+        string[] expectedPreDeblockingHashes =
+        [
+            "77c006203196ee43dd30d01b7968051ec76ba3a10010b942aee006ffc72b11bd",
+            "e22b155ff589449365ab8fc10ba6da16af97e699a8d4d3ace712459af8e419a9",
+            "36cd1e541a1e9512adc1dc9ad65ea6f51fe49b63cda62a56beb6662cfeff83da"
+        ];
+        Assert.Equal(expectedPreDeblockingHashes,
+            preDeblockingFrames.Select(frame => Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(frame)).ToLowerInvariant()));
+        File.WriteAllBytes(
+            Path.Combine(testResultsDirectory, "cabac-high-profile-prefilter-b-frame.yuv"),
+            preDeblockingFrames[2]);
 
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
