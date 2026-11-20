@@ -1,7 +1,7 @@
 namespace PixoraStudio.MediaEngine.Models.General;
 
 /// <summary>
-/// Describes the requested and keyframe-aligned effective range for a managed MP4 trim.
+/// Describes the requested and frame-aligned visible range plus decode-order samples for a managed MP4 trim.
 /// </summary>
 public sealed class Mp4TrimExportPlan
 {
