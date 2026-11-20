@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 
+# FFmpeg binaries are supplied separately (too large for GitHub)
+PixoraStudio.App/FFmpeg/ffmpeg.exe
+PixoraStudio.App/FFmpeg/ffprobe.exe
+
