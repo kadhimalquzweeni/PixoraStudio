@@ -20,6 +20,19 @@ public sealed class H264Mp4FramePresentationScheduler
 {
     private const double EarlyToleranceSeconds = 0.005;
 
+    /// <summary>
+    /// Scales the late-frame tolerance to the current sample duration. High
+    /// frame-rate video should discard stale pictures sooner than low-rate
+    /// video, while retaining a small allowance for scheduling jitter.
+    /// </summary>
+    public static double GetMaximumLatenessSeconds(double frameDurationSeconds)
+    {
+        if (!double.IsFinite(frameDurationSeconds) || frameDurationSeconds <= 0)
+            throw new ArgumentOutOfRangeException(nameof(frameDurationSeconds));
+
+        return Math.Max(0.020, frameDurationSeconds * 2.0);
+    }
+
     public H264FramePresentationDecision Evaluate(
         double framePresentationTimeSeconds,
         double playbackTimeSeconds,
