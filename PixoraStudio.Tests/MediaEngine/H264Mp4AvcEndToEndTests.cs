@@ -211,7 +211,33 @@ public sealed class H264Mp4AvcEndToEndTests
                         ?? throw new InvalidOperationException("Missing diagnostic deblocking metadata.");
                     deblockingMetadataTrace.Add(
                         $"mb({mbX},{mbY}) qpY={metadata.QpY} qpCb={metadata.QpCb} " +
-                        $"qpCr={metadata.QpCr} transform8x8={metadata.TransformSize8x8Flag}");
+                        $"qpCr={metadata.QpCr} disable={metadata.DisableDeblockingFilterIdc} " +
+                        $"alphaOffset={metadata.AlphaOffsetDiv2} betaOffset={metadata.BetaOffsetDiv2} " +
+                        $"transform8x8={metadata.TransformSize8x8Flag}");
+                    if (mbX > 0)
+                    {
+                        H264DeblockingMacroblockMetadata left =
+                            surface.GetDeblockingMetadata(mbX - 1, mbY)!;
+                        for (int row = 0; row < 4; row++)
+                        {
+                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
+                                left.LumaBlocks[row * 4 + 3],
+                                metadata.LumaBlocks[row * 4], true);
+                            deblockingMetadataTrace.Add($"  external-vertical row={row} bS={strength}");
+                        }
+                    }
+                    if (mbY > 0)
+                    {
+                        H264DeblockingMacroblockMetadata top =
+                            surface.GetDeblockingMetadata(mbX, mbY - 1)!;
+                        for (int column = 0; column < 4; column++)
+                        {
+                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
+                                top.LumaBlocks[12 + column],
+                                metadata.LumaBlocks[column], true);
+                            deblockingMetadataTrace.Add($"  external-horizontal column={column} bS={strength}");
+                        }
+                    }
                     for (int blockIndex = 0; blockIndex < metadata.LumaBlocks.Count; blockIndex++)
                     {
                         H264DeblockingBlockMetadata block = metadata.LumaBlocks[blockIndex];
