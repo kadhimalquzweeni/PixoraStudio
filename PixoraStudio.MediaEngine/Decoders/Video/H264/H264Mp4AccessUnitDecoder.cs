@@ -198,9 +198,12 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
-                pDecoder = new H264PInterSliceDataDecoder(
-                    surface, motionStateL0, new H264PInterMacroblockReconstructor(),
-                    _cabacReaderFactory);
+                if (slices.Count == 1)
+                {
+                    pDecoder = new H264PInterSliceDataDecoder(
+                        surface, motionStateL0, new H264PInterMacroblockReconstructor(),
+                        _cabacReaderFactory);
+                }
             }
             else if (firstSlice.SliceType == H264SliceType.B)
             {
@@ -208,9 +211,12 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
-                bDecoder = new H264BInterSliceDataDecoder(
-                    surface, motionStateL0, motionStateL1,
-                    new H264BInterMacroblockReconstructor(), _cabacReaderFactory);
+                if (slices.Count == 1)
+                {
+                    bDecoder = new H264BInterSliceDataDecoder(
+                        surface, motionStateL0, motionStateL1,
+                        new H264BInterMacroblockReconstructor(), _cabacReaderFactory);
+                }
             }
             else if (firstSlice.SliceType == H264SliceType.I && slices.Count == 1)
             {
@@ -273,6 +279,129 @@ public sealed class H264Mp4AccessUnitDecoder
                         throw new InvalidOperationException($"Parallel I-slice {i} did not return a result.");
                     sliceDecodeSummaries.Add(
                         $"slice[{i}] first_mb={slices[i].Header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}");
+                }
+            }
+            else if (firstSlice.SliceType == H264SliceType.P && slices.Count > 1)
+            {
+                // P slices are independent once each slice owns its motion
+                // and entropy/neighbour contexts. The picture surface is the
+                // only shared write target; macroblock ownership is enforced there.
+                H264PInterSliceDecodeResult?[] results =
+                    new H264PInterSliceDecodeResult?[slices.Count];
+                H264MotionVectorPictureState?[] sliceMotionStates =
+                    new H264MotionVectorPictureState?[slices.Count];
+
+                Parallel.For(
+                    0,
+                    slices.Count,
+                    new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
+                    i =>
+                    {
+                        int currentSliceId = checked(firstSliceId + i);
+                        H264MotionVectorPictureState localMotionState =
+                            new(surface.MacroblockWidth, surface.MacroblockHeight);
+                        H264PInterSliceDataDecoder decoder = new(
+                            surface,
+                            localMotionState,
+                            new H264PInterMacroblockReconstructor(),
+                            _cabacReaderFactory);
+                        results[i] = decoder.Decode(
+                            slices[i].NalUnit, activeSps, activePps,
+                            _decodedPictureBuffer, currentSliceId);
+                        sliceMotionStates[i] = localMotionState;
+                    });
+
+                for (int i = 0; i < results.Length; i++)
+                {
+                    H264PInterSliceDecodeResult result = results[i] ??
+                        throw new InvalidOperationException($"Parallel P-slice {i} did not return a result.");
+                    H264MotionVectorPictureState localMotionState = sliceMotionStates[i] ??
+                        throw new InvalidOperationException($"Parallel P-slice {i} did not return motion state.");
+                    int currentSliceId = checked(firstSliceId + i);
+                    motionStateL0!.MergeSliceFrom(localMotionState, currentSliceId);
+
+                    string cabacTrace = result.CabacDiagnostics.Count == 0
+                        ? string.Empty
+                        : $" cabac_trace=[{string.Join(" | ", result.CabacDiagnostics.TakeLast(24))}]";
+                    sliceDecodeSummaries.Add(
+                        $"slice[{i}] first_mb={slices[i].Header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}{cabacTrace}");
+
+                    IReadOnlyList<H264ReferencePicture> currentList0 = result.ReferenceList0 ??
+                        throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
+                    if (referenceList0 is null)
+                    {
+                        referenceList0 = currentList0;
+                        referenceList1 = [];
+                    }
+                    else if (!referenceList0.SequenceEqual(currentList0))
+                    {
+                        throw new NotSupportedException(
+                            "P slices in one picture must use identical RefPicList0 ordering for temporal-direct metadata.");
+                    }
+                }
+            }
+            else if (firstSlice.SliceType == H264SliceType.B && slices.Count > 1)
+            {
+                // B-slice direct prediction reads the completed reference DPB,
+                // while current-picture motion neighbours remain slice-local.
+                H264BInterSliceDecodeResult?[] results =
+                    new H264BInterSliceDecodeResult?[slices.Count];
+                H264MotionVectorPictureState?[] sliceMotionStatesL0 =
+                    new H264MotionVectorPictureState?[slices.Count];
+                H264MotionVectorPictureState?[] sliceMotionStatesL1 =
+                    new H264MotionVectorPictureState?[slices.Count];
+
+                Parallel.For(
+                    0,
+                    slices.Count,
+                    new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
+                    i =>
+                    {
+                        int currentSliceId = checked(firstSliceId + i);
+                        H264MotionVectorPictureState localMotionStateL0 =
+                            new(surface.MacroblockWidth, surface.MacroblockHeight);
+                        H264MotionVectorPictureState localMotionStateL1 =
+                            new(surface.MacroblockWidth, surface.MacroblockHeight);
+                        H264BInterSliceDataDecoder decoder = new(
+                            surface,
+                            localMotionStateL0,
+                            localMotionStateL1,
+                            new H264BInterMacroblockReconstructor(),
+                            _cabacReaderFactory);
+                        results[i] = decoder.Decode(
+                            slices[i].NalUnit, activeSps, activePps,
+                            _decodedPictureBuffer, poc.PictureOrderCount, currentSliceId);
+                        sliceMotionStatesL0[i] = localMotionStateL0;
+                        sliceMotionStatesL1[i] = localMotionStateL1;
+                    });
+
+                for (int i = 0; i < results.Length; i++)
+                {
+                    H264BInterSliceDecodeResult result = results[i] ??
+                        throw new InvalidOperationException($"Parallel B-slice {i} did not return a result.");
+                    H264MotionVectorPictureState localMotionStateL0 = sliceMotionStatesL0[i] ??
+                        throw new InvalidOperationException($"Parallel B-slice {i} did not return List0 motion state.");
+                    H264MotionVectorPictureState localMotionStateL1 = sliceMotionStatesL1[i] ??
+                        throw new InvalidOperationException($"Parallel B-slice {i} did not return List1 motion state.");
+                    int currentSliceId = checked(firstSliceId + i);
+                    motionStateL0!.MergeSliceFrom(localMotionStateL0, currentSliceId);
+                    motionStateL1!.MergeSliceFrom(localMotionStateL1, currentSliceId);
+
+                    sliceDecodeSummaries.Add(
+                        $"slice[{i}] first_mb={slices[i].Header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}");
+                    H264BReferencePictureLists currentLists = result.ReferencePictureLists ??
+                        throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
+                    if (referenceList0 is null)
+                    {
+                        referenceList0 = currentLists.List0;
+                        referenceList1 = currentLists.List1;
+                    }
+                    else if (!referenceList0.SequenceEqual(currentLists.List0) ||
+                             !referenceList1!.SequenceEqual(currentLists.List1))
+                    {
+                        throw new NotSupportedException(
+                            "B slices in one picture must use identical reference-list ordering for temporal-direct metadata.");
+                    }
                 }
             }
             else
