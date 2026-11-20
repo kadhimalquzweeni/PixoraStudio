@@ -91,7 +91,15 @@ public static class H264IntraChromaResidualReconstructor
 
         int qpPrimeC = CalculateChromaQpPrime(qpY, component.ComponentId, sps, pps);
         int scalingListIndex = scalingListIndexOverride ?? component.ComponentId; // Intra Cb/Cr=1/2; inter Cb/Cr=4/5.
-        int[] dc = DecodeAndScaleDc(component.Dc, blocksHigh, qpPrimeC, sps, pps, scalingListIndex);
+
+        // Resolve the effective matrices once per component, not once per 4x4 block.
+        // The old per-block path rebuilt and cloned all six matrices for every block.
+        int[][] scalingMatrices = H264ScalingMatrixResolver.Resolve4x4(sps, pps);
+        if (scalingListIndex is < 0 or >= 6)
+            throw new ArgumentOutOfRangeException(nameof(scalingListIndexOverride));
+        int[] scalingList = scalingMatrices[scalingListIndex];
+        int[] dc = DecodeAndScaleDc(
+            component.Dc, blocksHigh, qpPrimeC, scalingList);
 
         byte[] output = new byte[width * height];
         for (int blockIndex = 0; blockIndex < blockCount; blockIndex++)
@@ -109,7 +117,7 @@ public static class H264IntraChromaResidualReconstructor
 
             int[] raster = H264CoefficientScanner.ToRasterOrder(scan);
             int[] scaled = H264InverseQuantizer.Dequantize4x4(
-                raster, qpPrimeC, sps, pps, scalingListIndex);
+                raster, qpPrimeC, scalingList);
             scaled[0] = dc[blockIndex];
             int[] residual = H264InverseTransform.Inverse4x4(scaled);
 
@@ -180,9 +188,7 @@ public static class H264IntraChromaResidualReconstructor
         H264CavlcResidualBlock? dcResidual,
         int blocksHigh,
         int qpPrimeC,
-        H264SequenceParameterSet sps,
-        H264PictureParameterSetHeader pps,
-        int scalingListIndex)
+        IReadOnlyList<int> scalingList)
     {
         int count = blocksHigh * 2;
         int[] levels = new int[count];
@@ -212,8 +218,7 @@ public static class H264IntraChromaResidualReconstructor
             ? InverseChromaDc2x2(levels)
             : InverseChromaDc2x4(levels);
 
-        int scalingList0 = H264ScalingMatrixResolver.Resolve4x4(sps, pps)[scalingListIndex][0];
-        long scale = (long)LevelScale[0, qpPrimeC % 6] * scalingList0;
+        long scale = (long)LevelScale[0, qpPrimeC % 6] * scalingList[0];
         int[] result = new int[count];
 
         if (blocksHigh == 2)
