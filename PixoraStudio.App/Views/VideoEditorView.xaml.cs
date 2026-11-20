@@ -353,6 +353,12 @@ public partial class VideoEditorView : UserControl
                 {
                     ManagedVideoFrame.Source = bitmap;
                     ManagedVideoFrame.Visibility = Visibility.Visible;
+
+                    if (_pendingFrameStepTarget is not null &&
+                        _managedH264PlaybackService.LastPresentedFrame == _pendingFrameStepTarget)
+                    {
+                        _pendingFrameStepTarget = null;
+                    }
                 })),
                 exception => Dispatcher.BeginInvoke(new Action(() =>
                 {
