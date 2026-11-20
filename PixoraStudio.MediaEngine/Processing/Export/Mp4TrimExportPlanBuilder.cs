@@ -30,6 +30,9 @@ public sealed class Mp4TrimExportPlanBuilder
         Mp4MediaTrack videoTrack = mediaInfo.GetTracks(Mp4HandlerType.Video).FirstOrDefault()
             ?? throw new NotSupportedException("The MP4 file does not contain a video track.");
 
+        if (videoTrack.EditList is not null)
+            throw new NotSupportedException("Source video edit lists are not yet supported by managed trim export.");
+
         Dictionary<uint, double> videoPresentationTimes = GetPresentationTimes(mediaInfo, videoTrack.TrackId);
         Mp4SampleLocation[] videoSamples = videoTrack.SampleLocations.Samples.ToArray();
 
@@ -90,6 +93,9 @@ public sealed class Mp4TrimExportPlanBuilder
 
         foreach (Mp4MediaTrack audioTrack in mediaInfo.GetTracks(Mp4HandlerType.Audio))
         {
+            if (audioTrack.EditList is not null)
+                throw new NotSupportedException("Source audio edit lists are not yet supported by managed trim export.");
+
             Dictionary<uint, double> audioTimes = GetPresentationTimes(mediaInfo, audioTrack.TrackId);
             Mp4SampleLocation[] selectedAudioSamples = audioTrack.SampleLocations.Samples
                 .Where(sample => audioTimes.TryGetValue(sample.SampleNumber, out double time)
