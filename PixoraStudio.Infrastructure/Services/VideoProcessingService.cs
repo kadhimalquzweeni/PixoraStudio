@@ -118,6 +118,7 @@ public sealed class VideoProcessingService : IVideoProcessingService
                 $"workers={workerCount}; processors={Environment.ProcessorCount}; " +
                 $"cabacProfiling={enableCabacProfiling}.");
 
+            Stopwatch batchStopwatch = Stopwatch.StartNew();
             Parallel.For(
                 0,
                 positions.Count,
@@ -207,6 +208,11 @@ public sealed class VideoProcessingService : IVideoProcessingService
                             $"after {totalStopwatch.Elapsed}: {exception}");
                     }
                 });
+
+            batchStopwatch.Stop();
+            Debug.WriteLine(
+                $"[Thumbnails] Batch completed; thumbnails={positions.Count}; " +
+                $"workers={workerCount}; elapsed={batchStopwatch.Elapsed}.");
         }, cancellationToken);
     }
 
