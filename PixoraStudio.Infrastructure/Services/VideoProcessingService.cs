@@ -44,9 +44,9 @@ public sealed class VideoProcessingService : IVideoProcessingService
     }
 
     /// <summary>
-    /// Extracts multiple filmstrip images from one MP4 parse and one forward
-    /// H.264 decode pass. Frames are selected in presentation order, and
-    /// decoding stops as soon as the final requested position is satisfied.
+    /// Extracts multiple filmstrip images from one MP4 parse. Each target is
+    /// decoded from its preceding sync sample, avoiding a full-file decode
+    /// while reusing the parsed sample tables and open stream.
     /// </summary>
     public Task GenerateThumbnailsAsync(
         string filePath,
@@ -92,71 +92,64 @@ public sealed class VideoProcessingService : IVideoProcessingService
                 ?? throw new NotSupportedException(
                     "The MP4 file does not contain a video track.");
 
-            int nextTarget = 0;
-            H264Mp4TrackDecoder decoder = new();
+            H264AvcParameterSetCollectionReader parameterSetReader = new();
+            H264YuvToBgraConverter converter = new();
 
-            foreach (H264Mp4DecodedVideoFrame frame in decoder.Decode(
-                stream,
-                mediaInfo,
-                videoTrack.TrackId,
-                cancellationToken: cancellationToken))
+            // Keep memory bounded and avoid decoding the entire source just
+            // to reach the final filmstrip position. Reuse the parsed MP4
+            // sample tables and stream, but seek independently to each target
+            // so every decoder starts at its preceding sync sample.
+            for (int index = 0; index < positions.Count; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (frame.Timescale == 0)
+                H264Mp4DecodedVideoFrame? frame =
+                    new H264Mp4TrackDecoder().DecodeFromTime(
+                        stream,
+                        mediaInfo,
+                        videoTrack.TrackId,
+                        positions[index].TotalSeconds,
+                        cancellationToken: cancellationToken)
+                    .FirstOrDefault();
+
+                if (frame is null)
                     throw new InvalidDataException(
-                        "The decoded video frame has an invalid timescale.");
+                        $"The decoder could not produce a frame for thumbnail {index}.");
 
-                double frameEndSeconds =
-                    ((double)frame.PresentationTimeTicks + frame.DurationTicks) /
-                    frame.Timescale;
-
-                // Decode() yields pictures in presentation order. The first
-                // frame whose interval extends beyond a target is the same
-                // frame DecodeFromTime() would return for that target.
-                while (nextTarget < positions.Count &&
-                       positions[nextTarget].TotalSeconds < frameEndSeconds)
+                try
                 {
-                    try
-                    {
-                        SaveThumbnail(frame, outputPaths[nextTarget]);
-                        progress?.Report(new VideoThumbnailResult(
-                            nextTarget, Path.GetFullPath(outputPaths[nextTarget])));
-                    }
-                    catch (Exception exception) when (
-                        exception is not OperationCanceledException)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"Thumbnail {nextTarget} could not be generated: {exception}");
-                    }
-                    nextTarget++;
+                    SaveThumbnail(
+                        frame,
+                        outputPaths[index],
+                        parameterSetReader,
+                        converter);
+                    progress?.Report(new VideoThumbnailResult(
+                        index, Path.GetFullPath(outputPaths[index])));
                 }
-
-                if (nextTarget == positions.Count)
-                    break;
+                catch (Exception exception) when (
+                    exception is not OperationCanceledException)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Thumbnail {index} could not be generated: {exception}");
+                }
             }
-
-            if (nextTarget != positions.Count)
-                throw new InvalidDataException(
-                    $"The decoder reached the end of the video after producing " +
-                    $"{nextTarget} of {positions.Count} requested thumbnails.");
         }, cancellationToken);
     }
 
     private static void SaveThumbnail(
         H264Mp4DecodedVideoFrame frame,
-        string outputPath)
+        string outputPath,
+        H264AvcParameterSetCollectionReader parameterSetReader,
+        H264YuvToBgraConverter converter)
     {
         H264AvcParameterSetCollection parameterSets =
-            new H264AvcParameterSetCollectionReader().Read(
-                frame.SourceSample.Configuration);
+            parameterSetReader.Read(frame.SourceSample.Configuration);
         H264SequenceParameterSet sps =
             parameterSets.SequenceParameterSets.Values.FirstOrDefault()
             ?? throw new InvalidDataException(
                 "The AVC configuration does not contain a usable sequence parameter set.");
 
-        H264BgraFrame bgra =
-            new H264YuvToBgraConverter().Convert(frame.Surface, sps);
+        H264BgraFrame bgra = converter.Convert(frame.Surface, sps);
 
         string fullOutputPath = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
