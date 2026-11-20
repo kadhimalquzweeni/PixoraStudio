@@ -6,9 +6,6 @@ public static class VideoThumbnailPlan
     /// <summary>Number of representative frames used by the editor filmstrip.</summary>
     public const int DefaultThumbnailCount = 12;
 
-    /// <summary>Bounds concurrent decoding to avoid saturating CPU and memory.</summary>
-    public const int MaxConcurrentGenerations = 4;
-
     public static IReadOnlyList<TimeSpan> CreatePositions(
         TimeSpan duration,
         int count = DefaultThumbnailCount)
