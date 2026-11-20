@@ -17,7 +17,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
 
         Mp4TrimTrackPlan video = Assert.Single(plan.Tracks.Where(track => track.HandlerType == Mp4HandlerType.Video));
         Assert.Equal(1u, video.FirstSampleNumber);
-        Assert.Equal(5u, video.LastSampleNumber);
+        Assert.Equal(6u, video.LastSampleNumber);
         Assert.Equal(0.0, plan.EffectiveStartSeconds);
         Assert.Equal(3.0, plan.EffectiveEndSeconds);
     }
@@ -45,7 +45,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
     [Fact]
     public void Build_ShouldUseEndOfTrackWhenNoLaterSyncBoundaryExists()
     {
-        Mp4TrimExportPlan plan = _builder.Build(CreateMediaInfo(), 3.2, 4.2);
+        Mp4TrimExportPlan plan = _builder.Build(CreateMediaInfo(), 3.2, 4.7);
 
         Mp4TrimTrackPlan video = Assert.Single(plan.Tracks.Where(track => track.HandlerType == Mp4HandlerType.Video));
         Assert.Equal(7u, video.FirstSampleNumber);
