@@ -238,6 +238,25 @@ public sealed class H264Mp4AvcEndToEndTests
                             deblockingMetadataTrace.Add($"  external-horizontal column={column} bS={strength}");
                         }
                     }
+                    for (int edge = 1; edge < 4; edge++)
+                    {
+                        for (int row = 0; row < 4; row++)
+                        {
+                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
+                                metadata.LumaBlocks[row * 4 + edge - 1],
+                                metadata.LumaBlocks[row * 4 + edge], false);
+                            deblockingMetadataTrace.Add(
+                                $"  internal-vertical edge={edge} row={row} bS={strength}");
+                        }
+                        for (int column = 0; column < 4; column++)
+                        {
+                            int strength = H264DeblockingBoundaryStrengthDeriver.Derive(
+                                metadata.LumaBlocks[(edge - 1) * 4 + column],
+                                metadata.LumaBlocks[edge * 4 + column], false);
+                            deblockingMetadataTrace.Add(
+                                $"  internal-horizontal edge={edge} column={column} bS={strength}");
+                        }
+                    }
                     for (int blockIndex = 0; blockIndex < metadata.LumaBlocks.Count; blockIndex++)
                     {
                         H264DeblockingBlockMetadata block = metadata.LumaBlocks[blockIndex];
