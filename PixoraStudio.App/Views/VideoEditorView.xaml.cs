@@ -599,6 +599,28 @@ public partial class VideoEditorView : UserControl
         _mediaPlayer.Time = (long)Math.Round(
             targetMilliseconds, MidpointRounding.AwayFromZero);
 
+        if (_usesCustomAacAudio)
+        {
+            try
+            {
+                await _aacAudioPlaybackService.SeekAsync(
+                    TimeSpan.FromMilliseconds(targetMilliseconds),
+                    resumePlayback: false);
+            }
+            catch (Exception audioException) when (
+                audioException is not OperationCanceledException)
+            {
+                // If custom AAC cannot follow the frame seek, switch back to
+                // LibVLC audio at the same media timestamp rather than resume
+                // with audio left at the previous position.
+                _aacAudioPlaybackService.Stop();
+                _usesCustomAacAudio = false;
+                ApplyAudioOutputSettings(vm);
+                System.Diagnostics.Debug.WriteLine(
+                    $"Custom AAC frame-step seek failed; using LibVLC audio: {audioException.Message}");
+            }
+        }
+
         try
         {
             await _managedH264PlaybackService.SeekToFrameAsync(target);
