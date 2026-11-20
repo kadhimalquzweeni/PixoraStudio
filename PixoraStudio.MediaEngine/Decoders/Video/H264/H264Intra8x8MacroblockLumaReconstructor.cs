@@ -50,8 +50,8 @@ public sealed class H264Intra8x8MacroblockLumaReconstructor
             throw new FormatException("An Intra8x8 macroblock must contain four 8x8 prediction-mode entries.");
         if (residualBlocks.Count != 4)
             throw new FormatException("An Intra8x8 macroblock must contain four residual blocks.");
-        if (!pps.Transform8X8ModeFlag || pps.EntropyCodingModeFlag)
-            throw new NotSupportedException("Intra8x8 CAVLC reconstruction requires transform_8x8_mode_flag and CAVLC.");
+        if (!pps.Transform8X8ModeFlag)
+            throw new FormatException("Intra8x8 reconstruction requires transform_8x8_mode_flag.");
         if (pps.SequenceParameterSetId != sps.Id)
             throw new ArgumentException("The PPS must reference the supplied SPS.", nameof(pps));
         if (sps.BitDepthLumaMinus8 != 0 || sps.SeparateColourPlaneFlag ||
