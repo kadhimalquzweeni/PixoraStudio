@@ -38,11 +38,11 @@ public sealed class H264CabacResidualBlockReader
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
 
         int codedBlockFlagContext = contextOffset + contextIndexIncrement;
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader, $"residual coded_block_flag context={codedBlockFlagContext} begin");
         int codedBlockFlag = reader.DecodeBin(codedBlockFlagContext);
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader, $"residual coded_block_flag context={codedBlockFlagContext} value={codedBlockFlag}");
         if (codedBlockFlag is not (0 or 1))
@@ -67,7 +67,7 @@ public sealed class H264CabacResidualBlockReader
 
         if (!codedBlockFlag)
         {
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual block category={contextMap.ContextBlockCategory} coded=False");
             if (contextMap.HasImplicitCodedBlockFlag)
@@ -80,7 +80,7 @@ public sealed class H264CabacResidualBlockReader
                 new int[contextMap.MaximumCoefficients]);
         }
 
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader,
             $"residual block category={contextMap.ContextBlockCategory} " +
@@ -98,7 +98,7 @@ public sealed class H264CabacResidualBlockReader
             contextMap.AbsoluteLevelContextAdjust);
 
         int totalCoefficients = coefficients.Count(value => value != 0);
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader,
             $"residual block category={contextMap.ContextBlockCategory} " +
@@ -154,12 +154,12 @@ public sealed class H264CabacResidualBlockReader
             int mapIndex = position - startIndex;
             int significantContext = significantContextOffset +
                 significantContextIncrements[mapIndex];
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual significant_coeff_flag position={position} " +
                     $"context={significantContext} begin");
             int significantBin = DecodeDecision(reader, significantContext);
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual significant_coeff_flag position={position} value={significantBin}");
             if (significantBin == 0)
@@ -168,12 +168,12 @@ public sealed class H264CabacResidualBlockReader
             significant[position] = true;
             int lastContext = lastSignificantContextOffset +
                 lastSignificantContextIncrements[mapIndex];
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual last_significant_coeff_flag position={position} " +
                     $"context={lastContext} begin");
             int lastBin = DecodeDecision(reader, lastContext);
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual last_significant_coeff_flag position={position} value={lastBin}");
             if (lastBin == 1)
@@ -186,7 +186,7 @@ public sealed class H264CabacResidualBlockReader
         // If no last_significant_coeff_flag terminated the scan, the final
         // coefficient at endIndex is inferred to be significant.
         significant[finalPosition] = true;
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader, $"residual final_significant_position={finalPosition} " +
                 $"inferred={(finalPosition == endIndex)}");
@@ -202,7 +202,7 @@ public sealed class H264CabacResidualBlockReader
                 continue;
 
             int stateBefore = levelContextState;
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual coefficient position={position} " +
                     $"abs_level_minus1 begin state={stateBefore}");
@@ -211,12 +211,12 @@ public sealed class H264CabacResidualBlockReader
                 absoluteLevelContextAdjust);
 
             int absoluteLevel = checked(absoluteLevelMinusOne + 1);
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual coefficient position={position} " +
                     $"abs_level_minus1={absoluteLevelMinusOne} level={absoluteLevel} " +
                     $"next_state={levelContextState}");
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual coefficient position={position} sign begin");
             int sign = reader.DecodeBypass();
@@ -224,7 +224,7 @@ public sealed class H264CabacResidualBlockReader
                 throw new FormatException("CABAC bypass bins must be zero or one.");
 
             coefficients[position] = sign == 0 ? absoluteLevel : -absoluteLevel;
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual coefficient position={position} sign={sign} " +
                     $"value={coefficients[position]} complete");
@@ -254,12 +254,12 @@ public sealed class H264CabacResidualBlockReader
             throw new InvalidOperationException("CABAC coefficient-level context state is invalid.");
 
         int firstContext = contextOffset + levelOneContextIncrements[nodeContextState];
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader, $"residual abs_level_minus1 first_context={firstContext} " +
                 $"state={nodeContextState} begin");
         int firstBin = DecodeDecision(reader, firstContext);
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader, $"residual abs_level_minus1 first_bin={firstBin} " +
                 $"state={nodeContextState}");
@@ -288,11 +288,11 @@ public sealed class H264CabacResidualBlockReader
         int escapeOrder = 0;
         while (escapeOrder < 23)
         {
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual abs_level_minus1 escape_prefix[{escapeOrder}] begin");
             int bin = reader.DecodeBypass();
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual abs_level_minus1 escape_prefix[{escapeOrder}]={bin}");
             if (bin is not (0 or 1))
@@ -305,11 +305,11 @@ public sealed class H264CabacResidualBlockReader
         long escapedMagnitude = 1;
         for (int bit = 0; bit < escapeOrder; bit++)
         {
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual abs_level_minus1 escape_suffix[{bit}] begin");
             int bin = reader.DecodeBypass();
-            if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+            if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
                 reader, $"residual abs_level_minus1 escape_suffix[{bit}]={bin}");
             if (bin is not (0 or 1))
@@ -325,11 +325,11 @@ public sealed class H264CabacResidualBlockReader
 
     private static int DecodeDecision(IH264CabacBinReader reader, int contextIndex)
     {
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader, $"residual decision context={contextIndex} begin");
         int bin = reader.DecodeBin(contextIndex);
-        if (H264CabacDiagnosticTrace.IsEnabled(_reader))
+        if (H264CabacDiagnosticTrace.IsEnabled(reader))
             H264CabacDiagnosticTrace.Mark(
             reader, $"residual decision context={contextIndex} value={bin}");
         return bin switch
