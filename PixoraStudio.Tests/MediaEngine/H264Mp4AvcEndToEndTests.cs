@@ -133,6 +133,39 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     [Fact]
+    public void DecodeSamples_CabacMainProfileMultiMacroblockBResidual_ShouldComplete()
+    {
+        byte[] avcC = Convert.FromBase64String(CabacMainResidual32AvcC);
+        H264AvcDecoderConfiguration configuration =
+            new H264AvcDecoderConfigurationReader().Read(avcC);
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(configuration);
+        List<string> trace = [];
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets,
+            2,
+            (reader, qpY, isIntra, cabacInitIdc) =>
+                new TracingCabacSliceDataReader(
+                    new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
+                    trace));
+
+        Assert.NotNull(decoder.Decode(CreateCabacSample(
+            configuration, 1, 0, 0, true, CabacMainResidual32IdrNal)));
+        Assert.NotNull(decoder.Decode(CreateCabacSample(
+            configuration, 2, 1, 2, false, CabacMainResidual32PNal)));
+        H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(CreateCabacSample(
+            configuration, 3, 2, 1, false, CabacMainResidual32BNal))!;
+
+        Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
+        Assert.Contains(trace, entry =>
+            entry.Contains("stage=residual-syntax complete cbp_luma=15"));
+        Assert.Contains(trace, entry =>
+            entry.Contains("stage=residual-coefficients complete"));
+        Assert.Contains(trace, entry =>
+            entry.Contains("stage=end_of_slice_flag value=1"));
+    }
+
+    [Fact]
     public void DecodeSamples_HighProfileCabac8x8IAndPBTrack_ShouldMatchReferenceDecoder()
     {
         byte[] avcC = Convert.FromBase64String(CabacHighAvcC);
@@ -667,6 +700,15 @@ public sealed class H264Mp4AvcEndToEndTests
     private const string CabacPSkipIdrNal = "ZYiEOv7tz7/h";
     private const string CabacPSkipP1Nal = "QZoiCNf+4A==";
     private const string CabacPSkipP2Nal = "QZpCCNf+4Q==";
+
+    private const string CabacMainResidual32AvcC =
+        "AU1ACv/hABZnTUAK9ktgIgAAAwACAAADAAQeJEpwAQAFaO+CMsg=";
+    private const string CabacMainResidual32IdrNal =
+        "ZYiEA//F9iVJ02WIOfaIfQOzovJyTd5V0cw9QngBmUJqnS2PZJIfJP3cnQ2DRmmO9wCDSOZxv4DtixWhtI6WBuDEuPsZ9jgCPTKvqjmNDk4mY5FIFf0b7z6MZQ+r2nXVYxOr3dS7k1xQNd9T8844fewvVIPyyTFnHr9aa9BkzLpm1xoljmPaS01e14MusjNyMy36C+FAz4VHjKc6TEyKP5+NN8MNjlkWErZKx6UjtFGhMQNBgiucuczEIRe+ft5E9b7FY1wu0RYz2Z0yCEzgDrWRspotp4WfM+nvUthez5LJ1i/cmzjhKKEzBAHpKAIlINBJ6c1z0+EafF9By1meInx1oxdmyFQ7Ufmd3MEejyxQmpj0JvUennL3b4PX4HAV1DsEVRhSPYDz1kFeNX1ITMnGNQhNo4SCYEpmf98o1bDBH65JQ2Up1obEeQwAkkni5Js9eBZgp/HVvXOurfKuqa2hOn3ihXIJo1Nv0ZhfMbua4ekFFqAz1xXbz1ze4sofcBIWSGlGRsN/H2wVTsdmBawL3vWzzyfIb7V+YCk5ePyfe7ECZeeejZd/gG85cEd/X28nFG532Yo+m4D1v/rOH5561P4hgF510ejxvZZ/uVmxh++h+D7+rY5uDZJDSQtJZAiWn3Q3nQVu2sRA54/ZvVt086DzjDHsLZZO1jCFFo4xsVhsbEYEZbABKMpq2a0D9/OFRngg9WYtvH+1gpYTJ3CBcAdQWlYdbCmB";
+    private const string CabacMainResidual32PNal =
+        "QZooY/9yoF4zzY16GSB3PotxZVpBk5r+pqTPwOdzGXytUe2FWi68k6w/oXrH7qVvunAwGPDk53CkLbFLUTwcB+fYGijqugWyyPnGAin6dgoT+dCGNvl6J/B8WodgLN22doK/vrhaesmyjB/NBguKB2LC6g9Cp09rXvsDbRC7U6VyKXmPSjrn//1FT5t08gGf2ItfecHayLsVnRQlD0waipOzNcaPN5q3WGZoollgMjEnA5zA";
+    private const string CabacMainResidual32BNal =
+        "AZ5EH/VW/rH3/o7dTwhXWxlhOJVROTvyxIkrRMKt2epNZ+6hmDPaOgYm9aO+QylvtAtJP6ut8UGHIfkt84fzOr1YI2KVla8WVsmuAienr0RR";
 
     private const string CabacHighAvcC =
         "AWQACv/hABdnZAAKrOyWwEQAAAMABAAAAwAIPEiU4AEABmjvgjLIsP34+AA=";
