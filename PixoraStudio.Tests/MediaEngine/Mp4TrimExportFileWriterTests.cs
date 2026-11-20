@@ -58,6 +58,37 @@ public sealed class Mp4TrimExportFileWriterTests
     }
 
     [Fact]
+    public void Export_ShouldApplyFrameAccurateEditWindowAcrossBFramePresentationReordering()
+    {
+        using MemoryStream source = CreateVideoMp4(includeBFrameCompositionOffsets: true);
+        using MemoryStream destination = new();
+
+        Mp4TrimExportPlan plan = new Mp4TrimExportFileWriter().Export(
+            source,
+            destination,
+            startSeconds: 1.2,
+            endSeconds: 3.2);
+
+        Assert.Equal(2.0, plan.EffectiveStartSeconds);
+        Assert.Equal(4.0, plan.EffectiveEndSeconds);
+
+        destination.Position = 0;
+        Mp4MediaInfo output = new Mp4FileReader().Read(destination);
+        Mp4MediaTrack video = Assert.Single(output.GetTracks(Mp4HandlerType.Video));
+        Assert.Equal(4u, video.SampleCount);
+        Assert.True(video.SampleLocations.GetSample(1).IsSyncSample);
+
+        Mp4PresentationSample[] visibleFrames = output.PresentationSamples
+            .Where(sample => sample.TrackId == video.TrackId)
+            .OrderBy(sample => sample.PresentationTimeSeconds)
+            .ToArray();
+
+        Assert.Equal(new uint[] { 4, 2 }, visibleFrames.Select(frame => frame.SampleNumber));
+        Assert.Equal(new[] { 0.0, 1.0 }, visibleFrames.Select(frame => frame.PresentationTimeSeconds));
+        Assert.Equal(2.0, output.DurationSeconds);
+    }
+
+    [Fact]
     public void Export_ShouldRejectInvalidTrimRangeWithoutProducingAnOutputFile()
     {
         using MemoryStream source = CreateVideoMp4();
@@ -69,7 +100,7 @@ public sealed class Mp4TrimExportFileWriterTests
         Assert.Empty(destination.ToArray());
     }
 
-    private static MemoryStream CreateVideoMp4()
+    private static MemoryStream CreateVideoMp4(bool includeBFrameCompositionOffsets = false)
     {
         Mp4BoxWriter writer = new();
         MemoryStream file = new();
@@ -164,11 +195,34 @@ public sealed class Mp4TrimExportFileWriterTests
 
                             writer.WriteFullBox(stbl, "stss", 0, 0, body =>
                             {
-                                WriteUInt32(body, 3);
+                                WriteUInt32(body, includeBFrameCompositionOffsets ? 2u : 3u);
                                 WriteUInt32(body, 1);
-                                WriteUInt32(body, 3);
-                                WriteUInt32(body, 5);
+                                if (includeBFrameCompositionOffsets)
+                                {
+                                    WriteUInt32(body, 5);
+                                }
+                                else
+                                {
+                                    WriteUInt32(body, 3);
+                                    WriteUInt32(body, 5);
+                                }
                             });
+
+                            if (includeBFrameCompositionOffsets)
+                            {
+                                writer.WriteFullBox(stbl, "ctts", 1, 0, body =>
+                                {
+                                    WriteUInt32(body, 4);
+                                    WriteUInt32(body, 1);
+                                    WriteUInt32(body, 0);
+                                    WriteUInt32(body, 1);
+                                    WriteUInt32(body, 2000);
+                                    WriteUInt32(body, 2);
+                                    WriteUInt32(body, unchecked((uint)-1000));
+                                    WriteUInt32(body, 1);
+                                    WriteUInt32(body, 0);
+                                });
+                            }
                         });
                     });
                 });
