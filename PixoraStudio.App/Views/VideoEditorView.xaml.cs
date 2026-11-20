@@ -35,6 +35,7 @@ public partial class VideoEditorView : UserControl
     private readonly object _managedFrameSync = new();
     private BitmapSource? _pendingManagedBitmap;
     private H264Mp4FrameNavigationTarget? _pendingManagedFrame;
+    private int _pendingManagedFrameLoadVersion;
     private bool _managedFrameDispatchPending;
     private CancellationTokenSource? _videoLoadCancellation;
     private bool _usesCustomAacAudio;
@@ -660,11 +661,18 @@ public partial class VideoEditorView : UserControl
         H264Mp4FrameNavigationTarget? presentedFrame,
         int loadVersion)
     {
+        if (loadVersion != Volatile.Read(ref _videoLoadVersion))
+            return;
+
         bool scheduleDispatch;
         lock (_managedFrameSync)
         {
+            if (loadVersion != _videoLoadVersion)
+                return;
+
             _pendingManagedBitmap = bitmap;
             _pendingManagedFrame = presentedFrame;
+            _pendingManagedFrameLoadVersion = loadVersion;
             scheduleDispatch = !_managedFrameDispatchPending;
             _managedFrameDispatchPending = true;
         }
@@ -676,16 +684,18 @@ public partial class VideoEditorView : UserControl
         {
             BitmapSource? nextBitmap;
             H264Mp4FrameNavigationTarget? nextFrame;
+            int nextLoadVersion;
             lock (_managedFrameSync)
             {
                 nextBitmap = _pendingManagedBitmap;
                 nextFrame = _pendingManagedFrame;
+                nextLoadVersion = _pendingManagedFrameLoadVersion;
                 _pendingManagedBitmap = null;
                 _pendingManagedFrame = null;
                 _managedFrameDispatchPending = false;
             }
 
-            if (loadVersion != _videoLoadVersion || nextBitmap is null)
+            if (nextLoadVersion != _videoLoadVersion || nextBitmap is null)
                 return;
 
             ManagedVideoFrame.Source = nextBitmap;
