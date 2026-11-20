@@ -338,7 +338,7 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Video Trimming and Export -->
+                    <!-- Video Trimming -->
                     <Border Background="#303030"
                             CornerRadius="8"
                             Padding="15"
@@ -365,34 +365,6 @@
                                         Command="{Binding ResetTrimCommand}"
                                         Padding="12,6"
                                         Margin="0,0,10,0"/>
-
-                                <Button Content="Export Trimmed Video"
-                                        Command="{Binding ExportTrimmedVideoCommand}"
-                                        Padding="12,6"
-                                        Background="#2196F3"
-                                        Foreground="White"/>
-
-                            </StackPanel>
-
-                            <!-- Export Progress -->
-                            <StackPanel Margin="0,15,0,0"
-                                        Visibility="{Binding IsExporting,
-                                        Converter={StaticResource BooleanToVisibilityConverter}}">
-
-                                <TextBlock Text="{Binding ExportStatus}"
-                                           Foreground="White"
-                                           Margin="0,0,0,5"/>
-
-                                <ProgressBar Minimum="0"
-                                             Maximum="100"
-                                             Value="{Binding ExportProgress}"
-                                             Height="18"
-                                             Margin="0,0,0,8"/>
-
-                                <Button Content="Cancel Export"
-                                        Command="{Binding CancelExportCommand}"
-                                        HorizontalAlignment="Right"
-                                        Padding="12,5"/>
 
                             </StackPanel>
 

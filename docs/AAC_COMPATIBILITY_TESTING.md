@@ -1,6 +1,6 @@
 # AAC-LC compatibility and robustness testing
 
-This test plan combines automated decoder tests with real AAC-LC MP4 files produced by FFmpeg.
+This test plan combines automated decoder tests with manual playback of real AAC-LC MP4 files.
 
 ## Automated coverage
 
@@ -26,51 +26,16 @@ The decoder currently supports one- and two-channel AAC-LC playback. Tests also 
 
 AacRawDataBlockReaderTests also truncates valid mono and stereo access units at every byte boundary and verifies that each incomplete prefix fails with EndOfStreamException, rather than being accepted as a complete frame.
 
-## Generate the base compatibility matrix
-
-Run this from the repository root in PowerShell:
-
-~~~powershell
-.\scripts\Generate-AacCompatibilitySamples.ps1
-~~~
-
-The script creates 4-second sine-wave MP4 samples in the system temporary directory. It always tests FFmpeg's native aac encoder and automatically adds libfdk_aac when that encoder is available in the installed FFmpeg build.
-
-It generates mono and stereo files at each of the 13 standard sample rates. The generated media files are not added to Git.
-
-## Generate bitrate, complexity, and duration stress samples
-
-Run:
-
-~~~powershell
-.\scripts\Generate-AacCompatibilitySamples.ps1 -IncludeStressCases
-~~~
-
-The additional stress matrix focuses on 44.1 kHz and 48 kHz and varies:
-
-- Mono and stereo output
-- 48–128 kbit/s mono and 64–256 kbit/s stereo
-- A pure tone, a multi-tone signal, and pink noise
-- 30-second tracks by default
-
-To increase the stress-track duration or choose another FFmpeg executable/output folder, use:
-
-~~~powershell
-.\scripts\Generate-AacCompatibilitySamples.ps1 -FfmpegPath "C:\Tools\ffmpeg\bin\ffmpeg.exe" -OutputDirectory "C:\Temp\Pixora-AAC" -IncludeStressCases -StressDurationSeconds 120
-~~~
-
-The stress matrix can generate many files, particularly when multiple AAC encoders are available.
-
 ## Manual playback checks
 
 1. Run dotnet test PixoraStudio.slnx.
-2. Open generated MP4s in Pixora Studio.
-3. Play each file from beginning to end, especially the longer stress samples.
+2. Open real AAC-LC MP4 files (mono and stereo, a range of sample rates and bitrates, including long tracks) in Pixora Studio.
+3. Play each file from beginning to end, especially the longer tracks.
 4. Seek repeatedly to the beginning, middle, and near the end; resume playback after each seek.
 5. Check for decoder exceptions, playback stopping early, unexpected silence, clicks, distortion, or channel imbalance.
 6. Confirm the reported sample rate and channel count match the file.
 
-Keep the encoder name, sample rate, channel layout, bitrate, signal profile, and any exception text when reporting a failure.
+Keep the source encoder, sample rate, channel layout, bitrate, signal profile, and any exception text when reporting a failure.
 
 ## Current scope
 

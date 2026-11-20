@@ -212,7 +212,7 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.All(frames, frame => Assert.True(frame.Surface.IsComplete));
         Assert.All(frames, frame =>
             Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
-        // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
+        // Reference frames were decoded from the same encoded MP4 by an independent decoder.
         string[] expectedFrameHashes =
         [
             "260b4b535a3e952ce61f23b57e98d1649dc4c4f7d711cdc2c8385f5cb6358855",
@@ -291,7 +291,7 @@ public sealed class H264Mp4AvcEndToEndTests
             frames.Select(frame => frame.SampleNumber));
         Assert.Equal(new[] { 0, 2, 4 },
             frames.Select(frame => frame.PictureOrderCount));
-        // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
+        // Reference frames were decoded from the same encoded MP4 by an independent decoder.
         string[] expectedFrameHashes =
         [
             "260b4b535a3e952ce61f23b57e98d1649dc4c4f7d711cdc2c8385f5cb6358855",
@@ -307,7 +307,7 @@ public sealed class H264Mp4AvcEndToEndTests
         // Three 32x32 Main-profile pictures encoded with x264 CABAC:
         // IDR I, reference P, then B in decode order. The tiny fixture keeps
         // real arithmetic-coded slice data in the test suite without an
-        // encoder or FFmpeg runtime dependency.
+        // encoder runtime dependency.
         H264AvcDecoderConfiguration configuration =
             new H264AvcDecoderConfigurationReader().Read(
                 Convert.FromBase64String(CabacMainAvcC));

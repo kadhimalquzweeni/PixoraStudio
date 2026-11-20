@@ -9,7 +9,7 @@ namespace PixoraStudio.Infrastructure.Services;
 
 /// <summary>
 /// Reads MP4 metadata and creates thumbnails using PixoraStudio's managed
-/// MP4 reader and H.264 decoder. No FFmpeg or FFprobe process is started.
+/// MP4 reader and H.264 decoder.
 /// </summary>
 public sealed class VideoProcessingService : IVideoProcessingService
 {

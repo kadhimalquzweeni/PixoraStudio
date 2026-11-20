@@ -24,11 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="FFmpeg\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Folder Include="FFmpeg\" />
     <Folder Include="Services\" />
     <Folder Include="Assets\" />
   </ItemGroup>
