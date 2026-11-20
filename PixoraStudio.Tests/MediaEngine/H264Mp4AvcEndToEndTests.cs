@@ -129,7 +129,7 @@ public sealed class H264Mp4AvcEndToEndTests
             "9884d66af8fd0c7362e124d32535382232ac3f6147c3aac2253ab904bc946303",
             "e65b186f669f54288e84fe4dfd3b8891a0f1b01109110a999d1ee511d5cc3a9c"
         ];
-        Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
+        Assert.True(expectedFrameHashes.SequenceEqual(actualFrameHashes),\n            $\"Expected: {string.Join(\", \", expectedFrameHashes)}{Environment.NewLine}\" +\n            $\"Actual:   {string.Join(\", \", actualFrameHashes)}\");
     }
 
     [Fact]
@@ -252,6 +252,16 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.All(frames, frame => Assert.True(frame.Surface.IsComplete));
         Assert.All(frames, frame =>
             Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
+
+        string[] actualFrameHashes = frames.Select(ComputeFrameHash).ToArray();
+        string testResultsDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
+        Directory.CreateDirectory(testResultsDirectory);
+        File.WriteAllBytes(
+            Path.Combine(testResultsDirectory, "cabac-high-profile-decoded-frames.yuv"),
+            frames.SelectMany(frame => frame.Surface.CopyLumaPlane()
+                .Concat(frame.Surface.CopyCbPlane())
+                .Concat(frame.Surface.CopyCrPlane())).ToArray());
 
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
