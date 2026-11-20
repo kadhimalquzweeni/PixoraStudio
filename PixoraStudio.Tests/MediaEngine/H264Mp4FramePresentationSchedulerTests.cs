@@ -48,6 +48,36 @@ public sealed class H264Mp4FramePresentationSchedulerTests
         Assert.Equal(H264FramePresentationAction.Present, result.Action);
     }
 
+    [Fact]
+    public void GetMaximumLatenessSeconds_LowFrameRate_ShouldAllowTwoFrameDurations()
+    {
+        Assert.Equal(
+            2.0 / 24.0,
+            H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(1.0 / 24.0),
+            8);
+    }
+
+    [Fact]
+    public void GetMaximumLatenessSeconds_HighFrameRate_ShouldKeepMinimumJitterAllowance()
+    {
+        Assert.Equal(
+            0.020,
+            H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(1.0 / 120.0),
+            8);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-0.01)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void GetMaximumLatenessSeconds_InvalidFrameDuration_ShouldThrow(
+        double frameDuration)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(frameDuration));
+    }
+
     [Theory]
     [InlineData(double.NaN, 0)]
     [InlineData(double.PositiveInfinity, 0)]
