@@ -99,7 +99,7 @@ public sealed class Mp4TrimExportPlanBuilder
             Dictionary<uint, double> audioTimes = GetPresentationTimes(mediaInfo, audioTrack.TrackId);
             Mp4SampleLocation[] selectedAudioSamples = audioTrack.SampleLocations.Samples
                 .Where(sample => audioTimes.TryGetValue(sample.SampleNumber, out double time)
-                    && time < effectiveEnd + TimeToleranceSeconds
+                    && time < effectiveEnd
                     && time + sample.DurationTicks / (double)audioTrack.Timescale > effectiveStart - TimeToleranceSeconds)
                 .ToArray();
 
