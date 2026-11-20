@@ -1,3 +1,4 @@
+using PixoraStudio.MediaEngine.Containers.Mp4;
 using PixoraStudio.MediaEngine.Exceptions;
 using PixoraStudio.MediaEngine.Models.General;
 using PixoraStudio.MediaEngine.Processing.Export;
@@ -15,7 +16,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
 
         Mp4TrimExportPlan plan = _builder.Build(info, 1.2, 2.2);
 
-        Mp4TrimTrackPlan video = Assert.Single(plan.Tracks.Where(track => track.HandlerType == Mp4HandlerType.Video));
+        Mp4TrimTrackPlan video = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Video);
         Assert.Equal(1u, video.FirstSampleNumber);
         Assert.Equal(6u, video.LastSampleNumber);
         Assert.Equal(0.0, plan.EffectiveStartSeconds);
@@ -27,7 +28,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
     {
         Mp4TrimExportPlan plan = _builder.Build(CreateMediaInfo(), 1.2, 2.2);
 
-        Mp4TrimTrackPlan audio = Assert.Single(plan.Tracks.Where(track => track.HandlerType == Mp4HandlerType.Audio));
+        Mp4TrimTrackPlan audio = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Audio);
         Assert.Equal(new uint[] { 1, 2, 3, 4, 5, 6 }, audio.Samples.Select(sample => sample.SampleNumber));
     }
 
