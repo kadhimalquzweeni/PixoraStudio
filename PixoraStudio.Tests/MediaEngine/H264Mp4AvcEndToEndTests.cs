@@ -160,7 +160,27 @@ public sealed class H264Mp4AvcEndToEndTests
                 exception.Message + Environment.NewLine + string.Join(Environment.NewLine, cabacTrace),
                 exception);
         }
-        H264Mp4DecodedVideoFrame[] bReadyFrames = decoder.Decode(b)!.ReadyFrames.ToArray();
+        cabacTrace.Clear();
+        H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(b)!;
+        H264Mp4DecodedVideoFrame[] bReadyFrames = bResult.ReadyFrames.ToArray();
+
+        // The real CABAC B-slice fixture must traverse inter prediction,
+        // coded-block-pattern/QP syntax, residual coefficients and final
+        // reconstruction through the MP4 access-unit pipeline.
+        Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
+        Assert.Contains(cabacTrace, entry =>
+            entry.Contains("mb[0] header skip=False intra=False pcm=False"));
+        Assert.Contains(cabacTrace, entry =>
+            entry.Contains("mb[0] stage=inter-prediction-syntax complete"));
+        Assert.Contains(cabacTrace, entry =>
+            entry.Contains("mb[0] stage=residual-syntax complete"));
+        Assert.Contains(cabacTrace, entry =>
+            entry.Contains("mb[0] stage=residual-coefficients complete"));
+        Assert.Contains(cabacTrace, entry =>
+            entry.Contains("mb[0] stage=reconstruction complete"));
+        Assert.Contains(cabacTrace, entry =>
+            entry.Contains("mb[0] stage=end_of_slice_flag value=1"));
+
         H264Mp4DecodedVideoFrame? idrReleasedAfterB =
             bReadyFrames.FirstOrDefault(frame => frame.SampleNumber == 1);
         if (idrHashWhenFirstReleased is null && idrReleasedAfterB is not null)
