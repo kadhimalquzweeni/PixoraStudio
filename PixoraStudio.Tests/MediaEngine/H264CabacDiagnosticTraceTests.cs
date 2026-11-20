@@ -2,6 +2,7 @@ using PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 namespace PixoraStudio.Tests.MediaEngine;
 
+/// <summary>Verifies bounded, immutable snapshots of production CABAC trace markers.</summary>
 public sealed class H264CabacDiagnosticTraceTests
 {
     [Fact]
