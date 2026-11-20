@@ -111,6 +111,50 @@ public sealed class H264IntraMacroblockReconstructorTests
     }
 
     [Fact]
+    public void ReconstructIntra16x16_ShouldSubstituteMissingTopLeftForPlanePrediction()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        const int chromaSamples = 64;
+
+        // The top and left neighbours are in this slice, while the diagonal
+        // neighbour belongs to another slice and is therefore unavailable.
+        surface.WriteIntraMacroblock(0, 0, 1,
+            Enumerable.Repeat((byte)120, 256).ToArray(),
+            Enumerable.Repeat((byte)120, chromaSamples).ToArray(),
+            Enumerable.Repeat((byte)120, chromaSamples).ToArray());
+        surface.WriteIntraMacroblock(1, 0, 0,
+            Enumerable.Repeat((byte)80, 256).ToArray(),
+            Enumerable.Repeat((byte)80, chromaSamples).ToArray(),
+            Enumerable.Repeat((byte)80, chromaSamples).ToArray());
+        surface.WriteIntraMacroblock(0, 1, 0,
+            Enumerable.Repeat((byte)40, 256).ToArray(),
+            Enumerable.Repeat((byte)40, chromaSamples).ToArray(),
+            Enumerable.Repeat((byte)40, chromaSamples).ToArray());
+
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+        reconstructor.ReconstructIntra16x16(
+            1, 1, 0, CreateHeader(3, 3), CreateSyntax(0, 1),
+            CreateResidualMacroblock(3, 1), 24, sps, CreatePps());
+
+        byte substitutedTopLeft = (byte)((80 + 40 + 1) >> 1);
+        byte[] expected = H264IntraPrediction.Predict16x16(
+            3,
+            Enumerable.Repeat((byte)80, 16).ToArray(),
+            Enumerable.Repeat((byte)40, 16).ToArray(),
+            substitutedTopLeft,
+            true,
+            true);
+
+        Assert.True(surface.IsMacroblockDecoded(1, 1));
+        for (int row = 0; row < 16; row++)
+        {
+            Assert.Equal(expected.Skip(row * 16).Take(16),
+                surface.CopyLumaPlane().Skip((16 + row) * surface.Width + 16).Take(16));
+        }
+    }
+
+    [Fact]
     public void ReconstructIntra16x16_ShouldRejectMissingPlanePredictionReferences()
     {
         var sps = CreateSps(1);
