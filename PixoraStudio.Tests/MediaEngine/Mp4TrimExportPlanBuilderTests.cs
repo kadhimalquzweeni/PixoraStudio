@@ -12,7 +12,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
     [Fact]
     public void Build_ShouldRetainDecodePrerollAndUseFrameAlignedPresentationRange()
     {
-        Mp4MediaInfo info = CreateMediaInfo();
+        Mp4MediaInfo info = CreateMediaInfo(videoSyncSamples: [1, 7, 10]);
 
         Mp4TrimExportPlan plan = _builder.Build(info, 1.2, 2.2);
 
