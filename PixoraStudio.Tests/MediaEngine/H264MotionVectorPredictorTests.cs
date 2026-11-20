@@ -66,6 +66,18 @@ public sealed class H264MotionVectorPredictorTests
             _predictor.Predict(left, above, null, aboveLeft, 1));
     }
 
+    [Fact]
+    public void Predict_ShouldNotFallbackToAboveLeftWhenAboveRightIsIntraCoded()
+    {
+        H264MotionVectorCandidate left = Candidate(2, 10, 0);
+        H264MotionVectorCandidate above = Candidate(1, 20, 0);
+        H264MotionVectorCandidate intraAboveRight = Candidate(-1, 0, 0);
+        H264MotionVectorCandidate aboveLeft = Candidate(0, 99, 0);
+
+        Assert.Equal(new H264MotionVector(10, 0),
+            _predictor.Predict(left, above, intraAboveRight, aboveLeft, 0));
+    }
+
     [Theory]
     [InlineData(0, 8, 9)] // top 16x8 uses B
     [InlineData(1, 4, 5)] // bottom 16x8 uses A
