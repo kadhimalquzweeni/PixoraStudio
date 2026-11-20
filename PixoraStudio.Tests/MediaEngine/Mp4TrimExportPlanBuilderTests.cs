@@ -39,7 +39,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
 
         Mp4TrimExportPlan plan = _builder.Build(info, 0.2, 1.2);
 
-        Mp4TrimTrackPlan video = Assert.Single(plan.Tracks.Where(track => track.HandlerType == Mp4HandlerType.Video));
+        Mp4TrimTrackPlan video = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Video);
         Assert.Equal(3u, video.FirstSampleNumber);
     }
 
