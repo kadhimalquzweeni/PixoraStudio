@@ -106,7 +106,17 @@ public sealed class H264BInterMacroblockMotionVectorReconstructor
                             motionVectorStateL0, motionVectorStateL1,
                             macroblockX, macroblockY,
                             sub.X / 4, sub.Y / 4, sub.Width / 4, sub.Height / 4,
-                            partitionIndex, sliceId, direct8x8InferenceFlag));
+                            partitionIndex, sliceId, direct8x8InferenceFlag,
+                            (x, y, width, height) =>
+                            {
+                                H264TemporalDirectPredictionContext? context =
+                                    collocatedContextProvider(x, y, width, height);
+                                return context is not null &&
+                                    context.CollocatedPictureIsShortTerm &&
+                                    context.CollocatedReferenceIndex == 0 &&
+                                    context.CollocatedMotionVector.Horizontal is >= -1 and <= 1 &&
+                                    context.CollocatedMotionVector.Vertical is >= -1 and <= 1;
+                            }));
                     }
                     else
                     {
