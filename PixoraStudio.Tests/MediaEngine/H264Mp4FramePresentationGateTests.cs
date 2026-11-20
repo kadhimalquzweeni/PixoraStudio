@@ -49,7 +49,9 @@ public sealed class H264Mp4FramePresentationGateTests
     public void ShouldWaitForFrame_DuplicatePts_ShouldHoldUntilPlaybackClockAdvances()
     {
         H264Mp4FramePresentationGate gate = new(requestedSampleNumber: 2);
-        Assert.True(gate.TryAcceptFrame(Frame(2, 40), out _));
+        Assert.True(gate.TryAcceptFrame(Frame(2, 40), out bool isRequested));
+        Assert.True(isRequested);
+        Assert.False(gate.ShouldWaitForFrame(Frame(2, 40), 0.04));
 
         Assert.True(gate.ShouldWaitForFrame(Frame(3, 40), 0.04));
         Assert.True(gate.ShouldWaitForFrame(Frame(4, 44), 0.04));
