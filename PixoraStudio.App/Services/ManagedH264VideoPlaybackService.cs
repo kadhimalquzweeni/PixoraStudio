@@ -392,7 +392,9 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                         cancellationToken.ThrowIfCancellationRequested();
                         decision = _presentationScheduler.Evaluate(
                             frame.SourceSample.PresentationTimeSeconds,
-                            Math.Max(0, playbackClock()));
+                            Math.Max(0, playbackClock()),
+                            H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(
+                                frame.SourceSample.DurationSeconds));
                         if (decision.Action != H264FramePresentationAction.Wait)
                             break;
 
