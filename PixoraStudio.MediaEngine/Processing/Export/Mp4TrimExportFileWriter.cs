@@ -25,7 +25,8 @@ public sealed class Mp4TrimExportFileWriter
         Stream destination,
         double startSeconds,
         double endSeconds,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<double>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(destination);
@@ -40,6 +41,7 @@ public sealed class Mp4TrimExportFileWriter
         cancellationToken.ThrowIfCancellationRequested();
 
         Mp4MediaInfo sourceInfo = _fileReader.Read(source);
+        progress?.Report(0.02);
         if (sourceInfo.Tracks.Any(track =>
             track.HandlerType is not Mp4HandlerType.Video and not Mp4HandlerType.Audio))
         {
@@ -47,6 +49,7 @@ public sealed class Mp4TrimExportFileWriter
         }
 
         Mp4TrimExportPlan plan = _planBuilder.Build(sourceInfo, startSeconds, endSeconds);
+        progress?.Report(0.05);
         IReadOnlyList<Mp4Box> topLevelBoxes = _boxReader.ReadBoxTree(source);
 
         Mp4Box fileTypeBox = GetExactlyOne(topLevelBoxes, "ftyp");
@@ -98,6 +101,7 @@ public sealed class Mp4TrimExportFileWriter
             throw new InvalidOperationException("The MP4 moov size changed while resolving output chunk offsets.");
 
         cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(0.1);
 
         _treeWriter.Write(source, destination, [fileTypeBox]);
         outputMoov.Position = 0;
@@ -107,7 +111,8 @@ public sealed class Mp4TrimExportFileWriter
             source,
             destination,
             plan.Tracks,
-            cancellationToken);
+            cancellationToken,
+            progress is null ? null : new Progress<double>(value => progress.Report(0.1 + value * 0.8)));
 
         if (mediaDataResult.DataOffset != outputMdatDataOffset ||
             !OffsetsMatch(outputOffsets, mediaDataResult.ChunkOffsetsByTrack))
@@ -115,11 +120,13 @@ public sealed class Mp4TrimExportFileWriter
             throw new InvalidOperationException("The written mdat layout does not match the rebuilt sample tables.");
         }
 
+        progress?.Report(0.92);
         destination.Flush();
         destination.Position = 0;
 
         Mp4MediaInfo outputInfo = _fileReader.Read(destination);
         ValidateOutput(outputInfo, plan);
+        progress?.Report(1);
 
         destination.Position = 0;
         return plan;
