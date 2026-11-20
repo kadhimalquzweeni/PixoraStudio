@@ -54,17 +54,24 @@ public sealed class H264CabacSyntaxElementReader
         if (pcmFlag == 1)
             return 25;
 
-        int lumaCbpFlag = ReadFlagAtContext(contextBase + 3) ? 1 : 0;
-        int chromaCbpFlag = ReadFlagAtContext(contextBase + 4) ? 1 : 0;
+        // H.264 Table 9-36 uses different suffix context offsets for I
+        // slices versus the intra_mb_type suffix in P/B slices. In P/B,
+        // chroma_cbp_flag and its value share one context, as do both
+        // intra16x16 prediction-mode bins.
+        int lumaCbpContext = contextBase + (isIntraSlice ? 3 : 1);
+        int chromaCbpContext = contextBase + (isIntraSlice ? 4 : 2);
+        int chromaValueContext = contextBase + (isIntraSlice ? 5 : 2);
+        int predictionModeContext = contextBase + (isIntraSlice ? 6 : 3);
+
+        int lumaCbpFlag = ReadFlagAtContext(lumaCbpContext) ? 1 : 0;
+        int chromaCbpFlag = ReadFlagAtContext(chromaCbpContext) ? 1 : 0;
         int chromaCbpValue = 0;
         if (chromaCbpFlag == 1)
-        {
-            int chromaContext = contextBase + 5;
-            chromaCbpValue = ReadFlagAtContext(chromaContext) ? 1 : 0;
-        }
+            chromaCbpValue = ReadFlagAtContext(chromaValueContext) ? 1 : 0;
 
-        int predictionModeHigh = ReadFlagAtContext(contextBase + 6) ? 1 : 0;
-        int predictionModeLow = ReadFlagAtContext(contextBase + 7) ? 1 : 0;
+        int predictionModeHigh = ReadFlagAtContext(predictionModeContext) ? 1 : 0;
+        int predictionModeLow = ReadFlagAtContext(
+            predictionModeContext + (isIntraSlice ? 1 : 0)) ? 1 : 0;
 
         return 1 + (12 * lumaCbpFlag) +
             (chromaCbpFlag == 1 ? 4 + (4 * chromaCbpValue) : 0) +
