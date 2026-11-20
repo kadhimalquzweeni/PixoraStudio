@@ -179,6 +179,7 @@ public sealed class H264DecodedPictureSurfaceTests
             Enumerable.Repeat((byte)10, 256).ToArray(),
             Enumerable.Repeat((byte)11, 64).ToArray(),
             Enumerable.Repeat((byte)12, 64).ToArray());
+        surface.SetDeblockingMetadata(0, 0, CreateDeblockingMetadata());
 
         surface.WriteMacroblock(0, 0, 2, true,
             Enumerable.Repeat((byte)20, 256).ToArray(),
@@ -191,6 +192,17 @@ public sealed class H264DecodedPictureSurfaceTests
         Assert.Equal((byte)20, surface.GetLumaSample(0, 0));
         Assert.Equal((byte)21, surface.GetChromaSample(1, 0, 0));
         Assert.Equal((byte)22, surface.GetChromaSample(2, 0, 0));
+    }
+
+    private static H264DeblockingMacroblockMetadata CreateDeblockingMetadata()
+    {
+        H264DeblockingBlockMetadata block =
+            new(false, false, null, null, null, null);
+        return new H264DeblockingMacroblockMetadata(
+            27, 25, 26, 0, 0, 0, false,
+            Enumerable.Repeat(block, 16).ToArray(),
+            Enumerable.Repeat(block, 4).ToArray(),
+            Enumerable.Repeat(block, 4).ToArray());
     }
 
     private sealed class BlockingReadOnlyByteList(byte[] values) :

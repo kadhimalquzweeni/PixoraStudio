@@ -55,7 +55,7 @@ public sealed class H264DecodedPictureSurfaceDeblockingMetadataTests
         surface.SetDeblockingMetadata(0, 0, Metadata(4));
 
         Assert.Throws<InvalidOperationException>(() => surface.WriteMacroblock(
-            0, 0, 1, false,
+            0, 0, 0, false,
             new ThrowingReadOnlyByteList(256), new byte[64], new byte[64]));
 
         Assert.False(surface.IsMacroblockDecoded(0, 0));
