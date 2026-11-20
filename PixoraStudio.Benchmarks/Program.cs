@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
+using PixoraStudio.MediaEngine.Models.Video;
 
 BenchmarkRunner.Run<H264HotPathBenchmarks>();
 
@@ -9,13 +10,28 @@ public class H264HotPathBenchmarks
 {
     private const int Iterations = 4096;
     private byte[] _bitstream = [];
-    private int _checksum;
+    private H264SequenceParameterSet _sps = null!;
+    private H264PictureParameterSetHeader _pps = null!;
+    private H264IntraChromaResidualComponent _chromaComponent = null!;
+    private byte[] _chromaPrediction = [];
 
     [GlobalSetup]
     public void Setup()
     {
         _bitstream = new byte[4096];
         new Random(8675309).NextBytes(_bitstream);
+
+        _sps = new H264SequenceParameterSet(
+            0, 100, 40, 1, false, 0, 0, 0, 0, 0, 1,
+            0, 0, true, true, 16, 16, false);
+        _pps = new H264PictureParameterSetHeader(0, 0, false, false, 0);
+        H264IntraChromaResidualBlock[] blocks = Enumerable.Range(0, 4)
+            .Select(index => new H264IntraChromaResidualBlock(
+                index % 2, index / 2, false,
+                new H264CavlcResidualBlock(15, 0, 0, 0, new int[15])))
+            .ToArray();
+        _chromaComponent = new H264IntraChromaResidualComponent(1, null, blocks);
+        _chromaPrediction = Enumerable.Repeat((byte)128, 64).ToArray();
     }
 
     [Benchmark(Baseline = true, OperationsPerInvoke = Iterations)]
@@ -51,4 +67,13 @@ public class H264HotPathBenchmarks
             checksum += decoder.DecodeDecision(ref context);
         return checksum ^ decoder.Range ^ context.State;
     }
+
+    [Benchmark(OperationsPerInvoke = 1)]
+    public int ChromaResidualReconstruction()
+    {
+        byte[] output = H264IntraChromaResidualReconstructor.Reconstruct(
+            _chromaPrediction, _chromaComponent, 24, _sps, _pps);
+        return output[0] + output[63];
+    }
+
 }
