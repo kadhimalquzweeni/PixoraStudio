@@ -366,7 +366,38 @@
                                         Padding="12,6"
                                         Margin="0,0,10,0"/>
 
+                                <Button Content="Export Trimmed Video"
+                                        Command="{Binding ExportTrimmedVideoCommand}"
+                                        Padding="12,6"
+                                        Margin="0,0,10,0"/>
+
+                                <Button Content="Cancel Export"
+                                        Command="{Binding CancelExportCommand}"
+                                        Padding="12,6"/>
+
                             </StackPanel>
+
+                            <ProgressBar Minimum="0"
+                                         Maximum="100"
+                                         Value="{Binding ExportProgress}"
+                                         Height="7"
+                                         Margin="0,12,0,0">
+                                <ProgressBar.Style>
+                                    <Style TargetType="ProgressBar">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsExporting}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ProgressBar.Style>
+                            </ProgressBar>
+
+                            <TextBlock Text="{Binding ExportStatusMessage}"
+                                       Foreground="#AAAAAA"
+                                       Margin="0,8,0,0"
+                                       TextWrapping="Wrap"/>
 
                         </StackPanel>
                     </Border>
