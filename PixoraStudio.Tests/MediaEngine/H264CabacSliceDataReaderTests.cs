@@ -42,6 +42,24 @@ public sealed class H264CabacSliceDataReaderTests
     }
 
     [Fact]
+    public void DecodeBin_ShouldRecordPerformanceWhenProfilerIsProvided()
+    {
+        H264CabacPerformanceProfiler profiler = new();
+        H264CabacSliceDataReader reader = new(
+            new H264BitReader(new byte[] { 0x00, 0x00, 0x00 }),
+            26, true, 0, performanceProfiler: profiler);
+
+        _ = reader.DecodeBin(0);
+        _ = reader.DecodeBypass();
+
+        H264CabacPerformanceSnapshot snapshot = profiler.GetSnapshot();
+        Assert.Equal(1, snapshot.DecisionBinCount);
+        Assert.Equal(1, snapshot.BypassBinCount);
+        Assert.True(snapshot.DecisionElapsed >= TimeSpan.Zero);
+        Assert.True(snapshot.BypassElapsed >= TimeSpan.Zero);
+    }
+
+    [Fact]
     public void Constructor_ShouldRejectZeroCabacAlignmentBit()
     {
         H264BitReader bits = new(new byte[] { 0x80, 0x00, 0x00 });

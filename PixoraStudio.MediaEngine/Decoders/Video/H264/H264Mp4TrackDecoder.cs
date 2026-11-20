@@ -13,6 +13,16 @@ public sealed class H264Mp4TrackDecoder
 {
     private readonly Mp4TrackSamplePipelineReader _samplePipelineReader = new();
     private readonly H264Mp4TrackSampleReader _sampleReader = new();
+    private readonly H264CabacPerformanceProfiler? _cabacPerformanceProfiler;
+
+    public H264Mp4TrackDecoder(
+        H264CabacPerformanceProfiler? cabacPerformanceProfiler = null)
+    {
+        _cabacPerformanceProfiler = cabacPerformanceProfiler;
+    }
+
+    public H264CabacPerformanceProfiler? CabacPerformanceProfiler =>
+        _cabacPerformanceProfiler;
 
     public IEnumerable<H264Mp4DecodedVideoFrame> Decode(
         Stream stream,
@@ -196,7 +206,7 @@ public sealed class H264Mp4TrackDecoder
 
                 Stopwatch decodeStopwatch = Stopwatch.StartNew();
                 decoder ??= H264Mp4AccessUnitDecoder.CreateFromSample(
-                    sample, maxNumReorderFramesFallback);
+                    sample, maxNumReorderFramesFallback, _cabacPerformanceProfiler);
                 H264Mp4AccessUnitDecodeResult? result = decoder.Decode(sample);
                 decodeStopwatch.Stop();
                 accessUnitDecodeElapsed += decodeStopwatch.Elapsed;

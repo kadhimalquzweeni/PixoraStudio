@@ -15,13 +15,15 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
     private const int MaximumDiagnosticMarkers = 512;
     private const int PreservedInitialDiagnosticMarkers = 256;
     private readonly List<string>? _diagnosticTrace;
+    private readonly H264CabacPerformanceProfiler? _performanceProfiler;
 
     public H264CabacSliceDataReader(
         H264BitReader reader,
         int sliceQpY,
         bool isIntraSlice,
         int cabacInitIdc,
-        bool enableDiagnosticTrace = false)
+        bool enableDiagnosticTrace = false,
+        H264CabacPerformanceProfiler? performanceProfiler = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         if (sliceQpY is < 0 or > 51)
@@ -30,6 +32,7 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
             throw new ArgumentOutOfRangeException(nameof(cabacInitIdc));
 
         _reader = reader;
+        _performanceProfiler = performanceProfiler;
         _diagnosticTrace = enableDiagnosticTrace ? [] : null;
 
         // cabac_alignment_one_bit consists of one bits up to the next byte boundary.
@@ -45,7 +48,7 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
                 index, sliceQpY, isIntraSlice, cabacInitIdc, out _contexts[index]);
         }
 
-        _arithmeticDecoder = new H264CabacArithmeticDecoder(reader);
+        _arithmeticDecoder = new H264CabacArithmeticDecoder(reader, performanceProfiler);
     }
 
     public bool IsTerminated => _terminated;
@@ -94,7 +97,8 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
         EnsureNotTerminated();
         if (!_reader.IsByteAligned)
             throw new InvalidOperationException("The bit reader must be byte-aligned after PCM samples.");
-        _arithmeticDecoder = new H264CabacArithmeticDecoder(_reader);
+        _arithmeticDecoder = new H264CabacArithmeticDecoder(
+            _reader, _performanceProfiler);
     }
 
     public int DecodeBin(int contextIndex)

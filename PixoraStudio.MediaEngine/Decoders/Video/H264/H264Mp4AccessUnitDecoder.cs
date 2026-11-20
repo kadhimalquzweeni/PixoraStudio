@@ -23,12 +23,15 @@ public sealed class H264Mp4AccessUnitDecoder
 
     public H264Mp4AccessUnitDecoder(
         H264AvcParameterSetCollection parameterSets,
-        int? maxNumReorderFramesFallback = null)
+        int? maxNumReorderFramesFallback = null,
+        H264CabacPerformanceProfiler? performanceProfiler = null)
         : this(
             parameterSets,
             maxNumReorderFramesFallback,
-            static (reader, qpY, isIntra, cabacInitIdc) =>
-                new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc))
+            (reader, qpY, isIntra, cabacInitIdc) =>
+                new H264CabacSliceDataReader(
+                    reader, qpY, isIntra, cabacInitIdc,
+                    performanceProfiler: performanceProfiler))
     {
     }
 
@@ -58,12 +61,14 @@ public sealed class H264Mp4AccessUnitDecoder
     /// </summary>
     public static H264Mp4AccessUnitDecoder CreateFromSample(
         H264Mp4VideoSample firstSample,
-        int? maxNumReorderFramesFallback = null)
+        int? maxNumReorderFramesFallback = null,
+        H264CabacPerformanceProfiler? performanceProfiler = null)
     {
         ArgumentNullException.ThrowIfNull(firstSample);
         H264AvcParameterSetCollection parameterSets =
             new H264AvcParameterSetCollectionReader().Read(firstSample.Configuration);
-        return new H264Mp4AccessUnitDecoder(parameterSets, maxNumReorderFramesFallback);
+        return new H264Mp4AccessUnitDecoder(
+            parameterSets, maxNumReorderFramesFallback, performanceProfiler);
     }
 
     public H264DecodedPictureBuffer DecodedPictureBuffer => _decodedPictureBuffer;

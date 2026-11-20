@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
@@ -10,13 +12,17 @@ public sealed class H264CabacArithmeticDecoder
     private readonly byte[] _rangeLps;
     private readonly byte[] _transMps;
     private readonly byte[] _transLps;
+    private readonly H264CabacPerformanceProfiler? _performanceProfiler;
     private int _range = 510;
     private int _offset;
 
-    public H264CabacArithmeticDecoder(H264BitReader reader)
+    public H264CabacArithmeticDecoder(
+        H264BitReader reader,
+        H264CabacPerformanceProfiler? performanceProfiler = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         _reader = reader;
+        _performanceProfiler = performanceProfiler;
         _rangeLps = H264CabacTables.FlattenedRangeLps;
         _transMps = H264CabacTables.TransitionMps;
         _transLps = H264CabacTables.TransitionLps;
@@ -27,7 +33,8 @@ public sealed class H264CabacArithmeticDecoder
         H264BitReader reader,
         byte[,] rangeLps,
         byte[] transMps,
-        byte[] transLps)
+        byte[] transLps,
+        H264CabacPerformanceProfiler? performanceProfiler = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(rangeLps);
@@ -47,6 +54,7 @@ public sealed class H264CabacArithmeticDecoder
         }
 
         _reader = reader;
+        _performanceProfiler = performanceProfiler;
         _rangeLps = new byte[64 * 4];
         for (int state = 0; state < 64; state++)
         for (int q = 0; q < 4; q++)
@@ -74,6 +82,17 @@ public sealed class H264CabacArithmeticDecoder
         DecodeDecisionCore(ref context);
 
     private int DecodeDecisionCore(ref H264CabacContextModel context)
+    {
+        if (_performanceProfiler is null)
+            return DecodeDecisionCoreUnprofiled(ref context);
+
+        long startTimestamp = Stopwatch.GetTimestamp();
+        int bin = DecodeDecisionCoreUnprofiled(ref context);
+        _performanceProfiler.RecordDecision(Stopwatch.GetTimestamp() - startTimestamp);
+        return bin;
+    }
+
+    private int DecodeDecisionCoreUnprofiled(ref H264CabacContextModel context)
     {
         int qRangeIndex = (_range >> 6) & 3;
         int rangeLps = _rangeLps[(context.State << 2) | qRangeIndex];
@@ -107,6 +126,17 @@ public sealed class H264CabacArithmeticDecoder
     /// <summary>Decodes a bypass bin without adapting a probability context.</summary>
     public int DecodeBypass()
     {
+        if (_performanceProfiler is null)
+            return DecodeBypassUnprofiled();
+
+        long startTimestamp = Stopwatch.GetTimestamp();
+        int bin = DecodeBypassUnprofiled();
+        _performanceProfiler.RecordBypass(Stopwatch.GetTimestamp() - startTimestamp);
+        return bin;
+    }
+
+    private int DecodeBypassUnprofiled()
+    {
         _offset = (_offset << 1) | _reader.ReadBit();
         if (_offset >= _range)
         {
@@ -131,6 +161,20 @@ public sealed class H264CabacArithmeticDecoder
         if (_range >= 256)
             return;
 
+        if (_performanceProfiler is null)
+        {
+            RenormalizeUnprofiled();
+            return;
+        }
+
+        long startTimestamp = Stopwatch.GetTimestamp();
+        RenormalizeUnprofiled();
+        _performanceProfiler.RecordRenormalization(
+            Stopwatch.GetTimestamp() - startTimestamp);
+    }
+
+    private void RenormalizeUnprofiled()
+    {
         // A single table lookup replaces the per-bin leading-zero calculation.
         int shift = H264CabacTables.RenormalizationShift[_range];
         _range <<= shift;
