@@ -1,5 +1,6 @@
 using PixoraStudio.MediaEngine.Containers.Mp4;
 using PixoraStudio.MediaEngine.Models.General;
+using System.Diagnostics;
 
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
@@ -13,9 +14,6 @@ public sealed class H264Mp4TrackDecoder
     private readonly Mp4TrackSamplePipelineReader _samplePipelineReader = new();
     private readonly H264Mp4TrackSampleReader _sampleReader = new();
 
-    /// <summary>
-    /// Reads and decodes every sample from the selected MP4 video track.
-    /// </summary>
     public IEnumerable<H264Mp4DecodedVideoFrame> Decode(
         Stream stream,
         Mp4Box root,
@@ -34,9 +32,6 @@ public sealed class H264Mp4TrackDecoder
         return DecodeSamples(track, samples, maxNumReorderFramesFallback, cancellationToken);
     }
 
-    /// <summary>
-    /// Decodes a video track from an already parsed MP4 media-info object.
-    /// </summary>
     public IEnumerable<H264Mp4DecodedVideoFrame> Decode(
         Stream stream,
         Mp4MediaInfo mediaInfo,
@@ -163,10 +158,6 @@ public sealed class H264Mp4TrackDecoder
         }
     }
 
-    /// <summary>
-    /// Decodes an already-enumerated sequence of MP4 samples. Samples must be
-    /// supplied contiguously in decode order.
-    /// </summary>
     public IEnumerable<H264Mp4DecodedVideoFrame> DecodeSamples(
         Mp4Track track,
         IEnumerable<Mp4EncodedSample> samples,
@@ -188,31 +179,53 @@ public sealed class H264Mp4TrackDecoder
         CancellationToken cancellationToken)
     {
         H264Mp4AccessUnitDecoder? decoder = null;
-        foreach (Mp4EncodedSample encodedSample in samples)
+        int decodedSampleCount = 0;
+        TimeSpan sampleReadElapsed = TimeSpan.Zero;
+        TimeSpan accessUnitDecodeElapsed = TimeSpan.Zero;
+
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            H264Mp4VideoSample sample = _sampleReader.Read(track, encodedSample);
-            decoder ??= H264Mp4AccessUnitDecoder.CreateFromSample(
-                sample, maxNumReorderFramesFallback);
+            foreach (Mp4EncodedSample encodedSample in samples)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-            H264Mp4AccessUnitDecodeResult? result = decoder.Decode(sample);
-            if (result is null)
-                continue;
+                Stopwatch sampleReadStopwatch = Stopwatch.StartNew();
+                H264Mp4VideoSample sample = _sampleReader.Read(track, encodedSample);
+                sampleReadStopwatch.Stop();
+                sampleReadElapsed += sampleReadStopwatch.Elapsed;
 
-            foreach (H264Mp4DecodedVideoFrame frame in result.ReadyFrames)
+                Stopwatch decodeStopwatch = Stopwatch.StartNew();
+                decoder ??= H264Mp4AccessUnitDecoder.CreateFromSample(
+                    sample, maxNumReorderFramesFallback);
+                H264Mp4AccessUnitDecodeResult? result = decoder.Decode(sample);
+                decodeStopwatch.Stop();
+                accessUnitDecodeElapsed += decodeStopwatch.Elapsed;
+                decodedSampleCount++;
+
+                if (result is null)
+                    continue;
+
+                foreach (H264Mp4DecodedVideoFrame frame in result.ReadyFrames)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return frame;
+                }
+            }
+
+            if (decoder is null)
+                yield break;
+
+            foreach (H264Mp4DecodedVideoFrame frame in decoder.Flush())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return frame;
             }
         }
-
-        if (decoder is null)
-            yield break;
-
-        foreach (H264Mp4DecodedVideoFrame frame in decoder.Flush())
+        finally
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return frame;
+            Debug.WriteLine(
+                $"[H264 seek] track={track.TrackId}; samples={decodedSampleCount}; " +
+                $"sampleRead={sampleReadElapsed}; accessUnitDecode={accessUnitDecodeElapsed}.");
         }
     }
 }
