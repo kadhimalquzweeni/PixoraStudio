@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using PixoraStudio.MediaEngine.Models.General;
 
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
@@ -29,6 +30,8 @@ public sealed record H264Mp4FrameNavigationTarget(
 /// </summary>
 public sealed class H264Mp4FrameNavigationPlanner
 {
+    private readonly ConditionalWeakTable<Mp4MediaTrack, NavigationIndex> _indices = new();
+
     public H264Mp4FrameNavigationTarget? FindAdjacentFrame(
         Mp4MediaTrack track,
         double currentPresentationTimeSeconds,
@@ -113,54 +116,105 @@ public sealed class H264Mp4FrameNavigationPlanner
         H264Mp4FrameNavigationDirection direction)
     {
         ValidateTrack(track, direction);
+        Mp4SampleLocation[] presentationOrder =
+            _indices.GetValue(track, static mediaTrack => BuildIndex(mediaTrack)).Samples;
+
+        int selectedIndex = direction switch
+        {
+            H264Mp4FrameNavigationDirection.Previous =>
+                LowerBound(
+                    presentationOrder,
+                    currentTicks,
+                    currentSampleNumber ?? 0) - 1,
+            H264Mp4FrameNavigationDirection.Next =>
+                UpperBound(
+                    presentationOrder,
+                    currentTicks,
+                    currentSampleNumber ?? uint.MaxValue),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction))
+        };
+
+        if (selectedIndex < 0 || selectedIndex >= presentationOrder.Length)
+            return null;
+
+        Mp4SampleLocation selected = presentationOrder[selectedIndex];
+        return new H264Mp4FrameNavigationTarget(
+            selected.SampleNumber,
+            selected.PresentationTimeTicks,
+            track.Timescale);
+    }
+
+    private static NavigationIndex BuildIndex(Mp4MediaTrack track)
+    {
+        ValidateTrack(track, H264Mp4FrameNavigationDirection.Next);
         Mp4SampleLocation[] samples = track.SampleLocations.Samples.ToArray();
         if ((uint)samples.Length != track.SampleCount)
             throw new FormatException("The MP4 video sample-location count is inconsistent.");
         if (samples.Length == 0)
             throw new FormatException("The MP4 video track contains no samples.");
 
-        List<Mp4SampleLocation> presentationOrder = new(samples.Length);
         for (int index = 0; index < samples.Length; index++)
         {
             Mp4SampleLocation sample = samples[index];
             if (sample.SampleNumber != checked((uint)index + 1) ||
                 sample.DurationTicks == 0)
-            {
                 throw new FormatException(
                     "The MP4 video track contains invalid or non-contiguous sample timing.");
-            }
 
             _ = sample.PresentationTimeTicks;
-            presentationOrder.Add(sample);
         }
 
-        IEnumerable<Mp4SampleLocation> candidates = direction switch
-        {
-            H264Mp4FrameNavigationDirection.Previous =>
-                presentationOrder.Where(sample =>
-                        sample.PresentationTimeTicks < currentTicks ||
-                        (currentSampleNumber.HasValue &&
-                         sample.PresentationTimeTicks == currentTicks &&
-                         sample.SampleNumber < currentSampleNumber.Value))
-                    .OrderByDescending(sample => sample.PresentationTimeTicks)
-                    .ThenByDescending(sample => sample.SampleNumber),
-            H264Mp4FrameNavigationDirection.Next =>
-                presentationOrder.Where(sample =>
-                        sample.PresentationTimeTicks > currentTicks ||
-                        (currentSampleNumber.HasValue &&
-                         sample.PresentationTimeTicks == currentTicks &&
-                         sample.SampleNumber > currentSampleNumber.Value))
-                    .OrderBy(sample => sample.PresentationTimeTicks)
-                    .ThenBy(sample => sample.SampleNumber),
-            _ => throw new ArgumentOutOfRangeException(nameof(direction))
-        };
-
-        Mp4SampleLocation? selected = candidates.FirstOrDefault();
-        return selected is null
-            ? null
-            : new H264Mp4FrameNavigationTarget(
-                selected.SampleNumber,
-                selected.PresentationTimeTicks,
-                track.Timescale);
+        return new NavigationIndex(samples
+            .OrderBy(sample => sample.PresentationTimeTicks)
+            .ThenBy(sample => sample.SampleNumber)
+            .ToArray());
     }
+
+    private static int LowerBound(
+        Mp4SampleLocation[] samples,
+        long presentationTicks,
+        uint sampleNumber)
+    {
+        int low = 0;
+        int high = samples.Length;
+        while (low < high)
+        {
+            int middle = low + ((high - low) / 2);
+            Mp4SampleLocation sample = samples[middle];
+            bool before = sample.PresentationTimeTicks < presentationTicks ||
+                (sample.PresentationTimeTicks == presentationTicks &&
+                 sample.SampleNumber < sampleNumber);
+            if (before)
+                low = middle + 1;
+            else
+                high = middle;
+        }
+
+        return low;
+    }
+
+    private static int UpperBound(
+        Mp4SampleLocation[] samples,
+        long presentationTicks,
+        uint sampleNumber)
+    {
+        int low = 0;
+        int high = samples.Length;
+        while (low < high)
+        {
+            int middle = low + ((high - low) / 2);
+            Mp4SampleLocation sample = samples[middle];
+            bool atOrBefore = sample.PresentationTimeTicks < presentationTicks ||
+                (sample.PresentationTimeTicks == presentationTicks &&
+                 sample.SampleNumber <= sampleNumber);
+            if (atOrBefore)
+                low = middle + 1;
+            else
+                high = middle;
+        }
+
+        return low;
+    }
+
+    private sealed record NavigationIndex(Mp4SampleLocation[] Samples);
 }
