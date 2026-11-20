@@ -597,6 +597,12 @@ public partial class VideoEditorView : UserControl
         try
         {
             await _managedH264PlaybackService.SeekToFrameAsync(target);
+
+            if (_pendingFrameStepTarget == target &&
+                _managedH264PlaybackService.LastPresentedFrame == target)
+            {
+                _pendingFrameStepTarget = null;
+            }
         }
         catch (OperationCanceledException)
         {
