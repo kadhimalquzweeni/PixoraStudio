@@ -64,22 +64,27 @@ public sealed class H264CabacArithmeticDecoder
         int rangeLps = _rangeLps[(context.State << 2) | qRangeIndex];
         _range -= rangeLps;
 
+        int state = context.State;
+        int mostProbableSymbol = context.MostProbableSymbol;
         int bin;
+
         if (_offset < _range)
         {
-            bin = context.MostProbableSymbol;
-            context = context with { State = _transMps[context.State] };
+            bin = mostProbableSymbol;
+            state = _transMps[state];
         }
         else
         {
-            bin = 1 - context.MostProbableSymbol;
+            bin = 1 - mostProbableSymbol;
             _offset -= _range;
             _range = rangeLps;
-            if (context.State == 0)
-                context = context with { MostProbableSymbol = 1 - context.MostProbableSymbol };
-            context = context with { State = _transLps[context.State] };
+            if (state == 0)
+                mostProbableSymbol ^= 1;
+            state = _transLps[state];
         }
 
+        // Commit the updated probability state once after the decision.
+        context = new H264CabacContextModel(state, mostProbableSymbol);
         Renormalize();
         return bin;
     }
