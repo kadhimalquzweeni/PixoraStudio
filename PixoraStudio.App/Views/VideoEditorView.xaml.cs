@@ -349,17 +349,22 @@ public partial class VideoEditorView : UserControl
             _usesManagedH264Video = await _managedH264PlaybackService.TryStartAsync(
                 filePath,
                 () => (_mediaPlayer?.Time ?? 0) / 1000d,
-                bitmap => Dispatcher.BeginInvoke(new Action(() =>
+                bitmap =>
                 {
-                    ManagedVideoFrame.Source = bitmap;
-                    ManagedVideoFrame.Visibility = Visibility.Visible;
-
-                    if (_pendingFrameStepTarget is not null &&
-                        _managedH264PlaybackService.LastPresentedFrame == _pendingFrameStepTarget)
+                    H264Mp4FrameNavigationTarget? presentedFrame =
+                        _managedH264PlaybackService.LastPresentedFrame;
+                    Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        _pendingFrameStepTarget = null;
-                    }
-                })),
+                        ManagedVideoFrame.Source = bitmap;
+                        ManagedVideoFrame.Visibility = Visibility.Visible;
+
+                        if (_pendingFrameStepTarget is not null &&
+                            _pendingFrameStepTarget == presentedFrame)
+                        {
+                            _pendingFrameStepTarget = null;
+                        }
+                    }));
+                },
                 exception => Dispatcher.BeginInvoke(new Action(() =>
                 {
                     _usesManagedH264Video = false;
