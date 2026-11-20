@@ -17,11 +17,14 @@ public partial class VideoEditorViewModel : ObservableObject
     private readonly IVideoProcessingService _videoService;
 
     private VideoInfo? _videoInfo;
+    private readonly FFmpegService _ffmpegService;
+    private CancellationTokenSource? _exportCancellationTokenSource;
     public ObservableCollection<BitmapImage> VideoFrames { get; } = new();
 
-    public VideoEditorViewModel(IVideoProcessingService videoService)
+    public VideoEditorViewModel(IVideoProcessingService videoService, FFmpegService ffmpegService)
     {
         _videoService = videoService;
+        _ffmpegService = ffmpegService;
     }
 
     [ObservableProperty]
@@ -143,6 +146,7 @@ public partial class VideoEditorViewModel : ObservableObject
     [RelayCommand]
     private void CloseVideo()
     {
+        _exportCancellationTokenSource?.Cancel();
         VideoClosed?.Invoke();
         VideoPath = null;
         VideoName = "No video loaded";
@@ -284,6 +288,84 @@ public partial class VideoEditorViewModel : ObservableObject
         TrimStart = 0;
         TrimEnd = TotalMilliseconds;
     }
+
+
+    [ObservableProperty] private bool isExporting;
+    [ObservableProperty] private double exportProgress;
+    [ObservableProperty] private string exportStatus = string.Empty;
+
+    [RelayCommand]
+    private async Task ExportTrimmedVideoAsync()
+    {
+        if (IsExporting) return;
+        if (string.IsNullOrWhiteSpace(VideoPath) || !File.Exists(VideoPath))
+        {
+            ErrorMessage = "Please open a video before exporting.";
+            return;
+        }
+        if (!double.IsFinite(TotalMilliseconds) || TotalMilliseconds <= 0 ||
+            !double.IsFinite(TrimStart) || !double.IsFinite(TrimEnd) ||
+            TrimStart < 0 || TrimEnd > TotalMilliseconds || TrimEnd <= TrimStart)
+        {
+            ErrorMessage = "The selected trim range is invalid. Choose a start and end within the video duration.";
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export Trimmed Video",
+            Filter = "MP4 Video|*.mp4",
+            FileName = $"{Path.GetFileNameWithoutExtension(VideoPath)}_trimmed.mp4",
+            DefaultExt = ".mp4",
+            AddExtension = true
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        _exportCancellationTokenSource?.Dispose();
+        _exportCancellationTokenSource = new CancellationTokenSource();
+        string sourcePath = VideoPath;
+        string outputPath = dialog.FileName;
+        try
+        {
+            IsExporting = true;
+            ExportProgress = 0;
+            ErrorMessage = string.Empty;
+            ExportStatus = "Preparing video export...";
+            StatusMessage = "Exporting trimmed video...";
+            var progress = new Progress<double>(value =>
+            {
+                ExportProgress = Math.Clamp(value, 0, 100);
+                ExportStatus = $"Exporting video... {ExportProgress:F1}%";
+            });
+            await _ffmpegService.ExportTrimmedVideoAsync(sourcePath, outputPath,
+                TimeSpan.FromMilliseconds(TrimStart), TimeSpan.FromMilliseconds(TrimEnd),
+                progress, _exportCancellationTokenSource.Token);
+            ExportProgress = 100;
+            ExportStatus = "Export completed successfully!";
+            StatusMessage = $"Trimmed video exported to {Path.GetFileName(outputPath)}.";
+        }
+        catch (OperationCanceledException)
+        {
+            ExportStatus = "Export cancelled.";
+            StatusMessage = "Video export was cancelled.";
+            ErrorMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            ExportStatus = "Export failed.";
+            ErrorMessage = ex.Message;
+            StatusMessage = "Unable to export trimmed video.";
+        }
+        finally
+        {
+            IsExporting = false;
+            _exportCancellationTokenSource?.Dispose();
+            _exportCancellationTokenSource = null;
+        }
+    }
+
+    [RelayCommand]
+    private void CancelExport() => _exportCancellationTokenSource?.Cancel();
 
     private async Task GenerateVideoFramesAsync(string filePath)
     {
