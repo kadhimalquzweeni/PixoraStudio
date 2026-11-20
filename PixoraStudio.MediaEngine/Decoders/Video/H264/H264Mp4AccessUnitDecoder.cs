@@ -406,69 +406,69 @@ public sealed class H264Mp4AccessUnitDecoder
             }
             else
             {
-            for (int i = 0; i < slices.Count; i++)
-            {
-                (H264NalUnit nalUnit, H264SliceHeader header) = slices[i];
-                int currentSliceId = checked(firstSliceId + i);
-
-                switch (header.SliceType)
+                for (int i = 0; i < slices.Count; i++)
                 {
-                    case H264SliceType.I:
-                        H264IntraSliceDecodeResult iResult = cabacIntraDecoder is not null
-                            ? cabacIntraDecoder.Decode(nalUnit, activeSps, activePps, currentSliceId)
-                            : intraDecoder!.Decode(nalUnit, activeSps, activePps, currentSliceId);
-                        sliceDecodeSummaries.Add(
-                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={iResult.MacroblocksDecoded} bits={iResult.BitsConsumed}");
-                        break;
+                    (H264NalUnit nalUnit, H264SliceHeader header) = slices[i];
+                    int currentSliceId = checked(firstSliceId + i);
 
-                    case H264SliceType.P:
-                        H264PInterSliceDecodeResult pResult = pDecoder!.Decode(
-                            nalUnit, activeSps, activePps, _decodedPictureBuffer, currentSliceId);
-                        string cabacTrace = pResult.CabacDiagnostics.Count == 0
-                            ? string.Empty
-                            : $" cabac_trace=[{string.Join(" | ", pResult.CabacDiagnostics.TakeLast(24))}]";
-                        sliceDecodeSummaries.Add(
-                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={pResult.MacroblocksDecoded} bits={pResult.BitsConsumed}{cabacTrace}");
-                        IReadOnlyList<H264ReferencePicture> currentList0 = pResult.ReferenceList0 ??
-                            throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
-                        if (referenceList0 is null)
-                        {
-                            referenceList0 = currentList0;
-                            referenceList1 = [];
-                        }
-                        else if (!referenceList0.SequenceEqual(currentList0))
-                        {
+                    switch (header.SliceType)
+                    {
+                        case H264SliceType.I:
+                            H264IntraSliceDecodeResult iResult = cabacIntraDecoder is not null
+                                ? cabacIntraDecoder.Decode(nalUnit, activeSps, activePps, currentSliceId)
+                                : intraDecoder!.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                            sliceDecodeSummaries.Add(
+                                $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={iResult.MacroblocksDecoded} bits={iResult.BitsConsumed}");
+                            break;
+
+                        case H264SliceType.P:
+                            H264PInterSliceDecodeResult pResult = pDecoder!.Decode(
+                                nalUnit, activeSps, activePps, _decodedPictureBuffer, currentSliceId);
+                            string cabacTrace = pResult.CabacDiagnostics.Count == 0
+                                ? string.Empty
+                                : $" cabac_trace=[{string.Join(" | ", pResult.CabacDiagnostics.TakeLast(24))}]";
+                            sliceDecodeSummaries.Add(
+                                $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={pResult.MacroblocksDecoded} bits={pResult.BitsConsumed}{cabacTrace}");
+                            IReadOnlyList<H264ReferencePicture> currentList0 = pResult.ReferenceList0 ??
+                                throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
+                            if (referenceList0 is null)
+                            {
+                                referenceList0 = currentList0;
+                                referenceList1 = [];
+                            }
+                            else if (!referenceList0.SequenceEqual(currentList0))
+                            {
+                                throw new NotSupportedException(
+                                    "P slices in one picture must use identical RefPicList0 ordering for temporal-direct metadata.");
+                            }
+                            break;
+
+                        case H264SliceType.B:
+                            H264BInterSliceDecodeResult bResult = bDecoder!.Decode(
+                                nalUnit, activeSps, activePps, _decodedPictureBuffer,
+                                poc.PictureOrderCount, currentSliceId);
+                            sliceDecodeSummaries.Add(
+                                $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={bResult.MacroblocksDecoded} bits={bResult.BitsConsumed}");
+                            H264BReferencePictureLists currentLists = bResult.ReferencePictureLists ??
+                                throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
+                            if (referenceList0 is null)
+                            {
+                                referenceList0 = currentLists.List0;
+                                referenceList1 = currentLists.List1;
+                            }
+                            else if (!referenceList0.SequenceEqual(currentLists.List0) ||
+                                     !referenceList1!.SequenceEqual(currentLists.List1))
+                            {
+                                throw new NotSupportedException(
+                                    "B slices in one picture must use identical reference-list ordering for temporal-direct metadata.");
+                            }
+                            break;
+
+                        default:
                             throw new NotSupportedException(
-                                "P slices in one picture must use identical RefPicList0 ordering for temporal-direct metadata.");
-                        }
-                        break;
-
-                    case H264SliceType.B:
-                        H264BInterSliceDecodeResult bResult = bDecoder!.Decode(
-                            nalUnit, activeSps, activePps, _decodedPictureBuffer,
-                            poc.PictureOrderCount, currentSliceId);
-                        sliceDecodeSummaries.Add(
-                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={bResult.MacroblocksDecoded} bits={bResult.BitsConsumed}");
-                        H264BReferencePictureLists currentLists = bResult.ReferencePictureLists ??
-                            throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
-                        if (referenceList0 is null)
-                        {
-                            referenceList0 = currentLists.List0;
-                            referenceList1 = currentLists.List1;
-                        }
-                        else if (!referenceList0.SequenceEqual(currentLists.List0) ||
-                                 !referenceList1!.SequenceEqual(currentLists.List1))
-                        {
-                            throw new NotSupportedException(
-                                "B slices in one picture must use identical reference-list ordering for temporal-direct metadata.");
-                        }
-                        break;
-
-                    default:
-                        throw new NotSupportedException(
-                            $"Slice type {header.SliceType} is not supported by the MP4 access-unit decoder.");
+                                $"Slice type {header.SliceType} is not supported by the MP4 access-unit decoder.");
+                    }
                 }
-            }
 
             }
             if (!surface.IsComplete)
