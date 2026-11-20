@@ -86,7 +86,20 @@ public sealed class H264CabacSyntaxElementReader
     {
         if (contextIndexIncrement is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
-        return ReadFlagAtContext((isBSlice ? 24 : 11) + contextIndexIncrement);
+
+        int contextIndex = (isBSlice ? 24 : 11) + contextIndexIncrement;
+        string syntaxName = isBSlice ? "mb_skip_flag_b" : "mb_skip_flag_p";
+        (int rangeBefore, int offsetBefore, int bitBefore) = GetDiagnosticState();
+        int bin = _reader.DecodeBin(contextIndex);
+        (int rangeAfter, int offsetAfter, int bitAfter) = GetDiagnosticState();
+        H264CabacDiagnosticTrace.Mark(
+            _reader,
+            $"{syntaxName} ctx={contextIndex} inc={contextIndexIncrement} bin={bin} " +
+            $"range={rangeBefore}->{rangeAfter} offset={offsetBefore}->{offsetAfter} " +
+            $"bit={bitBefore}->{bitAfter}");
+        if (bin is not (0 or 1))
+            throw new FormatException("CABAC decision bins must be zero or one.");
+        return bin == 1;
     }
 
     /// <summary>
@@ -118,7 +131,13 @@ public sealed class H264CabacSyntaxElementReader
     /// <summary>Decodes end_of_slice_flag using the CABAC terminating-bin process.</summary>
     public bool ReadEndOfSliceFlag()
     {
+        (int rangeBefore, int offsetBefore, int bitBefore) = GetDiagnosticState();
         int bin = _reader.DecodeTerminate();
+        (int rangeAfter, int offsetAfter, int bitAfter) = GetDiagnosticState();
+        H264CabacDiagnosticTrace.Mark(
+            _reader,
+            $"end_of_slice_flag bin={bin} range={rangeBefore}->{rangeAfter} " +
+            $"offset={offsetBefore}->{offsetAfter} bit={bitBefore}->{bitAfter}");
         if (bin == 0)
             return false;
         if (bin == 1)
@@ -128,6 +147,11 @@ public sealed class H264CabacSyntaxElementReader
         }
         throw new FormatException("CABAC terminating bins must be zero or one.");
     }
+
+    private (int Range, int Offset, int BitPosition) GetDiagnosticState() =>
+        _reader is IH264CabacDiagnosticStateProvider state
+            ? (state.ArithmeticRange, state.ArithmeticOffset, state.BitPosition)
+            : (-1, -1, -1);
 
     /// <summary>
     /// Decodes CABAC coded_block_pattern for an intra macroblock. Each context
