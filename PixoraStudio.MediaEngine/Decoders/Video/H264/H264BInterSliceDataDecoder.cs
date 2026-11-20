@@ -421,7 +421,9 @@ public sealed class H264BInterSliceDataDecoder
                     macroblockX, macroblockY, sliceId, _cabacMotionNeighbours);
                 H264CabacDiagnosticTrace.Mark(
                     cabac, $"mb[{address}] stage=inter-prediction-syntax complete " +
-                        $"partitions={interSyntax.Partitions.Count}");
+                        $"mb_type={interSyntax.MacroblockType} " +
+                        $"partitions={interSyntax.Partitions.Count} " +
+                        $"directions={string.Join(",", interSyntax.Partitions.Select(partition => partition.Direction))}");
                 bool noSubMacroblockPartitionSmallerThan8x8 =
                     H264CabacInterMacroblockSyntaxReader
                         .HasNoSubMacroblockPartitionSmallerThan8x8(interSyntax);
