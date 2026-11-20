@@ -318,6 +318,9 @@ public sealed class H264BInterSliceDataDecoder
             H264MacroblockHeader header = _cabacHeaderReader.ReadBSlice(
                 syntaxReader, address, skipContextIncrement,
                 macroblockTypeContextIncrement);
+            H264CabacDiagnosticTrace.Mark(
+                cabac, $"mb[{address}] header skip={header.IsSkipped} intra={header.IsIntra} " +
+                    $"pcm={header.IsPcm} mb_type={header.MbTypeCode}");
 
             if (header.IsSkipped)
             {
@@ -410,20 +413,38 @@ public sealed class H264BInterSliceDataDecoder
             }
             else
             {
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=inter-prediction-syntax begin");
                 H264BMacroblockSyntax interSyntax = _cabacInterSyntaxReader.ReadBSlice(
                     syntaxReader, header,
                     slice.NumRefIdxL0ActiveMinus1, slice.NumRefIdxL1ActiveMinus1,
                     macroblockX, macroblockY, sliceId, _cabacMotionNeighbours);
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=inter-prediction-syntax complete " +
+                        $"partitions={interSyntax.Partitions.Count}");
                 bool noSubMacroblockPartitionSmallerThan8x8 =
                     H264CabacInterMacroblockSyntaxReader
                         .HasNoSubMacroblockPartitionSmallerThan8x8(interSyntax);
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=residual-syntax begin");
                 H264InterMacroblockResidualSyntax residualSyntax =
                     interResidualSyntaxReader.Read(
                         sps, pps, macroblockX, macroblockY, sliceId,
                         address, noSubMacroblockPartitionSmallerThan8x8);
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=residual-syntax complete " +
+                        $"cbp_luma={residualSyntax.CodedBlockPattern.Luma} " +
+                        $"cbp_chroma={residualSyntax.CodedBlockPattern.Chroma} " +
+                        $"qp_delta={residualSyntax.MacroblockQpDelta?.ToString() ?? "none"}");
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=residual-coefficients begin");
                 H264InterResidualMacroblock residual = _cabacInterResidualReader.Read(
                     cabac, header, residualSyntax, sps,
                     macroblockX, macroblockY, sliceId, _cabacResidualNeighbours);
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=residual-coefficients complete");
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=reconstruction begin");
                 H264BInterMacroblockReconstructionResult result =
                     _interReconstructor.ReconstructCabac(
                         header, interSyntax, residualSyntax, residual,
@@ -451,10 +472,16 @@ public sealed class H264BInterSliceDataDecoder
                     // A B_8x8 macroblock can contain four direct sub-partitions
                     // without itself being B_Direct_16x16.
                     isDirect: header.MbTypeCode == 0);
+                H264CabacDiagnosticTrace.Mark(
+                    cabac, $"mb[{address}] stage=reconstruction complete qp_y={qpY}");
             }
 
             decodedCount++;
+            H264CabacDiagnosticTrace.Mark(
+                cabac, $"mb[{address}] stage=end_of_slice_flag begin");
             bool endOfSlice = syntaxReader.ReadEndOfSliceFlag();
+            H264CabacDiagnosticTrace.Mark(
+                cabac, $"mb[{address}] stage=end_of_slice_flag value={(endOfSlice ? 1 : 0)}");
             address++;
             if (endOfSlice)
                 break;
