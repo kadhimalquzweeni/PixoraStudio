@@ -4,8 +4,9 @@ using PixoraStudio.MediaEngine.Models.General;
 namespace PixoraStudio.MediaEngine.Processing.Export;
 
 /// <summary>
-/// Creates a safe, keyframe-aligned sample selection for managed MP4 remuxing.
-/// This planner deliberately selects complete video GOPs; it never starts on a P/B frame.
+/// Builds a frame-accurate MP4 trim plan. The selected video samples begin at a
+/// decodable sync sample and include decode preroll, while the output edit list
+/// hides frames outside the requested frame-aligned presentation interval.
 /// </summary>
 public sealed class Mp4TrimExportPlanBuilder
 {
@@ -34,22 +35,53 @@ public sealed class Mp4TrimExportPlanBuilder
             throw new NotSupportedException("Managed trim export currently supports one video track.");
 
         Mp4MediaTrack videoTrack = videoTracks[0];
-
         if (videoTrack.EditList is not null)
             throw new NotSupportedException("Source video edit lists are not yet supported by managed trim export.");
 
         Dictionary<uint, double> videoPresentationTimes = GetPresentationTimes(mediaInfo, videoTrack.TrackId);
         Mp4SampleLocation[] videoSamples = videoTrack.SampleLocations.Samples.ToArray();
+        if (videoSamples.Length == 0)
+            throw new NotSupportedException("The video track contains no samples.");
 
+        // Resolve UI times to actual frame boundaries. Presentation timestamps,
+        // rather than decode order, are authoritative for B-frame streams.
+        Mp4SampleLocation startFrame = videoSamples
+            .Where(sample => videoPresentationTimes.ContainsKey(sample.SampleNumber))
+            .OrderBy(sample => videoPresentationTimes[sample.SampleNumber])
+            .ThenBy(sample => sample.SampleNumber)
+            .FirstOrDefault(sample =>
+                videoPresentationTimes[sample.SampleNumber] + TimeToleranceSeconds >= startSeconds)
+            ?? throw new ArgumentOutOfRangeException(nameof(startSeconds), "No video frame begins at or after the requested trim start.");
+
+        Mp4SampleLocation? endFrame = videoSamples
+            .Where(sample => videoPresentationTimes.ContainsKey(sample.SampleNumber))
+            .OrderBy(sample => videoPresentationTimes[sample.SampleNumber])
+            .ThenBy(sample => sample.SampleNumber)
+            .FirstOrDefault(sample =>
+                videoPresentationTimes[sample.SampleNumber] + TimeToleranceSeconds >= endSeconds);
+
+        double effectiveStart = videoPresentationTimes[startFrame.SampleNumber];
+        double effectiveEnd = endFrame is not null
+            ? videoPresentationTimes[endFrame.SampleNumber]
+            : GetTrackEndSeconds(videoTrack, videoSamples, videoPresentationTimes);
+
+        if (effectiveEnd <= effectiveStart)
+            throw new NotSupportedException("The selected frame range has no positive presentation duration.");
+
+        // Decode from the closest preceding sync sample. If the requested
+        // interval begins before the first sync sample, start at that sync
+        // sample because earlier frames cannot be decoded independently.
         Mp4SampleLocation? startSync = videoSamples
             .Where(sample => sample.IsSyncSample && videoPresentationTimes.ContainsKey(sample.SampleNumber))
-            .Where(sample => videoPresentationTimes[sample.SampleNumber] <= startSeconds + TimeToleranceSeconds)
+            .Where(sample => sample.SampleNumber <= startFrame.SampleNumber &&
+                videoPresentationTimes[sample.SampleNumber] <= effectiveStart + TimeToleranceSeconds)
             .OrderByDescending(sample => videoPresentationTimes[sample.SampleNumber])
             .ThenByDescending(sample => sample.SampleNumber)
             .FirstOrDefault();
 
         startSync ??= videoSamples
             .Where(sample => sample.IsSyncSample && videoPresentationTimes.ContainsKey(sample.SampleNumber))
+            .Where(sample => sample.SampleNumber >= startFrame.SampleNumber)
             .OrderBy(sample => videoPresentationTimes[sample.SampleNumber])
             .ThenBy(sample => sample.SampleNumber)
             .FirstOrDefault();
@@ -57,12 +89,22 @@ public sealed class Mp4TrimExportPlanBuilder
         if (startSync is null)
             throw new NotSupportedException("The video track has no usable sync sample for a decodable trim start.");
 
-        // End at the next sync sample at or beyond the requested end. The next
-        // sync sample is an exclusive boundary, so the preceding GOP is complete.
+        if (videoPresentationTimes[startSync.SampleNumber] > effectiveStart + TimeToleranceSeconds)
+        {
+            // The requested first frame precedes the first available random
+            // access point; align the visible start to the first decodable frame.
+            effectiveStart = videoPresentationTimes[startSync.SampleNumber];
+            if (effectiveEnd <= effectiveStart)
+                throw new NotSupportedException("The selected range ends before the first decodable video frame.");
+        }
+
+        // Retain complete decode-order GOPs through the first sync sample at or
+        // after the exclusive end boundary. The edit list hides the preroll and
+        // any trailing GOP samples that are not part of the visible interval.
         Mp4SampleLocation? endBoundary = videoSamples
             .Where(sample => sample.IsSyncSample && sample.SampleNumber > startSync.SampleNumber)
             .Where(sample => videoPresentationTimes.TryGetValue(sample.SampleNumber, out double time)
-                && time + TimeToleranceSeconds >= endSeconds)
+                && time + TimeToleranceSeconds >= effectiveEnd)
             .OrderBy(sample => sample.SampleNumber)
             .FirstOrDefault();
 
@@ -83,14 +125,6 @@ public sealed class Mp4TrimExportPlanBuilder
             selectedVideoSamples[^1].SampleNumber != lastVideoSampleNumber)
             throw new Mp4ParsingException("The video sample table is not contiguous across the selected GOP range.");
 
-        double effectiveStart = videoPresentationTimes[startSync.SampleNumber];
-        double effectiveEnd = endBoundary is not null
-            ? videoPresentationTimes[endBoundary.SampleNumber]
-            : GetTrackEndSeconds(videoTrack, selectedVideoSamples, videoPresentationTimes);
-
-        if (effectiveEnd <= effectiveStart)
-            throw new NotSupportedException("The selected video GOP range has no positive presentation duration.");
-
         List<Mp4TrimTrackPlan> trackPlans =
         [
             new Mp4TrimTrackPlan(videoTrack.TrackId, Mp4HandlerType.Video, selectedVideoSamples)
@@ -104,15 +138,13 @@ public sealed class Mp4TrimExportPlanBuilder
             Dictionary<uint, double> audioTimes = GetPresentationTimes(mediaInfo, audioTrack.TrackId);
             Mp4SampleLocation[] selectedAudioSamples = audioTrack.SampleLocations.Samples
                 .Where(sample => audioTimes.TryGetValue(sample.SampleNumber, out double time)
-                    && time < effectiveEnd
-                    && time + sample.DurationTicks / (double)audioTrack.Timescale > effectiveStart - TimeToleranceSeconds)
+                    && time < effectiveEnd - TimeToleranceSeconds
+                    && time + sample.DurationTicks / (double)audioTrack.Timescale > effectiveStart + TimeToleranceSeconds)
                 .ToArray();
 
             if (selectedAudioSamples.Length == 0)
                 continue;
 
-            // Audio is selected in decode order. MP4 tracks have contiguous sample
-            // numbering; if edit lists produce gaps, fail instead of writing invalid tables.
             for (int i = 1; i < selectedAudioSamples.Length; i++)
             {
                 if (selectedAudioSamples[i].SampleNumber != selectedAudioSamples[i - 1].SampleNumber + 1)
@@ -141,7 +173,13 @@ public sealed class Mp4TrimExportPlanBuilder
         IReadOnlyList<Mp4SampleLocation> selectedSamples,
         IReadOnlyDictionary<uint, double> presentationTimes)
     {
-        Mp4SampleLocation last = selectedSamples[^1];
+        Mp4SampleLocation last = selectedSamples
+            .OrderBy(sample => presentationTimes.TryGetValue(sample.SampleNumber, out double time)
+                ? time
+                : sample.DecodeTimeTicks / (double)track.Timescale)
+            .ThenBy(sample => sample.SampleNumber)
+            .Last();
+
         double start = presentationTimes.TryGetValue(last.SampleNumber, out double time)
             ? time
             : last.DecodeTimeTicks / (double)track.Timescale;
