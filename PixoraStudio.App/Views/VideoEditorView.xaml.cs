@@ -373,6 +373,9 @@ public partial class VideoEditorView : UserControl
                 },
                 exception => Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    if (loadVersion != _videoLoadVersion)
+                        return;
+
                     _usesManagedH264Video = false;
                     _pendingFrameStepTarget = null;
                     if (DataContext is VideoEditorViewModel failedVm)
