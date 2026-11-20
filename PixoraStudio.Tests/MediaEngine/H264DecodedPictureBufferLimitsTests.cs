@@ -46,7 +46,7 @@ public sealed class H264DecodedPictureBufferLimitsTests
     [Fact]
     public void ResolveMaxDpbFrames_ShouldUseLevelOneBLevelIdcNine()
     {
-        H264SequenceParameterSet sps = CreateSps(9, 1, 1);
+        H264SequenceParameterSet sps = CreateSps(9, 1, 1, profileIdc: 100);
 
         Assert.Equal(16, H264DecodedPictureBufferLimits.ResolveMaxDpbFrames(sps));
     }
