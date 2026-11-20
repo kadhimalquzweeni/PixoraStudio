@@ -186,6 +186,10 @@ public sealed class H264CabacSyntaxElementReaderTests
 
         Assert.Contains(bins.DiagnosticMarkers, marker =>
             marker.Contains("mb_skip_flag_p ctx=13 inc=2 bin=1", StringComparison.Ordinal));
+        Assert.Contains(bins.DiagnosticMarkers, marker =>
+            marker.Contains("ctx_state=6/1->6/1", StringComparison.Ordinal) &&
+            marker.Contains("range=400->400", StringComparison.Ordinal) &&
+            marker.Contains("offset=120->120", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -675,7 +679,7 @@ public sealed class H264CabacSyntaxElementReaderTests
         }
     }
 
-    private sealed class ScriptedCabacReader : IH264CabacBinReader, IH264CabacDiagnosticTraceSink
+    private sealed class ScriptedCabacReader : IH264CabacBinReader, IH264CabacDiagnosticTraceSink, IH264CabacDiagnosticStateProvider
     {
         private readonly Queue<int> _decisionBins;
         private readonly Queue<int> _bypassBins;
@@ -701,6 +705,11 @@ public sealed class H264CabacSyntaxElementReaderTests
         public List<int> ContextIndices { get; } = [];
         public List<string> DiagnosticMarkers { get; } = [];
         public void TraceDiagnostic(string marker) => DiagnosticMarkers.Add(marker);
+        public int ArithmeticRange => 400;
+        public int ArithmeticOffset => 120;
+        public int BitPosition => 64;
+        public H264CabacContextModel GetContextModel(int contextIndex) =>
+            new(6, 1);
         public bool Terminated { get; private set; }
 
         public int DecodeBin(int contextIndex)
