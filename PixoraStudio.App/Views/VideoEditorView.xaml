@@ -346,7 +346,7 @@
 
                         <StackPanel>
 
-                            <TextBlock Text="Video Trimming"
+                            <TextBlock Text="Trim Selection"
                                        FontSize="18"
                                        FontWeight="Bold"
                                        Foreground="White"
@@ -366,19 +366,6 @@
                                         Padding="12,6"
                                         Margin="0,0,10,0"/>
 
-                                <Button Content="Export Trimmed Video"
-                                        Command="{Binding ExportTrimmedVideoCommand}"
-                                        Padding="12,6"
-                                        Background="#2196F3"
-                                        Foreground="White"/>
-
-                            </StackPanel>
-
-                            <StackPanel Margin="0,15,0,0"
-                                        Visibility="{Binding IsExporting, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="{Binding ExportStatus}" Foreground="White" Margin="0,0,0,5"/>
-                                <ProgressBar Minimum="0" Maximum="100" Value="{Binding ExportProgress}" Height="18" Margin="0,0,0,8"/>
-                                <Button Content="Cancel Export" Command="{Binding CancelExportCommand}" HorizontalAlignment="Right" Padding="12,5"/>
                             </StackPanel>
 
                         </StackPanel>
