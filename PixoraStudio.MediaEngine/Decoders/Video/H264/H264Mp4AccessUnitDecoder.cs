@@ -286,15 +286,6 @@ public sealed class H264Mp4AccessUnitDecoder
                 throw new NotSupportedException(
                     "The MP4 sample's slices did not reconstruct every macroblock in the picture.");
 
-            // A reference picture must be deblocked before it enters the DPB.
-            // The output scheduler applies the in-loop filter to the reconstructed
-            // surface; storing it first would make later P/B pictures predict from
-            // unfiltered samples even though the displayed frame is filtered.
-            IReadOnlyList<H264Mp4DecodedVideoFrame> readyFrames =
-                _outputScheduler.Enqueue(
-                    surface, sample, activeSps, firstSlice, firstNal.NalRefIdc, poc,
-                    _maxNumReorderFramesFallback);
-
             if (firstNal.NalRefIdc != 0)
             {
                 int maxFrameNum = 1 << checked((int)activeSps.Log2MaxFrameNumMinus4 + 4);
@@ -312,6 +303,11 @@ public sealed class H264Mp4AccessUnitDecoder
                     referenceList0: referenceList0,
                     referenceList1: referenceList1);
             }
+
+            IReadOnlyList<H264Mp4DecodedVideoFrame> readyFrames =
+                _outputScheduler.Enqueue(
+                    surface, sample, activeSps, firstSlice, firstNal.NalRefIdc, poc,
+                    _maxNumReorderFramesFallback);
             _requiresReset = false;
             return new H264Mp4AccessUnitDecodeResult(
                 sample, firstSlice, poc, surface, readyFrames);
