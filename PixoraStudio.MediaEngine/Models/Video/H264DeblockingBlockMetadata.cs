@@ -12,4 +12,6 @@ public sealed record H264DeblockingBlockMetadata(
     H264ReferencePicture? ReferencePictureL0,
     H264MotionVector? MotionVectorL0,
     H264ReferencePicture? ReferencePictureL1,
-    H264MotionVector? MotionVectorL1);
+    H264MotionVector? MotionVectorL1,
+    int? ReferenceIndexL0 = null,
+    int? ReferenceIndexL1 = null);
