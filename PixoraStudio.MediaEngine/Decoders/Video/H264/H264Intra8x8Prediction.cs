@@ -26,7 +26,8 @@ public static class H264Intra8x8Prediction
         if ((mode is 0 or 3 or 7) && !hasTop)
             throw new FormatException("The selected Intra8x8 mode requires top reference samples.");
         if ((mode is 1 or 8) && !hasLeft)
-            throw new FormatException("The selected Intra8x8 mode requires left reference samples.");
+            throw new FormatException(
+                $"Intra8x8 mode {mode} requires left references (top={hasTop}, left={hasLeft}, topLeft={hasTopLeft}).");
         if ((mode is 4 or 5 or 6) && (!hasTop || !hasLeft || !hasTopLeft))
             throw new FormatException("The selected directional Intra8x8 mode requires top, left and top-left samples.");
 
