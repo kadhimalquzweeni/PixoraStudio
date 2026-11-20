@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>Reads H.264 syntax elements from an RBSP in most-significant-bit-first order.</summary>
@@ -175,16 +177,30 @@ public sealed class H264BitReader
 
     public uint ReadUnsignedExpGolomb()
     {
-        int leadingZeroBits = 0;
-        while (true)
+        int availableBits = Math.Min(RemainingBits, 32);
+        if (availableBits == 0)
+            throw new EndOfStreamException("Truncated unsigned Exp-Golomb value.");
+
+        // Locate the first one bit in one peek rather than consuming the prefix
+        // one bit at a time. Padding the peek on the right lets LeadingZeroCount
+        // handle both byte-aligned and unaligned codewords uniformly.
+        uint prefix = PeekBits(availableBits);
+        int leadingZeroBits = BitOperations.LeadingZeroCount(prefix << (32 - availableBits));
+
+        if (leadingZeroBits >= availableBits)
         {
-            if (RemainingBits == 0) throw new EndOfStreamException("Truncated unsigned Exp-Golomb value.");
-            if (ReadFlag()) break;
-            leadingZeroBits++;
-            if (leadingZeroBits > 31) throw new FormatException("Unsigned Exp-Golomb value exceeds UInt32.");
+            if (availableBits == 32)
+                throw new FormatException("Unsigned Exp-Golomb value exceeds UInt32.");
+            throw new EndOfStreamException("Truncated unsigned Exp-Golomb value.");
         }
 
-        if (leadingZeroBits == 0) return 0;
+        if (leadingZeroBits > 31)
+            throw new FormatException("Unsigned Exp-Golomb value exceeds UInt32.");
+
+        SkipBits(leadingZeroBits + 1);
+        if (leadingZeroBits == 0)
+            return 0;
+
         uint suffix = ReadBits(leadingZeroBits);
         return checked(((1u << leadingZeroBits) - 1u) + suffix);
     }
