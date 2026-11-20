@@ -124,6 +124,32 @@ public sealed class H264CabacArithmeticDecoderTests
         Assert.Throws<ArgumentOutOfRangeException>(() => decoder.DecodeDecision(ref context));
     }
 
+
+    [Fact]
+    public void DecodeDecision_ShouldUseFlattenedRangeLpsLookupForSelectedStateAndRangeClass()
+    {
+        byte[,] customRangeLps = new byte[64, 4];
+        for (int state = 0; state < 64; state++)
+        for (int rangeClass = 0; rangeClass < 4; rangeClass++)
+            customRangeLps[state, rangeClass] = 2;
+        customRangeLps[0, 3] = 150;
+
+        byte[] transitionMps = Enumerable.Range(0, 64)
+            .Select(state => (byte)state).ToArray();
+        byte[] transitionLps = Enumerable.Range(0, 64)
+            .Select(state => (byte)state).ToArray();
+
+        // Initial offset 400 selects the LPS interval for rangeLPS=150.
+        H264BitReader reader = new(new byte[] { 0xC8, 0x00, 0x00 });
+        H264CabacArithmeticDecoder decoder = new(
+            reader, customRangeLps, transitionMps, transitionLps);
+        H264CabacContextModel context = new(0, 0);
+
+        Assert.Equal(1, decoder.DecodeDecision(ref context));
+        Assert.Equal(1, context.MostProbableSymbol);
+    }
+
+
     private static H264CabacArithmeticDecoder CreateDecoder(int offset)
     {
         byte[] bytes = { (byte)(offset >> 1), (byte)((offset & 1) << 7) };
