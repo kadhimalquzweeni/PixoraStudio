@@ -27,6 +27,30 @@ public sealed class VideoExportServiceTests
     }
 
     [Fact]
+    public async Task ExportTrimmedVideoAsync_ShouldRejectNonMp4Source()
+    {
+        string directory = CreateTemporaryDirectory();
+        try
+        {
+            string source = Path.Combine(directory, "source.mov");
+            await File.WriteAllBytesAsync(source, [1, 2, 3]);
+
+            VideoExportService service = new();
+
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                service.ExportTrimmedVideoAsync(
+                    source,
+                    Path.Combine(directory, "output.mp4"),
+                    0,
+                    1));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ExportTrimmedVideoAsync_ShouldRejectSameSourceAndDestination()
     {
         string directory = CreateTemporaryDirectory();
