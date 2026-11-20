@@ -15,6 +15,8 @@ namespace PixoraStudio.Infrastructure.Services;
 /// </summary>
 public sealed class VideoProcessingService : IVideoProcessingService
 {
+    private const int MaximumThumbnailParallelism = 4;
+
     public Task<VideoInfo> GetVideoInfoAsync(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -44,9 +46,9 @@ public sealed class VideoProcessingService : IVideoProcessingService
     }
 
     /// <summary>
-    /// Extracts multiple filmstrip images from one MP4 parse. Each target is
-    /// decoded from its preceding sync sample, avoiding a full-file decode
-    /// while reusing the parsed sample tables and open stream.
+    /// Parses MP4 metadata once, then decodes requested positions concurrently.
+    /// Each worker owns its stream, decoder, parameter-set reader and converter;
+    /// only the parsed, read-only sample metadata is shared.
     /// </summary>
     public Task GenerateThumbnailsAsync(
         string filePath,
@@ -83,60 +85,84 @@ public sealed class VideoProcessingService : IVideoProcessingService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using FileStream stream = new(
-                filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            Mp4MediaInfo mediaInfo = new Mp4FileReader().Read(stream);
+            Mp4MediaInfo mediaInfo;
+            using (FileStream metadataStream = new(
+                filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                mediaInfo = new Mp4FileReader().Read(metadataStream);
+            }
+
             Mp4MediaTrack videoTrack = mediaInfo
                 .GetTracks(Mp4HandlerType.Video)
                 .FirstOrDefault()
                 ?? throw new NotSupportedException(
                     "The MP4 file does not contain a video track.");
 
-            H264AvcParameterSetCollectionReader parameterSetReader = new();
-            H264YuvToBgraConverter converter = new();
-
-            // Keep memory bounded and avoid decoding the entire source just
-            // to reach the final filmstrip position. Reuse the parsed MP4
-            // sample tables and stream, but seek independently to each target
-            // so every decoder starts at its preceding sync sample.
-            for (int index = 0; index < positions.Count; index++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                H264Mp4DecodedVideoFrame? frame =
-                    new H264Mp4TrackDecoder().DecodeFromTime(
-                        stream,
-                        mediaInfo,
-                        videoTrack.TrackId,
-                        positions[index].TotalSeconds,
-                        cancellationToken: cancellationToken)
-                    .FirstOrDefault();
-
-                if (frame is null)
+            Parallel.For(
+                0,
+                positions.Count,
+                new ParallelOptions
                 {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"The decoder could not produce a frame for thumbnail {index}.");
-                    continue;
-                }
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = GetThumbnailWorkerCount(
+                        positions.Count, Environment.ProcessorCount)
+                },
+                index =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                try
-                {
-                    SaveThumbnail(
-                        frame,
-                        outputPaths[index],
-                        parameterSetReader,
-                        converter);
-                    progress?.Report(new VideoThumbnailResult(
-                        index, Path.GetFullPath(outputPaths[index])));
-                }
-                catch (Exception exception) when (
-                    exception is not OperationCanceledException)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"Thumbnail {index} could not be generated: {exception}");
-                }
-            }
+                    // FileStream.Position is mutable, so every concurrent
+                    // decoder must have an independent stream instance.
+                    using FileStream stream = new(
+                        filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+                    H264Mp4DecodedVideoFrame? frame =
+                        new H264Mp4TrackDecoder().DecodeFromTime(
+                            stream,
+                            mediaInfo,
+                            videoTrack.TrackId,
+                            positions[index].TotalSeconds,
+                            cancellationToken: cancellationToken)
+                        .FirstOrDefault();
+
+                    if (frame is null)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"The decoder could not produce a frame for thumbnail {index}.");
+                        return;
+                    }
+
+                    try
+                    {
+                        SaveThumbnail(
+                            frame,
+                            outputPaths[index],
+                            new H264AvcParameterSetCollectionReader(),
+                            new H264YuvToBgraConverter());
+
+                        progress?.Report(new VideoThumbnailResult(
+                            index, Path.GetFullPath(outputPaths[index])));
+                    }
+                    catch (Exception exception) when (
+                        exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"Thumbnail {index} could not be generated: {exception}");
+                    }
+                });
         }, cancellationToken);
+    }
+
+    internal static int GetThumbnailWorkerCount(int thumbnailCount, int processorCount)
+    {
+        if (thumbnailCount <= 0)
+            return 0;
+        if (processorCount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(processorCount));
+
+        return Math.Min(
+            thumbnailCount,
+            Math.Min(processorCount, MaximumThumbnailParallelism));
     }
 
     private static void SaveThumbnail(
