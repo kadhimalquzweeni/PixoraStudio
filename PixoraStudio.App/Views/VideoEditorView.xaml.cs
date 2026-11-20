@@ -551,13 +551,14 @@ public partial class VideoEditorView : UserControl
 
         // Prefer the pending target so rapid repeated clicks advance from the
         // requested frame even while its decode is still in progress.
-        double currentPresentationTime = _pendingFrameStepTarget?.PresentationTimeSeconds
-            ?? _managedH264PlaybackService.LastPresentedFrame?.PresentationTimeSeconds
-            ?? Math.Max(0, _mediaPlayer.Time / 1000d);
+        H264Mp4FrameNavigationTarget? currentFrame =
+            _pendingFrameStepTarget ?? _managedH264PlaybackService.LastPresentedFrame;
 
-        H264Mp4FrameNavigationTarget? target =
-            _managedH264PlaybackService.FindAdjacentFrame(
-                currentPresentationTime, navigationDirection);
+        H264Mp4FrameNavigationTarget? target = currentFrame is not null
+            ? _managedH264PlaybackService.FindAdjacentFrame(
+                currentFrame, navigationDirection)
+            : _managedH264PlaybackService.FindAdjacentFrame(
+                Math.Max(0, _mediaPlayer.Time / 1000d), navigationDirection);
 
         if (target is null)
             return;
