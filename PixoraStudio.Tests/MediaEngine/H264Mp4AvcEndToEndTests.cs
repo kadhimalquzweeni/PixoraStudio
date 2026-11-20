@@ -265,15 +265,15 @@ public sealed class H264Mp4AvcEndToEndTests
                 .Concat(frames[1].Surface.CopyCbPlane())
                 .Concat(frames[1].Surface.CopyCrPlane()).ToArray());
         byte[] preDeblockingBFrame = Assert.Single(preDeblockingFrames);
+        File.WriteAllBytes(
+            Path.Combine(testResultsDirectory, "cabac-high-profile-prefilter-b-frame.yuv"),
+            preDeblockingBFrame);
         string preDeblockingBFrameHash = Convert.ToHexString(
             System.Security.Cryptography.SHA256.HashData(preDeblockingBFrame))
             .ToLowerInvariant();
         Assert.Equal(
             "c00bdde1d406339ba202b980757d8ba341cdc391f96b8f5189c4dcf91ca96c93",
             preDeblockingBFrameHash);
-        File.WriteAllBytes(
-            Path.Combine(testResultsDirectory, "cabac-high-profile-prefilter-b-frame.yuv"),
-            preDeblockingBFrame);
 
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
