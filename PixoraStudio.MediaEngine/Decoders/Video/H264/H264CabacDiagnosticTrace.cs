@@ -7,15 +7,20 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// </summary>
 public interface IH264CabacDiagnosticTraceSink
 {
+    bool IsDiagnosticTraceEnabled => true;
+
     void TraceDiagnostic(string marker);
 }
 
 /// <summary>Emits diagnostic markers only when the supplied reader opts in.</summary>
 internal static class H264CabacDiagnosticTrace
 {
+    public static bool IsEnabled(IH264CabacBinReader reader) =>
+        reader is IH264CabacDiagnosticTraceSink { IsDiagnosticTraceEnabled: true };
+
     public static void Mark(IH264CabacBinReader reader, string marker)
     {
-        if (reader is IH264CabacDiagnosticTraceSink sink)
+        if (reader is IH264CabacDiagnosticTraceSink { IsDiagnosticTraceEnabled: true } sink)
             sink.TraceDiagnostic(marker);
     }
 }
