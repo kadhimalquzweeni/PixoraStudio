@@ -111,4 +111,30 @@ public sealed class VideoProcessingServiceTests
             File.Delete(filePath);
         }
     }
+
+    [Theory]
+    [InlineData(0, 8, 0)]
+    [InlineData(1, 8, 1)]
+    [InlineData(2, 8, 2)]
+    [InlineData(12, 1, 1)]
+    [InlineData(12, 2, 2)]
+    [InlineData(12, 4, 4)]
+    [InlineData(12, 16, 4)]
+    public void GetThumbnailWorkerCount_ShouldBoundParallelism(
+        int thumbnailCount,
+        int processorCount,
+        int expected)
+    {
+        Assert.Equal(
+            expected,
+            VideoProcessingService.GetThumbnailWorkerCount(
+                thumbnailCount, processorCount));
+    }
+
+    [Fact]
+    public void GetThumbnailWorkerCount_ShouldRejectInvalidProcessorCount()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => VideoProcessingService.GetThumbnailWorkerCount(4, 0));
+    }
 }
