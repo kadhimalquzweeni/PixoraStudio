@@ -1,6 +1,6 @@
-namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
-
 using PixoraStudio.MediaEngine.Models.Video;
+
+namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 
 /// <summary>
 /// Derives H.264 decoded-picture-buffer limits from the SPS level and coded
@@ -43,9 +43,17 @@ public static class H264DecodedPictureBufferLimits
         ArgumentNullException.ThrowIfNull(sps);
 
         uint maxDpbMbs = ResolveMaxDpbMacroblocks(sps);
-        ulong pictureSizeInMacroblocks =
-            ((ulong)sps.PicWidthInMbsMinus1 + 1) *
-            ((ulong)sps.PicHeightInMapUnitsMinus1 + 1);
+        ulong pictureSizeInMacroblocks;
+        try
+        {
+            pictureSizeInMacroblocks = checked(
+                ((ulong)sps.PicWidthInMbsMinus1 + 1) *
+                ((ulong)sps.PicHeightInMapUnitsMinus1 + 1));
+        }
+        catch (OverflowException exception)
+        {
+            throw new FormatException("The SPS coded picture dimensions overflow the supported macroblock geometry.", exception);
+        }
 
         if (pictureSizeInMacroblocks == 0 || pictureSizeInMacroblocks > maxDpbMbs)
             throw new FormatException(
