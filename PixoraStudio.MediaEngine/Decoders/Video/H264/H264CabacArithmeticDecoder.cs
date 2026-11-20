@@ -113,11 +113,14 @@ public sealed class H264CabacArithmeticDecoder
 
     private void Renormalize()
     {
-        while (_range < 256)
-        {
-            _range <<= 1;
-            _offset = checked((_offset << 1) | (int)_reader.ReadBits(1));
-        }
+        if (_range >= 256)
+            return;
+
+        // CABAC ranges are positive and below 256 here. Read all required
+        // renormalisation bits in one operation instead of looping per bit.
+        int shift = System.Numerics.BitOperations.LeadingZeroCount((uint)_range) - 23;
+        _range <<= shift;
+        _offset = (_offset << shift) | (int)_reader.ReadBits(shift);
     }
 
     private static void ValidateContext(H264CabacContextModel context)
