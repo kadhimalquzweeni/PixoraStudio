@@ -406,7 +406,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                 H264AvcDecoderConfiguration configuration =
                     frame.SourceSample.Configuration;
                 if (!parameterSetCache.TryGetValue(
-                        configuration, out H264AvcParameterSetCollection? parameterSets))
+                        configuration, out H264AvcParameterSetCollection? parameterSets) ||
+                    parameterSets is null)
                 {
                     parameterSets = _parameterSetReader.Read(configuration);
                     parameterSetCache.Add(configuration, parameterSets);
