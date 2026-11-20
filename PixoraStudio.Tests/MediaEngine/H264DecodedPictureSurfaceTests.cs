@@ -69,6 +69,20 @@ public sealed class H264DecodedPictureSurfaceTests
             CreateSps(1, 1, 0) with { FrameMbsOnlyFlag = false }));
     }
 
+    [Fact]
+    public void GetUndecodedMacroblockAddresses_ShouldReturnMissingAddressesInRasterScanOrder()
+    {
+        H264DecodedPictureSurface surface = new(CreateSps(1, 2, 1));
+        surface.WriteMacroblock(0, 0, 0, false,
+            new byte[256], new byte[64], new byte[64]);
+        surface.WriteMacroblock(2, 0, 0, false,
+            new byte[256], new byte[64], new byte[64]);
+        surface.WriteMacroblock(1, 1, 0, false,
+            new byte[256], new byte[64], new byte[64]);
+
+        Assert.Equal(new uint[] { 1, 3, 5 }, surface.GetUndecodedMacroblockAddresses());
+    }
+
     private static H264SequenceParameterSet CreateSps(
         uint format, uint widthMinus1, uint heightMinus1) =>
         new(0, 66, 30, format, false, 0, 0, 0, 0, 0, 1,
