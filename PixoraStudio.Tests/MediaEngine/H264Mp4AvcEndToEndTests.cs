@@ -212,7 +212,7 @@ public sealed class H264Mp4AvcEndToEndTests
             diagnosticDecoder.Decode(CreateCabacSample(
                 configuration, 2, 1, 2, false, CabacHighPNal));
             diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 3, 2, 1, false, CabacHighBNal, trailingZeroBytes: 16));
+                configuration, 3, 2, 1, false, CabacHighBNal));
         }
         finally
         {
@@ -236,7 +236,7 @@ public sealed class H264Mp4AvcEndToEndTests
         [
             CreateCabacEncodedSample(1, 0, 0, true, CabacHighIdrNal),
             CreateCabacEncodedSample(2, 1, 2, false, CabacHighPNal),
-            CreateCabacEncodedSample(3, 2, 1, false, CabacHighBNal, trailingZeroBytes: 16)
+            CreateCabacEncodedSample(3, 2, 1, false, CabacHighBNal)
         ];
 
         H264Mp4DecodedVideoFrame[] frames =
@@ -256,9 +256,9 @@ public sealed class H264Mp4AvcEndToEndTests
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
         [
-            "74d1870d8599bd3cd340270b7c04a2e920d8f39433f67e3dd764d9ff4242b7c1",
-            "fb67b186d4dff36ad4809f9c20290b5afc4eab4924eeb4ef763010bda2f83558",
-            "115c74e0cfd5e28fa92c26fe0aa647f1f8d4ea4705606e6c15b7f81f33ed205b"
+            "260b4b535a3e952ce61f23b57e98d1649dc4c4f7d711cdc2c8385f5cb6358855",
+            "bc4be240cf873cde27c14a9548285735d6ce77dc7b1f3036374242344c5473b4",
+            "cf4cb00f1b12e3c8b63810389f369d049a6878c16ff7a228a64dde9f983fcdf5"
         ];
         Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
     }
@@ -716,22 +716,22 @@ public sealed class H264Mp4AvcEndToEndTests
     private const string CabacPSkipP2Nal = "QZpCCNf+4Q==";
 
     private const string CabacMainResidual32AvcC =
-        "AU1ACv/hABZnTUAK9ktgIgAAAwACAAADAAQeJEpwAQAFaO+CMsg=";
+        "AU1AHv/hABZnTUAe9ktgIgAAAwACAAADAAweLFpwAQAFaO+PLIA=";
     private const string CabacMainResidual32IdrNal =
-        "ZYiEA//F9iVJ02WIOfaIfQOzovJyTd5V0cw9QngBmUJqnS2PZJIfJP3cnQ2DRmmO9wCDSOZxv4DtixWhtI6WBuDEuPsZ9jgCPTKvqjmNDk4mY5FIFf0b7z6MZQ+r2nXVYxOr3dS7k1xQNd9T8844fewvVIPyyTFnHr9aa9BkzLpm1xoljmPaS01e14MusjNyMy36C+FAz4VHjKc6TEyKP5+NN8MNjlkWErZKx6UjtFGhMQNBgiucuczEIRe+ft5E9b7FY1wu0RYz2Z0yCEzgDrWRspotp4WfM+nvUthez5LJ1i/cmzjhKKEzBAHpKAIlINBJ6c1z0+EafF9By1meInx1oxdmyFQ7Ufmd3MEejyxQmpj0JvUennL3b4PX4HAV1DsEVRhSPYDz1kFeNX1ITMnGNQhNo4SCYEpmf98o1bDBH65JQ2Up1obEeQwAkkni5Js9eBZgp/HVvXOurfKuqa2hOn3ihXIJo1Nv0ZhfMbua4ekFFqAz1xXbz1ze4sofcBIWSGlGRsN/H2wVTsdmBawL3vWzzyfIb7V+YCk5ePyfe7ECZeeejZd/gG85cEd/X28nFG532Yo+m4D1v/rOH5561P4hgF510ejxvZZ/uVmxh++h+D7+rY5uDZJDSQtJZAiWn3Q3nQVu2sRA54/ZvVt086DzjDHsLZZO1jCFFo4xsVhsbEYEZbABKMpq2a0D9/OFRngg9WYtvH+1gpYTJ3CBcAdQWlYdbCmB";
+        "ZYiEBf+rfWSPru9GlSaXn8d7kcnLNXqoE3wQoAwM8kJmJp3e0oUEjbruOoqR1w/zdR1+wLxNvqqXDjOD9bTQ2FXGnGea9Dg9e06yE2JCBQdYMKjWGP+TZw6R3i1t37h+gibo6VuQ15CLndOkutHOWY0pPG1RXJA31+sM2uL6np+yZndilLAkqw5GLojv7TwIBuOjgVnlkhJLcmLvnnpoLuKfzafakkzFCt+VLriig69yQqKb5xqjKgILX3IlvTPHdnuMwgBDaVXpXdie6RRTGQdhsHZzn2NWMUHvhTH/7Bp5ScKoo49Bg1InAVKE+lK2FTAyZOxpLaIZGaJqeqbnJqTj2e3O8ZXy1l+WA92cpcFON2+dyWqojDZn4dE+n+rUILBhQ92yTt8EA59HM/Blc7jAaI4Dzd9MJvgqQdezoYBhh0uV0GSb0VvcN15vEuJNggWlIHEVkrYTEDXW6zrsIz0dgj7o9SytyoshFrqWJWlLf56UzVADAt+MoA17BPKhuUpyYn4xU/incWtCc/pYdSlbJkRDkepWLfkJqgAWRdEiR1agJ7SaByVUnAxwDj1LF5edPtZ+jnfBSo1XrOJcmxuqhlgE6z7B";
     private const string CabacMainResidual32PNal =
-        "QZooY/9yoF4zzY16GSB3PotxZVpBk5r+pqTPwOdzGXytUe2FWi68k6w/oXrH7qVvunAwGPDk53CkLbFLUTwcB+fYGijqugWyyPnGAin6dgoT+dCGNvl6J/B8WodgLN22doK/vrhaesmyjB/NBguKB2LC6g9Cp09rXvsDbRC7U6VyKXmPSjrn//1FT5t08gGf2ItfecHayLsVnRQlD0waipOzNcaPN5q3WGZoollgMjEnA5zA";
+        "QZooYiP/sf8KYjdJB6rDuyqe+s8cN3fLDPym1X8HpEqPs1d3QCy/+VbVY+aVFpc+AmG/KJpT8sRTICCGHLKRBIvl0f4JjDtaAr5F7ZLMRsetc6nS5Q0=";
     private const string CabacMainResidual32BNal =
-        "AZ5EH/VW/rH3/o7dTwhXWxlhOJVROTvyxIkrRMKt2epNZ+6hmDPaOgYm9aO+QylvtAtJP6ut8UGHIfkt84fzOr1YI2KVla8WVsmuAienr0RR";
+        "AZ5FER/5CLE+D9mfqarlrDK7/SJaXnYQ/5eKTScVq4FFiVg1vk9QWNyoOwgIF9TDd1bCRTY4/4xGpdk=";
 
     private const string CabacHighAvcC =
-        "AWQACv/hABdnZAAKrOyWwEQAAAMABAAAAwAIPEiU4AEABmjvgjLIsP34+AA=";
+        "AWQAHv/hABdnZAAerOyWwEQAAAMABAAAAwAYPFi04AEABWjvjyyL/fj4AA==";
     private const string CabacHighIdrNal =
-        "ZYiEA/+XtxKk6bLEHPtEPoHZ0Xk5Ju8q6OYeoTwAzKE1TpbHskkPkn7uTobBozTHe4BBpHM438B2xYrQ2kdLA3BiXH2M+xwBHplX1RzGhycTMcikCv6N959GMofV7TrqsYnV7updya4oGu+p+eccPvYXqkH5ZJizj1+tNegyZl0za40SxzHtJaava8GXWRm5GZb9BfCgZ8KjxlOdJiZFH8/Gm+GGxyyLCVslY9KR2ijQmIGgwRXOXOZiEIvfP28iet9isa4XaIsZ7M6ZBCZwB1rI2U0W08LPmfT3qWwvZ8lk6xfuTZxwlFCZggD0lAESb9uR1XSNTPhGnxfQctZniJ8daMXZshUO1H5ndzBHo8sUJqY9Cb1Hp5y92+D1+BwFdQ7BFUYUj2A89ZBXjV9SEzJxjUITaOEgmBKZn/fKNWwwR+uSUNlKdaGxHkMAJJJ4uSbPXgWYKfx1b1zrq3yrqmtoTp94oVyCaNTb9GYXzG7muHpBRagM9cV289c3uLKH3ASFkhpRkbDfx9sFU7HZgWsC971s88nyG+1fmApOXj8n3uxAmXnno2Xf4BvOXBHf19vJxRud9mKPpuA9b/6zh+eetT+IYBeddHo8b2Wf7lZq16d/pIvF62Obg2SQ0kLSWQIlp90N50FbtrEQOeP2b1bdPOg84wx7C2WTtYwhRaOMbFYbGwhyaWwASjKatmtA/fzhUZ4IPVmLbx/tYKWEydwgXAHUFpWHWwph";
+        "ZYiEBf/UV2xH13ejSpNLz+O9yOTlmr1UCb4IUAYGeSEzE07vaUKCRt13HUVI64f5uo6/YF4m31VLhxnB+tpobCrjTjPNehwevadZCbEhAoOsGFRrDH/Js4dI7xa279w/QRN0dK3Ia8hFzunSXWjnLMaUnjaorkgb6/WGbXF9T0/ZMzuxSlgSVYcjF0R39p4EA3HRwKzyyQkluTF3zz00F3FP5tPtSSZihW/Kl1xRQde5IVFN841RlQEFr7kS3pnjuz3GZ+AQ2lV6V3YnukUUxkHYbB2c59jVjFB74Ux/+waeUnCqKOPQYNSJwFShPpSthUwMmTsaS2iGRmianqm5yak49ntzvGV8tZflgPdnKXBTjdvnclqqIw2Z+HRPp/q1CCwYUPdsk7fBAOfRzPwZXO4wGiOA83fTCb4KkHXs6GAYYdLldBkm9Fb3DdebxLiTYIFpSBxFZK2ExA11us67CM9HYI+6PUsrcqLIRa6liVpS3+elM1QAwLfjKANewT0gsPJOTE/GKn8U7i1oTn9LDqUrZMiIcj1Kxb8hNUACyLokSOrUBPaTQOSxycDHAOPUsXl50+1n6Od8FKjVes4lybG6qGWATrPt";
     private const string CabacHighPNal =
-        "QZooY/9yn0SPzY16GSB3PotxZVpBk5r+pqTPwOdzGXytUe2FWi68k6w/oXrH7qVvunAwGPDk53CkLbFLUTwcB+fYGijqugWyyPnGAin6dgoT+dCGNvl6J/B8WodgLN22doK/vrhaesmyjB/NBguKB2LC6g9Cp09rXvsDbRC7U6VyKXmPSjrn//1FT5t08gGfZotfecHayLsVnRQlD0waipOzNcaPN5q3WGZoollgMjEnA5zA";
+        "QZooYiP/sfjtMRukg9Vh3ZVPfWeOG7vlhn5Tar+D0iVH2au7oBZf/KtqsfNKi0ufATDflE0p+WIpkBBDDllIgkXy6P8Exh2tAV8i9slmI2PWudTpcoaA";
     private const string CabacHighBNal =
-        "AZ5EH/VWm9AhsQdup4QrrYywnEqonJ35YkSVomFW7PUms/dQzBntHQMTetHfIZS32gWkn9XW+KDDkPyW+cP5nV6sEbFKyteLK2TXARPT16Ip";
+        "AZ5FER/5CLE9AaSAsqly1hld/pEtLzsIf8vFJpOK1cCixKwa3yeoLG5UHYQEC+phu6thIpscf8YjUu0=";
 
     private const string CabacMainAvcC =
         "AU1ACv/hABZnTUAK9ktgIgAAAwACAAADAAweJEpwAQAEaO4PyA==";
