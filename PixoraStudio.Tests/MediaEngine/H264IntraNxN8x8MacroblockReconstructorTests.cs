@@ -35,6 +35,27 @@ public sealed class H264IntraNxN8x8MacroblockReconstructorTests
         }
     }
 
+    [Fact]
+    public void ReconstructIntraNxN8x8_ShouldSupportCabacResidualPayloads()
+    {
+        H264SequenceParameterSet sps = CreateSps(1);
+        H264DecodedPictureSurface surface = new(sps);
+        H264PictureParameterSetHeader pps =
+            CreatePps() with { EntropyCodingModeFlag = true };
+
+        new H264IntraMacroblockReconstructor(surface).ReconstructIntraNxN8x8(
+            0, 0, 0, CreateHeader(0), CreateSyntax(1),
+            CreateResidual(0, 1), 24, sps, pps);
+
+        Assert.True(surface.IsMacroblockDecoded(0, 0));
+        Assert.All(surface.CopyLumaPlane(),
+            value => Assert.Equal((byte)128, value));
+        Assert.All(surface.CopyCbPlane(),
+            value => Assert.Equal((byte)128, value));
+        Assert.All(surface.CopyCrPlane(),
+            value => Assert.Equal((byte)128, value));
+    }
+
     [Theory]
     [InlineData(1, 8)]
     [InlineData(2, 16)]
