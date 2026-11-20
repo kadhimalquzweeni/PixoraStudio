@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
 using PixoraStudio.MediaEngine.Models;
@@ -800,6 +801,99 @@ public sealed class H264Mp4AvcEndToEndTests
 
 
 
+    [Fact]
+    public void Decode_MultiSliceCabacPAndBPictures_ShouldCompleteWithMergedMotionState()
+    {
+        byte[] spsNal = BuildNal(0x67,
+            CreateSpsRbsp(picWidthInMbsMinus1: 1, maxNumRefFrames: 2));
+        byte[] ppsNal = BuildNal(0x68, CreatePpsRbsp(entropyCodingModeFlag: true));
+        List<byte> avcC = [1, 66, 0, 30, 0xFD, 0xE1];
+        AddLengthPrefixedNal(avcC, spsNal);
+        avcC.Add(1);
+        AddLengthPrefixedNal(avcC, ppsNal);
+
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 32, 16, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc,
+            new Mp4CodecConfiguration(Mp4VideoCodec.Avc, "avcC",
+                avcC.ToArray(), 1, 66, 0, 30, 2));
+        Mp4Track track = new(
+            9, 32, 16, 1000, 1000, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+
+        H264Mp4VideoSample idrSample = ReadSample(
+            track, 1, 0, true,
+            BuildNal(0x65, CreateCabacIdrPcmSliceRbsp(80, 96, 160, 0)),
+            BuildNal(0x65, CreateCabacIdrPcmSliceRbsp(120, 140, 200, 1)));
+        H264Mp4VideoSample pSample = ReadSample(
+            track, 2, 40, false,
+            BuildNal(0x41, CreateCabacPSkipSliceRbsp(1, 4, 0)),
+            BuildNal(0x41, CreateCabacPSkipSliceRbsp(1, 4, 1)));
+        H264Mp4VideoSample bSample = ReadSample(
+            track, 3, 80, false,
+            BuildNal(0x01, CreateCabacBSkipSliceRbsp(2, 2, 0)),
+            BuildNal(0x01, CreateCabacBSkipSliceRbsp(2, 2, 1)));
+
+        H264AvcParameterSetCollection parameterSets =
+            new H264AvcParameterSetCollectionReader().Read(idrSample.Configuration);
+        ConcurrentQueue<IH264CabacSliceDataReader> readers = new(
+        [
+            new ScriptedCabacSliceDataReader([1], [1, 1]),
+            new ScriptedCabacSliceDataReader([1], [1, 1]),
+            new ScriptedCabacSliceDataReader([1], [1]),
+            new ScriptedCabacSliceDataReader([1], [1]),
+            new ScriptedCabacSliceDataReader([1], [1]),
+            new ScriptedCabacSliceDataReader([1], [1])
+        ]);
+        H264Mp4AccessUnitDecoder decoder = new(
+            parameterSets,
+            2,
+            (reader, _, _, _) =>
+            {
+                while (!reader.IsByteAligned)
+                    Assert.True(reader.ReadFlag());
+                _ = reader.ReadBits(9);
+                return readers.TryDequeue(out IH264CabacSliceDataReader? sliceReader)
+                    ? sliceReader
+                    : throw new InvalidOperationException("No scripted CABAC reader remains.");
+            });
+
+        H264Mp4AccessUnitDecodeResult idrResult = decoder.Decode(idrSample)!;
+        H264Mp4AccessUnitDecodeResult pResult = decoder.Decode(pSample)!;
+        H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(bSample)!;
+
+        Assert.True(idrResult.Surface.IsComplete);
+        Assert.True(pResult.Surface.IsComplete);
+        Assert.True(bResult.Surface.IsComplete);
+        Assert.True(pResult.Surface.HasCompleteDeblockingMetadata);
+        Assert.True(bResult.Surface.HasCompleteDeblockingMetadata);
+        Assert.Equal(H264SliceType.P, pResult.SliceHeader.SliceType);
+        Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
+        Assert.Empty(readers);
+
+        foreach (H264DecodedPictureSurface surface in
+            new[] { pResult.Surface, bResult.Surface })
+        {
+            Assert.All(surface.CopyLumaPlane().Select((value, index) =>
+                (value, x: index % 32)), sample =>
+            {
+                Assert.Equal(sample.x < 16 ? (byte)80 : (byte)120, sample.value);
+            });
+            Assert.All(surface.CopyCbPlane().Select((value, index) =>
+                (value, x: index % 16)), sample =>
+            {
+                Assert.Equal(sample.x < 8 ? (byte)96 : (byte)140, sample.value);
+            });
+            Assert.All(surface.CopyCrPlane().Select((value, index) =>
+                (value, x: index % 16)), sample =>
+            {
+                Assert.Equal(sample.x < 8 ? (byte)160 : (byte)200, sample.value);
+            });
+        }
+    }
+
+
+
     private const string CabacPSkipAvcC =
         "AU1ACv/hABVnTUAK2nsBEAAAAwAQAAADAGDxImoBAARo7g/I";
     private const string CabacPSkipIdrNal = "ZYiEOv7tz7/h";
@@ -1055,10 +1149,10 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     private static byte[] CreateCabacIdrPcmSliceRbsp(
-        uint luma, uint cb, uint cr)
+        uint luma, uint cb, uint cr, uint firstMacroblock = 0)
     {
         BitWriter bits = new();
-        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(firstMacroblock); // first_mb_in_slice
         bits.WriteUe(2); // I slice
         bits.WriteUe(0); // pic_parameter_set_id
         bits.WriteBits(0, 4); // frame_num
@@ -1079,10 +1173,11 @@ public sealed class H264Mp4AvcEndToEndTests
         return bits.ToRbsp();
     }
 
-    private static byte[] CreateCabacPSkipSliceRbsp(uint frameNum, uint pocLsb)
+    private static byte[] CreateCabacPSkipSliceRbsp(
+        uint frameNum, uint pocLsb, uint firstMacroblock = 0)
     {
         BitWriter bits = new();
-        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(firstMacroblock); // first_mb_in_slice
         bits.WriteUe(0); // P slice
         bits.WriteUe(0); // pic_parameter_set_id
         bits.WriteBits(frameNum, 4); // frame_num
@@ -1100,10 +1195,11 @@ public sealed class H264Mp4AvcEndToEndTests
         return bits.ToRbsp();
     }
 
-    private static byte[] CreateCabacBSkipSliceRbsp(uint frameNum, uint pocLsb)
+    private static byte[] CreateCabacBSkipSliceRbsp(
+        uint frameNum, uint pocLsb, uint firstMacroblock = 0)
     {
         BitWriter bits = new();
-        bits.WriteUe(0); // first_mb_in_slice
+        bits.WriteUe(firstMacroblock); // first_mb_in_slice
         bits.WriteUe(1); // B slice
         bits.WriteUe(0); // pic_parameter_set_id
         bits.WriteBits(frameNum, 4); // frame_num
