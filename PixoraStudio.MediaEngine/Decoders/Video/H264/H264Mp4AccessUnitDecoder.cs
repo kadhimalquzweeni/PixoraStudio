@@ -15,6 +15,7 @@ public sealed class H264Mp4AccessUnitDecoder
     private readonly H264Mp4VideoOutputScheduler _outputScheduler;
     private readonly int? _maxNumReorderFramesFallback;
     private readonly Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> _cabacReaderFactory;
+    private readonly object _cabacReaderFactoryLock = new();
     private uint? _trackId;
     private uint? _timescale;
     private uint? _lastSampleNumber;
@@ -202,7 +203,7 @@ public sealed class H264Mp4AccessUnitDecoder
                 {
                     pDecoder = new H264PInterSliceDataDecoder(
                         surface, motionStateL0, new H264PInterMacroblockReconstructor(),
-                        _cabacReaderFactory);
+                        CreateCabacReader);
                 }
             }
             else if (firstSlice.SliceType == H264SliceType.B)
@@ -215,7 +216,7 @@ public sealed class H264Mp4AccessUnitDecoder
                 {
                     bDecoder = new H264BInterSliceDataDecoder(
                         surface, motionStateL0, motionStateL1,
-                        new H264BInterMacroblockReconstructor(), _cabacReaderFactory);
+                        new H264BInterMacroblockReconstructor(), CreateCabacReader);
                 }
             }
             else if (firstSlice.SliceType == H264SliceType.I && slices.Count == 1)
@@ -224,7 +225,7 @@ public sealed class H264Mp4AccessUnitDecoder
                 // slice below; do not allocate an unused picture-wide decoder.
                 if (activePps.EntropyCodingModeFlag)
                 {
-                    cabacIntraDecoder = new H264CabacIntraSliceDataDecoder(surface, _cabacReaderFactory);
+                    cabacIntraDecoder = new H264CabacIntraSliceDataDecoder(surface, CreateCabacReader);
                     cabacIntraDecoder.ResetPictureContexts();
                 }
                 else
@@ -259,7 +260,7 @@ public sealed class H264Mp4AccessUnitDecoder
                         H264IntraSliceDecodeResult result;
                         if (activePps.EntropyCodingModeFlag)
                         {
-                            H264CabacIntraSliceDataDecoder decoder = new(surface, _cabacReaderFactory);
+                            H264CabacIntraSliceDataDecoder decoder = new(surface, CreateCabacReader);
                             decoder.ResetPictureContexts();
                             result = decoder.Decode(nalUnit, activeSps, activePps, currentSliceId);
                         }
@@ -304,7 +305,7 @@ public sealed class H264Mp4AccessUnitDecoder
                             surface,
                             localMotionState,
                             new H264PInterMacroblockReconstructor(),
-                            _cabacReaderFactory);
+                            CreateCabacReader);
                         results[i] = decoder.Decode(
                             slices[i].NalUnit, activeSps, activePps,
                             _decodedPictureBuffer, currentSliceId);
@@ -367,7 +368,7 @@ public sealed class H264Mp4AccessUnitDecoder
                             localMotionStateL0,
                             localMotionStateL1,
                             new H264BInterMacroblockReconstructor(),
-                            _cabacReaderFactory);
+                            CreateCabacReader);
                         results[i] = decoder.Decode(
                             slices[i].NalUnit, activeSps, activePps,
                             _decodedPictureBuffer, poc.PictureOrderCount, currentSliceId);
@@ -538,6 +539,19 @@ public sealed class H264Mp4AccessUnitDecoder
         _lastSampleNumber = null;
         _lastDecodeTimeTicks = null;
         _requiresReset = false;
+    }
+
+    private IH264CabacSliceDataReader CreateCabacReader(
+        H264BitReader reader,
+        int qpY,
+        bool isIntra,
+        int cabacInitIdc)
+    {
+        // The injected factory is user-supplied and may hold state (for
+        // example, scripted test readers). Serialize factory creation while
+        // leaving the actual slice decoding fully parallel.
+        lock (_cabacReaderFactoryLock)
+            return _cabacReaderFactory(reader, qpY, isIntra, cabacInitIdc);
     }
 
     private static int GetMaxSliceParallelism()
