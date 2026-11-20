@@ -103,8 +103,11 @@ public sealed class H264CabacSyntaxElementReader
     }
 
     /// <summary>
-    /// Decodes ref_idx_l0 or ref_idx_l1 as truncated unary. The caller supplies
-    /// the neighbour-derived context increment and the largest permitted index.
+    /// Decodes ref_idx_l0 or ref_idx_l1. In CABAC these use plain unary (U)
+    /// binarisation, not truncated unary (te(v) is the CAVLC form): the
+    /// terminating zero bin is coded even for the largest index. The caller
+    /// supplies the neighbour-derived context increment and the largest
+    /// permitted index; a value beyond it indicates a corrupt stream.
     /// </summary>
     public int ReadReferenceIndex(int contextIndexIncrement, int maximumReferenceIndex)
     {
@@ -112,20 +115,26 @@ public sealed class H264CabacSyntaxElementReader
             throw new ArgumentOutOfRangeException(nameof(contextIndexIncrement));
         if (maximumReferenceIndex is < 0 or > 31)
             throw new ArgumentOutOfRangeException(nameof(maximumReferenceIndex));
+        if (maximumReferenceIndex == 0)
+            return 0;
 
         int contextIncrement = contextIndexIncrement;
-        for (int binIndex = 0; binIndex < maximumReferenceIndex; binIndex++)
+        int value = 0;
+        while (true)
         {
             int bin = _reader.DecodeBin(54 + contextIncrement);
             if (bin == 0)
-                return binIndex;
+                return value;
             if (bin != 1)
                 throw new FormatException("CABAC decision bins must be zero or one.");
 
+            value++;
+            if (value > maximumReferenceIndex)
+                throw new FormatException(
+                    "CABAC ref_idx exceeds num_ref_idx_active_minus1 for the slice.");
+
             contextIncrement = (contextIncrement >> 2) + 4;
         }
-
-        return maximumReferenceIndex;
     }
 
     /// <summary>Decodes end_of_slice_flag using the CABAC terminating-bin process.</summary>

@@ -225,7 +225,7 @@ public sealed class H264CabacSyntaxElementReaderTests
 
 
     [Fact]
-    public void ReadReferenceIndex_ShouldDecodeTruncatedUnary()
+    public void ReadReferenceIndex_ShouldDecodeUnary()
     {
         ScriptedCabacReader bins = new(new[] { 1, 1, 0 });
         H264CabacSyntaxElementReader reader = new(bins);
@@ -235,13 +235,34 @@ public sealed class H264CabacSyntaxElementReaderTests
     }
 
     [Fact]
-    public void ReadReferenceIndex_ShouldReturnMaximumWithoutTerminatingZero()
+    public void ReadReferenceIndex_ShouldReadTerminatingZeroAtMaximumIndex()
+    {
+        // ref_idx is plain unary in CABAC: even the largest index is
+        // terminated by a zero bin (regression: two active references).
+        ScriptedCabacReader bins = new(new[] { 1, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(1, reader.ReadReferenceIndex(0, 1));
+        Assert.Equal(new[] { 54, 58 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadReferenceIndex_ShouldReadTerminatingZeroAfterMaximumOfThree()
+    {
+        ScriptedCabacReader bins = new(new[] { 1, 1, 1, 0 });
+        H264CabacSyntaxElementReader reader = new(bins);
+
+        Assert.Equal(3, reader.ReadReferenceIndex(0, 3));
+        Assert.Equal(new[] { 54, 58, 59, 59 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadReferenceIndex_ShouldRejectIndexAboveMaximum()
     {
         ScriptedCabacReader bins = new(new[] { 1, 1, 1 });
         H264CabacSyntaxElementReader reader = new(bins);
 
-        Assert.Equal(3, reader.ReadReferenceIndex(0, 3));
-        Assert.Equal(new[] { 54, 58, 59 }, bins.ContextIndices);
+        Assert.Throws<FormatException>(() => reader.ReadReferenceIndex(0, 1));
     }
 
     [Fact]
