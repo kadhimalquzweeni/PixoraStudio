@@ -33,7 +33,8 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
         int partitionHeight,
         int macroblockPartitionIndex,
         int sliceId,
-        bool direct8x8InferenceFlag)
+        bool direct8x8InferenceFlag,
+        Func<int, int, int, int, bool>? colZeroFlagProvider = null)
     {
         ArgumentNullException.ThrowIfNull(motionVectorStateL0);
         ArgumentNullException.ThrowIfNull(motionVectorStateL1);
@@ -79,16 +80,21 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
                 referenceIndex1 = 0;
             }
 
-            // col_zero_flag belongs to temporal direct prediction. Spatial
-            // direct derives each list's vector solely from the A/B/C neighbours.
-            H264MotionVector vector0Value = directZeroPrediction || referenceIndex0 < 0
+            bool colZeroFlag = colZeroFlagProvider?.Invoke(regionX, regionY, step, step) ?? false;
+            H264MotionVector vector0Value = directZeroPrediction ||
+                (referenceIndex0 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
-                : _predictor.Predict(candidates0.Left, candidates0.Above,
-                    candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
-            H264MotionVector vector1Value = directZeroPrediction || referenceIndex1 < 0
+                : referenceIndex0 < 0
+                    ? new H264MotionVector(0, 0)
+                    : _predictor.Predict(candidates0.Left, candidates0.Above,
+                        candidates0.AboveRight, candidates0.AboveLeft, referenceIndex0);
+            H264MotionVector vector1Value = directZeroPrediction ||
+                (referenceIndex1 == 0 && colZeroFlag)
                 ? new H264MotionVector(0, 0)
-                : _predictor.Predict(candidates1.Left, candidates1.Above,
-                    candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
+                : referenceIndex1 < 0
+                    ? new H264MotionVector(0, 0)
+                    : _predictor.Predict(candidates1.Left, candidates1.Above,
+                        candidates1.AboveRight, candidates1.AboveLeft, referenceIndex1);
             H264MotionVector? vector0 = referenceIndex0 >= 0 ? vector0Value : null;
             H264MotionVector? vector1 = referenceIndex1 >= 0 ? vector1Value : null;
 
