@@ -70,6 +70,22 @@ public sealed class H264CabacContextInitializerTests
         Assert.Equal(new H264CabacContextModel(expectedState, expectedMps), context);
     }
 
+    [Theory]
+    [InlineData(277, 26, 0, 19, 1)]
+    [InlineData(399, 26, 0, 7, 1)]
+    [InlineData(402, 26, 0, 26, 1)]
+    public void TryInitialize_ShouldSkipTerminateContextInCompactTables(
+        int contextIndex, int qp, int cabacInitIdc,
+        int expectedState, int expectedMps)
+    {
+        bool initialized = H264CabacContextInitializer.TryInitialize(
+            contextIndex, qp, isIntraSlice: true, cabacInitIdc,
+            out H264CabacContextModel context);
+
+        Assert.True(initialized);
+        Assert.Equal(new H264CabacContextModel(expectedState, expectedMps), context);
+    }
+
     [Fact]
     public void TryInitialize_ShouldClipPreContextStateToOneAnd126()
     {
