@@ -248,12 +248,6 @@ public sealed class H264Mp4AvcEndToEndTests
             frames.Select(frame => frame.SampleNumber));
         Assert.Equal(new[] { 0, 2, 4 },
             frames.Select(frame => frame.PictureOrderCount));
-        string[] expectedFrameHashes =
-        [
-            "260b4b535a3e952ce61f23b57e98d1649dc4c4f7d711cdc2c8385f5cb6358855",
-            "bc4be240cf873cde27c14a9548285735d6ce77dc7b1f3036374242344c5473b4",
-            "cf4cb00f1b12e3c8b63810389f369d049a6878c16ff7a228a64dde9f983fcdf5"
-        ];
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
         [
