@@ -10,7 +10,7 @@ namespace PixoraStudio.Tests.MediaEngine;
 public sealed class Mp4TrimExportFileWriterTests
 {
     [Fact]
-    public void Export_ShouldRemuxSelectedGopIntoAReadableMp4WithoutChangingSampleBytes()
+    public void Export_ShouldPreserveSampleBytesAndApplyFrameAccurateEditList()
     {
         using MemoryStream source = CreateVideoMp4();
         using MemoryStream destination = new();
@@ -23,7 +23,7 @@ public sealed class Mp4TrimExportFileWriterTests
 
         Assert.Equal(2.2, plan.RequestedStartSeconds);
         Assert.Equal(3.2, plan.RequestedEndSeconds);
-        Assert.Equal(2.0, plan.EffectiveStartSeconds);
+        Assert.Equal(3.0, plan.EffectiveStartSeconds);
         Assert.Equal(4.0, plan.EffectiveEndSeconds);
 
         destination.Position = 0;
@@ -31,7 +31,7 @@ public sealed class Mp4TrimExportFileWriterTests
         Mp4MediaTrack video = Assert.Single(output.GetTracks(Mp4HandlerType.Video));
         Assert.Equal(2u, video.SampleCount);
         Assert.True(video.SampleLocations.GetSample(1).IsSyncSample);
-        Assert.Equal(2.0, output.DurationSeconds);
+        Assert.Equal(1.0, output.DurationSeconds);
 
         Mp4EncodedSample[] samples = video.ReadSamples(
             destination,
@@ -39,6 +39,17 @@ public sealed class Mp4TrimExportFileWriterTests
 
         Assert.Equal(new byte[] { 9, 10, 11, 12 }, samples[0].Data.ToArray());
         Assert.Equal(new byte[] { 13, 14, 15, 16 }, samples[1].Data.ToArray());
+
+        IReadOnlyList<Mp4Box> outputBoxes = new Mp4Reader().ReadBoxTree(destination);
+        Mp4Box outputMoov = Assert.Single(outputBoxes, box => box.Type == "moov");
+        Mp4Box outputTrack = Assert.Single(outputMoov.Children, box => box.Type == "trak");
+        Mp4Box outputEdts = Assert.Single(outputTrack.Children, box => box.Type == "edts");
+        Mp4EditList outputEditList = new Mp4EditListReader().Read(
+            destination,
+            Assert.Single(outputEdts.Children));
+        Assert.Equal(
+            new[] { new Mp4EditListEntry(1000, 1000, 1, 0) },
+            outputEditList.Entries);
 
         IReadOnlyList<Mp4Box> topLevel = new Mp4Reader().ReadBoxTree(destination);
         Assert.Equal(
