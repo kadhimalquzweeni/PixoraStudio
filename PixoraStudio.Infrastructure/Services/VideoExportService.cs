@@ -1,5 +1,6 @@
 using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
+using PixoraStudio.MediaEngine.Models.General;
 using PixoraStudio.MediaEngine.Processing.Export;
 
 namespace PixoraStudio.Infrastructure.Services;
