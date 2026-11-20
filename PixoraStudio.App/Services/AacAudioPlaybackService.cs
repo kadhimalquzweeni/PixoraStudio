@@ -308,9 +308,13 @@ public sealed class AacAudioPlaybackService : IDisposable
         if (!IsPlaying || _reader is null || IsSeeking)
             return;
 
-        if (Math.Abs((Position - videoPosition).TotalMilliseconds) > 500)
+        if (AudioVideoSynchronizationPolicy.RequiresCorrection(
+                Position,
+                videoPosition))
+        {
             await SeekAsync(videoPosition, resumePlayback: true)
                 .ConfigureAwait(false);
+        }
     }
 
     private static string? DecodeToWaveFile(
