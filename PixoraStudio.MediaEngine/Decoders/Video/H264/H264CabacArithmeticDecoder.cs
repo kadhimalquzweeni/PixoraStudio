@@ -7,7 +7,7 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 public sealed class H264CabacArithmeticDecoder
 {
     private readonly H264BitReader _reader;
-    private readonly byte[,] _rangeLps;
+    private readonly byte[] _rangeLps;
     private readonly byte[] _transMps;
     private readonly byte[] _transLps;
     private int _range = 510;
@@ -42,7 +42,10 @@ public sealed class H264CabacArithmeticDecoder
         }
 
         _reader = reader;
-        _rangeLps = (byte[,])rangeLps.Clone();
+        _rangeLps = new byte[64 * 4];
+        for (int state = 0; state < 64; state++)
+        for (int q = 0; q < 4; q++)
+            _rangeLps[(state << 2) | q] = rangeLps[state, q];
         _transMps = (byte[])transMps.Clone();
         _transLps = (byte[])transLps.Clone();
         _offset = checked((int)reader.ReadBits(9));
@@ -58,7 +61,7 @@ public sealed class H264CabacArithmeticDecoder
     {
         ValidateContext(context);
         int qRangeIndex = (_range >> 6) & 3;
-        int rangeLps = _rangeLps[context.State, qRangeIndex];
+        int rangeLps = _rangeLps[(context.State << 2) | qRangeIndex];
         _range -= rangeLps;
 
         int bin;
