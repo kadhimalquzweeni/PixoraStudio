@@ -126,9 +126,12 @@ public sealed class H264BSpatialDirectMotionVectorDeriver
     {
         int minimum = int.MaxValue;
         H264MotionVectorCandidate? c = candidates.AboveRight ?? candidates.AboveLeft;
-        if (candidates.Left is { } left) minimum = Math.Min(minimum, left.ReferenceIndex);
-        if (candidates.Above is { } above) minimum = Math.Min(minimum, above.ReferenceIndex);
-        if (c is { } aboveCandidate) minimum = Math.Min(minimum, aboveCandidate.ReferenceIndex);
+        if (candidates.Left is { ReferenceIndex: >= 0 } left)
+            minimum = Math.Min(minimum, left.ReferenceIndex);
+        if (candidates.Above is { ReferenceIndex: >= 0 } above)
+            minimum = Math.Min(minimum, above.ReferenceIndex);
+        if (c is { ReferenceIndex: >= 0 } aboveCandidate)
+            minimum = Math.Min(minimum, aboveCandidate.ReferenceIndex);
         return minimum == int.MaxValue ? -1 : minimum;
     }
 
