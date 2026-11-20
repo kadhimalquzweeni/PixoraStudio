@@ -15,6 +15,8 @@ public class H264HotPathBenchmarks
     private H264IntraChromaResidualComponent _chromaComponent = null!;
     private byte[] _chromaPrediction = [];
     private int[] _transform8x8Coefficients = [];
+    private H264DecodedPictureSurface _motionReference = null!;
+    private H264MotionCompensator _motionCompensator = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -34,6 +36,13 @@ public class H264HotPathBenchmarks
         _chromaComponent = new H264IntraChromaResidualComponent(1, null, blocks);
         _chromaPrediction = Enumerable.Repeat((byte)128, 64).ToArray();
         _transform8x8Coefficients = Enumerable.Range(-32, 64).ToArray();
+        _motionReference = new H264DecodedPictureSurface(_sps);
+        _motionReference.WriteMacroblock(
+            0, 0, 0, false,
+            new byte[256],
+            Enumerable.Repeat((byte)96, 64).ToArray(),
+            Enumerable.Repeat((byte)160, 64).ToArray());
+        _motionCompensator = new H264MotionCompensator();
     }
 
     [Benchmark(Baseline = true, OperationsPerInvoke = Iterations)]
@@ -84,6 +93,22 @@ public class H264HotPathBenchmarks
         H264CabacPerformanceSnapshot snapshot = profiler.GetSnapshot();
         return checksum ^ decoder.Range ^ context.State ^
             (int)snapshot.DecisionBinCount ^ (int)snapshot.RenormalizationCount;
+    }
+
+    [Benchmark]
+    public int MotionCompensationIntegerMotion()
+    {
+        H264MotionCompensatedBlock block = _motionCompensator.Predict(
+            _motionReference, 0, 0, 16, 16, new H264MotionVector(8, -8));
+        return block.Luma[0] + block.Cb[0] + block.Cr[^1];
+    }
+
+    [Benchmark]
+    public int MotionCompensationFractionalMotion()
+    {
+        H264MotionCompensatedBlock block = _motionCompensator.Predict(
+            _motionReference, 0, 0, 16, 16, new H264MotionVector(3, -5));
+        return block.Luma[0] + block.Cb[0] + block.Cr[^1];
     }
 
     [Benchmark(OperationsPerInvoke = 1)]
