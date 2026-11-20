@@ -72,8 +72,8 @@ public sealed class H264Mp4FramePresentationGateTests
     {
         H264Mp4FramePresentationGate gate = new(requestedSampleNumber: 4);
 
-        Assert.True(gate.TryAcceptFrame(Frame(1, 0), out _));
-        Assert.True(gate.TryAcceptFrame(Frame(2, 40), out _));
+        Assert.False(gate.TryAcceptFrame(Frame(1, 0), out _));
+        Assert.False(gate.TryAcceptFrame(Frame(2, 40), out _));
         Assert.False(gate.HasReachedRequestedFrame);
     }
 
