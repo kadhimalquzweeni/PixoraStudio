@@ -226,6 +226,11 @@ public sealed class H264Mp4AccessUnitDecoder
                     intraDecoder = new H264IntraSliceDataDecoder(surface);
                 }
             }
+            else if (firstSlice.SliceType == H264SliceType.I)
+            {
+                // Multi-slice I pictures create their isolated decoders in
+                // the parallel branch below.
+            }
             else
             {
                 throw new NotSupportedException(
