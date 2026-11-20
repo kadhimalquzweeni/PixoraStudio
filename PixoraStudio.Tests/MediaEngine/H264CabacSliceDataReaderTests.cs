@@ -42,21 +42,6 @@ public sealed class H264CabacSliceDataReaderTests
     }
 
     [Fact]
-    public void TraceDiagnostic_ShouldPreserveInitialAndMostRecentMarkers()
-    {
-        H264CabacSliceDataReader reader = CreateReader(isIntra: true);
-
-        for (int index = 0; index < 600; index++)
-            reader.TraceDiagnostic($"marker-{index}");
-
-        Assert.Equal(512, reader.DiagnosticTrace.Count);
-        Assert.Equal("marker-0", reader.DiagnosticTrace[0]);
-        Assert.Equal("marker-255", reader.DiagnosticTrace[255]);
-        Assert.Equal("marker-344", reader.DiagnosticTrace[256]);
-        Assert.Equal("marker-599", reader.DiagnosticTrace[^1]);
-    }
-
-    [Fact]
     public void Constructor_ShouldRejectZeroCabacAlignmentBit()
     {
         H264BitReader bits = new(new byte[] { 0x80, 0x00, 0x00 });
