@@ -2,7 +2,6 @@ using PixoraStudio.MediaEngine.Containers.Mp4;
 using PixoraStudio.MediaEngine.Exceptions;
 using PixoraStudio.MediaEngine.Models.General;
 using PixoraStudio.MediaEngine.Readers.Mp4;
-using PixoraStudio.MediaEngine.Processing.Export;
 
 namespace PixoraStudio.MediaEngine.Processing.Export;
 
@@ -41,6 +40,12 @@ public sealed class Mp4TrimExportFileWriter
         cancellationToken.ThrowIfCancellationRequested();
 
         Mp4MediaInfo sourceInfo = _fileReader.Read(source);
+        if (sourceInfo.Tracks.Any(track =>
+            track.HandlerType is not Mp4HandlerType.Video and not Mp4HandlerType.Audio))
+        {
+            throw new NotSupportedException("The source MP4 contains tracks other than video/audio, which this exporter cannot preserve yet.");
+        }
+
         Mp4TrimExportPlan plan = _planBuilder.Build(sourceInfo, startSeconds, endSeconds);
         IReadOnlyList<Mp4Box> topLevelBoxes = _boxReader.ReadBoxTree(source);
 
