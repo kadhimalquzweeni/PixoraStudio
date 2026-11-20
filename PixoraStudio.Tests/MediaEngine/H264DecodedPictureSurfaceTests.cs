@@ -133,6 +133,23 @@ public sealed class H264DecodedPictureSurfaceTests
     }
 
     [Fact]
+    public void WriteMacroblock_ShouldRejectSequentialRewriteFromAnotherSlice()
+    {
+        H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
+        surface.WriteMacroblock(0, 0, 1, false,
+            Enumerable.Repeat((byte)10, 256).ToArray(),
+            new byte[64], new byte[64]);
+
+        Assert.Throws<InvalidOperationException>(() => surface.WriteMacroblock(
+            0, 0, 2, false,
+            Enumerable.Repeat((byte)20, 256).ToArray(),
+            new byte[64], new byte[64]));
+
+        Assert.True(surface.IsMacroblockAvailable(0, 0, 1, false));
+        Assert.Equal((byte)10, surface.GetLumaSample(0, 0));
+    }
+
+    [Fact]
     public void WriteMacroblock_ShouldSupportConcurrentWritesToDistinctMacroblocks()
     {
         H264DecodedPictureSurface surface = new(CreateSps(1, 1, 0));
@@ -158,7 +175,7 @@ public sealed class H264DecodedPictureSurfaceTests
     {
         H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
 
-        surface.WriteMacroblock(0, 0, 1, false,
+        surface.WriteMacroblock(0, 0, 2, false,
             Enumerable.Repeat((byte)10, 256).ToArray(),
             Enumerable.Repeat((byte)11, 64).ToArray(),
             Enumerable.Repeat((byte)12, 64).ToArray());

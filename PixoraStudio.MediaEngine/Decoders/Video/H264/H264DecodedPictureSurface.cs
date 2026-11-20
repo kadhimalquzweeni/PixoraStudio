@@ -229,14 +229,18 @@ public sealed class H264DecodedPictureSurface
         while (true)
         {
             previousState = Volatile.Read(ref _macroblockStates[index]);
-            if (previousState == 1 ||
-                Interlocked.CompareExchange(ref _macroblockStates[index], 1, previousState) != previousState)
+            if (previousState == 1)
+                throw new InvalidOperationException(
+                    "A macroblock cannot be reconstructed concurrently.");
+            if (previousState == 2 &&
+                (_sliceIds[index] != sliceId || _deblockingMetadata[index] is null))
             {
-                if (previousState == 1)
-                    throw new InvalidOperationException(
-                        "A macroblock cannot be reconstructed concurrently.");
-                continue;
+                throw new InvalidOperationException(
+                    "A macroblock cannot be reconstructed again by another slice or before its deblocking metadata is attached.");
             }
+            if (Interlocked.CompareExchange(
+                    ref _macroblockStates[index], 1, previousState) != previousState)
+                continue;
 
             break;
         }
