@@ -12,7 +12,8 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
     private readonly H264CabacContextModel[] _contexts = new H264CabacContextModel[460];
     private readonly bool[] _initialized = new bool[460];
     private bool _terminated;
-    private const int MaximumDiagnosticMarkers = 128;
+    private const int MaximumDiagnosticMarkers = 512;
+    private const int PreservedInitialDiagnosticMarkers = 256;
     private readonly List<string> _diagnosticTrace = [];
 
     public H264CabacSliceDataReader(
@@ -54,7 +55,7 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
     {
         ArgumentNullException.ThrowIfNull(marker);
         if (_diagnosticTrace.Count == MaximumDiagnosticMarkers)
-            _diagnosticTrace.RemoveAt(0);
+            _diagnosticTrace.RemoveAt(PreservedInitialDiagnosticMarkers);
         _diagnosticTrace.Add(marker);
     }
 
