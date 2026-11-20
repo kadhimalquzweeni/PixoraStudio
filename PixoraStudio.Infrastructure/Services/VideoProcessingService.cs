@@ -118,29 +118,29 @@ public sealed class VideoProcessingService : IVideoProcessingService
                         $"[Thumbnail {index}] START thread={workerThreadId} " +
                         $"target={positions[index]:c}");
 
+                    // FileStream.Position is mutable, so every concurrent
+                    // decoder must have an independent stream instance.
+                    using FileStream stream = new(
+                        filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+                    H264Mp4DecodedVideoFrame? frame =
+                        new H264Mp4TrackDecoder().DecodeFromTime(
+                            stream,
+                            mediaInfo,
+                            videoTrack.TrackId,
+                            positions[index].TotalSeconds,
+                            cancellationToken: cancellationToken)
+                        .FirstOrDefault();
+
+                    if (frame is null)
+                    {
+                        Debug.WriteLine(
+                            $"[Thumbnail {index}] NO FRAME after {stopwatch.Elapsed}.");
+                        return;
+                    }
+
                     try
                     {
-                        // FileStream.Position is mutable, so every concurrent
-                        // decoder must have an independent stream instance.
-                        using FileStream stream = new(
-                            filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-                        H264Mp4DecodedVideoFrame? frame =
-                            new H264Mp4TrackDecoder().DecodeFromTime(
-                                stream,
-                                mediaInfo,
-                                videoTrack.TrackId,
-                                positions[index].TotalSeconds,
-                                cancellationToken: cancellationToken)
-                            .FirstOrDefault();
-
-                        if (frame is null)
-                        {
-                            Debug.WriteLine(
-                                $"[Thumbnail {index}] NO FRAME after {stopwatch.Elapsed}.");
-                            return;
-                        }
-
                         SaveThumbnail(
                             frame,
                             outputPaths[index],
@@ -158,7 +158,8 @@ public sealed class VideoProcessingService : IVideoProcessingService
                         exception is not OperationCanceledException)
                     {
                         Debug.WriteLine(
-                            $"[Thumbnail {index}] FAILED after {stopwatch.Elapsed}: {exception}");
+                            $"[Thumbnail {index}] FAILED during image output " +
+                            $"after {stopwatch.Elapsed}: {exception}");
                     }
                 });
         }, cancellationToken);
