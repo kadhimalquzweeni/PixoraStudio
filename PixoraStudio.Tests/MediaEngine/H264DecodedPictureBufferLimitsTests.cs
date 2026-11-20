@@ -11,7 +11,7 @@ public sealed class H264DecodedPictureBufferLimitsTests
     [InlineData(30, 40, 30, 6)]
     [InlineData(31, 80, 45, 5)]
     [InlineData(40, 120, 68, 4)]
-    [InlineData(50, 240, 135, 3)]
+    [InlineData(51, 240, 135, 5)]
     public void ResolveMaxDpbFrames_ShouldUseLevelAndPictureMacroblockDimensions(
         byte levelIdc,
         uint widthInMacroblocks,
