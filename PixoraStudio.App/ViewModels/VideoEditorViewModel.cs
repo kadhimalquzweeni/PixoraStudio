@@ -67,12 +67,17 @@ public partial class VideoEditorViewModel : ObservableObject
         !IsLoading &&
         !IsExporting &&
         !string.IsNullOrWhiteSpace(VideoPath) &&
+        string.Equals(Path.GetExtension(VideoPath), ".mp4", StringComparison.OrdinalIgnoreCase) &&
         TrimDuration > 0;
 
     private bool CanCancelExport() => IsExporting;
 
     partial void OnVideoPathChanged(string? value)
     {
+        ExportStatusMessage = !string.IsNullOrWhiteSpace(value) &&
+            !string.Equals(Path.GetExtension(value), ".mp4", StringComparison.OrdinalIgnoreCase)
+                ? "Managed trim export currently supports MP4 source files only."
+                : string.Empty;
         ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
     }
 
