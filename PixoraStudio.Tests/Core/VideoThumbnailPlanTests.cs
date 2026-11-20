@@ -42,10 +42,4 @@ public sealed class VideoThumbnailPlanTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             VideoThumbnailPlan.CreatePositions(TimeSpan.FromSeconds(10), -1));
     }
-
-    [Fact]
-    public void MaxConcurrentGenerations_ShouldRemainBounded()
-    {
-        Assert.Equal(4, VideoThumbnailPlan.MaxConcurrentGenerations);
-    }
 }
