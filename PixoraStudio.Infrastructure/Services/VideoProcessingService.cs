@@ -6,6 +6,7 @@ using PixoraStudio.MediaEngine.Models.Video;
 using PixoraStudio.MediaEngine.Readers.Mp4;
 using SkiaSharp;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace PixoraStudio.Infrastructure.Services;
 
@@ -111,29 +112,35 @@ public sealed class VideoProcessingService : IVideoProcessingService
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    // FileStream.Position is mutable, so every concurrent
-                    // decoder must have an independent stream instance.
-                    using FileStream stream = new(
-                        filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-                    H264Mp4DecodedVideoFrame? frame =
-                        new H264Mp4TrackDecoder().DecodeFromTime(
-                            stream,
-                            mediaInfo,
-                            videoTrack.TrackId,
-                            positions[index].TotalSeconds,
-                            cancellationToken: cancellationToken)
-                        .FirstOrDefault();
-
-                    if (frame is null)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"The decoder could not produce a frame for thumbnail {index}.");
-                        return;
-                    }
+                    Stopwatch stopwatch = Stopwatch.StartNew();
+                    int workerThreadId = Environment.CurrentManagedThreadId;
+                    Debug.WriteLine(
+                        $"[Thumbnail {index}] START thread={workerThreadId} " +
+                        $"target={positions[index]:c}");
 
                     try
                     {
+                        // FileStream.Position is mutable, so every concurrent
+                        // decoder must have an independent stream instance.
+                        using FileStream stream = new(
+                            filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+                        H264Mp4DecodedVideoFrame? frame =
+                            new H264Mp4TrackDecoder().DecodeFromTime(
+                                stream,
+                                mediaInfo,
+                                videoTrack.TrackId,
+                                positions[index].TotalSeconds,
+                                cancellationToken: cancellationToken)
+                            .FirstOrDefault();
+
+                        if (frame is null)
+                        {
+                            Debug.WriteLine(
+                                $"[Thumbnail {index}] NO FRAME after {stopwatch.Elapsed}.");
+                            return;
+                        }
+
                         SaveThumbnail(
                             frame,
                             outputPaths[index],
@@ -142,12 +149,16 @@ public sealed class VideoProcessingService : IVideoProcessingService
 
                         progress?.Report(new VideoThumbnailResult(
                             index, Path.GetFullPath(outputPaths[index])));
+
+                        Debug.WriteLine(
+                            $"[Thumbnail {index}] COMPLETE thread={workerThreadId} " +
+                            $"elapsed={stopwatch.Elapsed}.");
                     }
                     catch (Exception exception) when (
                         exception is not OperationCanceledException)
                     {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"Thumbnail {index} could not be generated: {exception}");
+                        Debug.WriteLine(
+                            $"[Thumbnail {index}] FAILED after {stopwatch.Elapsed}: {exception}");
                     }
                 });
         }, cancellationToken);
