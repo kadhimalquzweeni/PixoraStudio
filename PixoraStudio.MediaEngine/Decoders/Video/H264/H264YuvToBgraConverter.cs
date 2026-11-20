@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using PixoraStudio.MediaEngine.Models.Video;
 
 namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
@@ -8,6 +9,16 @@ namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
 /// </summary>
 public sealed class H264YuvToBgraConverter
 {
+    private sealed record ConversionLookup(
+        double[] Luma,
+        double[] CbGreen,
+        double[] CbBlue,
+        double[] CrRed,
+        double[] CrGreen);
+
+    private static readonly ConcurrentDictionary<(bool FullRange, uint Matrix), ConversionLookup>
+        LookupCache = new();
+
     public H264BgraFrame Convert(
         H264DecodedPictureSurface surface,
         H264SequenceParameterSet sps)
@@ -33,12 +44,9 @@ public sealed class H264YuvToBgraConverter
 
         bool fullRange = sps.VuiParameters?.VideoFullRangeFlag == true;
         uint matrix = sps.VuiParameters?.MatrixCoefficients ?? 6;
-        (double redCr, double greenCb, double greenCr, double blueCb) =
-            GetMatrixCoefficients(matrix);
-
-        double yScale = fullRange ? 1.0 : 255.0 / 219.0;
-        double chromaScale = fullRange ? 1.0 : 255.0 / 224.0;
-        double yOffset = fullRange ? 0.0 : 16.0;
+        ConversionLookup lookup = LookupCache.GetOrAdd(
+            (fullRange, matrix),
+            static key => CreateLookup(key.FullRange, key.Matrix));
 
         for (int row = 0; row < height; row++)
         {
@@ -49,13 +57,13 @@ public sealed class H264YuvToBgraConverter
             for (int column = 0; column < width; column++)
             {
                 int chromaIndex = chromaRowOffset + column / 2;
-                double luma = (yPlane[lumaRowOffset + column] - yOffset) * yScale;
-                double cb = (cbPlane[chromaIndex] - 128.0) * chromaScale;
-                double cr = (crPlane[chromaIndex] - 128.0) * chromaScale;
+                double luma = lookup.Luma[yPlane[lumaRowOffset + column]];
+                byte cb = cbPlane[chromaIndex];
+                byte cr = crPlane[chromaIndex];
 
-                double red = luma + redCr * cr;
-                double green = luma + greenCb * cb + greenCr * cr;
-                double blue = luma + blueCb * cb;
+                double red = luma + lookup.CrRed[cr];
+                double green = luma + lookup.CbGreen[cb] + lookup.CrGreen[cr];
+                double blue = luma + lookup.CbBlue[cb];
 
                 int outputIndex = outputRowOffset + column * 4;
                 pixels[outputIndex] = Clip(blue);
@@ -66,6 +74,34 @@ public sealed class H264YuvToBgraConverter
         }
 
         return new H264BgraFrame(width, height, stride, pixels);
+    }
+
+    private static ConversionLookup CreateLookup(bool fullRange, uint matrix)
+    {
+        (double redCr, double greenCb, double greenCr, double blueCb) =
+            GetMatrixCoefficients(matrix);
+
+        double yScale = fullRange ? 1.0 : 255.0 / 219.0;
+        double chromaScale = fullRange ? 1.0 : 255.0 / 224.0;
+        double yOffset = fullRange ? 0.0 : 16.0;
+
+        double[] luma = new double[256];
+        double[] cbGreen = new double[256];
+        double[] cbBlue = new double[256];
+        double[] crRed = new double[256];
+        double[] crGreen = new double[256];
+
+        for (int value = 0; value < 256; value++)
+        {
+            luma[value] = (value - yOffset) * yScale;
+            double chroma = (value - 128.0) * chromaScale;
+            cbGreen[value] = greenCb * chroma;
+            cbBlue[value] = blueCb * chroma;
+            crRed[value] = redCr * chroma;
+            crGreen[value] = greenCr * chroma;
+        }
+
+        return new ConversionLookup(luma, cbGreen, cbBlue, crRed, crGreen);
     }
 
     private static (double RedCr, double GreenCb, double GreenCr, double BlueCb)
