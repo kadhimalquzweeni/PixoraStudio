@@ -7,10 +7,11 @@ PixoraStudio's MP4 export path must remain fully managed. It must not invoke FFm
 The export pipeline is being built in layers:
 
 1. **Trim planning** — resolve the requested timeline range into decode-order samples for each supported track.
-2. **Container writing** — write MP4 boxes and rebuild the sample tables for the selected samples.
+2. **Container writing** — write MP4 boxes, recursively rebuild containers, and regenerate sample tables.
 3. **Media remuxing** — copy the original encoded sample payloads into a new `mdat` and patch chunk offsets.
-4. **Application integration** — expose export progress/cancellation and connect the exporter to the video editor.
-5. **End-to-end validation** — parse exported files with PixoraStudio's own reader and decode representative video/audio samples.
+4. **Track/movie metadata** — update durations and generate timeline edit metadata.
+5. **Application integration** — expose export progress/cancellation and connect the exporter to the video editor.
+6. **End-to-end validation** — parse exported files with PixoraStudio's own reader and decode representative video/audio samples.
 
 ## Current implementation
 
@@ -24,6 +25,17 @@ The export pipeline is being built in layers:
 - preserves contiguous decode-order sample selections and rejects discontinuous audio edit-list selections.
 
 The plan reports both the requested and effective ranges. Since this is a remuxing path rather than a re-encoder, the effective range is GOP-aligned and can be wider than the user's requested range. The UI must show this accurately; it must not claim frame-accurate trimming.
+
+The current planner explicitly rejects source video/audio edit lists. Supporting those correctly requires translating the source presentation timeline into new output edit lists and is deferred until the track/movie metadata stage.
+
+The following managed building blocks are now present:
+
+- `Mp4BoxWriter` writes normal and extended-size ISO BMFF boxes.
+- `Mp4BoxTreeWriter` rebuilds parsed containers while preserving unchanged leaf boxes byte-for-byte and supports full-box replacement.
+- `Mp4SampleTableBoxWriter` writes sample timing, chunk mapping, sizes, sync samples, composition offsets and 32-/64-bit chunk offsets.
+- `Mp4MediaDataWriter` streams selected encoded sample bytes into a new extended-size `mdat` and returns their absolute output offsets.
+
+These components are individually tested. They do not yet constitute a complete file exporter because the top-level writer must combine them with correctly recalculated track/movie durations and output edit lists.
 
 ## Container writer requirements
 
