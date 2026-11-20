@@ -74,14 +74,16 @@ public sealed class H264MotionVectorPictureStateTests
     }
 
     [Fact]
-    public void GetCandidates_ShouldReturnIntraMarkedRegionsAsUnavailable()
+    public void GetCandidates_ShouldRepresentIntraMarkedRegionsSeparatelyFromUnavailableNeighbours()
     {
         var state = new H264MotionVectorPictureState(2, 1);
         state.RecordUnavailableRegion(3, 0, 1, 1, 0);
 
         H264MotionVectorNeighbourCandidates result = state.GetCandidates(4, 0, 1, 1, 0);
 
-        Assert.Null(result.Left);
+        Assert.Equal(new H264MotionVectorCandidate(-1, new H264MotionVector(0, 0)),
+            result.Left);
+        Assert.Null(state.GetCandidates(4, 1, 1, 1, 0).Left);
     }
 
     [Fact]
