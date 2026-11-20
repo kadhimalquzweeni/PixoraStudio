@@ -13,7 +13,7 @@ public sealed class H264CabacResidualBlockReaderTests
     public void ReadBlock_ShouldSupportStackAllocatedSignificanceMapForEveryBlockSize(int maximumCoefficients)
     {
         ScriptedCabacReader bins = new(
-            decisionBins: Enumerable.Repeat(0, maximumCoefficients - 1),
+            decisionBins: Enumerable.Repeat(0, maximumCoefficients),
             bypassBins: new[] { 0 });
         H264CabacResidualBlockReader reader = new();
 
@@ -24,7 +24,7 @@ public sealed class H264CabacResidualBlockReaderTests
 
         Assert.Equal(maximumCoefficients, coefficients.Length);
         Assert.Equal(1, coefficients[^1]);
-        Assert.Equal(maximumCoefficients - 1, bins.ContextIndices.Count);
+        Assert.Equal(maximumCoefficients, bins.ContextIndices.Count);
     }
 
     [Fact]
