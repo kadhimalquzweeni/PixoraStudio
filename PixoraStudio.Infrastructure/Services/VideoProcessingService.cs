@@ -40,16 +40,13 @@ public sealed class VideoProcessingService : IVideoProcessingService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         await GenerateThumbnailsAsync(
-            filePath,
-            [position],
-            [outputPath]).ConfigureAwait(false);
+            filePath, [position], [outputPath]).ConfigureAwait(false);
         return Path.GetFullPath(outputPath);
     }
 
     /// <summary>
-    /// Parses MP4 metadata once, then decodes requested positions concurrently.
-    /// Each worker owns its stream, decoder, parameter-set reader and converter;
-    /// only the parsed, read-only sample metadata is shared.
+    /// Parses MP4 metadata and builds the track's seek index once. Thumbnail
+    /// workers then reuse precomputed seek plans and independent decoder state.
     /// </summary>
     public Task GenerateThumbnailsAsync(
         string filePath,
@@ -99,67 +96,92 @@ public sealed class VideoProcessingService : IVideoProcessingService
                 ?? throw new NotSupportedException(
                     "The MP4 file does not contain a video track.");
 
+            // Plan every requested seek before starting parallel decoding.
+            // The planner validates and indexes sample timing only once.
+            H264Mp4VideoSeekPlanner seekPlanner = new();
+            H264Mp4VideoSeekPlan[] seekPlans = new H264Mp4VideoSeekPlan[positions.Count];
+            for (int index = 0; index < positions.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                seekPlans[index] = seekPlanner.Plan(
+                    videoTrack, positions[index].TotalSeconds);
+            }
+
+            int workerCount = GetThumbnailWorkerCount(
+                positions.Count, Environment.ProcessorCount);
+            Debug.WriteLine(
+                $"[Thumbnails] Prepared {seekPlans.Length} seek plans; " +
+                $"workers={workerCount}; processors={Environment.ProcessorCount}.");
+
             Parallel.For(
                 0,
                 positions.Count,
                 new ParallelOptions
                 {
                     CancellationToken = cancellationToken,
-                    MaxDegreeOfParallelism = GetThumbnailWorkerCount(
-                        positions.Count, Environment.ProcessorCount)
+                    MaxDegreeOfParallelism = workerCount
                 },
                 index =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    Stopwatch stopwatch = Stopwatch.StartNew();
+                    Stopwatch totalStopwatch = Stopwatch.StartNew();
                     int workerThreadId = Environment.CurrentManagedThreadId;
                     Debug.WriteLine(
                         $"[Thumbnail {index}] START thread={workerThreadId} " +
-                        $"target={positions[index]:c}");
+                        $"target={positions[index]:c} " +
+                        $"firstSample={seekPlans[index].FirstSampleToDecode}");
 
-                    // FileStream.Position is mutable, so every concurrent
-                    // decoder must have an independent stream instance.
                     using FileStream stream = new(
                         filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
+                    Stopwatch decodeStopwatch = Stopwatch.StartNew();
                     H264Mp4DecodedVideoFrame? frame =
-                        new H264Mp4TrackDecoder().DecodeFromTime(
+                        new H264Mp4TrackDecoder().DecodeFromPlan(
                             stream,
                             mediaInfo,
                             videoTrack.TrackId,
-                            positions[index].TotalSeconds,
+                            seekPlans[index],
                             cancellationToken: cancellationToken)
                         .FirstOrDefault();
+                    decodeStopwatch.Stop();
 
                     if (frame is null)
                     {
                         Debug.WriteLine(
-                            $"[Thumbnail {index}] NO FRAME after {stopwatch.Elapsed}.");
+                            $"[Thumbnail {index}] NO FRAME; " +
+                            $"decode={decodeStopwatch.Elapsed}; total={totalStopwatch.Elapsed}.");
                         return;
                     }
 
+                    Debug.WriteLine(
+                        $"[Thumbnail {index}] DECODED thread={workerThreadId} " +
+                        $"decode={decodeStopwatch.Elapsed}.");
+
                     try
                     {
+                        Stopwatch imageStopwatch = Stopwatch.StartNew();
                         SaveThumbnail(
                             frame,
                             outputPaths[index],
                             new H264AvcParameterSetCollectionReader(),
                             new H264YuvToBgraConverter());
+                        imageStopwatch.Stop();
 
                         progress?.Report(new VideoThumbnailResult(
                             index, Path.GetFullPath(outputPaths[index])));
 
                         Debug.WriteLine(
                             $"[Thumbnail {index}] COMPLETE thread={workerThreadId} " +
-                            $"elapsed={stopwatch.Elapsed}.");
+                            $"decode={decodeStopwatch.Elapsed}; image={imageStopwatch.Elapsed}; " +
+                            $"total={totalStopwatch.Elapsed}.");
                     }
                     catch (Exception exception) when (
                         exception is not OperationCanceledException)
                     {
                         Debug.WriteLine(
                             $"[Thumbnail {index}] FAILED during image output " +
-                            $"after {stopwatch.Elapsed}: {exception}");
+                            $"after {totalStopwatch.Elapsed}: {exception}");
                     }
                 });
         }, cancellationToken);
@@ -196,10 +218,7 @@ public sealed class VideoProcessingService : IVideoProcessingService
         Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
 
         using SKBitmap source = new(
-            bgra.Width,
-            bgra.Height,
-            SKColorType.Bgra8888,
-            SKAlphaType.Opaque);
+            bgra.Width, bgra.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
         Marshal.Copy(bgra.Pixels, 0, source.GetPixels(), bgra.Pixels.Length);
 
         const int thumbnailWidth = 240;
@@ -208,16 +227,12 @@ public sealed class VideoProcessingService : IVideoProcessingService
             (int)Math.Round((double)bgra.Height * thumbnailWidth / bgra.Width));
 
         using SKBitmap thumbnail = new(
-            thumbnailWidth,
-            thumbnailHeight,
-            SKColorType.Bgra8888,
-            SKAlphaType.Opaque);
+            thumbnailWidth, thumbnailHeight, SKColorType.Bgra8888, SKAlphaType.Opaque);
         using (SKCanvas canvas = new(thumbnail))
         {
             canvas.Clear(SKColors.Black);
             canvas.DrawBitmap(
-                source,
-                new SKRect(0, 0, thumbnailWidth, thumbnailHeight));
+                source, new SKRect(0, 0, thumbnailWidth, thumbnailHeight));
         }
 
         using SKImage image = SKImage.FromBitmap(thumbnail);
