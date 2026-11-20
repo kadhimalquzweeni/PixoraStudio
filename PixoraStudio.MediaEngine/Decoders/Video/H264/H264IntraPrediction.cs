@@ -296,9 +296,9 @@ public static class H264IntraPrediction
             : left[Math.Min(-index - 2, 3)];
 
     private static byte DiagonalReference(int index, byte[] top, byte[] left, byte topLeft) =>
-        index >= 0 ? top[Math.Min(index, 7)]
-            : index == -1 ? topLeft
-            : left[Math.Min(-index - 2, 3)];
+        index > 0 ? top[Math.Min(index - 1, 7)]
+            : index == 0 ? topLeft
+            : left[Math.Min(-index - 1, 3)];
 
     private static byte Average2(byte a, byte b) => (byte)((a + b + 1) >> 1);
     private static byte Average3(byte a, byte b, byte c) => (byte)((a + 2 * b + c + 2) >> 2);
