@@ -63,6 +63,8 @@ public partial class VideoEditorViewModel : ObservableObject
     [ObservableProperty]
     private string exportStatusMessage = string.Empty;
 
+    // Export readiness depends on loaded MP4 metadata and a valid trim range.
+    // Thumbnail generation is independent UI work and must not block exporting.
     private bool CanExportTrimmedVideo() =>
         VideoExportEligibility.CanExport(
             VideoPath,
