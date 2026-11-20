@@ -86,6 +86,53 @@ public sealed class H264Mp4AvcEndToEndTests
 
 
     [Fact]
+    public void DecodeSamples_CabacMainProfileIAndPBTrack_ShouldMatchReferenceDecoder()
+    {
+        byte[] avcC = Convert.FromBase64String(CabacMainAvcC);
+        H264AvcDecoderConfiguration configuration =
+            new H264AvcDecoderConfigurationReader().Read(avcC);
+        Mp4CodecConfiguration codecConfiguration = new(
+            Mp4VideoCodec.Avc, "avcC", avcC, 1,
+            configuration.Profile, configuration.Compatibility,
+            configuration.Level, configuration.NaluLengthSize);
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 32, 32, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc, codecConfiguration);
+        Mp4Track track = new(
+            9, 32, 32, 1, 3, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+
+        Mp4EncodedSample[] samples =
+        [
+            CreateCabacEncodedSample(1, 0, 0, true, CabacMainIdrNal),
+            CreateCabacEncodedSample(2, 1, 2, false, CabacMainPNal),
+            CreateCabacEncodedSample(3, 2, 1, false, CabacMainBNal)
+        ];
+
+        H264Mp4DecodedVideoFrame[] frames =
+            new H264Mp4TrackDecoder().DecodeSamples(
+                track, samples, maxNumReorderFramesFallback: 2).ToArray();
+
+        Assert.Equal(new uint[] { 1, 3, 2 },
+            frames.Select(frame => frame.SampleNumber));
+        Assert.Equal(new long[] { 0, 1, 2 },
+            frames.Select(frame => frame.PresentationTimeTicks));
+        Assert.Equal(new[] { 0, 2, 4 },
+            frames.Select(frame => frame.PictureOrderCount));
+        Assert.All(frames, frame => Assert.True(frame.Surface.IsComplete));
+        Assert.All(frames, frame =>
+            Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
+
+        string[] expectedFrameHashes =
+        [
+            "fced2e3477559d7819c0d5103914b4083521dd813345ed76b173819584c3e639",
+            "9884d66af8fd0c7362e124d32535382232ac3f6147c3aac2253ab904bc946303",
+            "e65b186f669f54288e84fe4dfd3b8891a0f1b01109110a999d1ee511d5cc3a9c"
+        ];
+        Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
+    }
+
+    [Fact]
     public void Decode_CabacMainProfileIAndPBStream_ShouldMatchReferenceDecoder()
     {
         // Three 32x32 Main-profile pictures encoded with x264 CABAC:
@@ -556,6 +603,26 @@ public sealed class H264Mp4AvcEndToEndTests
             .Concat(frame.Surface.CopyCrPlane())
             .ToArray();
         return Convert.ToHexString(SHA256.HashData(samples)).ToLowerInvariant();
+    }
+
+    private static Mp4EncodedSample CreateCabacEncodedSample(
+        uint sampleNumber,
+        ulong decodeTimeTicks,
+        long presentationTimeTicks,
+        bool isSyncSample,
+        string nalBase64)
+    {
+        List<byte> sampleData = [];
+        AddLengthPrefixedNal(sampleData, Convert.FromBase64String(nalBase64));
+        Mp4SampleLocation location = new(
+            sampleNumber, 1, 0, (uint)sampleData.Count,
+            decodeTimeTicks, 1, isSyncSample)
+        {
+            SampleDescriptionIndex = 1,
+            CompositionOffsetTicks = checked((int)(
+                presentationTimeTicks - checked((long)decodeTimeTicks)))
+        };
+        return new Mp4EncodedSample(location, sampleData.ToArray());
     }
 
     private static H264Mp4VideoSample CreateCabacSample(
