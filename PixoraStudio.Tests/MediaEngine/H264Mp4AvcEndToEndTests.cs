@@ -703,9 +703,29 @@ public sealed class H264Mp4AvcEndToEndTests
         ulong decodeTimeTicks,
         long presentationTimeTicks,
         bool isSyncSample,
-        string nalBase64)
+        string nalBase64,
+        int trailingZeroBytes = 0)
     {
         byte[] nal = Convert.FromBase64String(nalBase64);
+        if (trailingZeroBytes < 0)
+            throw new ArgumentOutOfRangeException(nameof(trailingZeroBytes));
+        if (trailingZeroBytes != 0)
+        {
+            List<byte> paddedNal = [.. nal];
+            int zeroRun = 0;
+            for (int i = 0; i < trailingZeroBytes; i++)
+            {
+                if (zeroRun == 2)
+                {
+                    paddedNal.Add(0x03);
+                    zeroRun = 0;
+                }
+                paddedNal.Add(0);
+                zeroRun++;
+            }
+            nal = paddedNal.ToArray();
+        }
+
         Span<byte> length = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(length, checked((uint)nal.Length));
         List<byte> sampleData = [.. length.ToArray()];
