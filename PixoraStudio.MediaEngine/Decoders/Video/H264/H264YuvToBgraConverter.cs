@@ -21,9 +21,9 @@ public sealed class H264YuvToBgraConverter
             surface.ChromaFormatIdc != sps.ChromaFormatIdc)
             throw new ArgumentException("The SPS geometry does not match the decoded surface.", nameof(sps));
 
-        byte[] yPlane = surface.CopyLumaPlane();
-        byte[] cbPlane = surface.CopyCbPlane();
-        byte[] crPlane = surface.CopyCrPlane();
+        ReadOnlySpan<byte> yPlane = surface.GetLumaPlaneReadOnlySpan();
+        ReadOnlySpan<byte> cbPlane = surface.GetCbPlaneReadOnlySpan();
+        ReadOnlySpan<byte> crPlane = surface.GetCrPlaneReadOnlySpan();
         int width = surface.Width;
         int height = surface.Height;
         int chromaWidth = surface.ChromaWidth;
