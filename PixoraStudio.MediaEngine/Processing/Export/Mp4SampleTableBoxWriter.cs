@@ -28,16 +28,19 @@ public sealed class Mp4SampleTableBoxWriter
         if (plan.Samples.Count == 0)
             throw new ArgumentException("A sample table cannot be written without samples.", nameof(plan));
 
-        WriteTimeToSample(destination, plan.Samples);
-        WriteSampleToChunk(destination, plan.Samples);
-        WriteSampleSizes(destination, plan.Samples);
-        WriteChunkOffsets(destination, chunkOffsets);
+        _boxWriter.WriteBox(destination, "stbl", sampleTable =>
+        {
+            WriteTimeToSample(sampleTable, plan.Samples);
+            WriteSampleToChunk(sampleTable, plan.Samples);
+            WriteSampleSizes(sampleTable, plan.Samples);
+            WriteChunkOffsets(sampleTable, chunkOffsets);
 
-        if (plan.HandlerType == Mp4HandlerType.Video)
-            WriteSyncSamples(destination, plan.Samples);
+            if (plan.HandlerType == Mp4HandlerType.Video)
+                WriteSyncSamples(sampleTable, plan.Samples);
 
-        if (plan.Samples.Any(sample => sample.CompositionOffsetTicks != 0))
-            WriteCompositionTimes(destination, plan.Samples);
+            if (plan.Samples.Any(sample => sample.CompositionOffsetTicks != 0))
+                WriteCompositionTimes(sampleTable, plan.Samples);
+        });
     }
 
     private void WriteTimeToSample(Stream destination, IReadOnlyList<Mp4SampleLocation> samples)
