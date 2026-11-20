@@ -31,6 +31,7 @@ public partial class VideoEditorView : UserControl
     private readonly ManagedH264VideoPlaybackService _managedH264PlaybackService = new();
     private bool _usesManagedH264Video;
     private H264Mp4FrameNavigationTarget? _pendingFrameStepTarget;
+    private H264Mp4FrameNavigationTarget? _lastDisplayedFrame;
     private CancellationTokenSource? _videoLoadCancellation;
     private bool _usesCustomAacAudio;
     private bool _isPreparingVideo;
@@ -314,6 +315,7 @@ public partial class VideoEditorView : UserControl
         _mediaPlayer.Mute = false;
         _usesManagedH264Video = false;
         _pendingFrameStepTarget = null;
+        _lastDisplayedFrame = null;
         if (DataContext is VideoEditorViewModel loadingVm)
             loadingVm.CanStepFrames = false;
         ManagedVideoFrame.Source = null;
@@ -357,6 +359,7 @@ public partial class VideoEditorView : UserControl
                     {
                         ManagedVideoFrame.Source = bitmap;
                         ManagedVideoFrame.Visibility = Visibility.Visible;
+                        _lastDisplayedFrame = presentedFrame;
 
                         if (_pendingFrameStepTarget is not null &&
                             _pendingFrameStepTarget == presentedFrame)
@@ -404,6 +407,7 @@ public partial class VideoEditorView : UserControl
         _ = _managedH264PlaybackService.StopAsync();
         _usesManagedH264Video = false;
         _pendingFrameStepTarget = null;
+        _lastDisplayedFrame = null;
         if (DataContext is VideoEditorViewModel closedVm)
             closedVm.CanStepFrames = false;
         ManagedVideoFrame.Source = null;
@@ -459,6 +463,7 @@ public partial class VideoEditorView : UserControl
 
         int seekVersion = Interlocked.Increment(ref _seekOperationVersion);
         _pendingFrameStepTarget = null;
+        _lastDisplayedFrame = null;
         bool resumePlayback = _mediaPlayer.IsPlaying ||
             _wasPlayingBeforeScrubbing ||
             _resumePlaybackAfterSeek;
@@ -566,7 +571,7 @@ public partial class VideoEditorView : UserControl
         // Prefer the pending target so rapid repeated clicks advance from the
         // requested frame even while its decode is still in progress.
         H264Mp4FrameNavigationTarget? currentFrame =
-            _pendingFrameStepTarget ?? _managedH264PlaybackService.LastPresentedFrame;
+            _pendingFrameStepTarget ?? _lastDisplayedFrame;
 
         H264Mp4FrameNavigationTarget? target = currentFrame is not null
             ? _managedH264PlaybackService.FindAdjacentFrame(
@@ -629,11 +634,6 @@ public partial class VideoEditorView : UserControl
         {
             await _managedH264PlaybackService.SeekToFrameAsync(target);
 
-            if (_pendingFrameStepTarget == target &&
-                _managedH264PlaybackService.LastPresentedFrame == target)
-            {
-                _pendingFrameStepTarget = null;
-            }
         }
         catch (OperationCanceledException)
         {
@@ -1214,6 +1214,8 @@ public partial class VideoEditorView : UserControl
         _overlayPositionTimer.Stop();
 
         _videoLoadVersion++;
+        _pendingFrameStepTarget = null;
+        _lastDisplayedFrame = null;
         _isPreparingVideo = false;
         _videoLoadCancellation?.Cancel();
         _videoLoadCancellation?.Dispose();
