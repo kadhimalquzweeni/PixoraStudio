@@ -163,6 +163,9 @@ public sealed class H264Mp4AvcEndToEndTests
         cabacTrace.Clear();
         H264Mp4AccessUnitDecodeResult bResult = decoder.Decode(b)!;
         H264Mp4DecodedVideoFrame[] bReadyFrames = bResult.ReadyFrames.ToArray();
+        File.WriteAllLines(
+            Path.Combine(testResultsDirectory, "cabac-b-slice-trace.txt"),
+            cabacTrace);
 
         // The real CABAC B-slice fixture must traverse inter prediction,
         // coded-block-pattern/QP syntax, residual coefficients and final
