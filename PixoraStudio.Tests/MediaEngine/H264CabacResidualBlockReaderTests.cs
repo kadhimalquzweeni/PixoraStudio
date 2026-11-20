@@ -4,6 +4,29 @@ namespace PixoraStudio.Tests.MediaEngine;
 
 public sealed class H264CabacResidualBlockReaderTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    [InlineData(15)]
+    [InlineData(16)]
+    [InlineData(64)]
+    public void ReadBlock_ShouldSupportStackAllocatedSignificanceMapForEveryBlockSize(int maximumCoefficients)
+    {
+        ScriptedCabacReader bins = new(
+            decisionBins: Enumerable.Repeat(0, maximumCoefficients - 1),
+            bypassBins: new[] { 0 });
+        H264CabacResidualBlockReader reader = new();
+
+        int[] increments = Enumerable.Repeat(0, maximumCoefficients - 1).ToArray();
+        int[] coefficients = reader.ReadBlock(
+            bins, maximumCoefficients, 0, maximumCoefficients - 1, 105, 166, 227,
+            increments, increments);
+
+        Assert.Equal(maximumCoefficients, coefficients.Length);
+        Assert.Equal(1, coefficients[^1]);
+        Assert.Equal(maximumCoefficients - 1, bins.ContextIndices.Count);
+    }
+
     [Fact]
     public void ReadBlock_ShouldInferFinalCoefficientWhenNoLastFlagIsSet()
     {
