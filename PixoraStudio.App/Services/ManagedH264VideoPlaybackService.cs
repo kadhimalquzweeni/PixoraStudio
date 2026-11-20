@@ -359,6 +359,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         bool waitingForRequestedFrame = firstFrameSampleNumber.HasValue;
+        double? requestedFramePresentationTimeSeconds = null;
         try
         {
             await foreach (H264Mp4DecodedVideoFrame frame in
@@ -372,6 +373,21 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                         continue;
 
                     waitingForRequestedFrame = false;
+                    requestedFramePresentationTimeSeconds =
+                        frame.SourceSample.PresentationTimeSeconds;
+                }
+
+                if (requestedFramePresentationTimeSeconds is double requestedTime &&
+                    frame.SourceSample.SampleNumber != firstFrameSampleNumber &&
+                    frame.SourceSample.PresentationTimeSeconds <= requestedTime + 0.005)
+                {
+                    double releaseClockTime = Math.Max(0, requestedTime) + 0.005;
+                    while (Math.Max(0, playbackClock()) <= releaseClockTime)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await Task.Delay(TimeSpan.FromMilliseconds(5), cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                 }
 
                 H264FramePresentationDecision decision;
