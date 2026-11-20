@@ -30,25 +30,25 @@ public sealed class Mp4TrimMoovWriterTests
         output.Position = 0;
         Mp4Box rewrittenMoov = Assert.Single(new Mp4Reader().ReadBoxTree(output));
 
-        Mp4Box mvhd = Assert.Single(rewrittenMoov.Children.Where(box => box.Type == "mvhd"));
+        Mp4Box mvhd = Assert.Single(rewrittenMoov.Children, box => box.Type == "mvhd");
         Assert.Equal(2000UL, new Mp4MovieHeaderReader().Read(output, mvhd).DurationTicks);
 
-        Mp4Box trak = Assert.Single(rewrittenMoov.Children.Where(box => box.Type == "trak"));
-        Mp4Box tkhd = Assert.Single(trak.Children.Where(box => box.Type == "tkhd"));
+        Mp4Box trak = Assert.Single(rewrittenMoov.Children, box => box.Type == "trak");
+        Mp4Box tkhd = Assert.Single(trak.Children, box => box.Type == "tkhd");
         Assert.Equal(2000UL, ReadDuration(output, tkhd, 20, 4));
 
-        Mp4Box edts = Assert.Single(trak.Children.Where(box => box.Type == "edts"));
+        Mp4Box edts = Assert.Single(trak.Children, box => box.Type == "edts");
         Mp4EditList editList = new Mp4EditListReader().Read(
             output,
             Assert.Single(edts.Children));
         Assert.Equal(new[] { new Mp4EditListEntry(2000, 0, 1, 0) }, editList.Entries);
 
-        Mp4Box mdia = Assert.Single(trak.Children.Where(box => box.Type == "mdia"));
-        Mp4Box mdhd = Assert.Single(mdia.Children.Where(box => box.Type == "mdhd"));
+        Mp4Box mdia = Assert.Single(trak.Children, box => box.Type == "mdia");
+        Mp4Box mdhd = Assert.Single(mdia.Children, box => box.Type == "mdhd");
         Assert.Equal(2000UL, new Mp4MediaHeaderReader().Read(output, mdhd).DurationTicks);
 
-        Mp4Box minf = Assert.Single(mdia.Children.Where(box => box.Type == "minf"));
-        Mp4Box stbl = Assert.Single(minf.Children.Where(box => box.Type == "stbl"));
+        Mp4Box minf = Assert.Single(mdia.Children, box => box.Type == "minf");
+        Mp4Box stbl = Assert.Single(minf.Children, box => box.Type == "stbl");
         Assert.Contains(stbl.Children, box => box.Type == "stsd");
         Mp4SampleTable sampleTable = new Mp4SampleTableReader().Read(output, stbl);
         Assert.Equal(2u, sampleTable.SampleSizes.SampleCount);
@@ -77,7 +77,7 @@ public sealed class Mp4TrimMoovWriterTests
 
         output.Position = 0;
         Mp4Box rewrittenMoov = Assert.Single(new Mp4Reader().ReadBoxTree(output));
-        Assert.Single(rewrittenMoov.Children.Where(box => box.Type == "trak"));
+        Assert.Single(rewrittenMoov.Children, box => box.Type == "trak");
     }
 
     [Fact]
@@ -112,8 +112,8 @@ public sealed class Mp4TrimMoovWriterTests
 
         output.Position = 0;
         Mp4Box rewrittenMoov = Assert.Single(new Mp4Reader().ReadBoxTree(output));
-        Mp4Box trak = Assert.Single(rewrittenMoov.Children.Where(box => box.Type == "trak"));
-        Mp4Box edts = Assert.Single(trak.Children.Where(box => box.Type == "edts"));
+        Mp4Box trak = Assert.Single(rewrittenMoov.Children, box => box.Type == "trak");
+        Mp4Box edts = Assert.Single(trak.Children, box => box.Type == "edts");
         Mp4EditList editList = new Mp4EditListReader().Read(output, Assert.Single(edts.Children));
 
         Assert.Equal(
