@@ -131,6 +131,32 @@ public sealed class VideoProcessingServiceTests
                 thumbnailCount, processorCount));
     }
 
+    [Theory]
+    [InlineData(12, 8, 1, 1)]
+    [InlineData(12, 8, 2, 2)]
+    [InlineData(12, 8, 3, 3)]
+    [InlineData(12, 8, 4, 4)]
+    [InlineData(12, 8, 8, 4)]
+    [InlineData(2, 8, 4, 2)]
+    public void GetThumbnailWorkerCount_ShouldRespectRequestedParallelism(
+        int thumbnailCount,
+        int processorCount,
+        int requestedWorkerCount,
+        int expected)
+    {
+        Assert.Equal(
+            expected,
+            VideoProcessingService.GetThumbnailWorkerCount(
+                thumbnailCount, processorCount, requestedWorkerCount));
+    }
+
+    [Fact]
+    public void GetThumbnailWorkerCount_ShouldRejectNonPositiveRequestedParallelism()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => VideoProcessingService.GetThumbnailWorkerCount(4, 8, 0));
+    }
+
     [Fact]
     public void GetThumbnailWorkerCount_ShouldRejectInvalidProcessorCount()
     {

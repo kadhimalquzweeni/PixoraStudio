@@ -17,6 +17,8 @@ namespace PixoraStudio.Infrastructure.Services;
 public sealed class VideoProcessingService : IVideoProcessingService
 {
     private const int MaximumThumbnailParallelism = 4;
+    private const string WorkerCountEnvironmentVariable = "PIXORA_H264_THUMBNAIL_WORKERS";
+    private const string CabacProfilingEnvironmentVariable = "PIXORA_H264_CABAC_PROFILE";
 
     public Task<VideoInfo> GetVideoInfoAsync(string filePath)
     {
@@ -107,11 +109,14 @@ public sealed class VideoProcessingService : IVideoProcessingService
                     videoTrack, positions[index].TotalSeconds);
             }
 
+            int? requestedWorkerCount = GetRequestedWorkerCount();
             int workerCount = GetThumbnailWorkerCount(
-                positions.Count, Environment.ProcessorCount);
+                positions.Count, Environment.ProcessorCount, requestedWorkerCount);
+            bool enableCabacProfiling = IsCabacProfilingEnabled();
             Debug.WriteLine(
                 $"[Thumbnails] Prepared {seekPlans.Length} seek plans; " +
-                $"workers={workerCount}; processors={Environment.ProcessorCount}.");
+                $"workers={workerCount}; processors={Environment.ProcessorCount}; " +
+                $"cabacProfiling={enableCabacProfiling}.");
 
             Parallel.For(
                 0,
@@ -135,9 +140,13 @@ public sealed class VideoProcessingService : IVideoProcessingService
                     using FileStream stream = new(
                         filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
+                    H264CabacPerformanceProfiler? cabacProfiler =
+                        enableCabacProfiling ? new H264CabacPerformanceProfiler() : null;
+                    H264Mp4TrackDecoder trackDecoder = new(cabacProfiler);
+
                     Stopwatch decodeStopwatch = Stopwatch.StartNew();
                     H264Mp4DecodedVideoFrame? frame =
-                        new H264Mp4TrackDecoder().DecodeFromPlan(
+                        trackDecoder.DecodeFromPlan(
                             stream,
                             mediaInfo,
                             videoTrack.TrackId,
@@ -145,6 +154,20 @@ public sealed class VideoProcessingService : IVideoProcessingService
                             cancellationToken: cancellationToken)
                         .FirstOrDefault();
                     decodeStopwatch.Stop();
+
+                    if (cabacProfiler is not null)
+                    {
+                        H264CabacPerformanceSnapshot snapshot = cabacProfiler.GetSnapshot();
+                        Debug.WriteLine(
+                            $"[H264 CABAC profile] thumbnail={index}; " +
+                            $"decisionBins={snapshot.DecisionBinCount}; " +
+                            $"decisionElapsed={snapshot.DecisionElapsed}; " +
+                            $"bypassBins={snapshot.BypassBinCount}; " +
+                            $"bypassElapsed={snapshot.BypassElapsed}; " +
+                            $"renormalizations={snapshot.RenormalizationCount}; " +
+                            $"renormalizationElapsed={snapshot.RenormalizationElapsed} " +
+                            "(included in decisionElapsed).");
+                    }
 
                     if (frame is null)
                     {
@@ -187,17 +210,36 @@ public sealed class VideoProcessingService : IVideoProcessingService
         }, cancellationToken);
     }
 
-    internal static int GetThumbnailWorkerCount(int thumbnailCount, int processorCount)
+    internal static int GetThumbnailWorkerCount(
+        int thumbnailCount,
+        int processorCount,
+        int? requestedWorkerCount = null)
     {
         if (thumbnailCount <= 0)
             return 0;
         if (processorCount <= 0)
             throw new ArgumentOutOfRangeException(nameof(processorCount));
+        if (requestedWorkerCount is <= 0)
+            throw new ArgumentOutOfRangeException(nameof(requestedWorkerCount));
 
-        return Math.Min(
-            thumbnailCount,
-            Math.Min(processorCount, MaximumThumbnailParallelism));
+        int maximumWorkers = Math.Min(processorCount, MaximumThumbnailParallelism);
+        int selectedWorkers = Math.Min(maximumWorkers, requestedWorkerCount ?? maximumWorkers);
+        return Math.Min(thumbnailCount, selectedWorkers);
     }
+
+    private static int? GetRequestedWorkerCount()
+    {
+        string? value = Environment.GetEnvironmentVariable(WorkerCountEnvironmentVariable);
+        return int.TryParse(value, out int workerCount) && workerCount > 0
+            ? workerCount
+            : null;
+    }
+
+    private static bool IsCabacProfilingEnabled() =>
+        string.Equals(
+            Environment.GetEnvironmentVariable(CabacProfilingEnvironmentVariable),
+            "1",
+            StringComparison.Ordinal);
 
     private static void SaveThumbnail(
         H264Mp4DecodedVideoFrame frame,
