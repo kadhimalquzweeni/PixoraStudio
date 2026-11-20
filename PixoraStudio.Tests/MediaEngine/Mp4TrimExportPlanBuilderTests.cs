@@ -78,6 +78,29 @@ public sealed class Mp4TrimExportPlanBuilderTests
     }
 
     [Fact]
+    public void Build_ShouldRejectSourceVideoEditListsUntilTheyAreSupported()
+    {
+        Mp4MediaTrack video = CreateTrack(
+            1,
+            Mp4HandlerType.Video,
+            Enumerable.Range(1, 10).Select(i =>
+                Location((uint)i, (ulong)((i - 1) * 500), 500, i == 1 || i == 4 || i == 7 || i == 10)),
+            new Mp4EditList([new Mp4EditListEntry(500, 0, 1, 0)]));
+
+        Mp4PresentationSample[] timeline = video.SampleLocations.Samples
+            .Select(sample => new Mp4PresentationSample(1, sample.SampleNumber, sample, sample.DecodeTimeTicks / 1000.0))
+            .ToArray();
+
+        Mp4MediaInfo info = new(
+            new Mp4MovieHeader(1000, 5000),
+            [video],
+            [new Mp4MediaData(0, 1000)],
+            timeline);
+
+        Assert.Throws<NotSupportedException>(() => _builder.Build(info, 0, 1));
+    }
+
+    [Fact]
     public void Build_ShouldRejectVideoWithoutSyncSamples()
     {
         Mp4MediaInfo info = CreateMediaInfo(videoSyncSamples: []);
@@ -116,7 +139,8 @@ public sealed class Mp4TrimExportPlanBuilderTests
     private static Mp4MediaTrack CreateTrack(
         uint id,
         Mp4HandlerType type,
-        IEnumerable<Mp4SampleLocation> samples)
+        IEnumerable<Mp4SampleLocation> samples,
+        Mp4EditList? editList = null)
     {
         Mp4SampleLocation[] locations = samples.ToArray();
         Mp4Track track = new(id, 1920, 1080, 1000, 5000, type,
@@ -128,7 +152,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
             new Mp4ChunkOffsetTable([0]),
             null);
         return new Mp4MediaTrack(track, new Mp4Box(8, "trak", 0, 8), table,
-            new Mp4SampleLocationTable(locations));
+            new Mp4SampleLocationTable(locations), editList);
     }
 
     private static Mp4SampleLocation Location(uint number, ulong dts, uint duration, bool sync) =>
