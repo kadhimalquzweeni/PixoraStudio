@@ -34,6 +34,7 @@ public sealed class H264Mp4FrameNavigationPlanner
         double currentPresentationTimeSeconds,
         H264Mp4FrameNavigationDirection direction)
     {
+        ValidateTrack(track, direction);
         if (!double.IsFinite(currentPresentationTimeSeconds) ||
             currentPresentationTimeSeconds < 0)
             throw new ArgumentOutOfRangeException(nameof(currentPresentationTimeSeconds));
