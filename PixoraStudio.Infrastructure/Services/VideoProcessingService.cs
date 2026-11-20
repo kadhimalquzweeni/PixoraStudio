@@ -2,6 +2,7 @@ using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
 using PixoraStudio.MediaEngine.Decoders.Video.H264;
 using PixoraStudio.MediaEngine.Models.General;
+using PixoraStudio.MediaEngine.Models.Video;
 using PixoraStudio.MediaEngine.Readers.Mp4;
 using SkiaSharp;
 using System.Runtime.InteropServices;
@@ -116,9 +117,18 @@ public sealed class VideoProcessingService : IVideoProcessingService
                 while (nextTarget < positions.Count &&
                        positions[nextTarget].TotalSeconds < frameEndSeconds)
                 {
-                    SaveThumbnail(frame, outputPaths[nextTarget]);
-                    progress?.Report(new VideoThumbnailResult(
-                        nextTarget, Path.GetFullPath(outputPaths[nextTarget])));
+                    try
+                    {
+                        SaveThumbnail(frame, outputPaths[nextTarget]);
+                        progress?.Report(new VideoThumbnailResult(
+                            nextTarget, Path.GetFullPath(outputPaths[nextTarget])));
+                    }
+                    catch (Exception exception) when (
+                        exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"Thumbnail {nextTarget} could not be generated: {exception}");
+                    }
                     nextTarget++;
                 }
 
