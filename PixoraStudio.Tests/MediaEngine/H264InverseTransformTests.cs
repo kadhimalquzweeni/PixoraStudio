@@ -75,6 +75,17 @@ public sealed class H264InverseTransformTests
     }
 
     [Fact]
+    public void Inverse8x8_ShouldNotModifyInputCoefficients()
+    {
+        int[] input = Enumerable.Range(-32, 64).ToArray();
+        int[] original = (int[])input.Clone();
+
+        _ = H264InverseTransform.Inverse8x8(input);
+
+        Assert.Equal(original, input);
+    }
+
+    [Fact]
     public void Inverse8x8_ShouldRejectWrongCoefficientCount()
     {
         Assert.Throws<ArgumentException>(() => H264InverseTransform.Inverse8x8(new int[63]));

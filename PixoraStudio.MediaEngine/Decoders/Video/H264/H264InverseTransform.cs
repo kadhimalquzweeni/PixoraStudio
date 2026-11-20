@@ -53,7 +53,7 @@ public static class H264InverseTransform
         if (coefficients.Count != 64)
             throw new ArgumentException("An 8x8 transform requires exactly 64 coefficients.", nameof(coefficients));
 
-        long[] horizontal = new long[64];
+        Span<long> horizontal = stackalloc long[64];
         Span<long> input = stackalloc long[8];
         Span<long> output = stackalloc long[8];
 

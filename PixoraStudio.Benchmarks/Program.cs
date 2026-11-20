@@ -14,6 +14,7 @@ public class H264HotPathBenchmarks
     private H264PictureParameterSetHeader _pps = null!;
     private H264IntraChromaResidualComponent _chromaComponent = null!;
     private byte[] _chromaPrediction = [];
+    private int[] _transform8x8Coefficients = [];
 
     [GlobalSetup]
     public void Setup()
@@ -32,6 +33,7 @@ public class H264HotPathBenchmarks
             .ToArray();
         _chromaComponent = new H264IntraChromaResidualComponent(1, null, blocks);
         _chromaPrediction = Enumerable.Repeat((byte)128, 64).ToArray();
+        _transform8x8Coefficients = Enumerable.Range(-32, 64).ToArray();
     }
 
     [Benchmark(Baseline = true, OperationsPerInvoke = Iterations)]
@@ -66,6 +68,13 @@ public class H264HotPathBenchmarks
         for (int i = 0; i < Iterations; i++)
             checksum += decoder.DecodeDecision(ref context);
         return checksum ^ decoder.Range ^ context.State;
+    }
+
+    [Benchmark(OperationsPerInvoke = 1)]
+    public int Inverse8x8Transform()
+    {
+        int[] output = H264InverseTransform.Inverse8x8(_transform8x8Coefficients);
+        return output[0] ^ output[31] ^ output[63];
     }
 
     [Benchmark(OperationsPerInvoke = 1)]
