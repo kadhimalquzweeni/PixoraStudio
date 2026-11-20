@@ -754,8 +754,8 @@ public sealed class H264Mp4AvcEndToEndTests
             BuildNal(0x65, CreateIdrPcmSliceRbsp(1, 120, 140, 200)));
         H264Mp4VideoSample pSample = ReadSample(
             track, 2, 40, false,
-            BuildNal(0x41, CreatePSkipSliceRbsp(0, 1)),
-            BuildNal(0x41, CreatePSkipSliceRbsp(1, 1)));
+            BuildNal(0x41, CreatePSkipSliceRbsp(0, 1, 1, 4)),
+            BuildNal(0x41, CreatePSkipSliceRbsp(1, 1, 1, 4)));
         H264Mp4VideoSample bSample = ReadSample(
             track, 3, 80, false,
             BuildNal(0x01, CreateBSkipSliceRbsp(0, 1)),
@@ -1156,14 +1156,15 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     private static byte[] CreatePSkipSliceRbsp(
-        uint firstMacroblock = 0, uint skipRun = 1)
+        uint firstMacroblock = 0, uint skipRun = 1,
+        uint frameNum = 1, uint pocLsb = 2)
     {
         BitWriter bits = new();
         bits.WriteUe(firstMacroblock); // first_mb_in_slice
         bits.WriteUe(0); // P slice
         bits.WriteUe(0); // pic_parameter_set_id
-        bits.WriteBits(1, 4); // frame_num
-        bits.WriteBits(2, 4); // pic_order_cnt_lsb
+        bits.WriteBits(frameNum, 4); // frame_num
+        bits.WriteBits(pocLsb, 4); // pic_order_cnt_lsb
         bits.WriteFlag(false); // num_ref_idx_active_override_flag
         bits.WriteFlag(false); // ref_pic_list_modification_flag_l0
         bits.WriteFlag(false); // adaptive_ref_pic_marking_mode_flag
