@@ -21,6 +21,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     private readonly H264Mp4FramePresentationScheduler _presentationScheduler = new();
     private readonly H264YuvToBgraConverter _converter = new();
     private readonly H264Mp4TrackDecoder _decoder = new();
+    private readonly H264Mp4FrameNavigationPlanner _frameNavigationPlanner = new();
     private readonly H264AvcParameterSetCollectionReader _parameterSetReader = new();
     private readonly SemaphoreSlim _operationLock = new(1, 1);
 
@@ -34,6 +35,27 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     private Task? _decodeTask;
 
     public bool IsActive => _mediaInfo is not null && _decodeCancellation is not null;
+
+    /// <summary>
+    /// Finds the adjacent picture using the loaded track's exact presentation
+    /// timestamps. Returns null when no managed AVC track is active or the
+    /// requested direction is already at the beginning/end of the track.
+    /// </summary>
+    public H264Mp4FrameNavigationTarget? FindAdjacentFrame(
+        double currentPresentationTimeSeconds,
+        H264Mp4FrameNavigationDirection direction)
+    {
+        Mp4MediaInfo? info = _mediaInfo;
+        if (info is null)
+            return null;
+
+        Mp4MediaTrack track = info.GetTrack(_trackId) ??
+            throw new InvalidOperationException(
+                $"The loaded MP4 video track {_trackId} is no longer available.");
+
+        return _frameNavigationPlanner.FindAdjacentFrame(
+            track, currentPresentationTimeSeconds, direction);
+    }
 
     public async Task<bool> TryStartAsync(
         string filePath,
