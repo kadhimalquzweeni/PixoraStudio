@@ -380,7 +380,7 @@ public partial class VideoEditorViewModel : ObservableObject
                 Math.Abs(result.RequestedEndSeconds - result.EffectiveEndSeconds) > 0.001;
 
             ExportStatusMessage = adjusted
-                ? $"Export complete. Actual range: {FormatDuration(TimeSpan.FromSeconds(result.EffectiveStartSeconds))}–{FormatDuration(TimeSpan.FromSeconds(result.EffectiveEndSeconds))} (keyframe-aligned)."
+                ? $"Export complete. Actual range: {FormatDuration(TimeSpan.FromSeconds(result.EffectiveStartSeconds))}–{FormatDuration(TimeSpan.FromSeconds(result.EffectiveEndSeconds))} (frame-accurate)."
                 : "Export complete.";
 
             StatusMessage = $"Saved trimmed video: {Path.GetFileName(result.OutputPath)}";
