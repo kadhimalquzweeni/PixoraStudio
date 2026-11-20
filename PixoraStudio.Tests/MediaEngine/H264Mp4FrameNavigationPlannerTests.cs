@@ -145,6 +145,43 @@ public sealed class H264Mp4FrameNavigationPlannerTests
     }
 
     [Fact]
+    public void FindAdjacentFrame_RepeatedNavigation_ShouldAdvanceFromEachSelectedFrame()
+    {
+        Mp4MediaTrack track = CreateTrack(
+            Sample(1, 0, 40),
+            Sample(2, 40, 40),
+            Sample(3, 80, 40),
+            Sample(4, 120, 40));
+
+        H264Mp4FrameNavigationTarget? first = _planner.FindAdjacentFrame(
+            track, 0, H264Mp4FrameNavigationDirection.Next);
+        H264Mp4FrameNavigationTarget? second = _planner.FindAdjacentFrame(
+            track, first!.PresentationTimeSeconds, H264Mp4FrameNavigationDirection.Next);
+        H264Mp4FrameNavigationTarget? previous = _planner.FindAdjacentFrame(
+            track, second!.PresentationTimeSeconds, H264Mp4FrameNavigationDirection.Previous);
+
+        Assert.Equal(2u, first.SampleNumber);
+        Assert.Equal(3u, second.SampleNumber);
+        Assert.Equal(2u, previous?.SampleNumber);
+    }
+
+    [Fact]
+    public void FindAdjacentFrame_PreviousMayReturnNegativePresentationTimestamp()
+    {
+        Mp4MediaTrack track = CreateTrack(
+            Sample(1, 0, 40, compositionOffset: -20),
+            Sample(2, 40, 40));
+
+        H264Mp4FrameNavigationTarget? previous = _planner.FindAdjacentFrame(
+            track, 0, H264Mp4FrameNavigationDirection.Previous);
+
+        Assert.NotNull(previous);
+        Assert.Equal(1u, previous.SampleNumber);
+        Assert.Equal(-20L, previous.PresentationTimeTicks);
+        Assert.Equal(-0.02, previous.PresentationTimeSeconds);
+    }
+
+    [Fact]
     public void FindAdjacentFrame_ShouldRejectAudioTrack()
     {
         Mp4MediaTrack track = CreateTrack(
