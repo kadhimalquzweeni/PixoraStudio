@@ -15,6 +15,7 @@ public partial class VideoEditorViewModel : ObservableObject
     private readonly IVideoProcessingService _videoService;
     private readonly IVideoExportService _videoExportService;
     private CancellationTokenSource? _exportCancellation;
+    private CancellationTokenSource? _thumbnailCancellation;
 
     private VideoInfo? _videoInfo;
     public ObservableCollection<BitmapImage> VideoFrames { get; } = new();
@@ -112,6 +113,12 @@ public partial class VideoEditorViewModel : ObservableObject
 
     public async Task LoadVideoAsync(string filePath)
     {
+        _thumbnailCancellation?.Cancel();
+        _thumbnailCancellation?.Dispose();
+        CancellationTokenSource thumbnailCancellation = new();
+        _thumbnailCancellation = thumbnailCancellation;
+        CancellationToken thumbnailToken = thumbnailCancellation.Token;
+
         if (!File.Exists(filePath))
         {
             ErrorMessage = "The selected video file does not exist.";
@@ -158,11 +165,15 @@ public partial class VideoEditorViewModel : ObservableObject
 
             StatusMessage = "Generating video thumbnails...";
 
-            await GenerateVideoFramesAsync(filePath);
+            await GenerateVideoFramesAsync(filePath, thumbnailToken);
 
             StatusMessage = VideoFrames.Count > 0
                 ? "Video loaded successfully"
                 : "Video loaded, but thumbnails could not be generated.";
+        }
+        catch (OperationCanceledException) when (thumbnailToken.IsCancellationRequested)
+        {
+            // A newer video was opened or the current video was closed.
         }
         catch (Exception ex)
         {
@@ -171,7 +182,12 @@ public partial class VideoEditorViewModel : ObservableObject
         }
         finally
         {
-            IsLoading = false;
+            if (ReferenceEquals(_thumbnailCancellation, thumbnailCancellation))
+            {
+                _thumbnailCancellation = null;
+                thumbnailCancellation.Dispose();
+                IsLoading = false;
+            }
         }
     }
 
@@ -187,6 +203,7 @@ public partial class VideoEditorViewModel : ObservableObject
     private void CloseVideo()
     {
         _exportCancellation?.Cancel();
+        _thumbnailCancellation?.Cancel();
         VideoClosed?.Invoke();
         VideoPath = null;
         VideoName = "No video loaded";
@@ -405,7 +422,9 @@ public partial class VideoEditorViewModel : ObservableObject
         _exportCancellation?.Cancel();
     }
 
-    private async Task GenerateVideoFramesAsync(string filePath)
+    private async Task GenerateVideoFramesAsync(
+        string filePath,
+        CancellationToken cancellationToken)
     {
         VideoFrames.Clear();
 
@@ -414,36 +433,27 @@ public partial class VideoEditorViewModel : ObservableObject
 
         IReadOnlyList<TimeSpan> positions =
             VideoThumbnailPlan.CreatePositions(_videoInfo.Duration);
-
-        // The managed H.264 decoder is CPU- and memory-intensive. Decode one
-        // seek target at a time: running several independent 1080p decoders
-        // concurrently can exhaust memory and cause every thumbnail to fail.
-        // Add each completed image immediately so the filmstrip progressively
-        // appears instead of waiting for all targets to finish.
-        for (int index = 0; index < positions.Count; index++)
-        {
-            string thumbnailPath = Path.Combine(
+        string[] outputPaths = positions
+            .Select(_ => Path.Combine(
                 Path.GetTempPath(),
-                $"Pixora_Frame_{Guid.NewGuid()}.png");
+                $"Pixora_Frame_{Guid.NewGuid()}.png"))
+            .ToArray();
 
-            try
+        // Progress<T> marshals completed thumbnails back to the UI context.
+        // The decoder itself runs off-thread and reuses one decode pass.
+        IProgress<VideoThumbnailResult> progress =
+            new Progress<VideoThumbnailResult>(result =>
             {
-                string generatedPath =
-                    await _videoService.GenerateThumbnailAsync(
-                        filePath,
-                        positions[index],
-                        thumbnailPath);
-
-                if (string.IsNullOrWhiteSpace(generatedPath) ||
-                    !File.Exists(generatedPath))
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    continue;
+                    TryDeleteThumbnail(result.OutputPath);
+                    return;
                 }
 
-                BitmapImage frame = await Task.Run(() =>
+                try
                 {
                     using FileStream stream = new(
-                        generatedPath,
+                        result.OutputPath,
                         FileMode.Open,
                         FileAccess.Read,
                         FileShare.ReadWrite);
@@ -455,31 +465,50 @@ public partial class VideoEditorViewModel : ObservableObject
                     image.StreamSource = stream;
                     image.EndInit();
                     image.Freeze();
-                    return image;
-                });
-
-                VideoFrames.Add(frame);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"Thumbnail {index} failed: {ex}");
-            }
-            finally
-            {
-                if (File.Exists(thumbnailPath))
-                {
-                    try
-                    {
-                        File.Delete(thumbnailPath);
-                    }
-                    catch (IOException ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"Could not delete thumbnail: {ex.Message}");
-                    }
+                    VideoFrames.Add(image);
                 }
-            }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Thumbnail {result.Index} could not be displayed: {ex}");
+                }
+                finally
+                {
+                    TryDeleteThumbnail(result.OutputPath);
+                }
+            });
+
+        try
+        {
+            await _videoService.GenerateThumbnailsAsync(
+                filePath,
+                positions,
+                outputPaths,
+                progress,
+                cancellationToken);
+        }
+        finally
+        {
+            foreach (string outputPath in outputPaths)
+                TryDeleteThumbnail(outputPath);
         }
     }
-}
+
+    private static void TryDeleteThumbnail(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (IOException ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Could not delete thumbnail: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Could not delete thumbnail: {ex.Message}");
+        }
+    }}
