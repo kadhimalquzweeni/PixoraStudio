@@ -10,7 +10,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
     private readonly Mp4TrimExportPlanBuilder _builder = new();
 
     [Fact]
-    public void Build_ShouldStartAtPreviousSyncSampleAndEndAtNextSyncBoundary()
+    public void Build_ShouldRetainDecodePrerollAndUseFrameAlignedPresentationRange()
     {
         Mp4MediaInfo info = CreateMediaInfo();
 
@@ -19,17 +19,17 @@ public sealed class Mp4TrimExportPlanBuilderTests
         Mp4TrimTrackPlan video = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Video);
         Assert.Equal(1u, video.FirstSampleNumber);
         Assert.Equal(6u, video.LastSampleNumber);
-        Assert.Equal(0.0, plan.EffectiveStartSeconds);
-        Assert.Equal(3.0, plan.EffectiveEndSeconds);
+        Assert.Equal(1.5, plan.EffectiveStartSeconds);
+        Assert.Equal(2.5, plan.EffectiveEndSeconds);
     }
 
     [Fact]
-    public void Build_ShouldIncludeAudioSamplesOverlappingEffectiveVideoRange()
+    public void Build_ShouldIncludeOnlyAudioPacketsOverlappingFrameAccurateRange()
     {
         Mp4TrimExportPlan plan = _builder.Build(CreateMediaInfo(), 1.2, 2.2);
 
         Mp4TrimTrackPlan audio = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Audio);
-        Assert.Equal(new uint[] { 1, 2, 3, 4, 5, 6 }, audio.Samples.Select(sample => sample.SampleNumber));
+        Assert.Equal(new uint[] { 4, 5 }, audio.Samples.Select(sample => sample.SampleNumber));
     }
 
     [Fact]
@@ -41,6 +41,8 @@ public sealed class Mp4TrimExportPlanBuilderTests
 
         Mp4TrimTrackPlan video = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Video);
         Assert.Equal(3u, video.FirstSampleNumber);
+        Assert.Equal(1.0, plan.EffectiveStartSeconds);
+        Assert.Equal(1.5, plan.EffectiveEndSeconds);
     }
 
     [Fact]
@@ -51,7 +53,49 @@ public sealed class Mp4TrimExportPlanBuilderTests
         Mp4TrimTrackPlan video = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Video);
         Assert.Equal(7u, video.FirstSampleNumber);
         Assert.Equal(10u, video.LastSampleNumber);
+        Assert.Equal(3.5, plan.EffectiveStartSeconds);
         Assert.Equal(5.0, plan.EffectiveEndSeconds);
+    }
+
+    [Fact]
+    public void Build_ShouldUsePresentationTimestampsRatherThanDecodeOrderForBFrames()
+    {
+        Mp4MediaTrack video = CreateTrack(
+            1,
+            Mp4HandlerType.Video,
+            [
+                Location(1, 0, 500, true),
+                Location(2, 500, 500, false),
+                Location(3, 1000, 500, false),
+                Location(4, 1500, 500, false),
+                Location(5, 2000, 500, true),
+                Location(6, 2500, 500, false)
+            ]);
+
+        // Decode order is 0, 1.5, 0.5, 1.0, 2.0, 2.5 seconds.
+        // Presentation order differs because samples 3 and 4 are B pictures.
+        Mp4PresentationSample[] timeline =
+        [
+            new(1, 1, video.SampleLocations.GetSample(1), 0.0),
+            new(1, 2, video.SampleLocations.GetSample(2), 1.5),
+            new(1, 3, video.SampleLocations.GetSample(3), 0.5),
+            new(1, 4, video.SampleLocations.GetSample(4), 1.0),
+            new(1, 5, video.SampleLocations.GetSample(5), 2.0),
+            new(1, 6, video.SampleLocations.GetSample(6), 2.5)
+        ];
+
+        Mp4MediaInfo info = new(
+            new Mp4MovieHeader(1000, 3000),
+            [video],
+            [new Mp4MediaData(0, 1000)],
+            timeline);
+
+        Mp4TrimExportPlan plan = _builder.Build(info, 0.6, 1.6);
+
+        Mp4TrimTrackPlan selected = Assert.Single(plan.Tracks);
+        Assert.Equal(new uint[] { 1, 2, 3, 4 }, selected.Samples.Select(sample => sample.SampleNumber));
+        Assert.Equal(1.0, plan.EffectiveStartSeconds);
+        Assert.Equal(2.0, plan.EffectiveEndSeconds);
     }
 
     [Fact]
