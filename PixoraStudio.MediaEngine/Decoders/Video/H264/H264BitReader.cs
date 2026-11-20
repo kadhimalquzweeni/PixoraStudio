@@ -136,7 +136,23 @@ public sealed class H264BitReader
         return value;
     }
 
-    public bool ReadFlag() => ReadBits(1) != 0;
+    /// <summary>
+    /// Reads one bit using a dedicated fast path for CABAC and other bit-level hot loops.
+    /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(
+        System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    internal int ReadBit()
+    {
+        int position = _position;
+        if ((uint)position >= (uint)_lengthBits)
+            throw new EndOfStreamException("The H.264 bitstream ended unexpectedly.");
+
+        int value = (_data.Span[position >> 3] >> (7 - (position & 7))) & 1;
+        _position = position + 1;
+        return value;
+    }
+
+    public bool ReadFlag() => ReadBit() != 0;
 
     /// <summary>Reads bits at an offset from the current position without advancing the reader.</summary>
     public uint PeekBits(int count, int bitOffset = 0)
