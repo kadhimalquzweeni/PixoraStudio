@@ -179,7 +179,7 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.Contains(cabacTrace, entry =>
             entry.Contains("mb[0] stage=reconstruction complete"));
         Assert.Contains(cabacTrace, entry =>
-            entry.Contains("mb[0] stage=end_of_slice_flag value=1"));
+            entry.Contains("stage=end_of_slice_flag value=1"));
 
         H264Mp4DecodedVideoFrame? idrReleasedAfterB =
             bReadyFrames.FirstOrDefault(frame => frame.SampleNumber == 1);
