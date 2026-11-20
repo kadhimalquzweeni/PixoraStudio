@@ -58,6 +58,31 @@ public sealed class H264MotionVectorPictureState
             ReadCandidate(x - 1, y - 1, sliceId));
     }
 
+    /// <summary>
+    /// Resolves the A, B, C and D neighbours used by spatial direct prediction
+    /// for a macroblock. Unlike ordinary partition prediction, A and B are
+    /// adjacent to the macroblock's top-left 4x4 block, while C is the block
+    /// immediately above the macroblock to the right.
+    /// </summary>
+    public H264MotionVectorNeighbourCandidates GetSpatialDirectCandidates(
+        int macroblockX, int macroblockY, int sliceId)
+    {
+        if ((uint)macroblockX >= (uint)MacroblockWidth)
+            throw new ArgumentOutOfRangeException(nameof(macroblockX));
+        if ((uint)macroblockY >= (uint)MacroblockHeight)
+            throw new ArgumentOutOfRangeException(nameof(macroblockY));
+        if (sliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(sliceId));
+
+        int x = checked(macroblockX * 4);
+        int y = checked(macroblockY * 4);
+        return new H264MotionVectorNeighbourCandidates(
+            ReadCandidate(x - 1, y, sliceId),
+            ReadCandidate(x, y - 1, sliceId),
+            ReadCandidate(x + 4, y - 1, sliceId),
+            ReadCandidate(x - 1, y - 1, sliceId));
+    }
+
     /// <summary>Records an already reconstructed inter partition over its 4x4-block region.</summary>
     public void RecordInterPartition(
         int x, int y, int width, int height, int sliceId,
