@@ -869,6 +869,21 @@ public sealed class H264Mp4AvcEndToEndTests
         Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
         Assert.Empty(readers);
 
+        int failingFactoryCalls = 0;
+        H264Mp4AccessUnitDecoder failingDecoder = new(
+            parameterSets,
+            2,
+            (reader, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref failingFactoryCalls) == 1)
+                    throw new FormatException("Synthetic CABAC reader factory failure.");
+                while (!reader.IsByteAligned)
+                    _ = reader.ReadFlag();
+                _ = reader.ReadBits(9);
+                return new ScriptedCabacSliceDataReader([1], [1, 1]);
+            });
+        Assert.Throws<FormatException>(() => failingDecoder.Decode(idrSample));
+
         foreach (H264DecodedPictureSurface surface in
             new[] { pResult.Surface, bResult.Surface })
         {
