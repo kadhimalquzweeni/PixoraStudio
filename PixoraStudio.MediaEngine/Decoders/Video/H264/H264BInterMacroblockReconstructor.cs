@@ -382,13 +382,10 @@ public sealed class H264BInterMacroblockReconstructor
             H264ReferencePicture? reference1 = null;
             H264MotionVector? motion0 = null;
             H264MotionVector? motion1 = null;
-            int? referenceIndex0 = null;
-            int? referenceIndex1 = null;
             if (motionVectorStateL0.TryGetStoredMotionVector(x, y, out H264MotionVectorCandidate candidate0))
             {
                 if ((uint)candidate0.ReferenceIndex >= (uint)referencePictureLists.List0.Count)
                     throw new FormatException("A B inter list-0 reference index is outside RefPicList0.");
-                referenceIndex0 = candidate0.ReferenceIndex;
                 reference0 = referencePictureLists.List0[candidate0.ReferenceIndex];
                 motion0 = candidate0.MotionVector;
             }
@@ -396,15 +393,13 @@ public sealed class H264BInterMacroblockReconstructor
             {
                 if ((uint)candidate1.ReferenceIndex >= (uint)referencePictureLists.List1.Count)
                     throw new FormatException("A B inter list-1 reference index is outside RefPicList1.");
-                referenceIndex1 = candidate1.ReferenceIndex;
                 reference1 = referencePictureLists.List1[candidate1.ReferenceIndex];
                 motion1 = candidate1.MotionVector;
             }
 
             lumaBlocks[blockY * 4 + blockX] = new H264DeblockingBlockMetadata(
                 false, lumaNonZero[blockY * 4 + blockX],
-                reference0, motion0, reference1, motion1,
-                referenceIndex0, referenceIndex1);
+                reference0, motion0, reference1, motion1);
         }
 
         int chromaRows = sps.ChromaFormatIdc == 1 ? 2 : 4;
