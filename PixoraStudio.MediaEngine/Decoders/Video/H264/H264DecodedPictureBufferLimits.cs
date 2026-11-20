@@ -33,6 +33,16 @@ public static class H264DecodedPictureBufferLimits
             [62] = 696320
         };
 
+    private static readonly IReadOnlyDictionary<byte, uint> MaxFrameMacroblocksByLevel =
+        new Dictionary<byte, uint>
+        {
+            [9] = 99, [10] = 99, [11] = 396, [12] = 396, [13] = 396,
+            [20] = 396, [21] = 792, [22] = 1620, [30] = 1620,
+            [31] = 3600, [32] = 5120, [40] = 8192, [41] = 8192,
+            [42] = 8704, [50] = 22080, [51] = 36864, [52] = 36864,
+            [60] = 139264, [61] = 139264, [62] = 139264
+        };
+
     /// <summary>
     /// Returns MaxDpbFrames = min(floor(MaxDpbMbs / PicSizeInMbs), 16).
     /// H.264 infers max_num_reorder_frames to this value when the VUI
@@ -43,6 +53,7 @@ public static class H264DecodedPictureBufferLimits
         ArgumentNullException.ThrowIfNull(sps);
 
         uint maxDpbMbs = ResolveMaxDpbMacroblocks(sps);
+        uint maxFrameMacroblocks = ResolveMaxFrameMacroblocks(sps);
         ulong pictureSizeInMacroblocks;
         try
         {
@@ -55,7 +66,10 @@ public static class H264DecodedPictureBufferLimits
             throw new FormatException("The SPS coded picture dimensions overflow the supported macroblock geometry.", exception);
         }
 
-        if (pictureSizeInMacroblocks == 0 || pictureSizeInMacroblocks > maxDpbMbs)
+        if (pictureSizeInMacroblocks == 0 || pictureSizeInMacroblocks > maxFrameMacroblocks)
+            throw new FormatException(
+                "The coded picture dimensions exceed the maximum frame size for the SPS level.");
+        if (pictureSizeInMacroblocks > maxDpbMbs)
             throw new FormatException(
                 "The coded picture dimensions exceed the maximum decoded-picture buffer size for the SPS level.");
 
@@ -82,5 +96,23 @@ public static class H264DecodedPictureBufferLimits
                 $"H.264 level_idc {sps.LevelIdc} is not supported for DPB limit derivation.");
 
         return maxDpbMbs;
+    }
+
+    private static uint ResolveMaxFrameMacroblocks(H264SequenceParameterSet sps)
+    {
+        bool level1B =
+            (sps.LevelIdc == 9) ||
+            (sps.LevelIdc == 11 &&
+             (sps.ProfileIdc is 66 or 77 or 88) &&
+             (sps.ProfileCompatibility & 0x10) != 0);
+
+        if (level1B)
+            return 99;
+
+        if (!MaxFrameMacroblocksByLevel.TryGetValue(sps.LevelIdc, out uint maxFrameMacroblocks))
+            throw new NotSupportedException(
+                $"H.264 level_idc {sps.LevelIdc} is not supported for frame-size derivation.");
+
+        return maxFrameMacroblocks;
     }
 }
