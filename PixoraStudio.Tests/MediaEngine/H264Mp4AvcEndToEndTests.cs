@@ -165,7 +165,7 @@ public sealed class H264Mp4AvcEndToEndTests
             diagnosticDecoder.Decode(CreateCabacSample(
                 configuration, 2, 1, 2, false, CabacHighPNal));
             diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 3, 2, 1, false, CabacHighBNal));
+                configuration, 3, 2, 1, false, CabacHighBNalWithCabacZeroWord));
         }
         finally
         {
@@ -189,7 +189,7 @@ public sealed class H264Mp4AvcEndToEndTests
         [
             CreateCabacEncodedSample(1, 0, 0, true, CabacHighIdrNal),
             CreateCabacEncodedSample(2, 1, 2, false, CabacHighPNal),
-            CreateCabacEncodedSample(3, 2, 1, false, CabacHighBNal)
+            CreateCabacEncodedSample(3, 2, 1, false, CabacHighBNalWithCabacZeroWord)
         ];
 
         H264Mp4DecodedVideoFrame[] frames =
@@ -676,6 +676,8 @@ public sealed class H264Mp4AvcEndToEndTests
         "QZooY/9yn0SPzY16GSB3PotxZVpBk5r+pqTPwOdzGXytUe2FWi68k6w/oXrH7qVvunAwGPDk53CkLbFLUTwcB+fYGijqugWyyPnGAin6dgoT+dCGNvl6J/B8WodgLN22doK/vrhaesmyjB/NBguKB2LC6g9Cp09rXvsDbRC7U6VyKXmPSjrn//1FT5t08gGfZotfecHayLsVnRQlD0waipOzNcaPN5q3WGZoollgMjEnA5zA";
     private const string CabacHighBNal =
         "AZ5EH/VWm9AhsQdup4QrrYywnEqonJ35YkSVomFW7PUms/dQzBntHQMTetHfIZS32gWkn9XW+KDDkPyW+cP5nV6sEbFKyteLK2TXARPT16Ip";
+    private const string CabacHighBNalWithCabacZeroWord =
+        "AZ5EH/VWm9AhsQdup4QrrYywnEqonJ35YkSVomFW7PUms/dQzBntHQMTetHfIZS32gWkn9XW+KDDkPyW+cP5nV6sEbFKyteLK2TXARPT16IpAAA=";
 
     private const string CabacMainAvcC =
         "AU1ACv/hABZnTUAK9ktgIgAAAwACAAADAAweJEpwAQAEaO4PyA==";
