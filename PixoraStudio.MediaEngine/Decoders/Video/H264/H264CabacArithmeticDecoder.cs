@@ -63,6 +63,18 @@ public sealed class H264CabacArithmeticDecoder
     public int DecodeDecision(ref H264CabacContextModel context)
     {
         ValidateContext(context);
+        return DecodeDecisionCore(ref context);
+    }
+
+    /// <summary>
+    /// Decodes a decision for a context owned by the slice reader. The owner
+    /// validates the context index and initialization before calling this path.
+    /// </summary>
+    internal int DecodeDecisionUnchecked(ref H264CabacContextModel context) =>
+        DecodeDecisionCore(ref context);
+
+    private int DecodeDecisionCore(ref H264CabacContextModel context)
+    {
         int qRangeIndex = (_range >> 6) & 3;
         int rangeLps = _rangeLps[(context.State << 2) | qRangeIndex];
         _range -= rangeLps;
@@ -95,7 +107,7 @@ public sealed class H264CabacArithmeticDecoder
     /// <summary>Decodes a bypass bin without adapting a probability context.</summary>
     public int DecodeBypass()
     {
-        _offset = checked((_offset << 1) | _reader.ReadBit());
+        _offset = (_offset << 1) | _reader.ReadBit();
         if (_offset >= _range)
         {
             _offset -= _range;
