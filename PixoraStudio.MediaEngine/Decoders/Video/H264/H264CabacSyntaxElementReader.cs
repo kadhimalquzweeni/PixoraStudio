@@ -59,14 +59,12 @@ public sealed class H264CabacSyntaxElementReader
         int chromaCbpValue = 0;
         if (chromaCbpFlag == 1)
         {
-            int chromaContext = contextBase + (isIntraSlice ? 5 : 4);
+            int chromaContext = contextBase + 5;
             chromaCbpValue = ReadFlagAtContext(chromaContext) ? 1 : 0;
         }
 
-        int predictionModeHigh = ReadFlagAtContext(
-            contextBase + (isIntraSlice ? 6 : 5)) ? 1 : 0;
-        int predictionModeLow = ReadFlagAtContext(
-            contextBase + (isIntraSlice ? 7 : 5)) ? 1 : 0;
+        int predictionModeHigh = ReadFlagAtContext(contextBase + 6) ? 1 : 0;
+        int predictionModeLow = ReadFlagAtContext(contextBase + 7) ? 1 : 0;
 
         return 1 + (12 * lumaCbpFlag) +
             (chromaCbpFlag == 1 ? 4 + (4 * chromaCbpValue) : 0) +
