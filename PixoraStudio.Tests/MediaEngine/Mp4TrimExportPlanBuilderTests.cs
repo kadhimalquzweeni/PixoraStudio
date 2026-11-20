@@ -48,7 +48,7 @@ public sealed class Mp4TrimExportPlanBuilderTests
     {
         Mp4TrimExportPlan plan = _builder.Build(CreateMediaInfo(), 3.2, 4.7);
 
-        Mp4TrimTrackPlan video = Assert.Single(plan.Tracks.Where(track => track.HandlerType == Mp4HandlerType.Video));
+        Mp4TrimTrackPlan video = Assert.Single(plan.Tracks, track => track.HandlerType == Mp4HandlerType.Video);
         Assert.Equal(7u, video.FirstSampleNumber);
         Assert.Equal(10u, video.LastSampleNumber);
         Assert.Equal(5.0, plan.EffectiveEndSeconds);
