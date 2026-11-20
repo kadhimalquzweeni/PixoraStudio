@@ -141,6 +141,22 @@ public sealed class H264DecodedPictureSurface
         return _decoded[GetMacroblockIndex(macroblockX, macroblockY)];
     }
 
+    /// <summary>
+    /// Returns undecoded macroblock addresses in raster-scan order. This is
+    /// intended for decoder diagnostics when a slice set leaves picture gaps.
+    /// </summary>
+    public IReadOnlyList<uint> GetUndecodedMacroblockAddresses()
+    {
+        List<uint> addresses = [];
+        for (int index = 0; index < _decoded.Length; index++)
+        {
+            if (!_decoded[index])
+                addresses.Add(checked((uint)index));
+        }
+
+        return addresses;
+    }
+
     public bool IsMacroblockAvailable(
         int macroblockX,
         int macroblockY,
