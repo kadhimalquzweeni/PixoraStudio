@@ -14,8 +14,13 @@ public sealed class H264CabacArithmeticDecoder
     private int _offset;
 
     public H264CabacArithmeticDecoder(H264BitReader reader)
-        : this(reader, H264CabacTables.RangeLps, H264CabacTables.TransitionMps, H264CabacTables.TransitionLps)
     {
+        ArgumentNullException.ThrowIfNull(reader);
+        _reader = reader;
+        _rangeLps = H264CabacTables.FlattenedRangeLps;
+        _transMps = H264CabacTables.TransitionMps;
+        _transLps = H264CabacTables.TransitionLps;
+        InitializeArithmeticState();
     }
 
     public H264CabacArithmeticDecoder(
@@ -48,9 +53,7 @@ public sealed class H264CabacArithmeticDecoder
             _rangeLps[(state << 2) | q] = rangeLps[state, q];
         _transMps = (byte[])transMps.Clone();
         _transLps = (byte[])transLps.Clone();
-        _offset = checked((int)reader.ReadBits(9));
-        if (_offset >= _range)
-            throw new FormatException("The initial CABAC offset must be less than 510.");
+        InitializeArithmeticState();
     }
 
     public int Range => _range;
@@ -116,11 +119,17 @@ public sealed class H264CabacArithmeticDecoder
         if (_range >= 256)
             return;
 
-        // CABAC ranges are positive and below 256 here. Read all required
-        // renormalisation bits in one operation instead of looping per bit.
-        int shift = System.Numerics.BitOperations.LeadingZeroCount((uint)_range) - 23;
+        // A single table lookup replaces the per-bin leading-zero calculation.
+        int shift = H264CabacTables.RenormalizationShift[_range];
         _range <<= shift;
         _offset = (_offset << shift) | (int)_reader.ReadBits(shift);
+    }
+
+    private void InitializeArithmeticState()
+    {
+        _offset = (int)_reader.ReadBits(9);
+        if (_offset >= _range)
+            throw new FormatException("The initial CABAC offset must be less than 510.");
     }
 
     private static void ValidateContext(H264CabacContextModel context)
