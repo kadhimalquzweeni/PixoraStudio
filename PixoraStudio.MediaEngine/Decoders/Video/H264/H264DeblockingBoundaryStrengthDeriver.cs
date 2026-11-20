@@ -22,33 +22,36 @@ public static class H264DeblockingBoundaryStrengthDeriver
             return 2;
 
         bool sameDirectOrder =
-            MatchesList(p.ReferenceIndexL0, p.MotionVectorL0,
-                q.ReferenceIndexL0, q.MotionVectorL0) &&
-            MatchesList(p.ReferenceIndexL1, p.MotionVectorL1,
-                q.ReferenceIndexL1, q.MotionVectorL1);
+            MatchesList(p.ReferencePictureL0, p.MotionVectorL0,
+                q.ReferencePictureL0, q.MotionVectorL0) &&
+            MatchesList(p.ReferencePictureL1, p.MotionVectorL1,
+                q.ReferencePictureL1, q.MotionVectorL1);
         if (sameDirectOrder)
             return 0;
 
         bool swappedBiPredictionOrder =
-            MatchesList(p.ReferenceIndexL0, p.MotionVectorL0,
-                q.ReferenceIndexL1, q.MotionVectorL1) &&
-            MatchesList(p.ReferenceIndexL1, p.MotionVectorL1,
-                q.ReferenceIndexL0, q.MotionVectorL0);
+            MatchesList(p.ReferencePictureL0, p.MotionVectorL0,
+                q.ReferencePictureL1, q.MotionVectorL1) &&
+            MatchesList(p.ReferencePictureL1, p.MotionVectorL1,
+                q.ReferencePictureL0, q.MotionVectorL0);
         return swappedBiPredictionOrder ? 0 : 1;
     }
 
     private static bool MatchesList(
-        int? pReferenceIndex,
+        H264ReferencePicture? pReference,
         H264MotionVector? pMotion,
-        int? qReferenceIndex,
+        H264ReferencePicture? qReference,
         H264MotionVector? qMotion)
     {
-        if (pReferenceIndex != qReferenceIndex)
-            return false;
-        if (pReferenceIndex is null)
-            return pMotion is null && qMotion is null;
+        if (pReference is null || qReference is null)
+            return pReference is null && qReference is null &&
+                pMotion is null && qMotion is null;
 
-        if (pMotion is not H264MotionVector pVector ||
+        // Reference identity is not determined by POC alone: distinct
+        // short-/long-term pictures can share a POC while remaining different
+        // entries in the decoded reference-picture set.
+        if (pReference != qReference ||
+            pMotion is not H264MotionVector pVector ||
             qMotion is not H264MotionVector qVector)
             return false;
 
