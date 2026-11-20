@@ -34,6 +34,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     private CancellationTokenSource? _decodeCancellation;
     private Task? _decodeTask;
 
+    public H264Mp4FrameNavigationTarget? LastPresentedFrame { get; private set; }
+
     public bool IsActive => _mediaInfo is not null && _decodeCancellation is not null;
 
     /// <summary>
@@ -114,6 +116,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             _playbackClock = playbackClock;
             _frameReady = frameReady;
             _failed = failed;
+            LastPresentedFrame = null;
 
             await StartDecodeAsync(0, cancellationToken).ConfigureAwait(false);
             return true;
@@ -137,7 +140,59 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         try
         {
             await StopDecodeTaskAsync().ConfigureAwait(false);
+            LastPresentedFrame = null;
             await StartDecodeAsync(positionSeconds, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Restarts decoding at a specific MP4 sample and guarantees that the
+    /// requested presentation frame is published even while the playback
+    /// clock is paused. Later frames remain queued against the normal clock.
+    /// </summary>
+    public async Task SeekToFrameAsync(
+        H264Mp4FrameNavigationTarget target,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        Mp4MediaInfo? info = _mediaInfo;
+        if (info is null || _filePath is null)
+            return;
+
+        Mp4MediaTrack track = info.GetTrack(_trackId) ??
+            throw new InvalidOperationException("The active MP4 video track is unavailable.");
+        if (target.Timescale != track.Timescale ||
+            target.SampleNumber == 0 ||
+            target.SampleNumber > track.SampleCount)
+        {
+            throw new ArgumentException(
+                "The frame target does not belong to the active MP4 video track.",
+                nameof(target));
+        }
+
+        Mp4SampleLocation sample = track.SampleLocations.Samples[
+            checked((int)target.SampleNumber - 1)];
+        if (sample.SampleNumber != target.SampleNumber ||
+            sample.PresentationTimeTicks != target.PresentationTimeTicks)
+        {
+            throw new ArgumentException(
+                "The frame target timestamp does not match its MP4 sample.",
+                nameof(target));
+        }
+
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await StopDecodeTaskAsync().ConfigureAwait(false);
+            LastPresentedFrame = null;
+            await StartDecodeAsync(
+                target.PresentationTimeSeconds,
+                target.SampleNumber,
+                cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -157,6 +212,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             _frameReady = null;
             _failed = null;
             _trackId = 0;
+            LastPresentedFrame = null;
         }
         finally
         {
@@ -164,12 +220,21 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         }
     }
 
-    private Task StartDecodeAsync(double startSeconds, CancellationToken cancellationToken)
+    private Task StartDecodeAsync(
+        double startSeconds,
+        CancellationToken cancellationToken) =>
+        StartDecodeAsync(startSeconds, null, cancellationToken);
+
+    private Task StartDecodeAsync(
+        double startSeconds,
+        uint? firstFrameSampleNumber,
+        CancellationToken cancellationToken)
     {
         CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _decodeCancellation = linked;
         _decodeTask = Task.Run(
-            () => RunDecodePipelineAsync(startSeconds, linked.Token),
+            () => RunDecodePipelineAsync(
+                startSeconds, firstFrameSampleNumber, linked.Token),
             CancellationToken.None);
         return Task.CompletedTask;
     }
@@ -181,6 +246,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     /// </summary>
     private async Task RunDecodePipelineAsync(
         double startSeconds,
+        uint? firstFrameSampleNumber,
         CancellationToken cancellationToken)
     {
         try
@@ -198,7 +264,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             Task decodeTask = DecodeFramesAsync(
                 path, info, _trackId, startSeconds, buffer, cancellationToken);
             Task presentationTask = PresentFramesAsync(
-                buffer, clock, publish, cancellationToken);
+                buffer, clock, publish, firstFrameSampleNumber, cancellationToken);
 
             await Task.WhenAll(decodeTask, presentationTask).ConfigureAwait(false);
         }
@@ -224,11 +290,12 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         try
         {
             using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            IEnumerable<H264Mp4DecodedVideoFrame> frames = startSeconds <= 0
-                ? _decoder.Decode(stream, info, trackId, cancellationToken: cancellationToken)
-                : _decoder.DecodeFromTime(
-                    stream, info, trackId, startSeconds,
-                    cancellationToken: cancellationToken);
+            IEnumerable<H264Mp4DecodedVideoFrame> frames =
+                startSeconds <= 0 && _decodeCancellation?.IsCancellationRequested == false
+                    ? _decoder.Decode(stream, info, trackId, cancellationToken: cancellationToken)
+                    : _decoder.DecodeFromTime(
+                        stream, info, trackId, startSeconds,
+                        cancellationToken: cancellationToken);
 
             foreach (H264Mp4DecodedVideoFrame frame in frames)
             {
@@ -251,8 +318,10 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         H264Mp4DecodedFrameBuffer buffer,
         Func<double> playbackClock,
         Action<BitmapSource> publish,
+        uint? firstFrameSampleNumber,
         CancellationToken cancellationToken)
     {
+        bool waitingForRequestedFrame = firstFrameSampleNumber.HasValue;
         try
         {
             await foreach (H264Mp4DecodedVideoFrame frame in
@@ -260,8 +329,24 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (waitingForRequestedFrame)
+                {
+                    if (frame.SourceSample.SampleNumber != firstFrameSampleNumber)
+                        continue;
+
+                    waitingForRequestedFrame = false;
+                }
+
                 H264FramePresentationDecision decision;
-                while (true)
+                if (firstFrameSampleNumber.HasValue &&
+                    frame.SourceSample.SampleNumber == firstFrameSampleNumber.Value)
+                {
+                    decision = new H264FramePresentationDecision(
+                        H264FramePresentationAction.Present, TimeSpan.Zero);
+                }
+                else
+                {
+                    while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     decision = _presentationScheduler.Evaluate(
@@ -270,7 +355,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                     if (decision.Action != H264FramePresentationAction.Wait)
                         break;
 
-                    await Task.Delay(decision.Delay, cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(decision.Delay, cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 if (decision.Action == H264FramePresentationAction.Drop)
@@ -285,6 +371,10 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                     bgra.Width, bgra.Height, 96, 96,
                     PixelFormats.Bgra32, null, bgra.Pixels, bgra.Stride);
                 bitmap.Freeze();
+                LastPresentedFrame = new H264Mp4FrameNavigationTarget(
+                    frame.SourceSample.SampleNumber,
+                    frame.SourceSample.PresentationTimeTicks,
+                    frame.SourceSample.Timescale);
                 publish(bitmap);
             }
         }
