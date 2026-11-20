@@ -172,11 +172,12 @@ public sealed class H264Mp4AvcEndToEndTests
         // reconstruction through the MP4 access-unit pipeline.
         Assert.Equal(H264SliceType.B, bResult.SliceHeader.SliceType);
         Assert.Contains(cabacTrace, entry =>
-            entry.Contains("mb[0] header skip=False intra=False pcm=False"));
+            entry.Contains("mb[0] header skip=False intra=False pcm=False mb_type=2"));
         Assert.Contains(cabacTrace, entry =>
-            entry.Contains("mb[0] stage=inter-prediction-syntax complete"));
+            entry.Contains("mb[0] stage=inter-prediction-syntax complete") &&
+            entry.Contains("directions=List1"));
         Assert.Contains(cabacTrace, entry =>
-            entry.Contains("mb[0] stage=residual-syntax complete"));
+            entry.Contains("mb[0] stage=residual-syntax complete cbp_luma=15 cbp_chroma=2"));
         Assert.Contains(cabacTrace, entry =>
             entry.Contains("mb[0] stage=residual-coefficients complete"));
         Assert.Contains(cabacTrace, entry =>
