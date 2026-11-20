@@ -363,6 +363,8 @@ public partial class VideoEditorView : UserControl
                         ManagedVideoFrame.Source = bitmap;
                         ManagedVideoFrame.Visibility = Visibility.Visible;
                         _lastDisplayedFrame = presentedFrame;
+                        if (DataContext is VideoEditorViewModel previewVm)
+                            previewVm.CanStepFrames = true;
 
                         if (_pendingFrameStepTarget is not null &&
                             _pendingFrameStepTarget == presentedFrame)
@@ -388,7 +390,8 @@ public partial class VideoEditorView : UserControl
                 cancellationToken);
 
             if (DataContext is VideoEditorViewModel loadedVm)
-                loadedVm.CanStepFrames = _usesManagedH264Video;
+                loadedVm.CanStepFrames =
+                    _usesManagedH264Video && _lastDisplayedFrame is not null;
 
             if (!_usesManagedH264Video)
                 ManagedVideoFrame.Visibility = Visibility.Collapsed;
