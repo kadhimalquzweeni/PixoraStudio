@@ -189,16 +189,20 @@ public sealed class H264DecodedPictureOutputScheduler
                 throw new FormatException("VUI bitstream restrictions must include max_num_reorder_frames and max_dec_frame_buffering.");
             if (reorderFrames > 16 || buffering > 16)
                 throw new FormatException("VUI picture buffering values exceed the supported DPB limit.");
+            int levelMaximum = H264DecodedPictureBufferLimits.ResolveMaxDpbFrames(sps);
+            if (buffering > levelMaximum)
+                throw new FormatException(
+                    "VUI max_dec_frame_buffering exceeds the maximum decoded-picture buffer size for the SPS level and dimensions.");
             if (reorderFrames > buffering)
                 throw new FormatException("VUI max_num_reorder_frames cannot exceed max_dec_frame_buffering.");
             return checked((int)reorderFrames);
         }
 
-        int levelMaximum = H264DecodedPictureBufferLimits.ResolveMaxDpbFrames(sps);
         if (fallback is < 0 or > 16)
             throw new ArgumentOutOfRangeException(nameof(fallback));
         if (fallback is int suppliedFallback)
         {
+            int levelMaximum = H264DecodedPictureBufferLimits.ResolveMaxDpbFrames(sps);
             if (suppliedFallback > levelMaximum)
                 throw new FormatException(
                     "The supplied reorder limit exceeds the maximum decoded-picture buffer size for the SPS level and dimensions.");
