@@ -17,7 +17,8 @@ public sealed class Mp4MediaDataWriter
         Stream source,
         Stream destination,
         IEnumerable<Mp4TrimTrackPlan> trackPlans,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<double>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(destination);
@@ -52,6 +53,10 @@ public sealed class Mp4MediaDataWriter
 
         byte[] buffer = new byte[CopyBufferSize];
         Dictionary<uint, IReadOnlyList<ulong>> offsetsByTrack = [];
+        ulong totalBytes = plans.SelectMany(plan => plan.Samples)
+            .Aggregate(0UL, (total, sample) => checked(total + sample.Size));
+        ulong copiedBytes = 0;
+        progress?.Report(totalBytes == 0 ? 1 : 0);
 
         foreach (Mp4TrimTrackPlan plan in plans)
         {
@@ -80,6 +85,8 @@ public sealed class Mp4MediaDataWriter
                     source.ReadExactly(buffer.AsSpan(0, count));
                     destination.Write(buffer, 0, count);
                     remaining -= (uint)count;
+                    copiedBytes = checked(copiedBytes + (uint)count);
+                    progress?.Report(totalBytes == 0 ? 1 : (double)copiedBytes / totalBytes);
                 }
             }
 
@@ -93,6 +100,7 @@ public sealed class Mp4MediaDataWriter
         BinaryPrimitives.WriteUInt64BigEndian(sizeBytes, boxSize);
         destination.Write(sizeBytes);
         destination.Position = end;
+        progress?.Report(1);
 
         return new Mp4MediaDataWriteResult(
             checked((ulong)boxStart),
