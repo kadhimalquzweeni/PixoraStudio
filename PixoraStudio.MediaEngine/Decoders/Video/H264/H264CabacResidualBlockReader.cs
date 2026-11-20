@@ -146,7 +146,10 @@ public sealed class H264CabacResidualBlockReader
         ValidateContextIncrements(lastSignificantContextIncrements, nameof(lastSignificantContextIncrements));
 
         int[] coefficients = new int[maximumCoefficients];
-        bool[] significant = new bool[maximumCoefficients];
+        // A residual block is at most 64 coefficients. Keep its significance
+        // map on the stack instead of allocating a second array per block.
+        Span<bool> significant = stackalloc bool[64];
+        significant.Clear();
         int finalPosition = endIndex;
 
         for (int position = startIndex; position < endIndex; position++)
