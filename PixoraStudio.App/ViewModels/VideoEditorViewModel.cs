@@ -412,63 +412,63 @@ public partial class VideoEditorViewModel : ObservableObject
         if (_videoInfo == null || _videoInfo.Duration <= TimeSpan.Zero)
             return;
 
-        const int frameCount = 20;
+        IReadOnlyList<TimeSpan> positions =
+            VideoThumbnailPlan.CreatePositions(_videoInfo.Duration);
 
-        for (int i = 0; i < frameCount; i++)
+        using SemaphoreSlim concurrency = new(
+            VideoThumbnailPlan.MaxConcurrentGenerations);
+
+        async Task<BitmapImage?> GenerateFrameAsync(int index)
         {
-            double fraction = (double)i / frameCount;
-
-            TimeSpan position = TimeSpan.FromMilliseconds(
-                _videoInfo.Duration.TotalMilliseconds * fraction);
-
             string thumbnailPath = Path.Combine(
                 Path.GetTempPath(),
                 $"Pixora_Frame_{Guid.NewGuid()}.png");
 
             try
             {
+                await concurrency.WaitAsync();
+
                 string generatedPath =
                     await _videoService.GenerateThumbnailAsync(
                         filePath,
-                        position,
+                        positions[index],
                         thumbnailPath);
 
                 if (string.IsNullOrWhiteSpace(generatedPath) ||
                     !File.Exists(generatedPath))
                 {
-                    continue;
+                    return null;
                 }
 
-                BitmapImage frame;
-
-                // Read the image into memory and close the file.
-                using (FileStream stream = new FileStream(
-                    generatedPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.ReadWrite))
+                return await Task.Run(() =>
                 {
-                    frame = new BitmapImage();
+                    using FileStream stream = new(
+                        generatedPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite);
 
+                    BitmapImage frame = new();
                     frame.BeginInit();
                     frame.CacheOption = BitmapCacheOption.OnLoad;
                     frame.DecodePixelWidth = 240;
                     frame.StreamSource = stream;
                     frame.EndInit();
-
                     frame.Freeze();
-                }
-
-                VideoFrames.Add(frame);
+                    return frame;
+                });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
-                    $"Thumbnail {i} failed: {ex.Message}");
+                    $"Thumbnail {index} failed: {ex.Message}");
+                return null;
             }
             finally
             {
-                // Give the process a moment to release any remaining file handle.
+                if (concurrency.CurrentCount < VideoThumbnailPlan.MaxConcurrentGenerations)
+                    concurrency.Release();
+
                 if (File.Exists(thumbnailPath))
                 {
                     try
@@ -482,6 +482,18 @@ public partial class VideoEditorViewModel : ObservableObject
                     }
                 }
             }
+        }
+
+        // Decode a small number of representative frames concurrently rather
+        // than serially seeking/decoding twenty times. Keep collection updates
+        // on the UI thread and preserve chronological filmstrip order.
+        BitmapImage?[] frames = await Task.WhenAll(
+            Enumerable.Range(0, positions.Count).Select(GenerateFrameAsync));
+
+        foreach (BitmapImage? frame in frames)
+        {
+            if (frame is not null)
+                VideoFrames.Add(frame);
         }
     }
 }
