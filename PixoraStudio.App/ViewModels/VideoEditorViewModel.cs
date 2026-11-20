@@ -424,9 +424,11 @@ public partial class VideoEditorViewModel : ObservableObject
                 Path.GetTempPath(),
                 $"Pixora_Frame_{Guid.NewGuid()}.png");
 
+            bool acquired = false;
             try
             {
                 await concurrency.WaitAsync();
+                acquired = true;
 
                 string generatedPath =
                     await _videoService.GenerateThumbnailAsync(
@@ -466,7 +468,7 @@ public partial class VideoEditorViewModel : ObservableObject
             }
             finally
             {
-                if (concurrency.CurrentCount < VideoThumbnailPlan.MaxConcurrentGenerations)
+                if (acquired)
                     concurrency.Release();
 
                 if (File.Exists(thumbnailPath))
