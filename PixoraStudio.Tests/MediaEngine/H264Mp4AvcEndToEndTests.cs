@@ -147,6 +147,29 @@ public sealed class H264Mp4AvcEndToEndTests
             new H264AvcParameterSetCollectionReader().Read(configuration);
         Assert.True(parameterSets.PictureParameterSets[0].Transform8X8ModeFlag);
 
+        List<string> highProfileCabacTrace = [];
+        H264Mp4AccessUnitDecoder diagnosticDecoder = new(
+            parameterSets,
+            2,
+            (reader, qpY, isIntra, cabacInitIdc) =>
+                new TracingCabacSliceDataReader(
+                    new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
+                    highProfileCabacTrace));
+        string testResultsDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
+        Directory.CreateDirectory(testResultsDirectory);
+        try
+        {
+            diagnosticDecoder.Decode(CreateCabacSample(
+                configuration, 1, 0, 0, true, CabacHighIdrNal));
+        }
+        finally
+        {
+            File.WriteAllLines(
+                Path.Combine(testResultsDirectory, "cabac-high-profile-idr-trace.txt"),
+                highProfileCabacTrace);
+        }
+
         Mp4CodecConfiguration codecConfiguration = new(
             Mp4VideoCodec.Avc, "avcC", avcC, 1,
             configuration.Profile, configuration.Compatibility,
