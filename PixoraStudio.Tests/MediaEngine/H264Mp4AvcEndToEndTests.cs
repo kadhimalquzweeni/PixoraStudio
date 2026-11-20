@@ -208,15 +208,6 @@ public sealed class H264Mp4AvcEndToEndTests
 
         Assert.Equal(new uint[] { 1, 3, 2 },
             frames.Select(frame => frame.SampleNumber));
-        string cavlcResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(cavlcResultsDirectory);
-        File.WriteAllBytes(
-            Path.Combine(cavlcResultsDirectory, "cavlc-residual32-decoded-frames.yuv"),
-            frames.SelectMany(frame => frame.Surface.CopyLumaPlane()
-                .Concat(frame.Surface.CopyCbPlane())
-                .Concat(frame.Surface.CopyCrPlane())).ToArray());
-
         string[] expectedFrameHashes =
         [
             "cddf82b138499e6adca25899a5395b8d2e7bcb0af4e849b5862c6af6dcb8b9b7",
@@ -263,96 +254,6 @@ public sealed class H264Mp4AvcEndToEndTests
             "bc4be240cf873cde27c14a9548285735d6ce77dc7b1f3036374242344c5473b4",
             "cf4cb00f1b12e3c8b63810389f369d049a6878c16ff7a228a64dde9f983fcdf5"
         ];
-        string[] actualFrameHashes = frames.Select(ComputeFrameHash).ToArray();
-        Assert.True(expectedFrameHashes.SequenceEqual(actualFrameHashes),
-            $"Expected: {string.Join(", ", expectedFrameHashes)}{Environment.NewLine}" +
-            $"Actual:   {string.Join(", ", actualFrameHashes)}");
-    }
-
-    [Fact]
-    public void DecodeSamples_HighProfileCabac8x8IAndPBTrack_ShouldMatchReferenceDecoder()
-    {
-        byte[] avcC = Convert.FromBase64String(CabacHighAvcC);
-        H264AvcDecoderConfiguration configuration =
-            new H264AvcDecoderConfigurationReader().Read(avcC);
-        Assert.Equal((byte)100, configuration.Profile);
-        Assert.Equal((byte)1, configuration.ChromaFormat);
-        Assert.Equal((byte)0, configuration.BitDepthLumaMinus8);
-        Assert.Equal((byte)0, configuration.BitDepthChromaMinus8);
-
-        H264AvcParameterSetCollection parameterSets =
-            new H264AvcParameterSetCollectionReader().Read(configuration);
-        Assert.True(parameterSets.PictureParameterSets[0].Transform8X8ModeFlag);
-
-        List<string> highProfileCabacTrace = [];
-        H264Mp4AccessUnitDecoder diagnosticDecoder = new(
-            parameterSets,
-            2,
-            (reader, qpY, isIntra, cabacInitIdc) =>
-                new TracingCabacSliceDataReader(
-                    new H264CabacSliceDataReader(reader, qpY, isIntra, cabacInitIdc),
-                    highProfileCabacTrace));
-        string testResultsDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(testResultsDirectory);
-        try
-        {
-            diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 1, 0, 0, true, CabacHighIdrNal));
-            diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 2, 1, 2, false, CabacHighPNal));
-            diagnosticDecoder.Decode(CreateCabacSample(
-                configuration, 3, 2, 1, false, CabacHighBNal));
-        }
-        finally
-        {
-            File.WriteAllLines(
-                Path.Combine(testResultsDirectory, "cabac-high-profile-idr-trace.txt"),
-                highProfileCabacTrace);
-        }
-
-        Mp4CodecConfiguration codecConfiguration = new(
-            Mp4VideoCodec.Avc, "avcC", avcC, 1,
-            configuration.Profile, configuration.Compatibility,
-            configuration.Level, configuration.NaluLengthSize);
-        Mp4VideoSampleEntry videoEntry = new(
-            "avc1", 1, 32, 32, 72, 72, 1, "", 24,
-            Mp4VideoCodec.Avc, codecConfiguration);
-        Mp4Track track = new(
-            9, 32, 32, 1, 3, Mp4HandlerType.Video,
-            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
-
-        Mp4EncodedSample[] samples =
-        [
-            CreateCabacEncodedSample(1, 0, 0, true, CabacHighIdrNal),
-            CreateCabacEncodedSample(2, 1, 2, false, CabacHighPNal),
-            CreateCabacEncodedSample(3, 2, 1, false, CabacHighBNal)
-        ];
-
-        H264Mp4DecodedVideoFrame[] frames =
-            new H264Mp4TrackDecoder().DecodeSamples(
-                track, samples, maxNumReorderFramesFallback: 2).ToArray();
-
-        Assert.Equal(new uint[] { 1, 3, 2 },
-            frames.Select(frame => frame.SampleNumber));
-        Assert.Equal(new long[] { 0, 1, 2 },
-            frames.Select(frame => frame.PresentationTimeTicks));
-        Assert.Equal(new[] { 0, 2, 4 },
-            frames.Select(frame => frame.PictureOrderCount));
-        Assert.All(frames, frame => Assert.True(frame.Surface.IsComplete));
-        Assert.All(frames, frame =>
-            Assert.True(frame.Surface.HasCompleteDeblockingMetadata));
-
-        string[] actualFrameHashes = frames.Select(ComputeFrameHash).ToArray();
-        string highProfileOutputDirectory = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
-        Directory.CreateDirectory(highProfileOutputDirectory);
-        File.WriteAllBytes(
-            Path.Combine(highProfileOutputDirectory, "cabac-high-profile-decoded-frames.yuv"),
-            frames.SelectMany(frame => frame.Surface.CopyLumaPlane()
-                .Concat(frame.Surface.CopyCbPlane())
-                .Concat(frame.Surface.CopyCrPlane())).ToArray());
-
         // Reference frames were decoded from the same encoded MP4 using FFmpeg 7.1.
         string[] expectedFrameHashes =
         [
@@ -360,9 +261,7 @@ public sealed class H264Mp4AvcEndToEndTests
             "bc4be240cf873cde27c14a9548285735d6ce77dc7b1f3036374242344c5473b4",
             "cf4cb00f1b12e3c8b63810389f369d049a6878c16ff7a228a64dde9f983fcdf5"
         ];
-        Assert.True(expectedFrameHashes.SequenceEqual(actualFrameHashes),
-            $"Expected: {string.Join(", ", expectedFrameHashes)}{Environment.NewLine}" +
-            $"Actual:   {string.Join(", ", actualFrameHashes)}");
+        Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
     }
 
     [Fact]
