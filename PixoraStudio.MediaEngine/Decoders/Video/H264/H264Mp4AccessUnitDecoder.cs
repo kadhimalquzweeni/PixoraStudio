@@ -212,8 +212,10 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface, motionStateL0, motionStateL1,
                     new H264BInterMacroblockReconstructor(), _cabacReaderFactory);
             }
-            else if (firstSlice.SliceType == H264SliceType.I)
+            else if (firstSlice.SliceType == H264SliceType.I && slices.Count == 1)
             {
+                // A multi-slice I picture creates one isolated decoder per
+                // slice below; do not allocate an unused picture-wide decoder.
                 if (activePps.EntropyCodingModeFlag)
                 {
                     cabacIntraDecoder = new H264CabacIntraSliceDataDecoder(surface, _cabacReaderFactory);
