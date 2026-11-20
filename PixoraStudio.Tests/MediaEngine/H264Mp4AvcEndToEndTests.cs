@@ -180,6 +180,49 @@ public sealed class H264Mp4AvcEndToEndTests
     }
 
     [Fact]
+    public void DecodeSamples_MainProfileResidual32IAndPBTrack_ShouldMatchReferenceDecoder()
+    {
+        byte[] avcC = Convert.FromBase64String(CabacMainResidual32AvcC);
+        H264AvcDecoderConfiguration configuration =
+            new H264AvcDecoderConfigurationReader().Read(avcC);
+        Mp4CodecConfiguration codecConfiguration = new(
+            Mp4VideoCodec.Avc, "avcC", avcC, 1,
+            configuration.Profile, configuration.Compatibility,
+            configuration.Level, configuration.NaluLengthSize);
+        Mp4VideoSampleEntry videoEntry = new(
+            "avc1", 1, 32, 32, 72, 72, 1, "", 24,
+            Mp4VideoCodec.Avc, codecConfiguration);
+        Mp4Track track = new(
+            8, 32, 32, 1, 3, Mp4HandlerType.Video,
+            [new Mp4SampleDescription(1, "avc1", video: videoEntry)]);
+        Mp4EncodedSample[] samples =
+        [
+            CreateCabacEncodedSample(1, 0, 0, true, CabacMainResidual32IdrNal),
+            CreateCabacEncodedSample(2, 1, 2, false, CabacMainResidual32PNal),
+            CreateCabacEncodedSample(3, 2, 1, false, CabacMainResidual32BNal)
+        ];
+
+        H264Mp4DecodedVideoFrame[] frames =
+            new H264Mp4TrackDecoder().DecodeSamples(
+                track, samples, maxNumReorderFramesFallback: 2).ToArray();
+
+        Assert.Equal(new uint[] { 1, 3, 2 },
+            frames.Select(frame => frame.SampleNumber));
+        Assert.Equal(new[] { 0, 2, 4 },
+            frames.Select(frame => frame.PictureOrderCount));
+        string[] expectedFrameHashes =
+        [
+            "260b4b535a3e952ce61f23b57e98d1649dc4c4f7d711cdc2c8385f5cb6358855",
+            "bc4be240cf873cde27c14a9548285735d6ce77dc7b1f3036374242344c5473b4",
+            "cf4cb00f1b12e3c8b63810389f369d049a6878c16ff7a228a64dde9f983fcdf5"
+        ];
+        string[] actualFrameHashes = frames.Select(ComputeFrameHash).ToArray();
+        Assert.True(expectedFrameHashes.SequenceEqual(actualFrameHashes),
+            $"Expected: {string.Join(", ", expectedFrameHashes)}{Environment.NewLine}" +
+            $"Actual:   {string.Join(", ", actualFrameHashes)}");
+    }
+
+    [Fact]
     public void DecodeSamples_HighProfileCabac8x8IAndPBTrack_ShouldMatchReferenceDecoder()
     {
         byte[] avcC = Convert.FromBase64String(CabacHighAvcC);
