@@ -69,6 +69,21 @@ public sealed class H264CabacSliceDataReaderTests
     }
 
     [Fact]
+    public void DecodeBin_ShouldUpdateTheSliceOwnedContextModelInPlace()
+    {
+        H264CabacSliceDataReader reader = CreateReader(isIntra: true);
+        H264CabacContextModel before = reader.GetContextModel(0);
+
+        int bin = reader.DecodeBin(0);
+
+        H264CabacContextModel after = reader.GetContextModel(0);
+        Assert.InRange(bin, 0, 1);
+        Assert.NotEqual(before, after);
+        Assert.InRange(after.State, 0, 63);
+        Assert.InRange(after.MostProbableSymbol, 0, 1);
+    }
+
+    [Fact]
     public void DecodeTerminate_ShouldMarkReaderTerminatedAndRejectFurtherBins()
     {
         H264CabacSliceDataReader reader = new(
