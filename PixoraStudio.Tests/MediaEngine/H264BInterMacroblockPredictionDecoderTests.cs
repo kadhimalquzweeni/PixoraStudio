@@ -25,6 +25,24 @@ public sealed class H264BInterMacroblockPredictionDecoderTests
     }
 
     [Fact]
+    public void DecodeAndPredict_List1Only_ShouldUseSelectedBackwardReference()
+    {
+        H264DecodedPictureSurface reference0 = CreateSurface(1, 31);
+        H264DecodedPictureSurface reference1 = CreateSurface(1, 59);
+        H264BReferencePictureLists metadata = new(
+            [new H264ReferencePicture(0, -2)], [new H264ReferencePicture(1, 4)]);
+        H264ReconstructedBInterSubPartition partition = new(
+            0, 0, 0, 0, 4, 4, null, 0, null, new H264MotionVector(0, 0));
+
+        H264BInterMacroblockPrediction result = Assert.Single(
+            new H264BInterMacroblockPredictionDecoder().DecodeAndPredict(
+                [partition], [reference0], [reference1], metadata,
+                1, 0, 0));
+
+        Assert.All(result.Prediction.Luma, value => Assert.Equal((byte)59, value));
+    }
+
+    [Fact]
     public void DecodeAndPredict_BiPrediction_ShouldCombineBothListsAndAssembleMacroblock()
     {
         H264DecodedPictureSurface reference0 = CreateSurface(1, 40);
