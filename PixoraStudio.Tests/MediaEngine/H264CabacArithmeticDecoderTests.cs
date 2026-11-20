@@ -115,14 +115,19 @@ public sealed class H264CabacArithmeticDecoderTests
         Assert.Equal(new H264CabacContextModel(0, 1), context);
     }
 
+    public static IEnumerable<object[]> RenormalizationCases()
+    {
+        for (int rangeLps = 2; rangeLps <= 240; rangeLps++)
+        {
+            int expectedShift = 0;
+            for (int normalized = rangeLps; normalized < 256; normalized <<= 1)
+                expectedShift++;
+            yield return new object[] { rangeLps, expectedShift };
+        }
+    }
+
     [Theory]
-    [InlineData(2, 7)]
-    [InlineData(3, 7)]
-    [InlineData(63, 3)]
-    [InlineData(127, 2)]
-    [InlineData(128, 1)]
-    [InlineData(239, 1)]
-    [InlineData(240, 1)]
+    [MemberData(nameof(RenormalizationCases))]
     public void DecodeDecision_ShouldReadAllRenormalisationBitsInOneBatch(int rangeLps, int expectedShift)
     {
         byte[,] rangeTable = new byte[64, 4];
