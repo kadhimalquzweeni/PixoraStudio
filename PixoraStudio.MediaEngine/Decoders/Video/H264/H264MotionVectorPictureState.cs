@@ -41,9 +41,10 @@ public sealed class H264MotionVectorPictureState
     /// <summary>
     /// Resolves A (left), B (above), C (above-right), and D (above-left)
     /// candidates for a current partition. Neighbours outside the picture,
-    /// not yet decoded, intra-coded, or belonging to another slice are
-    /// unavailable. D is returned separately; the predictor applies it only
-    /// when C is unavailable.
+    /// not yet decoded, or belonging to another slice are unavailable.
+    /// Intra-coded neighbours are returned with reference index -1 so they
+    /// remain distinct from unavailable neighbours. D is returned separately;
+    /// the predictor applies it only when C is unavailable.
     /// </summary>
     public H264MotionVectorNeighbourCandidates GetCandidates(
         int x, int y, int width, int height, int sliceId)
