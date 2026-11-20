@@ -243,6 +243,7 @@ public sealed class H264DecodedPictureSurface
 
         try
         {
+            _deblockingMetadata[index] = null;
             int lumaX = macroblockX * 16;
             int lumaY = macroblockY * 16;
             CopyBlock(luma, _luma, Width, lumaX, lumaY, 16, 16);
@@ -254,7 +255,6 @@ public sealed class H264DecodedPictureSurface
 
             _sliceIds[index] = sliceId;
             _intra[index] = isIntra;
-            _deblockingMetadata[index] = null;
             Volatile.Write(ref _macroblockStates[index], 2);
         }
         catch
