@@ -107,10 +107,10 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
                 $"CABAC context index {contextIndex} is not defined for this slice type.",
                 nameof(contextIndex));
 
-        H264CabacContextModel context = _contexts[contextIndex];
-        int bin = _arithmeticDecoder.DecodeDecision(ref context);
-        _contexts[contextIndex] = context;
-        return bin;
+        // Context models live in this slice-owned array. Decode in place to
+        // avoid copying the two-int struct out and back for every CABAC bin.
+        ref H264CabacContextModel context = ref _contexts[contextIndex];
+        return _arithmeticDecoder.DecodeDecisionUnchecked(ref context);
     }
 
     public int DecodeBypass()
