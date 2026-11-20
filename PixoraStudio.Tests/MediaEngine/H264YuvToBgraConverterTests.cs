@@ -87,6 +87,27 @@ public sealed class H264YuvToBgraConverterTests
     }
 
     [Fact]
+    public void Convert_ShouldNotModifyDecodedYuvPlanes()
+    {
+        H264SequenceParameterSet sps = Sps(1, fullRange: false, matrix: 6);
+        H264DecodedPictureSurface surface = Surface(
+            sps,
+            Enumerable.Range(0, 256).Select(value => (byte)value).ToArray(),
+            Enumerable.Repeat((byte)100, 64).ToArray(),
+            Enumerable.Repeat((byte)150, 64).ToArray());
+
+        byte[] lumaBefore = surface.CopyLumaPlane();
+        byte[] cbBefore = surface.CopyCbPlane();
+        byte[] crBefore = surface.CopyCrPlane();
+
+        _ = new H264YuvToBgraConverter().Convert(surface, sps);
+
+        Assert.Equal(lumaBefore, surface.CopyLumaPlane());
+        Assert.Equal(cbBefore, surface.CopyCbPlane());
+        Assert.Equal(crBefore, surface.CopyCrPlane());
+    }
+
+    [Fact]
     public void Convert_ShouldRejectIncompleteSurface()
     {
         H264SequenceParameterSet sps = Sps(1, false, 6);
