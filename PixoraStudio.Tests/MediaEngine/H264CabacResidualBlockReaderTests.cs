@@ -69,6 +69,14 @@ public sealed class H264CabacResidualBlockReaderTests
 
         Assert.Equal(new[] { -2, 1, 0 }, coefficients);
         Assert.Equal(new[] { 105, 166, 106, 167, 228, 229, 232 }, bins.ContextIndices);
+        Assert.Equal(
+            new[]
+            {
+                "decision:105", "decision:166", "decision:106", "decision:167",
+                "decision:228", "bypass",
+                "decision:229", "decision:232", "bypass"
+            },
+            bins.Operations);
     }
 
     [Fact]
@@ -359,14 +367,20 @@ public sealed class H264CabacResidualBlockReaderTests
 
         public List<int> ContextIndices { get; } = [];
         public List<string> Diagnostics { get; } = [];
+        public List<string> Operations { get; } = [];
         public void TraceDiagnostic(string marker) => Diagnostics.Add(marker);
 
         public int DecodeBin(int contextIndex)
         {
             ContextIndices.Add(contextIndex);
+            Operations.Add($"decision:{contextIndex}");
             return _decisionBins.Dequeue();
         }
-        public int DecodeBypass() => _bypassBins.Dequeue();
+        public int DecodeBypass()
+        {
+            Operations.Add("bypass");
+            return _bypassBins.Dequeue();
+        }
         public int DecodeTerminate() => throw new InvalidOperationException();
         public void MarkTerminated() => throw new InvalidOperationException();
     }
