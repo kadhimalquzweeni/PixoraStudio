@@ -11,6 +11,7 @@ public sealed class H264DecodedPictureOutputScheduler
 {
     private readonly H264PictureOrderCountCalculator _pocCalculator;
     private readonly H264DecodedPictureOutputQueue _outputQueue;
+    private readonly Action<H264DecodedPictureSurface>? _beforeDeblocking;
 
     public H264DecodedPictureOutputScheduler()
         : this(new H264PictureOrderCountCalculator(), new H264DecodedPictureOutputQueue())
@@ -20,11 +21,27 @@ public sealed class H264DecodedPictureOutputScheduler
     public H264DecodedPictureOutputScheduler(
         H264PictureOrderCountCalculator pocCalculator,
         H264DecodedPictureOutputQueue outputQueue)
+        : this(pocCalculator, outputQueue, null)
+    {
+    }
+
+    internal H264DecodedPictureOutputScheduler(
+        Action<H264DecodedPictureSurface> beforeDeblocking)
+        : this(new H264PictureOrderCountCalculator(),
+            new H264DecodedPictureOutputQueue(), beforeDeblocking)
+    {
+    }
+
+    private H264DecodedPictureOutputScheduler(
+        H264PictureOrderCountCalculator pocCalculator,
+        H264DecodedPictureOutputQueue outputQueue,
+        Action<H264DecodedPictureSurface>? beforeDeblocking)
     {
         ArgumentNullException.ThrowIfNull(pocCalculator);
         ArgumentNullException.ThrowIfNull(outputQueue);
         _pocCalculator = pocCalculator;
         _outputQueue = outputQueue;
+        _beforeDeblocking = beforeDeblocking;
     }
 
     public int PendingCount => _outputQueue.PendingCount;
@@ -118,7 +135,8 @@ public sealed class H264DecodedPictureOutputScheduler
             throw new InvalidOperationException(
                 "A picture must have complete deblocking metadata before presentation output.");
         if (!surface.IsDeblockingFilterApplied)
-            H264DeblockingPictureFilter.Apply(surface);
+            _beforeDeblocking?.Invoke(surface);
+        H264DeblockingPictureFilter.Apply(surface);
     }
 
     private static void ValidateOutputContext(
