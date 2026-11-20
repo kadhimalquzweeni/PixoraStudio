@@ -92,7 +92,7 @@ public sealed class H264CabacArithmeticDecoder
     /// <summary>Decodes a bypass bin without adapting a probability context.</summary>
     public int DecodeBypass()
     {
-        _offset = checked((_offset << 1) | (int)_reader.ReadBits(1));
+        _offset = checked((_offset << 1) | _reader.ReadBit());
         if (_offset >= _range)
         {
             _offset -= _range;
