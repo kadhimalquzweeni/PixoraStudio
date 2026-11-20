@@ -203,7 +203,7 @@ public static class H264IntraChromaResidualReconstructor
             else
             {
                 // Table 8-305: inverse raster scan for the 2x4 DC coefficient array.
-                int[] source = dcResidual.Coefficients.ToArray();
+                IReadOnlyList<int> source = dcResidual.Coefficients;
                 levels =
                 [
                     source[0], source[2],
@@ -236,7 +236,7 @@ public static class H264IntraChromaResidualReconstructor
             int qpDc = qpPrimeC + 3;
             int qpDiv6 = qpDc / 6;
             int qpMod6 = qpDc % 6;
-            long dcScale = (long)LevelScale[0, qpMod6] * scalingList0;
+            long dcScale = (long)LevelScale[0, qpMod6] * scalingList[0];
             for (int i = 0; i < count; i++)
             {
                 long product = checked((long)transformed[i] * dcScale);
@@ -256,7 +256,12 @@ public static class H264IntraChromaResidualReconstructor
             throw new ArgumentException($"The residual block must contain exactly {capacity} coefficient levels.", parameterName);
         if (residual.TotalCoefficients < 0 || residual.TotalCoefficients > capacity)
             throw new FormatException("The residual TotalCoeff is outside the block capacity.");
-        if (residual.Coefficients.Count(value => value != 0) != residual.TotalCoefficients)
+
+        int nonZeroCount = 0;
+        for (int i = 0; i < capacity; i++)
+            if (residual.Coefficients[i] != 0)
+                nonZeroCount++;
+        if (nonZeroCount != residual.TotalCoefficients)
             throw new FormatException("The residual TotalCoeff does not match the number of non-zero coefficient levels.");
     }
 
