@@ -129,7 +129,7 @@ public sealed class H264Mp4AvcEndToEndTests
             "9884d66af8fd0c7362e124d32535382232ac3f6147c3aac2253ab904bc946303",
             "e65b186f669f54288e84fe4dfd3b8891a0f1b01109110a999d1ee511d5cc3a9c"
         ];
-        Assert.True(expectedFrameHashes.SequenceEqual(actualFrameHashes),\n            $\"Expected: {string.Join(\", \", expectedFrameHashes)}{Environment.NewLine}\" +\n            $\"Actual:   {string.Join(\", \", actualFrameHashes)}\");
+        Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
     }
 
     [Fact]
@@ -270,7 +270,9 @@ public sealed class H264Mp4AvcEndToEndTests
             "bc4be240cf873cde27c14a9548285735d6ce77dc7b1f3036374242344c5473b4",
             "cf4cb00f1b12e3c8b63810389f369d049a6878c16ff7a228a64dde9f983fcdf5"
         ];
-        Assert.Equal(expectedFrameHashes, frames.Select(ComputeFrameHash));
+        Assert.True(expectedFrameHashes.SequenceEqual(actualFrameHashes),
+            $"Expected: {string.Join(", ", expectedFrameHashes)}{Environment.NewLine}" +
+            $"Actual:   {string.Join(", ", actualFrameHashes)}");
     }
 
     [Fact]
