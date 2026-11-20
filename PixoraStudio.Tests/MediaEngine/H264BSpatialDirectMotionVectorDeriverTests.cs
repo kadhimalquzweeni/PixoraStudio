@@ -56,9 +56,9 @@ public sealed class H264BSpatialDirectMotionVectorDeriverTests
             list0, list1,
             macroblockX: 1, macroblockY: 1,
             partitionX: 0, partitionY: 0,
-            partitionWidth: 1, partitionHeight: 1,
+            partitionWidth: 2, partitionHeight: 2,
             macroblockPartitionIndex: 0, sliceId: 0,
-            direct8x8InferenceFlag: false);
+            direct8x8InferenceFlag: true);
 
         H264ReconstructedBInterSubPartition partition = Assert.Single(result);
         Assert.Equal(1, partition.ReferenceIndexL0);
@@ -91,13 +91,13 @@ public sealed class H264BSpatialDirectMotionVectorDeriverTests
     [Fact]
     public void Derive_WhenOnlyOneListHasCandidates_ShouldLeaveOtherListUnused()
     {
-        H264MotionVectorPictureState list0 = new(2, 2);
-        H264MotionVectorPictureState list1 = new(2, 2);
-        Record(list0, 0, 0, 0, 12, -6);
+        H264MotionVectorPictureState list0 = new(3, 3);
+        H264MotionVectorPictureState list1 = new(3, 3);
+        Record(list0, 3, 4, 0, 12, -6);
 
         IReadOnlyList<H264ReconstructedBInterSubPartition> result = _deriver.Derive(
             list0, list1,
-            macroblockX: 1, macroblockY: 0,
+            macroblockX: 1, macroblockY: 1,
             partitionX: 0, partitionY: 0,
             partitionWidth: 2, partitionHeight: 2,
             macroblockPartitionIndex: 0, sliceId: 0,
@@ -140,6 +140,6 @@ public sealed class H264BSpatialDirectMotionVectorDeriverTests
         int horizontal,
         int vertical) =>
         state.RecordInterPartition(
-            x, y, 1, 1, sliceId: 0, referenceIndex,
-            new H264MotionVector(horizontal, vertical));
+            x, y, 1, 1, sliceId: 0, referenceIndex: referenceIndex,
+            motionVector: new H264MotionVector(horizontal, vertical));
 }
