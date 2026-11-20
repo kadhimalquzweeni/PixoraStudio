@@ -14,7 +14,7 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
     private bool _terminated;
     private const int MaximumDiagnosticMarkers = 512;
     private const int PreservedInitialDiagnosticMarkers = 256;
-    private readonly List<string> _diagnosticTrace = [];
+    private readonly List<string>? _diagnosticTrace;
     private readonly bool _enableDiagnosticTrace;
 
     public H264CabacSliceDataReader(
@@ -32,6 +32,7 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
 
         _reader = reader;
         _enableDiagnosticTrace = enableDiagnosticTrace;
+        _diagnosticTrace = enableDiagnosticTrace ? [] : null;
 
         // cabac_alignment_one_bit consists of one bits up to the next byte boundary.
         while (!reader.IsByteAligned)
@@ -55,15 +56,15 @@ public sealed class H264CabacSliceDataReader : IH264CabacSliceDataReader, IH264C
 
     /// <summary>Most recent syntax annotations, retained for failure diagnostics.</summary>
     public IReadOnlyList<string> DiagnosticTrace =>
-        _enableDiagnosticTrace ? _diagnosticTrace.ToArray() : Array.Empty<string>();
+        _diagnosticTrace?.ToArray() ?? Array.Empty<string>();
 
     public void TraceDiagnostic(string marker)
     {
+        ArgumentNullException.ThrowIfNull(marker);
         if (!_enableDiagnosticTrace)
             return;
 
-        ArgumentNullException.ThrowIfNull(marker);
-        if (_diagnosticTrace.Count == MaximumDiagnosticMarkers)
+        if (_diagnosticTrace!.Count == MaximumDiagnosticMarkers)
             _diagnosticTrace.RemoveAt(PreservedInitialDiagnosticMarkers);
         _diagnosticTrace.Add(marker);
     }
