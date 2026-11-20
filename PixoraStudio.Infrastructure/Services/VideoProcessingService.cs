@@ -13,11 +13,6 @@ namespace PixoraStudio.Infrastructure.Services;
 /// </summary>
 public sealed class VideoProcessingService : IVideoProcessingService
 {
-    private readonly Mp4FileReader _fileReader = new();
-    private readonly H264Mp4TrackDecoder _videoDecoder = new();
-    private readonly H264AvcParameterSetCollectionReader _parameterSetReader = new();
-    private readonly H264YuvToBgraConverter _colourConverter = new();
-
     public Task<VideoInfo> GetVideoInfoAsync(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -28,7 +23,7 @@ public sealed class VideoProcessingService : IVideoProcessingService
         {
             using FileStream stream = new(
                 filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var mediaInfo = _fileReader.Read(stream);
+            var mediaInfo = new Mp4FileReader().Read(stream);
             return Mp4VideoInfoMapper.Map(mediaInfo, filePath);
         });
     }
@@ -49,13 +44,15 @@ public sealed class VideoProcessingService : IVideoProcessingService
         {
             using FileStream stream = new(
                 filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var mediaInfo = _fileReader.Read(stream);
+            var mediaInfo = new Mp4FileReader().Read(stream);
             var videoTrack = mediaInfo.GetTracks(
                 PixoraStudio.MediaEngine.Models.General.Mp4HandlerType.Video)
                 .FirstOrDefault()
                 ?? throw new NotSupportedException("The MP4 file does not contain a video track.");
 
-            var frame = _videoDecoder.DecodeFromTime(
+            // Each thumbnail owns its decoder state so bounded parallel
+            // filmstrip generation cannot race through shared decoder objects.
+            var frame = new H264Mp4TrackDecoder().DecodeFromTime(
                     stream,
                     mediaInfo,
                     videoTrack.TrackId,
@@ -63,12 +60,12 @@ public sealed class VideoProcessingService : IVideoProcessingService
                 .FirstOrDefault()
                 ?? throw new InvalidDataException("The managed H.264 decoder could not produce a frame at the requested position.");
 
-            var parameterSets = _parameterSetReader.Read(
+            var parameterSets = new H264AvcParameterSetCollectionReader().Read(
                 frame.SourceSample.Configuration);
             var sps = parameterSets.SequenceParameterSets.Values.FirstOrDefault()
                 ?? throw new InvalidDataException("The AVC configuration does not contain a usable sequence parameter set.");
 
-            H264BgraFrame bgra = _colourConverter.Convert(frame.Surface, sps);
+            H264BgraFrame bgra = new H264YuvToBgraConverter().Convert(frame.Surface, sps);
             string fullOutputPath = Path.GetFullPath(outputPath);
             Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
 
