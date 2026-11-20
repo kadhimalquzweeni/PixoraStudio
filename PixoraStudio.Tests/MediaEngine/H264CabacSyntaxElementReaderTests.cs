@@ -93,17 +93,17 @@ public sealed class H264CabacSyntaxElementReaderTests
         ScriptedCabacReader bins = new(new[] { 1, 0, 0 });
         H264CabacSyntaxElementReader reader = new(bins);
 
-        Assert.Equal(4, reader.ReadRemainingIntraPredictionMode());
+        Assert.Equal(1, reader.ReadRemainingIntraPredictionMode());
         Assert.Equal(new[] { 69, 69, 69 }, bins.ContextIndices);
     }
 
     [Fact]
-    public void ReadRemainingIntraPredictionMode_ShouldPreserveMostSignificantBitOrder()
+    public void ReadRemainingIntraPredictionMode_ShouldDecodeLeastSignificantBitFirst()
     {
         ScriptedCabacReader bins = new(new[] { 0, 0, 1 });
         H264CabacSyntaxElementReader reader = new(bins);
 
-        Assert.Equal(1, reader.ReadRemainingIntraPredictionMode());
+        Assert.Equal(4, reader.ReadRemainingIntraPredictionMode());
     }
 
     [Fact]
