@@ -45,4 +45,70 @@ public sealed class VideoProcessingServiceTests
             File.Delete(filePath);
         }
     }
+    [Fact]
+    public async Task GenerateThumbnailsAsync_ShouldRejectMismatchedPositionsAndPaths()
+    {
+        VideoProcessingService service = new();
+        string filePath = Path.GetTempFileName();
+
+        try
+        {
+            Assert.Throws<ArgumentException>(() =>
+                service.GenerateThumbnailsAsync(
+                    filePath,
+                    [TimeSpan.Zero, TimeSpan.FromSeconds(1)],
+                    [Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png")]));
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    [Fact]
+    public async Task GenerateThumbnailsAsync_ShouldRejectUnsortedPositions()
+    {
+        VideoProcessingService service = new();
+        string filePath = Path.GetTempFileName();
+
+        try
+        {
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                service.GenerateThumbnailsAsync(
+                    filePath,
+                    [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1)],
+                    [
+                        Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png"),
+                        Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png")
+                    ]));
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    [Fact]
+    public async Task GenerateThumbnailsAsync_ShouldHonorCancellationBeforeDecoding()
+    {
+        VideoProcessingService service = new();
+        string filePath = Path.GetTempFileName();
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+
+        try
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                service.GenerateThumbnailsAsync(
+                    filePath,
+                    [TimeSpan.Zero],
+                    [Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png")],
+                    cancellationToken: cancellation.Token));
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
 }
