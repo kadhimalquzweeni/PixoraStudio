@@ -229,18 +229,34 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     }
 
     [Fact]
-    public void Enqueue_ShouldRequireFallbackWhenVuiDoesNotSignalReorderLimit()
+    public void Enqueue_ShouldInferReorderLimitFromLevelWhenVuiRestrictionIsAbsent()
     {
         H264SequenceParameterSet sps = new(
             0, 66, 30, 1, false, 0, 0, 0, 0, 0, 1,
             0, 0, true, true, 16, 16, false);
-        Assert.Throws<NotSupportedException>(() =>
-            new H264DecodedPictureOutputScheduler().Enqueue(
-                Surface(sps, 1), sps, Slice(0, 0), 1));
+        H264DecodedPictureOutputScheduler scheduler = new();
+
+        Assert.Empty(scheduler.Enqueue(
+            Surface(sps, 1), sps, Slice(0, 0), 1));
+        Assert.Equal(1, scheduler.PendingCount);
+        Assert.Equal(0, Assert.Single(scheduler.Flush()).PictureOrderCount);
+
         H264DecodedPictureOutput immediate = Assert.Single(
             new H264DecodedPictureOutputScheduler().Enqueue(
                 Surface(sps, 1), sps, Slice(0, 0), 1, 0));
         Assert.Equal(0, immediate.PictureOrderCount);
+    }
+
+    [Fact]
+    public void Enqueue_ShouldRejectFallbackAboveLevelDpbLimit()
+    {
+        H264SequenceParameterSet sps = new(
+            0, 66, 10, 1, false, 0, 0, 0, 0, 0, 1,
+            0, 0, true, true, 16, 16, false);
+
+        Assert.Throws<FormatException>(() =>
+            new H264DecodedPictureOutputScheduler().Enqueue(
+                Surface(sps, 1), sps, Slice(0, 0), 1, 2));
     }
 
     private static H264SequenceParameterSet SpsWithReorderLimit(
