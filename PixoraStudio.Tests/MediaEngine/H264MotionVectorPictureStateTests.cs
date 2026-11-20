@@ -218,7 +218,7 @@ public sealed class H264MotionVectorPictureStateTests
         Assert.Equal(
             new H264MotionVectorCandidate(2, new H264MotionVector(12, -4)),
             merged);
-        Assert.False(destination.TryGetStoredMotionVector(4, 0, out _));
+        Assert.False(destination.TryGetStoredMotionVector(1, 0, out _));
     }
 
     [Fact]
@@ -236,7 +236,7 @@ public sealed class H264MotionVectorPictureStateTests
 
         Assert.False(destination.TryGetStoredMotionVector(0, 0, out _));
         Assert.True(destination.TryGetStoredMotionVector(
-            4, 0, out H264MotionVectorCandidate existing));
+            1, 0, out H264MotionVectorCandidate existing));
         Assert.Equal(
             new H264MotionVectorCandidate(3, new H264MotionVector(-8, 6)),
             existing);
