@@ -113,17 +113,17 @@ public partial class VideoEditorViewModel : ObservableObject
 
     public async Task LoadVideoAsync(string filePath)
     {
-        _thumbnailCancellation?.Cancel();
-        _thumbnailCancellation?.Dispose();
-        CancellationTokenSource thumbnailCancellation = new();
-        _thumbnailCancellation = thumbnailCancellation;
-        CancellationToken thumbnailToken = thumbnailCancellation.Token;
-
         if (!File.Exists(filePath))
         {
             ErrorMessage = "The selected video file does not exist.";
             return;
         }
+
+        _thumbnailCancellation?.Cancel();
+        _thumbnailCancellation?.Dispose();
+        CancellationTokenSource thumbnailCancellation = new();
+        _thumbnailCancellation = thumbnailCancellation;
+        CancellationToken thumbnailToken = thumbnailCancellation.Token;
 
         try
         {
@@ -511,4 +511,5 @@ public partial class VideoEditorViewModel : ObservableObject
             System.Diagnostics.Debug.WriteLine(
                 $"Could not delete thumbnail: {ex.Message}");
         }
-    }}
+    }
+}
