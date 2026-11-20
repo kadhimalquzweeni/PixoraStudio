@@ -252,11 +252,11 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     {
         H264SequenceParameterSet sps = new(
             0, 66, 10, 1, false, 0, 0, 0, 0, 0, 1,
-            0, 0, true, true, 16, 16, false);
+            4, 4, true, true, 80, 80, false);
 
         Assert.Throws<FormatException>(() =>
             new H264DecodedPictureOutputScheduler().Enqueue(
-                Surface(sps, 1), sps, Slice(0, 0), 1, 2));
+                Surface(sps, 1), sps, Slice(0, 0), 1, 16));
     }
 
     private static H264SequenceParameterSet SpsWithReorderLimit(
@@ -275,18 +275,22 @@ public sealed class H264DecodedPictureOutputSchedulerTests
     private static H264DecodedPictureSurface Surface(H264SequenceParameterSet sps, byte value)
     {
         H264DecodedPictureSurface surface = new(sps);
-        surface.WriteMacroblock(0, 0, 0, false,
-            Enumerable.Repeat(value, 256).ToArray(),
-            Enumerable.Repeat(value, 64).ToArray(),
-            Enumerable.Repeat(value, 64).ToArray());
         H264DeblockingBlockMetadata intra =
             new(true, false, null, null, null, null);
-        surface.SetDeblockingMetadata(0, 0,
-            new H264DeblockingMacroblockMetadata(
-                30, 30, 30, 0, 0, 0, true,
+        H264DeblockingMacroblockMetadata metadata =
+            new(30, 30, 30, 0, 0, 0, true,
                 Enumerable.Repeat(intra, 16).ToArray(),
                 Enumerable.Repeat(intra, 4).ToArray(),
-                Enumerable.Repeat(intra, 4).ToArray()));
+                Enumerable.Repeat(intra, 4).ToArray());
+        for (int y = 0; y < surface.MacroblockHeight; y++)
+        for (int x = 0; x < surface.MacroblockWidth; x++)
+        {
+            surface.WriteMacroblock(x, y, 0, false,
+                Enumerable.Repeat(value, 256).ToArray(),
+                Enumerable.Repeat(value, 64).ToArray(),
+                Enumerable.Repeat(value, 64).ToArray());
+            surface.SetDeblockingMetadata(x, y, metadata);
+        }
         return surface;
     }
 
