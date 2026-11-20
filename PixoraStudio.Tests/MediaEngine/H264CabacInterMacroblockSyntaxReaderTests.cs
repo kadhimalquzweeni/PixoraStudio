@@ -168,6 +168,40 @@ public sealed class H264CabacInterMacroblockSyntaxReaderTests
     }
 
     [Fact]
+    public void ReadBSlice_ShouldDecodeList0Forward16x16Partition()
+    {
+        ScriptedCabacReader bins = new(new[] { 0, 0 });
+        H264CabacMotionVectorNeighbourContext context = new();
+
+        H264BMacroblockSyntax syntax = new H264CabacInterMacroblockSyntaxReader()
+            .ReadBSlice(new H264CabacSyntaxElementReader(bins), CreateHeader(1),
+                0, 0, 0, 0, 1, context);
+
+        H264BPredictionPartition partition = Assert.Single(syntax.Partitions);
+        Assert.Equal(H264BPredictionDirection.List0, partition.Direction);
+        Assert.NotNull(partition.SubPartitions[0].MotionVectorDifferenceL0);
+        Assert.Null(partition.SubPartitions[0].MotionVectorDifferenceL1);
+        Assert.Equal(new[] { 40, 47 }, bins.ContextIndices);
+    }
+
+    [Fact]
+    public void ReadBSlice_ShouldDecodeList1Backward16x16Partition()
+    {
+        ScriptedCabacReader bins = new(new[] { 0, 0 });
+        H264CabacMotionVectorNeighbourContext context = new();
+
+        H264BMacroblockSyntax syntax = new H264CabacInterMacroblockSyntaxReader()
+            .ReadBSlice(new H264CabacSyntaxElementReader(bins), CreateHeader(2),
+                0, 0, 0, 0, 1, context);
+
+        H264BPredictionPartition partition = Assert.Single(syntax.Partitions);
+        Assert.Equal(H264BPredictionDirection.List1, partition.Direction);
+        Assert.Null(partition.SubPartitions[0].MotionVectorDifferenceL0);
+        Assert.NotNull(partition.SubPartitions[0].MotionVectorDifferenceL1);
+        Assert.Equal(new[] { 40, 47 }, bins.ContextIndices);
+    }
+
+    [Fact]
     public void ReadBSlice_ShouldDecodeBiDirectional16x16Partition()
     {
         ScriptedCabacReader bins = new(new[] { 0, 0, 0, 0 });
