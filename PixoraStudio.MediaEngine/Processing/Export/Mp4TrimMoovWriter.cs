@@ -182,6 +182,12 @@ public sealed class Mp4TrimMoovWriter
         IReadOnlyList<ulong> chunkOffsets,
         bool force64BitChunkOffsets)
     {
+        Mp4Box[] sampleTables = mediaInformationBox.Children
+            .Where(box => box.Type == "stbl")
+            .ToArray();
+        if (sampleTables.Length != 1)
+            throw new Mp4ParsingException($"Track {plan.TrackId} must contain exactly one stbl box.");
+
         _boxWriter.WriteBox(destination, "minf", minf =>
         {
             foreach (Mp4Box child in mediaInformationBox.Children)
@@ -191,6 +197,16 @@ public sealed class Mp4TrimMoovWriter
                     _treeWriter.Write(source, minf, [child]);
                     continue;
                 }
+
+                string[] supportedSampleTableBoxes =
+                [
+                    "stsd", "stts", "stsc", "stsz", "stco", "co64", "stss", "ctts", "free"
+                ];
+                string? unsupportedBox = child.Children
+                    .Select(box => box.Type)
+                    .FirstOrDefault(type => !supportedSampleTableBoxes.Contains(type));
+                if (unsupportedBox is not null)
+                    throw new NotSupportedException($"Track {plan.TrackId} uses unsupported sample-table box '{unsupportedBox}'.");
 
                 Mp4Box stsd = child.Children.SingleOrDefault(box => box.Type == "stsd")
                     ?? throw new Mp4ParsingException($"Track {plan.TrackId} is missing its stsd box.");
