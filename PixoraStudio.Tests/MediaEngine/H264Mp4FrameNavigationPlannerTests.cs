@@ -166,6 +166,25 @@ public sealed class H264Mp4FrameNavigationPlannerTests
     }
 
     [Fact]
+    public void FindAdjacentFrame_FromExactSample_ShouldStepAcrossDuplicatePresentationTimestamps()
+    {
+        Mp4MediaTrack track = CreateTrack(
+            Sample(1, 0, 40),
+            Sample(2, 40, 40),
+            Sample(3, 80, 40, compositionOffset: -40),
+            Sample(4, 120, 40));
+
+        H264Mp4FrameNavigationTarget current = new(3, 40, 1000);
+        H264Mp4FrameNavigationTarget? previous = _planner.FindAdjacentFrame(
+            track, current, H264Mp4FrameNavigationDirection.Previous);
+        H264Mp4FrameNavigationTarget? next = _planner.FindAdjacentFrame(
+            track, current, H264Mp4FrameNavigationDirection.Next);
+
+        Assert.Equal(2u, previous?.SampleNumber);
+        Assert.Equal(4u, next?.SampleNumber);
+    }
+
+    [Fact]
     public void FindAdjacentFrame_PreviousMayReturnNegativePresentationTimestamp()
     {
         Mp4MediaTrack track = CreateTrack(
