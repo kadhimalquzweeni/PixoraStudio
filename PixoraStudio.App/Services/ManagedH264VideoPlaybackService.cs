@@ -16,6 +16,8 @@ namespace PixoraStudio.App.Services;
 /// </summary>
 public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 {
+    private const int DecodeBufferCapacity = 3;
+
     private readonly H264Mp4FramePresentationScheduler _presentationScheduler = new();
     private readonly H264YuvToBgraConverter _converter = new();
     private readonly H264Mp4TrackDecoder _decoder = new();
@@ -58,8 +60,11 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                 Mp4MediaInfo info = new Mp4FileReader().Read(stream);
                 Mp4MediaTrack? track = info.GetTracks(Mp4HandlerType.Video)
                     .FirstOrDefault(candidate => candidate.Track.SampleDescriptions.Any(description =>
-                        description.Video is { Codec: PixoraStudio.MediaEngine.Models.Video.Mp4VideoCodec.Avc,
-                            CodecConfiguration: not null } video &&
+                        description.Video is
+                        {
+                            Codec: PixoraStudio.MediaEngine.Models.Video.Mp4VideoCodec.Avc,
+                            CodecConfiguration: not null
+                        } video &&
                         (video.Format is "avc1" or "avc3")));
                 return track is null ? null : (info, track.TrackId);
             }, cancellationToken).ConfigureAwait(false);
@@ -142,27 +147,94 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _decodeCancellation = linked;
         _decodeTask = Task.Run(
-            () => DecodeFramesAsync(startSeconds, linked.Token),
+            () => RunDecodePipelineAsync(startSeconds, linked.Token),
             CancellationToken.None);
         return Task.CompletedTask;
     }
 
-    private async Task DecodeFramesAsync(double startSeconds, CancellationToken cancellationToken)
+    /// <summary>
+    /// Decoding and presentation run independently. A small bounded buffer
+    /// lets the decoder stay ahead of the playback clock without allowing a
+    /// long video to accumulate decoded frames in memory.
+    /// </summary>
+    private async Task RunDecodePipelineAsync(
+        double startSeconds,
+        CancellationToken cancellationToken)
     {
         try
         {
-            string path = _filePath ?? throw new InvalidOperationException("No AVC file is loaded.");
-            Mp4MediaInfo info = _mediaInfo ?? throw new InvalidOperationException("No MP4 metadata is loaded.");
-            Func<double> clock = _playbackClock ?? throw new InvalidOperationException("No playback clock is configured.");
-            Action<BitmapSource> publish = _frameReady ?? throw new InvalidOperationException("No frame receiver is configured.");
+            string path = _filePath ??
+                throw new InvalidOperationException("No AVC file is loaded.");
+            Mp4MediaInfo info = _mediaInfo ??
+                throw new InvalidOperationException("No MP4 metadata is loaded.");
+            Func<double> clock = _playbackClock ??
+                throw new InvalidOperationException("No playback clock is configured.");
+            Action<BitmapSource> publish = _frameReady ??
+                throw new InvalidOperationException("No frame receiver is configured.");
 
+            H264Mp4DecodedFrameBuffer buffer = new(DecodeBufferCapacity);
+            Task decodeTask = DecodeFramesAsync(
+                path, info, _trackId, startSeconds, buffer, cancellationToken);
+            Task presentationTask = PresentFramesAsync(
+                buffer, clock, publish, cancellationToken);
+
+            await Task.WhenAll(decodeTask, presentationTask).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A seek, close or replacement file superseded this decode sequence.
+        }
+        catch (Exception exception)
+        {
+            _failed?.Invoke(exception);
+        }
+    }
+
+    private async Task DecodeFramesAsync(
+        string path,
+        Mp4MediaInfo info,
+        uint trackId,
+        double startSeconds,
+        H264Mp4DecodedFrameBuffer buffer,
+        CancellationToken cancellationToken)
+    {
+        Exception? failure = null;
+        try
+        {
             using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             IEnumerable<H264Mp4DecodedVideoFrame> frames = startSeconds <= 0
-                ? _decoder.Decode(stream, info, _trackId, cancellationToken: cancellationToken)
-                : _decoder.DecodeFromTime(stream, info, _trackId, startSeconds,
+                ? _decoder.Decode(stream, info, trackId, cancellationToken: cancellationToken)
+                : _decoder.DecodeFromTime(
+                    stream, info, trackId, startSeconds,
                     cancellationToken: cancellationToken);
 
             foreach (H264Mp4DecodedVideoFrame frame in frames)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await buffer.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+            throw;
+        }
+        finally
+        {
+            buffer.Complete(failure);
+        }
+    }
+
+    private async Task PresentFramesAsync(
+        H264Mp4DecodedFrameBuffer buffer,
+        Func<double> playbackClock,
+        Action<BitmapSource> publish,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (H264Mp4DecodedVideoFrame frame in
+                buffer.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -172,7 +244,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                     cancellationToken.ThrowIfCancellationRequested();
                     decision = _presentationScheduler.Evaluate(
                         frame.SourceSample.PresentationTimeSeconds,
-                        Math.Max(0, clock()));
+                        Math.Max(0, playbackClock()));
                     if (decision.Action != H264FramePresentationAction.Wait)
                         break;
 
@@ -184,7 +256,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 
                 H264AvcParameterSetCollection parameterSets =
                     _parameterSetReader.Read(frame.SourceSample.Configuration);
-                H264SequenceParameterSet sps = parameterSets.SequenceParameterSets.Values.First();
+                H264SequenceParameterSet sps =
+                    parameterSets.SequenceParameterSets.Values.First();
                 H264BgraFrame bgra = _converter.Convert(frame.Surface, sps);
                 BitmapSource bitmap = BitmapSource.Create(
                     bgra.Width, bgra.Height, 96, 96,
@@ -193,13 +266,10 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                 publish(bitmap);
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        finally
         {
-            // A seek, close or replacement file superseded this decode sequence.
-        }
-        catch (Exception exception)
-        {
-            _failed?.Invoke(exception);
+            // If presentation fails, unblock a producer waiting on a full buffer.
+            buffer.Complete();
         }
     }
 
