@@ -130,6 +130,33 @@ public sealed class H264BitReaderTests
     }
 
     [Fact]
+    public void ReadFlag_ShouldReadBitsMostSignificantBitFirstAcrossByteBoundaries()
+    {
+        H264BitReader reader = new(new byte[] { 0b1010_0101, 0b1100_0011 });
+
+        bool[] actual = Enumerable.Range(0, 16)
+            .Select(_ => reader.ReadFlag())
+            .ToArray();
+
+        Assert.Equal(
+            new[] { true, false, true, false, false, true, false, true,
+                    true, true, false, false, false, false, true, true },
+            actual);
+        Assert.Equal(0, reader.RemainingBits);
+    }
+
+    [Fact]
+    public void ReadFlag_ShouldThrowAtEndWithoutAdvancingPosition()
+    {
+        H264BitReader reader = new(new byte[] { 0x80 }, 1);
+
+        Assert.True(reader.ReadFlag());
+        Assert.Equal(1, reader.PositionBits);
+        Assert.Throws<EndOfStreamException>(() => reader.ReadFlag());
+        Assert.Equal(1, reader.PositionBits);
+    }
+
+    [Fact]
     public void ReadBits_ShouldRejectTruncatedInput()
     {
         H264BitReader reader = new(new byte[] { 0x80 }, 1);
