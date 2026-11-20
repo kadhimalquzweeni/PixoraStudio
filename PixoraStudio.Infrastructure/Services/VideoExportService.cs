@@ -41,6 +41,9 @@ public sealed class VideoExportService : IVideoExportService
         if (!File.Exists(sourceFullPath))
             throw new FileNotFoundException("The source video file does not exist.", sourceFullPath);
 
+        if (!string.Equals(Path.GetExtension(sourceFullPath), ".mp4", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Managed trim export currently accepts MP4 source files only.", nameof(sourcePath));
+
         if (string.Equals(sourceFullPath, outputFullPath, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("The export destination must be different from the source video.", nameof(outputPath));
 
