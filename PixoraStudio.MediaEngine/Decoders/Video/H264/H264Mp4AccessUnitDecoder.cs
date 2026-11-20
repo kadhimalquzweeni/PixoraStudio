@@ -12,7 +12,7 @@ public sealed class H264Mp4AccessUnitDecoder
 {
     private readonly H264AvcParameterSetCollection _parameterSets;
     private readonly H264DecodedPictureBuffer _decodedPictureBuffer = new();
-    private readonly H264Mp4VideoOutputScheduler _outputScheduler = new();
+    private readonly H264Mp4VideoOutputScheduler _outputScheduler;
     private readonly int? _maxNumReorderFramesFallback;
     private readonly Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> _cabacReaderFactory;
     private uint? _trackId;
@@ -35,7 +35,8 @@ public sealed class H264Mp4AccessUnitDecoder
     internal H264Mp4AccessUnitDecoder(
         H264AvcParameterSetCollection parameterSets,
         int? maxNumReorderFramesFallback,
-        Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> cabacReaderFactory)
+        Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> cabacReaderFactory,
+        H264Mp4VideoOutputScheduler? outputScheduler = null)
     {
         ArgumentNullException.ThrowIfNull(parameterSets);
         ArgumentNullException.ThrowIfNull(cabacReaderFactory);
@@ -48,6 +49,7 @@ public sealed class H264Mp4AccessUnitDecoder
         _parameterSets = parameterSets;
         _maxNumReorderFramesFallback = maxNumReorderFramesFallback;
         _cabacReaderFactory = cabacReaderFactory;
+        _outputScheduler = outputScheduler ?? new H264Mp4VideoOutputScheduler();
     }
 
     /// <summary>
