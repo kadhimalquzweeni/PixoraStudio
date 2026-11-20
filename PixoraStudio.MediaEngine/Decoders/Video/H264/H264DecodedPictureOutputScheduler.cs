@@ -126,7 +126,7 @@ public sealed class H264DecodedPictureOutputScheduler
         return priorOutputs.Concat(ready).ToArray();
     }
 
-    private static void PrepareSurfaceForOutput(H264DecodedPictureSurface surface)
+    private void PrepareSurfaceForOutput(H264DecodedPictureSurface surface)
     {
         // Do all fallible pixel/metadata preparation before calculating POC.
         // CalculatePictureOrderCount advances stream history; a surface that
