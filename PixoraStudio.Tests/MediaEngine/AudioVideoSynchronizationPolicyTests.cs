@@ -46,6 +46,14 @@ public sealed class AudioVideoSynchronizationPolicyTests
     }
 
     [Fact]
+    public void RequiresCorrection_ExtremeTimeValues_ShouldNotOverflow()
+    {
+        Assert.True(AudioVideoSynchronizationPolicy.RequiresCorrection(
+            TimeSpan.MinValue,
+            TimeSpan.MaxValue));
+    }
+
+    [Fact]
     public void RequiresCorrection_NegativeThreshold_ShouldThrow()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
