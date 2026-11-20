@@ -45,15 +45,16 @@ public sealed class VideoProcessingServiceTests
             File.Delete(filePath);
         }
     }
+
     [Fact]
-    public void GenerateThumbnailsAsync_ShouldRejectMismatchedPositionsAndPaths()
+    public async Task GenerateThumbnailsAsync_ShouldRejectMismatchedPositionsAndPaths()
     {
         VideoProcessingService service = new();
         string filePath = Path.GetTempFileName();
 
         try
         {
-            Assert.Throws<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
                 service.GenerateThumbnailsAsync(
                     filePath,
                     [TimeSpan.Zero, TimeSpan.FromSeconds(1)],
