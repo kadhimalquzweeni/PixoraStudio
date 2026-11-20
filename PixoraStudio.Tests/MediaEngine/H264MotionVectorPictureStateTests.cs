@@ -201,6 +201,62 @@ public sealed class H264MotionVectorPictureStateTests
         Assert.False(clone.TryGetStoredMotionVector(1, 0, out _));
     }
 
+    [Fact]
+    public void MergeSliceFrom_ShouldCopyOnlyCellsOwnedByRequestedSlice()
+    {
+        H264MotionVectorPictureState source = new(2, 1);
+        source.RecordInterPartition(
+            0, 0, 1, 1, 4, 2, new H264MotionVector(12, -4));
+        source.RecordInterPartition(
+            1, 0, 1, 1, 5, 3, new H264MotionVector(-8, 6));
+        H264MotionVectorPictureState destination = new(2, 1);
+
+        destination.MergeSliceFrom(source, 4);
+
+        Assert.True(destination.TryGetStoredMotionVector(
+            0, 0, out H264MotionVectorCandidate merged));
+        Assert.Equal(
+            new H264MotionVectorCandidate(2, new H264MotionVector(12, -4)),
+            merged);
+        Assert.False(destination.TryGetStoredMotionVector(4, 0, out _));
+    }
+
+    [Fact]
+    public void MergeSliceFrom_ShouldRejectConflictsWithoutPartiallyMerging()
+    {
+        H264MotionVectorPictureState source = new(2, 1);
+        source.RecordInterPartition(
+            0, 0, 2, 1, 4, 2, new H264MotionVector(12, -4));
+        H264MotionVectorPictureState destination = new(2, 1);
+        destination.RecordInterPartition(
+            1, 0, 1, 1, 5, 3, new H264MotionVector(-8, 6));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            destination.MergeSliceFrom(source, 4));
+
+        Assert.False(destination.TryGetStoredMotionVector(0, 0, out _));
+        Assert.True(destination.TryGetStoredMotionVector(
+            4, 0, out H264MotionVectorCandidate existing));
+        Assert.Equal(
+            new H264MotionVectorCandidate(3, new H264MotionVector(-8, 6)),
+            existing);
+    }
+
+    [Fact]
+    public void MergeSliceFrom_ShouldValidateSourceDimensionsAndSliceId()
+    {
+        H264MotionVectorPictureState destination = new(2, 1);
+
+        Assert.Throws<ArgumentNullException>(() =>
+            destination.MergeSliceFrom(null!, 0));
+        Assert.Throws<ArgumentException>(() =>
+            destination.MergeSliceFrom(new H264MotionVectorPictureState(1, 1), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            destination.MergeSliceFrom(new H264MotionVectorPictureState(2, 1), -1));
+        Assert.Throws<ArgumentException>(() =>
+            destination.MergeSliceFrom(destination, 0));
+    }
+
     private static H264MotionVectorCandidate Candidate(int reference, int x, int y) =>
         new(reference, new H264MotionVector(x, y));
 }
