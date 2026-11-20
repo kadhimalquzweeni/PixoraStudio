@@ -48,12 +48,19 @@ public sealed class H264IntraNxN8x8MacroblockReconstructorTests
             CreateResidual(0, 1), 24, sps, pps);
 
         Assert.True(surface.IsMacroblockDecoded(0, 0));
-        Assert.All(surface.CopyLumaPlane(),
-            value => Assert.Equal((byte)128, value));
-        Assert.All(surface.CopyCbPlane(),
-            value => Assert.Equal((byte)128, value));
-        Assert.All(surface.CopyCrPlane(),
-            value => Assert.Equal((byte)128, value));
+        byte[] luma = surface.CopyLumaPlane();
+        for (int y = 0; y < 16; y++)
+            Assert.All(luma.Skip(y * surface.Width).Take(16),
+                value => Assert.Equal((byte)128, value));
+        byte[] cb = surface.CopyCbPlane();
+        byte[] cr = surface.CopyCrPlane();
+        for (int y = 0; y < 8; y++)
+        {
+            Assert.All(cb.Skip(y * surface.ChromaWidth).Take(8),
+                value => Assert.Equal((byte)128, value));
+            Assert.All(cr.Skip(y * surface.ChromaWidth).Take(8),
+                value => Assert.Equal((byte)128, value));
+        }
     }
 
     [Theory]
