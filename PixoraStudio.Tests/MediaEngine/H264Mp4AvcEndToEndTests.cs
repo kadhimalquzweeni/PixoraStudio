@@ -208,6 +208,15 @@ public sealed class H264Mp4AvcEndToEndTests
 
         Assert.Equal(new uint[] { 1, 3, 2 },
             frames.Select(frame => frame.SampleNumber));
+        string cavlcResultsDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "../../../TestResults"));
+        Directory.CreateDirectory(cavlcResultsDirectory);
+        File.WriteAllBytes(
+            Path.Combine(cavlcResultsDirectory, "cavlc-residual32-decoded-frames.yuv"),
+            frames.SelectMany(frame => frame.Surface.CopyLumaPlane()
+                .Concat(frame.Surface.CopyCbPlane())
+                .Concat(frame.Surface.CopyCrPlane())).ToArray());
+
         string[] expectedFrameHashes =
         [
             "cddf82b138499e6adca25899a5395b8d2e7bcb0af4e849b5862c6af6dcb8b9b7",
