@@ -13,13 +13,18 @@ namespace PixoraStudio.App.ViewModels;
 public partial class VideoEditorViewModel : ObservableObject
 {
     private readonly IVideoProcessingService _videoService;
+    private readonly IVideoExportService _videoExportService;
+    private CancellationTokenSource? _exportCancellation;
 
     private VideoInfo? _videoInfo;
     public ObservableCollection<BitmapImage> VideoFrames { get; } = new();
 
-    public VideoEditorViewModel(IVideoProcessingService videoService)
+    public VideoEditorViewModel(
+        IVideoProcessingService videoService,
+        IVideoExportService videoExportService)
     {
         _videoService = videoService;
+        _videoExportService = videoExportService;
     }
 
     [ObservableProperty]
@@ -48,6 +53,39 @@ public partial class VideoEditorViewModel : ObservableObject
 
     [ObservableProperty]
     private string errorMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool isExporting;
+
+    [ObservableProperty]
+    private double exportProgress;
+
+    [ObservableProperty]
+    private string exportStatusMessage = string.Empty;
+
+    private bool CanExportTrimmedVideo() =>
+        !IsLoading &&
+        !IsExporting &&
+        !string.IsNullOrWhiteSpace(VideoPath) &&
+        TrimDuration > 0;
+
+    private bool CanCancelExport() => IsExporting;
+
+    partial void OnVideoPathChanged(string? value)
+    {
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsLoadingChanged(bool value)
+    {
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsExportingChanged(bool value)
+    {
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
+        CancelExportCommand.NotifyCanExecuteChanged();
+    }
 
     [RelayCommand]
     private async Task OpenVideoAsync()
@@ -141,6 +179,7 @@ public partial class VideoEditorViewModel : ObservableObject
     [RelayCommand]
     private void CloseVideo()
     {
+        _exportCancellation?.Cancel();
         VideoClosed?.Invoke();
         VideoPath = null;
         VideoName = "No video loaded";
@@ -261,6 +300,7 @@ public partial class VideoEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(TrimStartTime));
         OnPropertyChanged(nameof(TrimEndTime));
         OnPropertyChanged(nameof(TrimDurationTime));
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnTrimEndChanged(double value)
@@ -274,6 +314,7 @@ public partial class VideoEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(TrimStartTime));
         OnPropertyChanged(nameof(TrimEndTime));
         OnPropertyChanged(nameof(TrimDurationTime));
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -283,6 +324,82 @@ public partial class VideoEditorViewModel : ObservableObject
         TrimEnd = TotalMilliseconds;
     }
 
+
+    [RelayCommand(CanExecute = nameof(CanExportTrimmedVideo))]
+    private async Task ExportTrimmedVideoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(VideoPath))
+            return;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export Trimmed Video",
+            Filter = "MP4 Video Files|*.mp4",
+            DefaultExt = ".mp4",
+            AddExtension = true,
+            FileName = $"{Path.GetFileNameWithoutExtension(VideoPath)}_trimmed.mp4",
+            InitialDirectory = Path.GetDirectoryName(VideoPath)
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        _exportCancellation?.Cancel();
+        _exportCancellation?.Dispose();
+        _exportCancellation = new CancellationTokenSource();
+
+        IsExporting = true;
+        ExportProgress = 0;
+        ExportStatusMessage = "Preparing managed MP4 export...";
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            IProgress<double> progress = new Progress<double>(value =>
+                ExportProgress = Math.Clamp(value * 100, 0, 100));
+
+            VideoExportResult result = await _videoExportService.ExportTrimmedVideoAsync(
+                VideoPath,
+                dialog.FileName,
+                TrimStart / 1000.0,
+                TrimEnd / 1000.0,
+                progress,
+                _exportCancellation.Token);
+
+            ExportProgress = 100;
+
+            bool adjusted =
+                Math.Abs(result.RequestedStartSeconds - result.EffectiveStartSeconds) > 0.001 ||
+                Math.Abs(result.RequestedEndSeconds - result.EffectiveEndSeconds) > 0.001;
+
+            ExportStatusMessage = adjusted
+                ? $"Export complete. The range was aligned to keyframes ({FormatDuration(TimeSpan.FromSeconds(result.EffectiveDurationSeconds))})."
+                : "Export complete.";
+
+            StatusMessage = $"Saved trimmed video: {Path.GetFileName(result.OutputPath)}";
+        }
+        catch (OperationCanceledException)
+        {
+            ExportStatusMessage = "Export cancelled.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Export failed: {ex.Message}";
+            ExportStatusMessage = "Export failed.";
+        }
+        finally
+        {
+            _exportCancellation?.Dispose();
+            _exportCancellation = null;
+            IsExporting = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancelExport))]
+    private void CancelExport()
+    {
+        _exportCancellation?.Cancel();
+    }
 
     private async Task GenerateVideoFramesAsync(string filePath)
     {
