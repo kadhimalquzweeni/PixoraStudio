@@ -149,7 +149,9 @@ public sealed class H264Intra8x8MacroblockLumaReconstructor
             {
                 throw new FormatException(
                     $"Intra8x8 prediction failed at macroblock ({macroblockX},{macroblockY}), " +
-                    $"block ({blockX},{blockY}), resolved mode {mode}. {exception.Message}",
+                    $"block ({blockX},{blockY}), resolved mode {mode}, " +
+                    $"prev_mode_flag={entry.PreviousModeFlag}, remainder_mode={entry.RemainderMode?.ToString() ?? "none"}, " +
+                    $"predicted_mode={predictedMode}. {exception.Message}",
                     exception);
             }
             H264Intra8x8LumaResidualBlock residual = ordered[index];
