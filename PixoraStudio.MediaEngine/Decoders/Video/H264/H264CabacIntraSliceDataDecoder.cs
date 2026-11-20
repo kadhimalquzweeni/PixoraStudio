@@ -110,7 +110,8 @@ public sealed class H264CabacIntraSliceDataDecoder
                     macroblockX, macroblockY, sliceId);
             H264MacroblockHeader header = _macroblockHeaderReader.ReadIntraSlice(
                 syntax, macroblockAddress, mbTypeContextIncrement);
-            H264CabacDiagnosticTrace.Mark(
+            if (H264CabacDiagnosticTrace.IsEnabled(cabac))
+                H264CabacDiagnosticTrace.Mark(
                 cabac,
                 $"intra mb[{macroblockAddress}] header type={header.MbTypeCode} " +
                 $"intra16={header.IsIntra16x16} pcm={header.IsPcm}");
@@ -127,14 +128,17 @@ public sealed class H264CabacIntraSliceDataDecoder
                 byte[] pcmReconstructedLuma = _surface.CopyLumaPlane();
                 byte[] pcmReconstructedCb = _surface.CopyCbPlane();
                 byte[] pcmReconstructedCr = _surface.CopyCrPlane();
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] reconstructed_y=" +
                     $"{string.Join(",", ExtractMacroblockSamples(pcmReconstructedLuma, _surface.Width, macroblockX * 16, macroblockY * 16, 16, 16))}");
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] reconstructed_cb=" +
                     $"{string.Join(",", ExtractMacroblockSamples(pcmReconstructedCb, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] reconstructed_cr=" +
@@ -171,6 +175,7 @@ public sealed class H264CabacIntraSliceDataDecoder
 
                 if (macroblockSyntax.MacroblockQpDelta is int delta)
                     qpY = UpdateQpY(qpY, delta);
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] syntax intra16_mode={header.Intra16x16PredMode} " +
@@ -188,23 +193,27 @@ public sealed class H264CabacIntraSliceDataDecoder
                     macroblockY,
                     sliceId,
                     _residualNeighbours);
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] residual dc=" +
                     $"{(residual.Intra16x16Dc is null ? "none" : string.Join(",", residual.Intra16x16Dc.Coefficients))}");
                 foreach (H264IntraLumaResidualBlock block in residual.Blocks)
-                    H264CabacDiagnosticTrace.Mark(
+                    if (H264CabacDiagnosticTrace.IsEnabled(cabac))
+                H264CabacDiagnosticTrace.Mark(
                         cabac,
                         $"intra mb[{macroblockAddress}] luma_block[{block.BlockX},{block.BlockY}] " +
                         $"coded={block.IsCoded} coeff={string.Join(",", block.Residual.Coefficients)}");
                 foreach (H264IntraChromaResidualComponent component in residual.ChromaComponents)
                 {
-                    H264CabacDiagnosticTrace.Mark(
+                    if (H264CabacDiagnosticTrace.IsEnabled(cabac))
+                H264CabacDiagnosticTrace.Mark(
                         cabac,
                         $"intra mb[{macroblockAddress}] chroma_dc[{component.ComponentId}]=" +
                         $"{(component.Dc is null ? "none" : string.Join(",", component.Dc.Coefficients))}");
                     foreach (H264IntraChromaResidualBlock block in component.Blocks)
-                        H264CabacDiagnosticTrace.Mark(
+                        if (H264CabacDiagnosticTrace.IsEnabled(cabac))
+                H264CabacDiagnosticTrace.Mark(
                             cabac,
                             $"intra mb[{macroblockAddress}] chroma_block[{component.ComponentId},{block.BlockX},{block.BlockY}] " +
                             $"coded={block.IsCoded} coeff={string.Join(",", block.Residual.Coefficients)}");
@@ -232,14 +241,17 @@ public sealed class H264CabacIntraSliceDataDecoder
                 byte[] reconstructedLuma = _surface.CopyLumaPlane();
                 byte[] reconstructedCb = _surface.CopyCbPlane();
                 byte[] reconstructedCr = _surface.CopyCrPlane();
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] reconstructed_y=" +
                     $"{string.Join(",", ExtractMacroblockSamples(reconstructedLuma, _surface.Width, macroblockX * 16, macroblockY * 16, 16, 16))}");
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] reconstructed_cb=" +
                     $"{string.Join(",", ExtractMacroblockSamples(reconstructedCb, _surface.ChromaWidth, macroblockX * 8, macroblockY * 8, 8, 8))}");
+                if (H264CabacDiagnosticTrace.IsEnabled(cabac))
                 H264CabacDiagnosticTrace.Mark(
                     cabac,
                     $"intra mb[{macroblockAddress}] reconstructed_cr=" +
