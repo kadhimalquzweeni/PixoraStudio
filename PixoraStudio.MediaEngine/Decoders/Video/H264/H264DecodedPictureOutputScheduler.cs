@@ -194,11 +194,20 @@ public sealed class H264DecodedPictureOutputScheduler
             return checked((int)reorderFrames);
         }
 
-        if (fallback is null)
-            throw new NotSupportedException(
-                "The SPS does not signal max_num_reorder_frames; the container/decoder integration must provide the applicable reorder limit.");
+        int levelMaximum = H264DecodedPictureBufferLimits.ResolveMaxDpbFrames(sps);
         if (fallback is < 0 or > 16)
             throw new ArgumentOutOfRangeException(nameof(fallback));
-        return fallback.Value;
+        if (fallback is int suppliedFallback)
+        {
+            if (suppliedFallback > levelMaximum)
+                throw new FormatException(
+                    "The supplied reorder limit exceeds the maximum decoded-picture buffer size for the SPS level and dimensions.");
+            return suppliedFallback;
+        }
+
+        // H.264 infers max_num_reorder_frames from MaxDpbFrames when the
+        // bitstream restriction syntax is absent. No container-specific
+        // override is required for a conforming SPS.
+        return levelMaximum;
     }
 }
