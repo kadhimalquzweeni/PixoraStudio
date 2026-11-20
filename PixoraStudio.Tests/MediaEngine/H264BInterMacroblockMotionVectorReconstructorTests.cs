@@ -92,6 +92,38 @@ public sealed class H264BInterMacroblockMotionVectorReconstructorTests
     }
 
     [Fact]
+    public void SpatialDirect_ShouldReuseMacroblockNeighbourPredictionAcrossAll8x8Regions()
+    {
+        var state0 = new H264MotionVectorPictureState(3, 3);
+        var state1 = new H264MotionVectorPictureState(3, 3);
+
+        // Macroblock-level A/B/C candidates used by the spatial-direct derivation.
+        state0.RecordInterPartition(3, 7, 1, 1, 0, 0, new H264MotionVector(100, 0)); // A
+        state0.RecordInterPartition(7, 3, 1, 1, 0, 0, new H264MotionVector(200, 0)); // B
+        state0.RecordInterPartition(8, 3, 1, 1, 0, 0, new H264MotionVector(300, 0)); // C
+
+        // Values that would be selected if each 8x8 region incorrectly derived
+        // a fresh predictor from its own local neighbours.
+        state0.RecordInterPartition(3, 5, 1, 1, 0, 0, new H264MotionVector(1, 0));
+        state0.RecordInterPartition(5, 3, 1, 1, 0, 0, new H264MotionVector(2, 0));
+        state0.RecordInterPartition(6, 3, 1, 1, 0, 0, new H264MotionVector(3, 0));
+
+        IReadOnlyList<H264ReconstructedBInterSubPartition> result =
+            new H264BSpatialDirectMotionVectorDeriver().Derive(
+                state0, state1, 1, 1, 0, 0, 4, 4,
+                0, 0, direct8x8InferenceFlag: true);
+
+        Assert.Equal(4, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(new H264MotionVector(200, 0), item.MotionVectorL0);
+            Assert.Equal((int?)0, item.ReferenceIndexL0);
+            Assert.Null(item.MotionVectorL1);
+            Assert.Null(item.ReferenceIndexL1);
+        });
+    }
+
+    [Fact]
     public void Reconstruct_SpatialDirectWithoutInferenceFlag_ShouldDeriveSixteen4x4Regions()
     {
         H264BMacroblockSyntax syntax = new H264BMacroblockSyntaxReader().Read(
