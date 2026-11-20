@@ -24,13 +24,24 @@ public sealed class H264MotionCompensator
         ValidateRegion(reference, destinationX, destinationY, width, height);
 
         byte[] luma = new byte[checked(width * height)];
-        for (int y = 0; y < height; y++)
-        for (int x = 0; x < width; x++)
+        if (motionVector.Horizontal % 4 == 0 && motionVector.Vertical % 4 == 0)
         {
-            luma[y * width + x] = InterpolateLuma(
-                reference,
-                checked((destinationX + x) * 4 + motionVector.Horizontal),
-                checked((destinationY + y) * 4 + motionVector.Vertical));
+            CopyBlockWithEdgeReplication(
+                reference.GetLumaPlaneReadOnlySpan(), reference.Width, reference.Height,
+                checked(destinationX + motionVector.Horizontal / 4),
+                checked(destinationY + motionVector.Vertical / 4),
+                width, height, luma);
+        }
+        else
+        {
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                luma[y * width + x] = InterpolateLuma(
+                    reference,
+                    checked((destinationX + x) * 4 + motionVector.Horizontal),
+                    checked((destinationY + y) * 4 + motionVector.Vertical));
+            }
         }
 
         int chromaWidth = width / 2;
@@ -38,19 +49,35 @@ public sealed class H264MotionCompensator
         int chromaSubsampleY = reference.ChromaFormatIdc == 1 ? 2 : 1;
         byte[] cb = new byte[checked(chromaWidth * chromaHeight)];
         byte[] cr = new byte[cb.Length];
-
-        for (int y = 0; y < chromaHeight; y++)
-        for (int x = 0; x < chromaWidth; x++)
+        int chromaVerticalDivisor = 4 * chromaSubsampleY;
+        if (motionVector.Horizontal % 8 == 0 &&
+            motionVector.Vertical % chromaVerticalDivisor == 0)
         {
-            int destinationChromaX = destinationX / 2 + x;
-            int destinationChromaY = destinationY / chromaSubsampleY + y;
-            int sourceX8 = checked(destinationChromaX * 8 + motionVector.Horizontal);
-            int sourceY8 = checked(destinationChromaY * 8 +
-                motionVector.Vertical * 2 / chromaSubsampleY);
+            int sourceX = checked(destinationX / 2 + motionVector.Horizontal / 8);
+            int sourceY = checked(destinationY / chromaSubsampleY +
+                motionVector.Vertical / chromaVerticalDivisor);
+            CopyBlockWithEdgeReplication(
+                reference.GetCbPlaneReadOnlySpan(), reference.ChromaWidth,
+                reference.ChromaHeight, sourceX, sourceY, chromaWidth, chromaHeight, cb);
+            CopyBlockWithEdgeReplication(
+                reference.GetCrPlaneReadOnlySpan(), reference.ChromaWidth,
+                reference.ChromaHeight, sourceX, sourceY, chromaWidth, chromaHeight, cr);
+        }
+        else
+        {
+            for (int y = 0; y < chromaHeight; y++)
+            for (int x = 0; x < chromaWidth; x++)
+            {
+                int destinationChromaX = destinationX / 2 + x;
+                int destinationChromaY = destinationY / chromaSubsampleY + y;
+                int sourceX8 = checked(destinationChromaX * 8 + motionVector.Horizontal);
+                int sourceY8 = checked(destinationChromaY * 8 +
+                    motionVector.Vertical * 2 / chromaSubsampleY);
 
-            int index = y * chromaWidth + x;
-            cb[index] = InterpolateChroma(reference, 1, sourceX8, sourceY8);
-            cr[index] = InterpolateChroma(reference, 2, sourceX8, sourceY8);
+                int index = y * chromaWidth + x;
+                cb[index] = InterpolateChroma(reference, 1, sourceX8, sourceY8);
+                cr[index] = InterpolateChroma(reference, 2, sourceX8, sourceY8);
+            }
         }
 
         return new H264MotionCompensatedBlock(
@@ -207,6 +234,55 @@ public sealed class H264MotionCompensator
             sum += SixTap[verticalTap] * horizontalSum;
         }
         return Clip((sum + 512) >> 10);
+    }
+
+    private static void CopyBlockWithEdgeReplication(
+        ReadOnlySpan<byte> source,
+        int sourceWidth,
+        int sourceHeight,
+        int sourceX,
+        int sourceY,
+        int blockWidth,
+        int blockHeight,
+        Span<byte> destination)
+    {
+        int expectedLength = checked(blockWidth * blockHeight);
+        if (destination.Length != expectedLength)
+            throw new ArgumentException(
+                "The destination buffer does not match the requested block geometry.",
+                nameof(destination));
+
+        int leftPadding = sourceX < 0
+            ? (int)Math.Min(blockWidth, -(long)sourceX)
+            : 0;
+        int firstSourceX = Math.Max(sourceX, 0);
+        int copyWidth = Math.Min(
+            Math.Max(0, sourceWidth - firstSourceX),
+            blockWidth - leftPadding);
+        int rightPadding = blockWidth - leftPadding - copyWidth;
+
+        for (int row = 0; row < blockHeight; row++)
+        {
+            int sourceYClamped = (int)Math.Clamp(
+                (long)sourceY + row, 0, sourceHeight - 1);
+            int sourceRowOffset = sourceYClamped * sourceWidth;
+            Span<byte> destinationRow = destination.Slice(row * blockWidth, blockWidth);
+
+            if (leftPadding != 0)
+                destinationRow[..leftPadding].Fill(source[sourceRowOffset]);
+
+            if (copyWidth != 0)
+            {
+                source.Slice(sourceRowOffset + firstSourceX, copyWidth)
+                    .CopyTo(destinationRow.Slice(leftPadding, copyWidth));
+            }
+
+            if (rightPadding != 0)
+            {
+                destinationRow.Slice(leftPadding + copyWidth, rightPadding)
+                    .Fill(source[sourceRowOffset + sourceWidth - 1]);
+            }
+        }
     }
 
     private static byte GetLumaClamped(

@@ -209,7 +209,7 @@ public sealed class H264MotionCompensatorTests
         H264MotionVector[] vectors =
         [
             new(-5, -3), new(-1, 1), new(0, 0),
-            new(1, 3), new(2, 2), new(7, -6)
+            new(1, 3), new(2, 2), new(7, -6), new(8, -8), new(-8, 8)
         ];
 
         foreach (H264MotionVector vector in vectors)
