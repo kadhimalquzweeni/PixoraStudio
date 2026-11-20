@@ -31,13 +31,11 @@ public sealed class H264Mp4TrackDecoder
 
         IEnumerable<Mp4EncodedSample> samples = _samplePipelineReader.Read(
             stream, root, trackBox, track, cancellationToken);
-        return DecodeSamples(
-            track, samples, maxNumReorderFramesFallback, cancellationToken);
+        return DecodeSamples(track, samples, maxNumReorderFramesFallback, cancellationToken);
     }
 
     /// <summary>
     /// Decodes a video track from an already parsed MP4 media-info object.
-    /// The track's sample enumerator supplies encoded samples in decode order.
     /// </summary>
     public IEnumerable<H264Mp4DecodedVideoFrame> Decode(
         Stream stream,
@@ -48,14 +46,9 @@ public sealed class H264Mp4TrackDecoder
     {
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(mediaInfo);
-        if (!stream.CanRead || !stream.CanSeek)
-            throw new ArgumentException("The MP4 stream must support reading and seeking.", nameof(stream));
+        ValidateStream(stream);
 
-        Mp4MediaTrack mediaTrack = mediaInfo.GetTrack(trackId) ??
-            throw new ArgumentException($"MP4 track {trackId} does not exist.", nameof(trackId));
-        if (mediaTrack.HandlerType != Mp4HandlerType.Video)
-            throw new NotSupportedException($"MP4 track {trackId} is not a video track.");
-
+        Mp4MediaTrack mediaTrack = GetVideoTrack(mediaInfo, trackId);
         IEnumerable<Mp4EncodedSample> samples = mediaTrack.ReadSamples(
             stream, mediaInfo.MediaDataRegions, cancellationToken);
         return DecodeSamples(
@@ -63,11 +56,9 @@ public sealed class H264Mp4TrackDecoder
     }
 
     /// <summary>
-    /// Seeks to a presentation time in an MP4 AVC video track. Decoding starts
-    /// at the preceding sync sample and continues in decode order so reference
-    /// pictures and POC state are rebuilt correctly. Frames before the target
-    /// presentation interval are discarded; the first overlapping frame and
-    /// all subsequent presentation frames are returned.
+    /// Plans and decodes from the random-access sample preceding the requested
+    /// presentation time. Use DecodeFromPlan when multiple seeks target the
+    /// same track so the caller can reuse a precomputed seek index.
     /// </summary>
     public IEnumerable<H264Mp4DecodedVideoFrame> DecodeFromTime(
         Stream stream,
@@ -77,19 +68,45 @@ public sealed class H264Mp4TrackDecoder
         int? maxNumReorderFramesFallback = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(mediaInfo);
-        if (!stream.CanRead || !stream.CanSeek)
-            throw new ArgumentException("The MP4 stream must support reading and seeking.", nameof(stream));
-
-        Mp4MediaTrack mediaTrack = mediaInfo.GetTrack(trackId) ??
-            throw new ArgumentException($"MP4 track {trackId} does not exist.", nameof(trackId));
-        if (mediaTrack.HandlerType != Mp4HandlerType.Video)
-            throw new NotSupportedException($"MP4 track {trackId} is not a video track.");
-
+        Mp4MediaTrack mediaTrack = GetVideoTrack(mediaInfo, trackId);
         H264Mp4VideoSeekPlan plan = new H264Mp4VideoSeekPlanner().Plan(
             mediaTrack, targetPresentationTimeSeconds);
-        uint remainingSamples = checked(mediaTrack.SampleCount - plan.FirstSampleToDecode + 1);
+
+        return DecodeFromPlan(
+            stream, mediaInfo, trackId, plan,
+            maxNumReorderFramesFallback, cancellationToken);
+    }
+
+    /// <summary>
+    /// Decodes using a previously calculated seek plan. This avoids rebuilding
+    /// the track's seek index when generating multiple thumbnails for one video.
+    /// </summary>
+    public IEnumerable<H264Mp4DecodedVideoFrame> DecodeFromPlan(
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        H264Mp4VideoSeekPlan plan,
+        int? maxNumReorderFramesFallback = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(mediaInfo);
+        ArgumentNullException.ThrowIfNull(plan);
+        ValidateStream(stream);
+
+        Mp4MediaTrack mediaTrack = GetVideoTrack(mediaInfo, trackId);
+        if (plan.Timescale != mediaTrack.Timescale)
+            throw new ArgumentException(
+                "The seek plan timescale does not match the selected video track.",
+                nameof(plan));
+        if (plan.FirstSampleToDecode == 0 ||
+            plan.FirstSampleToDecode > mediaTrack.SampleCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(plan), "The seek plan references a sample outside the video track.");
+
+        uint remainingSamples = checked(
+            mediaTrack.SampleCount - plan.FirstSampleToDecode + 1);
         IEnumerable<Mp4EncodedSample> samples = mediaTrack.ReadSamples(
             stream,
             plan.FirstSampleToDecode,
@@ -98,11 +115,24 @@ public sealed class H264Mp4TrackDecoder
             cancellationToken);
 
         return DecodeFromSeekPoint(
-            mediaTrack.Track,
-            samples,
-            plan,
-            maxNumReorderFramesFallback,
-            cancellationToken);
+            mediaTrack.Track, samples, plan,
+            maxNumReorderFramesFallback, cancellationToken);
+    }
+
+    private static Mp4MediaTrack GetVideoTrack(Mp4MediaInfo mediaInfo, uint trackId)
+    {
+        Mp4MediaTrack mediaTrack = mediaInfo.GetTrack(trackId) ??
+            throw new ArgumentException($"MP4 track {trackId} does not exist.", nameof(trackId));
+        if (mediaTrack.HandlerType != Mp4HandlerType.Video)
+            throw new NotSupportedException($"MP4 track {trackId} is not a video track.");
+        return mediaTrack;
+    }
+
+    private static void ValidateStream(Stream stream)
+    {
+        if (!stream.CanRead || !stream.CanSeek)
+            throw new ArgumentException(
+                "The MP4 stream must support reading and seeking.", nameof(stream));
     }
 
     private IEnumerable<H264Mp4DecodedVideoFrame> DecodeFromSeekPoint(
@@ -134,9 +164,8 @@ public sealed class H264Mp4TrackDecoder
     }
 
     /// <summary>
-    /// Decodes an already-enumerated sequence of MP4 samples. This overload is
-    /// useful for callers that manage sample storage or for deterministic tests.
-    /// Samples must be supplied contiguously in decode order.
+    /// Decodes an already-enumerated sequence of MP4 samples. Samples must be
+    /// supplied contiguously in decode order.
     /// </summary>
     public IEnumerable<H264Mp4DecodedVideoFrame> DecodeSamples(
         Mp4Track track,
@@ -149,8 +178,7 @@ public sealed class H264Mp4TrackDecoder
         if (track.HandlerType != Mp4HandlerType.Video)
             throw new NotSupportedException("The selected MP4 track is not a video track.");
 
-        return DecodeIterator(
-            track, samples, maxNumReorderFramesFallback, cancellationToken);
+        return DecodeIterator(track, samples, maxNumReorderFramesFallback, cancellationToken);
     }
 
     private IEnumerable<H264Mp4DecodedVideoFrame> DecodeIterator(
