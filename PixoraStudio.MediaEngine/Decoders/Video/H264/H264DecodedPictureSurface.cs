@@ -116,6 +116,12 @@ public sealed class H264DecodedPictureSurface
     public byte[] CopyCbPlane() => (byte[])_cb.Clone();
     public byte[] CopyCrPlane() => (byte[])_cr.Clone();
 
+    // Presentation conversion runs inside this assembly and only reads a
+    // completed picture. Avoid cloning three full planes for every frame.
+    internal ReadOnlySpan<byte> GetLumaPlaneReadOnlySpan() => _luma;
+    internal ReadOnlySpan<byte> GetCbPlaneReadOnlySpan() => _cb;
+    internal ReadOnlySpan<byte> GetCrPlaneReadOnlySpan() => _cr;
+
     public byte GetLumaSample(int x, int y)
     {
         ValidateSampleCoordinate(x, y, Width, Height, nameof(x));
