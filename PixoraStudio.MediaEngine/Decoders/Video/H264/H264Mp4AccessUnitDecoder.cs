@@ -185,6 +185,7 @@ public sealed class H264Mp4AccessUnitDecoder
             H264CabacIntraSliceDataDecoder? cabacIntraDecoder = null;
             H264PInterSliceDataDecoder? pDecoder = null;
             H264BInterSliceDataDecoder? bDecoder = null;
+            List<string> sliceDecodeSummaries = [];
 
             if (firstSlice.SliceType == H264SliceType.P)
             {
@@ -232,17 +233,18 @@ public sealed class H264Mp4AccessUnitDecoder
                 switch (header.SliceType)
                 {
                     case H264SliceType.I:
-                        if (cabacIntraDecoder is not null)
-                            _ = cabacIntraDecoder.Decode(
-                                nalUnit, activeSps, activePps, currentSliceId);
-                        else
-                            _ = intraDecoder!.Decode(
-                                nalUnit, activeSps, activePps, currentSliceId);
+                        H264IntraSliceDecodeResult iResult = cabacIntraDecoder is not null
+                            ? cabacIntraDecoder.Decode(nalUnit, activeSps, activePps, currentSliceId)
+                            : intraDecoder!.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                        sliceDecodeSummaries.Add(
+                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={iResult.MacroblocksDecoded} bits={iResult.BitsConsumed}");
                         break;
 
                     case H264SliceType.P:
                         H264PInterSliceDecodeResult pResult = pDecoder!.Decode(
                             nalUnit, activeSps, activePps, _decodedPictureBuffer, currentSliceId);
+                        sliceDecodeSummaries.Add(
+                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={pResult.MacroblocksDecoded} bits={pResult.BitsConsumed}");
                         IReadOnlyList<H264ReferencePicture> currentList0 = pResult.ReferenceList0 ??
                             throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
                         if (referenceList0 is null)
@@ -261,6 +263,8 @@ public sealed class H264Mp4AccessUnitDecoder
                         H264BInterSliceDecodeResult bResult = bDecoder!.Decode(
                             nalUnit, activeSps, activePps, _decodedPictureBuffer,
                             poc.PictureOrderCount, currentSliceId);
+                        sliceDecodeSummaries.Add(
+                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={bResult.MacroblocksDecoded} bits={bResult.BitsConsumed}");
                         H264BReferencePictureLists currentLists = bResult.ReferencePictureLists ??
                             throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
                         if (referenceList0 is null)
@@ -283,8 +287,21 @@ public sealed class H264Mp4AccessUnitDecoder
             }
 
             if (!surface.IsComplete)
+            {
+                IReadOnlyList<uint> missingMacroblocks =
+                    surface.GetUndecodedMacroblockAddresses();
+                string missingPreview = string.Join(",",
+                    missingMacroblocks.Take(32));
+                string missingSuffix = missingMacroblocks.Count > 32
+                    ? $",...(+{missingMacroblocks.Count - 32} more)"
+                    : string.Empty;
+                string sliceSummary = string.Join("; ", sliceDecodeSummaries);
                 throw new NotSupportedException(
-                    "The MP4 sample's slices did not reconstruct every macroblock in the picture.");
+                    $"The MP4 sample {sample.SampleNumber} reconstructed " +
+                    $"{pictureMacroblockCount - (ulong)missingMacroblocks.Count}/" +
+                    $"{pictureMacroblockCount} macroblocks. Missing raster addresses: " +
+                    $"[{missingPreview}{missingSuffix}]. Slice results: {sliceSummary}.");
+            }
 
             if (firstNal.NalRefIdc != 0)
             {
