@@ -119,6 +119,9 @@ public sealed class H264DecodedPictureSurfaceTests
             0, 0, 3, false, blockingLuma, new byte[64], new byte[64]));
 
         Assert.True(blockingLuma.WaitUntilRead(TimeSpan.FromSeconds(5)));
+        Assert.False(surface.IsMacroblockDecoded(0, 0));
+        Assert.False(surface.IsMacroblockAvailable(0, 0, 3, false));
+        Assert.False(surface.IsComplete);
 
         Assert.Throws<InvalidOperationException>(() => surface.WriteMacroblock(
             0, 0, 4, false, new byte[256], new byte[64], new byte[64]));
@@ -130,6 +133,22 @@ public sealed class H264DecodedPictureSurfaceTests
         Assert.True(surface.IsMacroblockAvailable(0, 0, 3, false));
         Assert.False(surface.IsMacroblockAvailable(0, 0, 4, false));
         Assert.True(surface.IsComplete);
+    }
+
+    [Fact]
+    public void WriteMacroblock_ShouldPreserveSameSliceRewriteBehavior()
+    {
+        H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
+        surface.WriteMacroblock(0, 0, 3, false,
+            Enumerable.Repeat((byte)10, 256).ToArray(),
+            new byte[64], new byte[64]);
+
+        surface.WriteMacroblock(0, 0, 3, true,
+            Enumerable.Repeat((byte)20, 256).ToArray(),
+            new byte[64], new byte[64]);
+
+        Assert.True(surface.IsMacroblockAvailable(0, 0, 3, true));
+        Assert.Equal((byte)20, surface.GetLumaSample(0, 0));
     }
 
     [Fact]
