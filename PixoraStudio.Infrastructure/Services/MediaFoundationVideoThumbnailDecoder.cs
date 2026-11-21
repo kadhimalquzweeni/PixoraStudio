@@ -146,7 +146,7 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
             cancellationToken.ThrowIfCancellationRequested();
 
             long targetTimestamp = checked(
-                (long)(positions[index].TotalSeconds * MediaFoundationTicksPerSecond));
+                positions[index].Ticks);
             reader.SetCurrentPosition(targetTimestamp);
 
             byte[]? encodedFrame = null;
@@ -161,18 +161,36 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
                     out SourceReaderFlag flags,
                     out long timestamp);
 
-                if (flags.HasFlag(SourceReaderFlag.Error))
-                    throw new InvalidDataException("Media Foundation reported a decoding error.");
+                SampleReadDisposition disposition = GetReadDisposition(
+                    sample is not null,
+                    flags.HasFlag(SourceReaderFlag.Error),
+                    flags.HasFlag(SourceReaderFlag.EndOfStream),
+                    timestamp,
+                    targetTimestamp);
 
-                if (flags.HasFlag(SourceReaderFlag.EndOfStream))
-                    throw new EndOfStreamException(
-                        $"No decoded frame was available at {positions[index]}.");
-
-                if (sample is not null && timestamp >= targetTimestamp)
+                switch (disposition)
                 {
-                    using IMFMediaType currentType =
-                        reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream);
-                    encodedFrame = EncodeSample(sample, currentType, d3dDevice, d3dContext);
+                    case SampleReadDisposition.Error:
+                        throw new InvalidDataException(
+                            "Media Foundation reported a decoding error.");
+
+                    case SampleReadDisposition.EndOfStream:
+                        throw new EndOfStreamException(
+                            $"No decoded frame was available at {positions[index]}.");
+
+                    case SampleReadDisposition.Accept:
+                        using (IMFMediaType currentType =
+                            reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream))
+                        {
+                            encodedFrame = EncodeSample(
+                                sample!, currentType, d3dDevice, d3dContext);
+                        }
+                        break;
+
+                    case SampleReadDisposition.Skip:
+                        // Seeking may return preroll samples or stream ticks.
+                        // Keep reading until the requested presentation time is reached.
+                        break;
                 }
             }
 
@@ -194,6 +212,38 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
         Debug.WriteLine(
             $"[Media Foundation] Generated {encodedFrames.Count} thumbnails using D3D11/DXVA.");
         return true;
+    }
+
+
+    internal enum SampleReadDisposition
+    {
+        Skip,
+        Accept,
+        EndOfStream,
+        Error
+    }
+
+    /// <summary>
+    /// Determines how a Source Reader result should be handled. A final sample
+    /// can be returned together with EndOfStream, so a usable sample must be
+    /// accepted before treating the stream as exhausted.
+    /// </summary>
+    internal static SampleReadDisposition GetReadDisposition(
+        bool hasSample,
+        bool hasError,
+        bool endOfStream,
+        long sampleTimestamp,
+        long targetTimestamp)
+    {
+        if (hasError)
+            return SampleReadDisposition.Error;
+
+        if (hasSample && sampleTimestamp >= targetTimestamp)
+            return SampleReadDisposition.Accept;
+
+        return endOfStream
+            ? SampleReadDisposition.EndOfStream
+            : SampleReadDisposition.Skip;
     }
 
     private static byte[] EncodeSample(
