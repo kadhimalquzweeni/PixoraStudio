@@ -14,7 +14,9 @@ public partial class VideoOverlayWindow : Window
 
     public VideoOverlayWindow()
     {
-        InitializeComponent();}
+        InitializeComponent();
+    }
+
     public void ShowControls()
     {
         PlayPauseButton.Visibility = Visibility.Visible;
