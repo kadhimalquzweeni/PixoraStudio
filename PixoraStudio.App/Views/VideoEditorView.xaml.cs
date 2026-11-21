@@ -330,9 +330,14 @@ public partial class VideoEditorView : UserControl
                 _pendingScrubPosition = null;
                 _mediaPlayer.Time = (long)target;
 
-                // Show the keyframe at or before the pointer: one decoded picture,
-                // cached, instead of decoding forward to the exact frame on every
-                // move. OnSeek lands on the exact frame when the scrub ends.
+                // LibVLC owns the visible video surface. A paused player does
+                // not draw the frame at a new Time until it is asked to step,
+                // so refresh it for both the managed and LibVLC-only paths.
+                _mediaPlayer.NextFrame();
+
+                // Also publish the managed picture: one cached keyframe instead
+                // of decoding forward to the exact frame on every move.
+                // OnSeek lands on the exact frame when the scrub ends.
                 if (_usesManagedH264Video)
                 {
                     bool shown = await _managedH264PlaybackService
@@ -342,11 +347,13 @@ public partial class VideoEditorView : UserControl
                     if (!shown && IsScrubActive)
                         await _managedH264PlaybackService.SeekAsync(target / 1000d);
                 }
-                else if (_mediaPlayer is not null && !_mediaPlayer.IsPlaying)
+                else
                 {
-                    // A paused LibVLC player does not draw the frame at a new
-                    // Time until it is asked to step; NextFrame refreshes it.
-                    _mediaPlayer.NextFrame();
+                    // Give the asynchronous LibVLC seek a moment, then step again
+                    // so the frame at the new position is the one drawn.
+                    await Task.Delay(40);
+                    if (IsScrubActive && _mediaPlayer is not null)
+                        _mediaPlayer.NextFrame();
                 }
             }
         }
