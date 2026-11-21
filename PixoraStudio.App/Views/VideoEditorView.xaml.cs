@@ -1009,6 +1009,23 @@ public partial class VideoEditorView : UserControl
         Canvas.SetTop(label, top);
     }
 
+    // Apply the final track-click value after WPF moves the thumb to the
+    // clicked point. This makes a normal click work without relying on capture.
+    private void VolumeSlider_PreviewMouseLeftButtonUp(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (DataContext is not VideoEditorViewModel vm)
+            return;
+
+        double volume = VideoTimelineMath.ClampSliderValue(
+            VolumeSlider.Value,
+            VolumeSlider.Minimum,
+            VolumeSlider.Maximum);
+
+        vm.ChangeVolumeCommand.Execute(volume);
+    }
+
     private void VolumeSlider_ValueChanged(
         object sender,
         RoutedPropertyChangedEventArgs<double> e)
