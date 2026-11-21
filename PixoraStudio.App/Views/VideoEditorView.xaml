@@ -3,7 +3,60 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF">
 
-    <Grid Background="#1E1E1E">
+    <UserControl.Resources>
+        <Style x:Key="PrimaryActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3478D4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#4B8FE8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="MinWidth" Value="150"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#438BE8"/>
+                    <Setter Property="BorderBrush" Value="#69A5F2"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#2864B5"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#343A46"/>
+                    <Setter Property="Foreground" Value="#858B96"/>
+                    <Setter Property="BorderBrush" Value="#454B56"/>
+                    <Setter Property="Opacity" Value="0.8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SecondaryActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#383D48"/>
+            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="BorderBrush" Value="#4A505D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="13,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#454C59"/>
+                    <Setter Property="BorderBrush" Value="#626B7B"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#303540"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SectionHeadingStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#F3F4F6"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="#191B20">
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -14,8 +67,10 @@
         <!-- Toolbar -->
         <Border x:Name="ToolbarBorder"
                 Grid.Row="0"
-                Background="#252526"
-                Padding="16,10">
+                Background="#20232A"
+                BorderBrush="#303641"
+                BorderThickness="0,0,0,1"
+                Padding="18,11">
 
             <StackPanel Orientation="Horizontal"
                         VerticalAlignment="Center">
@@ -36,9 +91,11 @@
         <!-- Video Preview Area -->
         <Border x:Name="VideoPreviewBorder"
                 Grid.Row="1"
-                Background="#111111"
-                Margin="20"
-                CornerRadius="8"
+                Background="#101216"
+                BorderBrush="#343A45"
+                BorderThickness="1"
+                Margin="18,16"
+                CornerRadius="10"
                 ClipToBounds="True">
 
             <Grid Background="#111111">
@@ -68,8 +125,10 @@
                 <!-- Playback Controls Below Video -->
                 <Border x:Name="PlaybackControlsBorder"
                         Grid.Row="1"
-                        Background="#DD17191E"
-                        Padding="15,10">
+                        Background="#E6191D24"
+                        BorderBrush="#303641"
+                        BorderThickness="0,1,0,0"
+                        Padding="18,11">
 
                     <Grid>
 
@@ -139,8 +198,10 @@
         <!-- Bottom Editing Panel -->
         <Border x:Name="BottomEditingPanel"
                 Grid.Row="2"
-                Background="#252526"
-                Padding="15">
+                Background="#20232A"
+                BorderBrush="#303641"
+                BorderThickness="0,1,0,0"
+                Padding="18">
 
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
@@ -148,49 +209,76 @@
                 <StackPanel>
 
                     <!-- Video Information -->
-                    <TextBlock Text="{Binding VideoName}"
-                               Foreground="White"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
+                    <TextBlock Text="VIDEO DETAILS"
+                               Foreground="#8F9AAA"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               Margin="0,0,0,8"/>
 
-                    <StackPanel Orientation="Horizontal"
-                                Margin="0,8,0,10">
+                    <Border Background="#292E38"
+                            BorderBrush="#3A414D"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            Padding="12,10"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="{Binding VideoName}"
+                                       Foreground="White"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis"/>
 
-                        <TextBlock Text="Duration: "
-                                   Foreground="#AAAAAA"/>
+                            <StackPanel Orientation="Horizontal"
+                                        Margin="0,9,0,0">
+
+                        <TextBlock Text="DURATION"
+                                   Foreground="#8F9AAA"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Margin="0,0,6,0"/>
 
                         <TextBlock Text="{Binding VideoDuration}"
                                    Foreground="White"
                                    Margin="0,0,20,0"/>
 
-                        <TextBlock Text="Resolution: "
-                                   Foreground="#AAAAAA"/>
+                        <TextBlock Text="RESOLUTION"
+                                   Foreground="#8F9AAA"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Margin="0,0,6,0"/>
 
                         <TextBlock Text="{Binding VideoResolution}"
                                    Foreground="White"
                                    Margin="0,0,20,0"/>
 
-                        <TextBlock Text="Frame Rate: "
-                                   Foreground="#AAAAAA"/>
+                        <TextBlock Text="FRAME RATE"
+                                   Foreground="#8F9AAA"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Margin="0,0,6,0"/>
 
                         <TextBlock Text="{Binding VideoFrameRate}"
                                    Foreground="White"/>
 
-                    </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Timeline -->
-                    <Border Background="#303030"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,5,0,5">
+                    <Border Background="#252A33"
+                            BorderBrush="#3A414D"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Padding="14"
+                            Margin="0,0,0,10">
 
                         <StackPanel>
 
                             <TextBlock Text="TIMELINE"
-                                       Foreground="#AAAAAA"
-                                       FontSize="11"
+                                       Foreground="#DCE2EA"
+                                       FontSize="12"
                                        FontWeight="Bold"
-                                       Margin="0,0,0,8"/>
+                                       Margin="0,0,0,10"/>
 
                             <Canvas x:Name="TrimTimelineCanvas"
                                     Height="76"
@@ -331,18 +419,24 @@
                     </Border>
 
                     <!-- Video Trimming -->
-                    <Border Background="#303030"
-                            CornerRadius="8"
-                            Padding="15"
-                            Margin="0,5,0,0">
+                    <Border Background="#252A33"
+                            BorderBrush="#3A414D"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Padding="16"
+                            Margin="0,0,0,0">
 
                         <StackPanel>
 
-                            <TextBlock Text="Trim Selection"
-                                       FontSize="18"
+                            <TextBlock Text="EXPORT"
+                                       Foreground="#8F9AAA"
+                                       FontSize="11"
                                        FontWeight="Bold"
-                                       Foreground="White"
-                                       Margin="0,0,0,15"/>
+                                       Margin="0,0,0,6"/>
+
+                            <TextBlock Text="Trim Selection"
+                                       Style="{StaticResource SectionHeadingStyle}"
+                                       Margin="0,0,0,12"/>
 
                             <TextBlock Text="{Binding TrimDurationTime,
                                               StringFormat='Selected clip duration: {0}'}"
@@ -361,25 +455,27 @@
 
                                 <Button Content="Reset Trim"
                                         Command="{Binding ResetTrimCommand}"
-                                        Padding="12,6"
+                                        Style="{StaticResource SecondaryActionButtonStyle}"
                                         Margin="0,0,10,0"/>
 
                                 <Button Content="Export Trimmed Video"
                                         Command="{Binding ExportTrimmedVideoCommand}"
-                                        Padding="12,6"
+                                        Style="{StaticResource PrimaryActionButtonStyle}"
                                         Margin="0,0,10,0"/>
 
                                 <Button Content="Cancel Export"
                                         Command="{Binding CancelExportCommand}"
-                                        Padding="12,6"/>
+                                        Style="{StaticResource SecondaryActionButtonStyle}"/>
 
                             </StackPanel>
 
                             <ProgressBar Minimum="0"
                                          Maximum="100"
                                          Value="{Binding ExportProgress}"
-                                         Height="7"
-                                         Margin="0,12,0,0">
+                                         Height="8"
+                                         Margin="0,14,0,0"
+                                         Background="#171A20"
+                                         Foreground="#3478D4">
                                 <ProgressBar.Style>
                                     <Style TargetType="ProgressBar">
                                         <Setter Property="Visibility" Value="Collapsed"/>
