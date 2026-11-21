@@ -60,6 +60,8 @@ public partial class VideoEditorView : UserControl
     };
 
     private bool _wasPlayingBeforeScrubbing;
+    private int _scrubSeekBusy;
+    private double? _pendingScrubPosition;
     private readonly PlaybackScrubState _playbackSliderScrubState = new();
     private bool _isDraggingTrimStart;
     private bool _isDraggingTrimEnd;
@@ -257,6 +259,8 @@ public partial class VideoEditorView : UserControl
                 _mediaPlayer is not null)
             {
                 _playbackSliderScrubState.Begin(_mediaPlayer.IsPlaying);
+                if (_mediaPlayer.IsPlaying)
+                    PauseForScrub();
             }
 
             return;
@@ -276,17 +280,65 @@ public partial class VideoEditorView : UserControl
     {
         if (!_playbackSliderScrubState.IsActive ||
             DataContext is not VideoEditorViewModel vm ||
-            vm.IsLoading ||
-            vm.VideoFrames.Count == 0)
+            vm.TotalMilliseconds <= 0)
             return;
 
-        int index = VideoScrubPreviewSelector.FindNearestThumbnailIndex(
-            positionMilliseconds, vm.TotalMilliseconds, vm.VideoFrames.Count);
-        if (index < 0)
+        vm.CurrentTime = FormatPlaybackTime(
+            TimeSpan.FromMilliseconds(positionMilliseconds));
+        ScrubTo(positionMilliseconds);
+    }
+
+    private bool IsScrubActive =>
+        _isDraggingPlayhead || _playbackSliderScrubState.IsActive;
+
+    /// <summary>Pauses video and audio once, at the start of a scrub.</summary>
+    private void PauseForScrub()
+    {
+        // SetPause is idempotent; Pause() toggles.
+        _mediaPlayer?.SetPause(true);
+        if (_usesCustomAacAudio)
+            _aacAudioPlaybackService.Pause();
+    }
+
+    /// <summary>
+    /// Shows the real video frame at <paramref name="position"/> while the user
+    /// drags. Seeks are expensive, so one runs at a time and the newest
+    /// requested position replaces any that queued behind it. Audio is left
+    /// alone until the scrub is committed by <see cref="OnSeek"/>.
+    /// </summary>
+    private async void ScrubTo(double position)
+    {
+        if (!IsScrubActive || _mediaPlayer is null || _isPreparingVideo)
             return;
 
-        ScrubPreviewFrame.Source = vm.VideoFrames[index];
-        ScrubPreviewFrame.Visibility = Visibility.Visible;
+        _pendingScrubPosition = position;
+        if (Interlocked.CompareExchange(ref _scrubSeekBusy, 1, 0) != 0)
+            return;
+
+        try
+        {
+            while (IsScrubActive &&
+                   _pendingScrubPosition is double target &&
+                   _mediaPlayer is not null)
+            {
+                _pendingScrubPosition = null;
+                _lastDisplayedFrame = null;
+                _pendingFrameStepTarget = null;
+                _mediaPlayer.Time = (long)target;
+
+                if (_usesManagedH264Video)
+                    await _managedH264PlaybackService.SeekAsync(target / 1000d);
+            }
+        }
+        catch (Exception exception)
+        {
+            // The committing seek on release reports or recovers from real failures.
+            System.Diagnostics.Debug.WriteLine($"Scrub seek failed: {exception.Message}");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _scrubSeekBusy, 0);
+        }
     }
 
     private static bool IsWithinSlider(DependencyObject? element)
@@ -547,6 +599,7 @@ public partial class VideoEditorView : UserControl
             return;
 
         int seekVersion = Interlocked.Increment(ref _seekOperationVersion);
+        _pendingScrubPosition = null;
 
         // Use the state captured on pointer-down for fullscreen scrubbing.
         // The decoder may temporarily report paused while a seek is committed.
@@ -570,8 +623,10 @@ public partial class VideoEditorView : UserControl
                 TimeSpan.FromMilliseconds(targetPosition));
         }
 
+        // SetPause is idempotent. Pause() toggles, so calling it on a player
+        // the scrub had already paused would restart it mid-seek.
         if (resumePlayback)
-            _mediaPlayer.Pause();
+            _mediaPlayer.SetPause(true);
 
         _mediaPlayer.Time = (long)targetPosition;
 
@@ -871,11 +926,7 @@ public partial class VideoEditorView : UserControl
                 _mediaPlayer?.IsPlaying == true;
 
             if (_wasPlayingBeforeScrubbing)
-            {
-                _mediaPlayer?.Pause();
-                if (_usesCustomAacAudio)
-                    _aacAudioPlaybackService.Pause();
-            }
+                PauseForScrub();
 
             UpdatePlayheadPosition(x, vm, width);
         }
@@ -969,6 +1020,8 @@ public partial class VideoEditorView : UserControl
 
         vm.CurrentTime = FormatPlaybackTime(
             TimeSpan.FromMilliseconds(position));
+
+        ScrubTo(position);
     }
 
     private void UpdateTrimTimeline()
