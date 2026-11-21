@@ -69,7 +69,7 @@ internal static class D3D11AdapterDiscovery
         }
 
         foreach ((int index, AdapterDescription1 description) in candidates
-                     .OrderByDescending(item => Convert.ToUInt64(item.Description.DedicatedVideoMemory))
+                     .OrderByDescending(item => unchecked((ulong)item.Description.DedicatedVideoMemory))
                      .ThenBy(item => item.Index))
         {
             using IDXGIAdapter1 adapter = GetAdapter(factory, checked((uint)index));
@@ -145,8 +145,8 @@ internal static class D3D11AdapterDiscovery
             description.Description.TrimEnd('\0'),
             description.VendorId,
             description.DeviceId,
-            Convert.ToUInt64(description.DedicatedVideoMemory),
-            Convert.ToUInt64(description.SharedSystemMemory),
+            unchecked((ulong)description.DedicatedVideoMemory),
+            unchecked((ulong)description.SharedSystemMemory),
             isSoftware,
             canCreateDevice);
 }
