@@ -4,7 +4,6 @@ using PixoraStudio.App.ViewModels;
 using PixoraStudio.App.Windows;
 using PixoraStudio.App.Services;
 using PixoraStudio.Core.Models;
-using PixoraStudio.MediaEngine.Decoders.Video.H264;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -31,12 +30,8 @@ public partial class VideoEditorView : UserControl
     private readonly AacAudioPlaybackService _aacAudioPlaybackService = new();
     private readonly ManagedH264VideoPlaybackService _managedH264PlaybackService = new();
     private bool _usesManagedH264Video;
-    private H264Mp4FrameNavigationTarget? _pendingFrameStepTarget;
-    private H264Mp4FrameNavigationTarget? _lastDisplayedFrame;
     private readonly object _managedFrameSync = new();
     private BitmapSource? _pendingManagedBitmap;
-    private H264Mp4FrameNavigationTarget? _pendingManagedFrame;
-    private int _pendingManagedFrameLoadVersion;
     private bool _managedFrameDispatchPending;
     private CancellationTokenSource? _videoLoadCancellation;
     private bool _usesCustomAacAudio;
@@ -144,7 +139,6 @@ public partial class VideoEditorView : UserControl
         vm.VideoLoaded -= OnVideoLoaded;
         vm.VideoClosed -= OnVideoClosed;
         vm.PlayPauseRequested -= OnPlayPause;
-        vm.FrameStepRequested -= OnFrameStepRequested;
         vm.SeekRequested -= OnSeek;
         vm.VolumeChanged -= OnVolumeChanged;
         vm.MuteChanged -= OnMuteChanged;
@@ -152,7 +146,6 @@ public partial class VideoEditorView : UserControl
         vm.VideoLoaded += OnVideoLoaded;
         vm.VideoClosed += OnVideoClosed;
         vm.PlayPauseRequested += OnPlayPause;
-        vm.FrameStepRequested += OnFrameStepRequested;
         vm.SeekRequested += OnSeek;
         vm.VolumeChanged += OnVolumeChanged;
         vm.MuteChanged += OnMuteChanged;
@@ -168,7 +161,6 @@ public partial class VideoEditorView : UserControl
         vm.VideoLoaded -= OnVideoLoaded;
         vm.VideoClosed -= OnVideoClosed;
         vm.PlayPauseRequested -= OnPlayPause;
-        vm.FrameStepRequested -= OnFrameStepRequested;
         vm.SeekRequested -= OnSeek;
         vm.VolumeChanged -= OnVolumeChanged;
         vm.MuteChanged -= OnMuteChanged;
@@ -321,10 +313,6 @@ public partial class VideoEditorView : UserControl
         _mediaPlayer.Stop();
         _mediaPlayer.Mute = false;
         _usesManagedH264Video = false;
-        _pendingFrameStepTarget = null;
-        _lastDisplayedFrame = null;
-        if (DataContext is VideoEditorViewModel loadingVm)
-            loadingVm.CanStepFrames = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
 
@@ -358,32 +346,19 @@ public partial class VideoEditorView : UserControl
             _usesManagedH264Video = await _managedH264PlaybackService.TryStartAsync(
                 filePath,
                 () => (_mediaPlayer?.Time ?? 0) / 1000d,
-                bitmap =>
-                {
-                    H264Mp4FrameNavigationTarget? presentedFrame =
-                        _managedH264PlaybackService.LastPresentedFrame;
-                    QueueManagedFrame(bitmap, presentedFrame, loadVersion);
-                },
+                bitmap => QueueManagedFrame(bitmap, loadVersion),
                 exception => Dispatcher.BeginInvoke(new Action(() =>
                 {
                     if (loadVersion != _videoLoadVersion)
                         return;
 
                     _usesManagedH264Video = false;
-                    _pendingFrameStepTarget = null;
-                    if (DataContext is VideoEditorViewModel failedVm)
-                        failedVm.CanStepFrames = false;
                     ManagedVideoFrame.Source = null;
                     ManagedVideoFrame.Visibility = Visibility.Collapsed;
                     System.Diagnostics.Debug.WriteLine(
                         $"Managed H.264 preview stopped; LibVLC fallback remains active: {exception.Message}");
                 })),
                 cancellationToken);
-
-            if (DataContext is VideoEditorViewModel loadedVm)
-                loadedVm.CanStepFrames =
-                    _usesManagedH264Video && _lastDisplayedFrame is not null;
-
             if (!_usesManagedH264Video)
                 ManagedVideoFrame.Visibility = Visibility.Collapsed;
         }
@@ -406,10 +381,6 @@ public partial class VideoEditorView : UserControl
         _aacAudioPlaybackService.Unload();
         _ = _managedH264PlaybackService.StopAsync();
         _usesManagedH264Video = false;
-        _pendingFrameStepTarget = null;
-        _lastDisplayedFrame = null;
-        if (DataContext is VideoEditorViewModel closedVm)
-            closedVm.CanStepFrames = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
         _usesCustomAacAudio = false;
@@ -462,8 +433,6 @@ public partial class VideoEditorView : UserControl
             return;
 
         int seekVersion = Interlocked.Increment(ref _seekOperationVersion);
-        _pendingFrameStepTarget = null;
-        _lastDisplayedFrame = null;
         bool resumePlayback = _mediaPlayer.IsPlaying ||
             _wasPlayingBeforeScrubbing ||
             _resumePlaybackAfterSeek;
@@ -495,9 +464,6 @@ public partial class VideoEditorView : UserControl
             catch (Exception exception)
             {
                 _usesManagedH264Video = false;
-                if (DataContext is VideoEditorViewModel failedSeekVm)
-                    failedSeekVm.CanStepFrames = false;
-                _pendingFrameStepTarget = null;
                 ManagedVideoFrame.Source = null;
                 ManagedVideoFrame.Visibility = Visibility.Collapsed;
                 System.Diagnostics.Debug.WriteLine(
@@ -553,114 +519,11 @@ public partial class VideoEditorView : UserControl
         }
     }
 
-    private async void OnFrameStepRequested(int direction)
-    {
-        if (_isPreparingVideo ||
-            _mediaPlayer is null ||
-            !_usesManagedH264Video ||
-            DataContext is not VideoEditorViewModel vm ||
-            direction is not (-1 or 1))
-        {
-            return;
-        }
-
-        H264Mp4FrameNavigationDirection navigationDirection = direction < 0
-            ? H264Mp4FrameNavigationDirection.Previous
-            : H264Mp4FrameNavigationDirection.Next;
-
-        // Prefer the pending target so rapid repeated clicks advance from the
-        // requested frame even while its decode is still in progress.
-        H264Mp4FrameNavigationTarget? currentFrame =
-            _pendingFrameStepTarget ?? _lastDisplayedFrame;
-
-        H264Mp4FrameNavigationTarget? target = currentFrame is not null
-            ? _managedH264PlaybackService.FindAdjacentFrame(
-                currentFrame, navigationDirection)
-            : _managedH264PlaybackService.FindAdjacentFrame(
-                Math.Max(0, _mediaPlayer.Time / 1000d), navigationDirection);
-
-        if (target is null)
-            return;
-
-        _pendingFrameStepTarget = target;
-        Interlocked.Increment(ref _seekOperationVersion);
-        _resumePlaybackAfterSeek = false;
-        _wasPlayingBeforeScrubbing = false;
-
-        // Frame stepping is an explicit paused-preview operation. Do not
-        // resume either audio or video after the requested frame is shown.
-        if (_mediaPlayer.IsPlaying)
-            _mediaPlayer.Pause();
-        if (_usesCustomAacAudio)
-            _aacAudioPlaybackService.Pause();
-
-        vm.IsPlaying = false;
-        double targetMilliseconds = Math.Max(
-            0, target.PresentationTimeSeconds * 1000d);
-        vm.PlaybackPosition = targetMilliseconds;
-        vm.CurrentTime = FormatPlaybackTime(
-            TimeSpan.FromMilliseconds(targetMilliseconds));
-
-        _mediaPlayer.Time = (long)Math.Round(
-            targetMilliseconds, MidpointRounding.AwayFromZero);
-
-        if (_usesCustomAacAudio)
-        {
-            try
-            {
-                await _aacAudioPlaybackService.SeekAsync(
-                    TimeSpan.FromMilliseconds(targetMilliseconds),
-                    resumePlayback: false);
-            }
-            catch (OperationCanceledException)
-            {
-                // A newer frame step or video operation superseded this audio seek.
-                return;
-            }
-            catch (Exception audioException)
-            {
-                // If custom AAC cannot follow the frame seek, switch back to
-                // LibVLC audio at the same media timestamp rather than resume
-                // with audio left at the previous position.
-                _aacAudioPlaybackService.Stop();
-                _usesCustomAacAudio = false;
-                ApplyAudioOutputSettings(vm);
-                System.Diagnostics.Debug.WriteLine(
-                    $"Custom AAC frame-step seek failed; using LibVLC audio: {audioException.Message}");
-            }
-        }
-
-        try
-        {
-            await _managedH264PlaybackService.SeekToFrameAsync(target);
-
-        }
-        catch (OperationCanceledException)
-        {
-            // A newer frame step, seek, or close superseded this request.
-        }
-        catch (Exception exception)
-        {
-            _usesManagedH264Video = false;
-            vm.CanStepFrames = false;
-            _pendingFrameStepTarget = null;
-            ManagedVideoFrame.Source = null;
-            ManagedVideoFrame.Visibility = Visibility.Collapsed;
-            System.Diagnostics.Debug.WriteLine(
-                $"Managed H.264 frame stepping failed; LibVLC fallback remains active: {exception.Message}");
-        }
-    }
-
     /// <summary>
     /// Coalesces preview updates so a busy WPF dispatcher renders the newest
     /// due frame instead of accumulating a queue of already-stale bitmaps.
-    /// Frame stepping remains exact because the presentation gate holds the
-    /// decoder at the requested sample while the playback clock is paused.
     /// </summary>
-    private void QueueManagedFrame(
-        BitmapSource bitmap,
-        H264Mp4FrameNavigationTarget? presentedFrame,
-        int loadVersion)
+    private void QueueManagedFrame(BitmapSource bitmap, int loadVersion)
     {
         if (loadVersion != Volatile.Read(ref _videoLoadVersion))
             return;
@@ -672,8 +535,7 @@ public partial class VideoEditorView : UserControl
                 return;
 
             _pendingManagedBitmap = bitmap;
-            _pendingManagedFrame = presentedFrame;
-            _pendingManagedFrameLoadVersion = loadVersion;
+            _pendingManagedLoadVersion = loadVersion;
             scheduleDispatch = !_managedFrameDispatchPending;
             _managedFrameDispatchPending = true;
         }
@@ -684,15 +546,12 @@ public partial class VideoEditorView : UserControl
         Dispatcher.BeginInvoke(new Action(() =>
         {
             BitmapSource? nextBitmap;
-            H264Mp4FrameNavigationTarget? nextFrame;
             int nextLoadVersion;
             lock (_managedFrameSync)
             {
                 nextBitmap = _pendingManagedBitmap;
-                nextFrame = _pendingManagedFrame;
-                nextLoadVersion = _pendingManagedFrameLoadVersion;
+                nextLoadVersion = _pendingManagedLoadVersion;
                 _pendingManagedBitmap = null;
-                _pendingManagedFrame = null;
                 _managedFrameDispatchPending = false;
             }
 
@@ -701,15 +560,6 @@ public partial class VideoEditorView : UserControl
 
             ManagedVideoFrame.Source = nextBitmap;
             ManagedVideoFrame.Visibility = Visibility.Visible;
-            _lastDisplayedFrame = nextFrame;
-            if (DataContext is VideoEditorViewModel previewVm)
-                previewVm.CanStepFrames = true;
-
-            if (_pendingFrameStepTarget is not null &&
-                _pendingFrameStepTarget == nextFrame)
-            {
-                _pendingFrameStepTarget = null;
-            }
         }));
     }
 
@@ -1274,8 +1124,6 @@ public partial class VideoEditorView : UserControl
         _overlayPositionTimer.Stop();
 
         _videoLoadVersion++;
-        _pendingFrameStepTarget = null;
-        _lastDisplayedFrame = null;
         _isPreparingVideo = false;
         _videoLoadCancellation?.Cancel();
         _videoLoadCancellation?.Dispose();

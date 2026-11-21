@@ -21,7 +21,6 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     private readonly H264Mp4FramePresentationScheduler _presentationScheduler = new();
     private readonly H264YuvToBgraConverter _converter = new();
     private readonly H264Mp4TrackDecoder _decoder = new();
-    private readonly H264Mp4FrameNavigationPlanner _frameNavigationPlanner = new();
     private readonly H264AvcParameterSetCollectionReader _parameterSetReader = new();
     private readonly SemaphoreSlim _operationLock = new(1, 1);
 
@@ -34,47 +33,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     private CancellationTokenSource? _decodeCancellation;
     private Task? _decodeTask;
 
-    public H264Mp4FrameNavigationTarget? LastPresentedFrame { get; private set; }
 
     public bool IsActive => _mediaInfo is not null && _decodeCancellation is not null;
-
-    /// <summary>
-    /// Finds the adjacent picture using the loaded track's exact presentation
-    /// timestamps. Returns null when no managed AVC track is active or the
-    /// requested direction is already at the beginning/end of the track.
-    /// </summary>
-    public H264Mp4FrameNavigationTarget? FindAdjacentFrame(
-        double currentPresentationTimeSeconds,
-        H264Mp4FrameNavigationDirection direction)
-    {
-        Mp4MediaInfo? info = _mediaInfo;
-        if (info is null)
-            return null;
-
-        Mp4MediaTrack track = info.GetTrack(_trackId) ??
-            throw new InvalidOperationException(
-                $"The loaded MP4 video track {_trackId} is no longer available.");
-
-        return _frameNavigationPlanner.FindAdjacentFrame(
-            track, currentPresentationTimeSeconds, direction);
-    }
-
-    public H264Mp4FrameNavigationTarget? FindAdjacentFrame(
-        H264Mp4FrameNavigationTarget currentFrame,
-        H264Mp4FrameNavigationDirection direction)
-    {
-        ArgumentNullException.ThrowIfNull(currentFrame);
-        Mp4MediaInfo? info = _mediaInfo;
-        if (info is null)
-            return null;
-
-        Mp4MediaTrack track = info.GetTrack(_trackId) ??
-            throw new InvalidOperationException(
-                $"The loaded MP4 video track {_trackId} is no longer available.");
-
-        return _frameNavigationPlanner.FindAdjacentFrame(
-            track, currentFrame, direction);
-    }
 
     public async Task<bool> TryStartAsync(
         string filePath,
@@ -133,7 +93,6 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             _playbackClock = playbackClock;
             _frameReady = frameReady;
             _failed = failed;
-            LastPresentedFrame = null;
 
             await StartDecodeAsync(0, cancellationToken).ConfigureAwait(false);
             return true;
@@ -157,70 +116,12 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         try
         {
             await StopDecodeTaskAsync().ConfigureAwait(false);
-            LastPresentedFrame = null;
             await StartDecodeAsync(positionSeconds, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             _operationLock.Release();
         }
-    }
-
-    /// <summary>
-    /// Restarts decoding at a specific MP4 sample and guarantees that the
-    /// requested presentation frame is published even while the playback
-    /// clock is paused. Later frames remain queued against the normal clock.
-    /// </summary>
-    public async Task SeekToFrameAsync(
-        H264Mp4FrameNavigationTarget target,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(target);
-        Mp4MediaInfo? info = _mediaInfo;
-        if (info is null || _filePath is null)
-            return;
-
-        Mp4MediaTrack track = info.GetTrack(_trackId) ??
-            throw new InvalidOperationException("The active MP4 video track is unavailable.");
-        if (target.Timescale != track.Timescale ||
-            target.SampleNumber == 0 ||
-            target.SampleNumber > track.SampleCount)
-        {
-            throw new ArgumentException(
-                "The frame target does not belong to the active MP4 video track.",
-                nameof(target));
-        }
-
-        Mp4SampleLocation sample = track.SampleLocations.Samples[
-            checked((int)target.SampleNumber - 1)];
-        if (sample.SampleNumber != target.SampleNumber ||
-            sample.PresentationTimeTicks != target.PresentationTimeTicks)
-        {
-            throw new ArgumentException(
-                "The frame target timestamp does not match its MP4 sample.",
-                nameof(target));
-        }
-
-        TaskCompletionSource<bool> framePresented = new(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-
-        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await StopDecodeTaskAsync().ConfigureAwait(false);
-            LastPresentedFrame = null;
-            await StartDecodeAsync(
-                target.PresentationTimeSeconds,
-                target.SampleNumber,
-                framePresented,
-                cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _operationLock.Release();
-        }
-
-        await framePresented.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task StopAsync()
@@ -235,7 +136,6 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             _frameReady = null;
             _failed = null;
             _trackId = 0;
-            LastPresentedFrame = null;
         }
         finally
         {
@@ -245,26 +145,12 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 
     private Task StartDecodeAsync(
         double startSeconds,
-        CancellationToken cancellationToken) =>
-        StartDecodeAsync(startSeconds, null, null, cancellationToken);
-
-    private Task StartDecodeAsync(
-        double startSeconds,
-        uint? firstFrameSampleNumber,
-        CancellationToken cancellationToken) =>
-        StartDecodeAsync(startSeconds, firstFrameSampleNumber, null, cancellationToken);
-
-    private Task StartDecodeAsync(
-        double startSeconds,
-        uint? firstFrameSampleNumber,
-        TaskCompletionSource<bool>? framePresented,
         CancellationToken cancellationToken)
     {
         CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _decodeCancellation = linked;
         _decodeTask = Task.Run(
-            () => RunDecodePipelineAsync(
-                startSeconds, firstFrameSampleNumber, framePresented, linked.Token),
+            () => RunDecodePipelineAsync(startSeconds, linked.Token),
             CancellationToken.None);
         return Task.CompletedTask;
     }
@@ -276,8 +162,6 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     /// </summary>
     private async Task RunDecodePipelineAsync(
         double startSeconds,
-        uint? firstFrameSampleNumber,
-        TaskCompletionSource<bool>? framePresented,
         CancellationToken cancellationToken)
     {
         try
@@ -293,22 +177,18 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 
             H264Mp4DecodedFrameBuffer buffer = new(DecodeBufferCapacity);
             Task decodeTask = DecodeFramesAsync(
-                path, info, _trackId, startSeconds, firstFrameSampleNumber,
-                buffer, cancellationToken);
+                path, info, _trackId, startSeconds, buffer, cancellationToken);
             Task presentationTask = PresentFramesAsync(
-                buffer, clock, publish, firstFrameSampleNumber,
-                framePresented, cancellationToken);
+                buffer, clock, publish, cancellationToken);
 
             await Task.WhenAll(decodeTask, presentationTask).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            framePresented?.TrySetCanceled(cancellationToken);
             // A seek, close or replacement file superseded this decode sequence.
         }
         catch (Exception exception)
         {
-            framePresented?.TrySetException(exception);
             _failed?.Invoke(exception);
         }
     }
@@ -318,7 +198,6 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         Mp4MediaInfo info,
         uint trackId,
         double startSeconds,
-        uint? firstFrameSampleNumber,
         H264Mp4DecodedFrameBuffer buffer,
         CancellationToken cancellationToken)
     {
@@ -354,11 +233,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         H264Mp4DecodedFrameBuffer buffer,
         Func<double> playbackClock,
         Action<BitmapSource> publish,
-        uint? firstFrameSampleNumber,
-        TaskCompletionSource<bool>? framePresented,
         CancellationToken cancellationToken)
     {
-        H264Mp4FramePresentationGate gate = new(firstFrameSampleNumber);
         Dictionary<H264AvcDecoderConfiguration, H264AvcParameterSetCollection>
             parameterSetCache = new(ReferenceEqualityComparer.Instance);
         try
@@ -368,38 +244,19 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!gate.TryAcceptFrame(frame, out bool isRequestedFrame))
-                    continue;
-
-                while (gate.ShouldWaitForFrame(
-                    frame, Math.Max(0, playbackClock())))
+                H264FramePresentationDecision decision;
+                while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    await Task.Delay(TimeSpan.FromMilliseconds(5), cancellationToken)
-                        .ConfigureAwait(false);
-                }
+                    decision = _presentationScheduler.Evaluate(
+                        frame.SourceSample.PresentationTimeSeconds,
+                        Math.Max(0, playbackClock()),
+                        H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(
+                            frame.SourceSample.DurationSeconds));
+                    if (decision.Action != H264FramePresentationAction.Wait)
+                        break;
 
-                H264FramePresentationDecision decision;
-                if (isRequestedFrame)
-                {
-                    decision = new H264FramePresentationDecision(
-                        H264FramePresentationAction.Present, TimeSpan.Zero);
-                }
-                else
-                {
-                    while (true)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        decision = _presentationScheduler.Evaluate(
-                            frame.SourceSample.PresentationTimeSeconds,
-                            Math.Max(0, playbackClock()),
-                            H264Mp4FramePresentationScheduler.GetMaximumLatenessSeconds(
-                                frame.SourceSample.DurationSeconds));
-                        if (decision.Action != H264FramePresentationAction.Wait)
-                            break;
-
-                        await Task.Delay(decision.Delay, cancellationToken).ConfigureAwait(false);
-                    }
+                    await Task.Delay(decision.Delay, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (decision.Action == H264FramePresentationAction.Drop)
@@ -422,21 +279,9 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                     bgra.Width, bgra.Height, 96, 96,
                     PixelFormats.Bgra32, null, bgra.Pixels, bgra.Stride);
                 bitmap.Freeze();
-                LastPresentedFrame = new H264Mp4FrameNavigationTarget(
-                    frame.SourceSample.SampleNumber,
-                    frame.SourceSample.PresentationTimeTicks,
-                    frame.SourceSample.Timescale);
                 publish(bitmap);
-
-                if (isRequestedFrame)
-                    framePresented?.TrySetResult(true);
             }
 
-            if (!gate.HasReachedRequestedFrame)
-            {
-                throw new InvalidOperationException(
-                    $"The managed H.264 decoder did not emit requested MP4 sample {firstFrameSampleNumber}.");
-            }
         }
         finally
         {

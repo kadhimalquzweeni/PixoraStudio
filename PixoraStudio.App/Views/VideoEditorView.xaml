@@ -74,56 +74,38 @@
                     <Grid>
 
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0"
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center">
-                            <Button Content="◀ Frame"
-                                    Command="{Binding PreviousFrameCommand}"
-                                    IsEnabled="{Binding CanStepFrames}"
-                                    ToolTip="Show previous video frame"
-                                    Padding="8,4"
-                                    Margin="0,0,6,0"/>
-                            <Button Content="Frame ▶"
-                                    Command="{Binding NextFrameCommand}"
-                                    IsEnabled="{Binding CanStepFrames}"
-                                    ToolTip="Show next video frame"
-                                    Padding="8,4"
-                                    Margin="0,0,10,0"/>
-                        </StackPanel>
-
-                        <TextBlock Grid.Column="1"
+                        <TextBlock Grid.Column="0"
                                    Text="{Binding CurrentTime}"
                                    Foreground="White"
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,0"/>
 
-                        <TextBlock Grid.Column="2"
+                        <TextBlock Grid.Column="1"
                                    Text="/"
                                    Foreground="#AAAAAA"
                                    VerticalAlignment="Center"/>
 
-                        <TextBlock Grid.Column="3"
+                        <TextBlock Grid.Column="2"
                                    Text="{Binding VideoDuration}"
                                    Foreground="White"
                                    VerticalAlignment="Center"
                                    Margin="8,0,0,0"/>
 
-                        <TextBlock Grid.Column="4"
+                        <TextBlock Grid.Column="3"
                                    Text="Volume"
                                    Foreground="White"
                                    VerticalAlignment="Center"
                                    Margin="10,0"/>
 
-                        <Slider Grid.Column="5"
+                        <Slider Grid.Column="4"
                                 Minimum="0"
                                 Maximum="100"
                                 Value="{Binding Volume, Mode=TwoWay}"
@@ -131,7 +113,7 @@
                                 VerticalAlignment="Center"
                                 ValueChanged="VolumeSlider_ValueChanged"/>
 
-                        <Button Grid.Column="6"
+                        <Button Grid.Column="5"
                                 Content="{Binding MuteButtonText}"
                                 Click="MuteButton_Click"
                                 Margin="10,0,0,0"

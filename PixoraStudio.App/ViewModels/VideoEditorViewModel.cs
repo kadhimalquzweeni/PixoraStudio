@@ -225,8 +225,6 @@ public partial class VideoEditorViewModel : ObservableObject
     [ObservableProperty]
     private bool isPlaying;
 
-    [ObservableProperty]
-    private bool canStepFrames;
 
     [ObservableProperty]
     private double playbackPosition;
@@ -246,7 +244,6 @@ public partial class VideoEditorViewModel : ObservableObject
     public string MuteButtonText => IsMuted ? "Unmute" : "Mute";
 
     public event Action? PlayPauseRequested;
-    public event Action<int>? FrameStepRequested;
     public event Action<double>? SeekRequested;
     public event Action<double>? VolumeChanged;
     public event Action<bool>? MuteChanged;
@@ -269,19 +266,6 @@ public partial class VideoEditorViewModel : ObservableObject
         PlayPauseRequested?.Invoke();
     }
 
-    [RelayCommand]
-    private void PreviousFrame()
-    {
-        if (CanStepFrames)
-            FrameStepRequested?.Invoke(-1);
-    }
-
-    [RelayCommand]
-    private void NextFrame()
-    {
-        if (CanStepFrames)
-            FrameStepRequested?.Invoke(1);
-    }
 
     [RelayCommand]
     private void Seek(double position)
