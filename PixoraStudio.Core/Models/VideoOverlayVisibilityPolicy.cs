@@ -18,4 +18,17 @@ public static class VideoOverlayVisibilityPolicy
                !ownerIsMinimized &&
                videoHostIsVisible;
     }
+    
+    /// <summary>
+    /// Determines whether hover controls must remain visible during pointer interaction.
+    /// </summary>
+    public static bool ShouldKeepControlsVisible(
+        bool pointerIsOverOverlay,
+        bool overlayHasMouseCapture,
+        bool applicationHasMouseCapture)
+    {
+        return pointerIsOverOverlay ||
+               overlayHasMouseCapture ||
+               applicationHasMouseCapture;
+    }
 }
