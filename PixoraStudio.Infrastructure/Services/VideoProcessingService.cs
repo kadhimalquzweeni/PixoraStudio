@@ -115,7 +115,9 @@ public sealed class VideoProcessingService : IVideoProcessingService
             bool enableCabacProfiling = IsCabacProfilingEnabled();
             Debug.WriteLine(
                 $"[Thumbnails] Prepared {seekPlans.Length} seek plans; " +
-                $"workers={workerCount}; processors={Environment.ProcessorCount}; " +
+                $"thumbnailWorkers={workerCount}; " +
+                $"sliceWorkers={H264Mp4AccessUnitDecoder.ConfiguredMaxSliceParallelism}; " +
+                $"processors={Environment.ProcessorCount}; " +
                 $"cabacProfiling={enableCabacProfiling}.");
 
             Stopwatch batchStopwatch = Stopwatch.StartNew();

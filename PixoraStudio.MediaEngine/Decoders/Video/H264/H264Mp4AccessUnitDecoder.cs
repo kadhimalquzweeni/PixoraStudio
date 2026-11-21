@@ -561,15 +561,31 @@ public sealed class H264Mp4AccessUnitDecoder
         }
     }
 
-    private static int GetMaxSliceParallelism()
+    /// <summary>
+    /// Gets the effective slice worker count selected by the current process
+    /// environment. Exposed so diagnostics can report the active setting.
+    /// </summary>
+    public static int ConfiguredMaxSliceParallelism =>
+        ResolveMaxSliceParallelism(
+            Environment.GetEnvironmentVariable("PIXORA_H264_SLICE_WORKERS"),
+            Environment.ProcessorCount);
+
+    internal static int ResolveMaxSliceParallelism(
+        string? configured,
+        int processorCount)
     {
-        string? configured = Environment.GetEnvironmentVariable("PIXORA_H264_SLICE_WORKERS");
+        if (processorCount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(processorCount));
+
         if (int.TryParse(configured, out int requested) && requested > 0)
             return Math.Clamp(requested, 1, 4);
 
         // A small nested worker pool composes with parallel thumbnail workers.
-        return Math.Clamp(Environment.ProcessorCount / 4, 1, 2);
+        return Math.Clamp(processorCount / 4, 1, 2);
     }
+
+    private static int GetMaxSliceParallelism() =>
+        ConfiguredMaxSliceParallelism;
 
     private void ValidateConfigurationIdentity(H264AvcDecoderConfiguration configuration)
     {
