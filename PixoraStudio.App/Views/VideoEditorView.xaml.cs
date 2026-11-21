@@ -94,6 +94,17 @@ public partial class VideoEditorView : UserControl
     {
         _editorWindow = Window.GetWindow(this);
 
+        if (_editorWindow != null)
+        {
+            _editorWindow.Activated -= EditorWindow_Activated;
+            _editorWindow.Deactivated -= EditorWindow_Deactivated;
+            _editorWindow.StateChanged -= EditorWindow_StateChanged;
+
+            _editorWindow.Activated += EditorWindow_Activated;
+            _editorWindow.Deactivated += EditorWindow_Deactivated;
+            _editorWindow.StateChanged += EditorWindow_StateChanged;
+        }
+
         if (_mediaPlayer == null)
         {
             _libVLC = App.LibVLCInstance;
@@ -109,7 +120,7 @@ public partial class VideoEditorView : UserControl
         CreateOverlayWindow();
 
         _timer.Start();
-        _overlayPositionTimer.Start();
+        RefreshOverlayWindowVisibility();
 
         UpdateTrimTimeline();
 
@@ -186,11 +197,54 @@ public partial class VideoEditorView : UserControl
         _overlayWindow.PreviewMouseLeftButtonDown +=
             OverlayWindow_PreviewMouseLeftButtonDown;
 
-        _overlayWindow.Show();
-
-        UpdateOverlayPosition();
+        RefreshOverlayWindowVisibility();
     }
 
+    private bool CanDisplayOverlay =>
+        _editorWindow is not null &&
+        VideoOverlayVisibilityPolicy.ShouldShow(
+            _editorWindow.IsActive,
+            _editorWindow.WindowState == WindowState.Minimized,
+            VideoHost.IsVisible);
+
+    private void RefreshOverlayWindowVisibility()
+    {
+        if (_overlayWindow is null)
+            return;
+
+        if (!CanDisplayOverlay)
+        {
+            _overlayWindow.HideControls();
+
+            if (_overlayWindow.IsVisible)
+                _overlayWindow.Hide();
+
+            _overlayPositionTimer.Stop();
+            return;
+        }
+
+        if (!_overlayWindow.IsVisible)
+            _overlayWindow.Show();
+
+        _overlayPositionTimer.Start();
+        UpdateOverlayPosition();
+        CheckVideoHover();
+    }
+
+    private void EditorWindow_Activated(object? sender, EventArgs e)
+    {
+        RefreshOverlayWindowVisibility();
+    }
+
+    private void EditorWindow_Deactivated(object? sender, EventArgs e)
+    {
+        RefreshOverlayWindowVisibility();
+    }
+
+    private void EditorWindow_StateChanged(object? sender, EventArgs e)
+    {
+        RefreshOverlayWindowVisibility();
+    }
 
     private void OverlayWindow_FullscreenRequested(
         object? sender,
@@ -230,6 +284,12 @@ public partial class VideoEditorView : UserControl
         object? sender,
         EventArgs e)
     {
+        if (!CanDisplayOverlay)
+        {
+            RefreshOverlayWindowVisibility();
+            return;
+        }
+
         UpdateOverlayPosition();
         CheckVideoHover();
     }
@@ -237,6 +297,7 @@ public partial class VideoEditorView : UserControl
     private void UpdateOverlayPosition()
     {
         if (_overlayWindow == null ||
+            !CanDisplayOverlay ||
             !VideoHost.IsVisible ||
             VideoHost.ActualWidth <= 0 ||
             VideoHost.ActualHeight <= 0)
@@ -1040,8 +1101,10 @@ public partial class VideoEditorView : UserControl
             {
                 UpdateOverlayPosition();
 
-                _overlayWindow?.Show();
-                _overlayWindow?.ShowControls();
+                RefreshOverlayWindowVisibility();
+
+                if (CanDisplayOverlay)
+                    _overlayWindow?.ShowControls();
             }));
     }
 
@@ -1093,9 +1156,9 @@ public partial class VideoEditorView : UserControl
 
                 if (_overlayWindow != null)
                 {
-                    _overlayWindow.Show();
+                    RefreshOverlayWindowVisibility();
 
-                    if (_overlayWindow.IsMouseOver)
+                    if (CanDisplayOverlay && _overlayWindow.IsMouseOver)
                         _overlayWindow.ShowControls();
                     else
                         _overlayWindow.HideControls();
@@ -1159,6 +1222,9 @@ public partial class VideoEditorView : UserControl
         {
             _editorWindow.PreviewKeyDown -=
                 FullScreenWindow_PreviewKeyDown;
+            _editorWindow.Activated -= EditorWindow_Activated;
+            _editorWindow.Deactivated -= EditorWindow_Deactivated;
+            _editorWindow.StateChanged -= EditorWindow_StateChanged;
         }
 
         if (_mediaPlayer is not null)
@@ -1176,6 +1242,7 @@ public partial class VideoEditorView : UserControl
     private void CheckVideoHover()
     {
         if (_overlayWindow == null ||
+            !CanDisplayOverlay ||
             !VideoHost.IsVisible)
         {
             return;
