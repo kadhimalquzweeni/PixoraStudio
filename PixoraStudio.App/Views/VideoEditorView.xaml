@@ -120,6 +120,15 @@
                            IsHitTestVisible="False"
                            Visibility="Collapsed"/>
 
+                    <!-- Temporary filmstrip frame shown while the fullscreen slider is dragged. -->
+                    <Image x:Name="ScrubPreviewFrame"
+                           Panel.ZIndex="10"
+                           HorizontalAlignment="Stretch"
+                           VerticalAlignment="Stretch"
+                           Stretch="Uniform"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
+
                 </Grid>
 
                 <!-- Playback Controls Below Video -->

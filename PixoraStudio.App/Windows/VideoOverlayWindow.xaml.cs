@@ -105,6 +105,19 @@ public partial class VideoOverlayWindow : Window
         vm.SeekCommand.Execute(position);
     }
 
+    // Publish filmstrip previews while the user drags the playback thumb.
+    // This never seeks the player; the final seek remains a single mouse-up action.
+    private void PlaybackSlider_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!IsLoaded ||
+            e.LeftButton != MouseButtonState.Pressed ||
+            DataContext is not VideoEditorViewModel vm ||
+            vm.TotalMilliseconds <= 0)
+            return;
+
+        PlaybackPreviewRequested?.Invoke(PlaybackSlider.Value);
+    }
+
     // Apply the final value after a track click. This does not depend on
     // Slider mouse capture, which WPF does not guarantee for track clicks.
     private void FullscreenVolumeSlider_PreviewMouseLeftButtonUp(
@@ -173,4 +186,5 @@ public partial class VideoOverlayWindow : Window
     }
 
     public event EventHandler? FullscreenRequested;
+    public event Action<double>? PlaybackPreviewRequested;
 }

@@ -190,6 +190,9 @@ public partial class VideoEditorView : UserControl
         _overlayWindow.FullscreenRequested +=
             OverlayWindow_FullscreenRequested;
 
+        _overlayWindow.PlaybackPreviewRequested +=
+            OverlayWindow_PlaybackPreviewRequested;
+
         _overlayWindow.PreviewMouseLeftButtonDown +=
             OverlayWindow_PreviewMouseLeftButtonDown;
 
@@ -267,6 +270,23 @@ public partial class VideoEditorView : UserControl
             ToggleFullScreen();
             e.Handled = true;
         }
+    }
+
+    private void OverlayWindow_PlaybackPreviewRequested(double positionMilliseconds)
+    {
+        if (!_playbackSliderScrubState.IsActive ||
+            DataContext is not VideoEditorViewModel vm ||
+            vm.IsLoading ||
+            vm.VideoFrames.Count == 0)
+            return;
+
+        int index = VideoScrubPreviewSelector.FindNearestThumbnailIndex(
+            positionMilliseconds, vm.TotalMilliseconds, vm.VideoFrames.Count);
+        if (index < 0)
+            return;
+
+        ScrubPreviewFrame.Source = vm.VideoFrames[index];
+        ScrubPreviewFrame.Visibility = Visibility.Visible;
     }
 
     private static bool IsWithinSlider(DependencyObject? element)
@@ -405,6 +425,8 @@ public partial class VideoEditorView : UserControl
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
+        ScrubPreviewFrame.Source = null;
+        ScrubPreviewFrame.Visibility = Visibility.Collapsed;
 
         // Do not decode the complete AAC track before playback. LibVLC can
         // stream the MP4's audio immediately while the optional managed video
@@ -473,6 +495,8 @@ public partial class VideoEditorView : UserControl
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
+        ScrubPreviewFrame.Source = null;
+        ScrubPreviewFrame.Visibility = Visibility.Collapsed;
         _usesCustomAacAudio = false;
 
         if (_mediaPlayer is not null)
@@ -566,6 +590,11 @@ public partial class VideoEditorView : UserControl
                     $"Managed H.264 seek failed; LibVLC fallback remains active: {exception.Message}");
             }
         }
+
+        // The real player/managed decoder has now received the committed seek.
+        // Remove the temporary filmstrip image so the actual video frame is visible.
+        ScrubPreviewFrame.Visibility = Visibility.Collapsed;
+        ScrubPreviewFrame.Source = null;
 
         if (!_usesCustomAacAudio)
         {
@@ -1251,6 +1280,8 @@ public partial class VideoEditorView : UserControl
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
+        ScrubPreviewFrame.Source = null;
+        ScrubPreviewFrame.Visibility = Visibility.Collapsed;
         _usesCustomAacAudio = false;
 
         if (_isFullScreen)
@@ -1263,6 +1294,8 @@ public partial class VideoEditorView : UserControl
             _overlayWindow.FullscreenRequested -=
                 OverlayWindow_FullscreenRequested;
 
+            _overlayWindow.PlaybackPreviewRequested -=
+                OverlayWindow_PlaybackPreviewRequested;
 
             _overlayWindow.PreviewMouseLeftButtonDown -=
                 OverlayWindow_PreviewMouseLeftButtonDown;
