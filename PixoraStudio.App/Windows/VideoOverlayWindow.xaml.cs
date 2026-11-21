@@ -95,26 +95,14 @@ public partial class VideoOverlayWindow : Window
             return;
         }
 
+        // Commit exactly one seek after the pointer interaction has finished.
+        // Seeking during ValueChanged repeatedly pauses/restarts the decoder
+        // and can leave playback in an inconsistent state.
         double position = VideoTimelineMath.ClampPosition(
             PlaybackSlider.Value,
             vm.TotalMilliseconds);
 
         vm.SeekCommand.Execute(position);
-    }
-
-    // Keep seeking continuously while the user drags the playback thumb.
-    private void PlaybackSlider_ValueChanged(
-        object sender,
-        RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (!IsLoaded ||
-            !PlaybackSlider.IsMouseCaptureWithin)
-        {
-            return;
-        }
-
-        if (DataContext is VideoEditorViewModel vm)
-            vm.SeekCommand.Execute(e.NewValue);
     }
 
     // Apply the final value after a track click. This does not depend on

@@ -116,8 +116,7 @@
                             Maximum="{Binding TotalMilliseconds}"
                             Value="{Binding PlaybackPosition, Mode=TwoWay}"
                             IsMoveToPointEnabled="True"
-                            VerticalAlignment="Center"
-                            ValueChanged="PlaybackSlider_ValueChanged"/>
+                            VerticalAlignment="Center"/>
 
                     <TextBlock Grid.Column="2"
                                Text="{Binding VideoDuration}"

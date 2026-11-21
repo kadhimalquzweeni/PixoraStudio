@@ -274,6 +274,16 @@ public partial class VideoEditorView : UserControl
             return;
         }
 
+        // Do not move the layered overlay while WPF owns the mouse for a
+        // slider drag. Repositioning a transparent top-level window during
+        // capture can interrupt the drag and make the timeline intermittent.
+        if (_overlayWindow?.IsMouseCaptureWithin == true ||
+            Mouse.Captured is not null)
+        {
+            CheckVideoHover();
+            return;
+        }
+
         UpdateOverlayPosition();
         CheckVideoHover();
     }

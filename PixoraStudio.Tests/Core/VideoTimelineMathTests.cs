@@ -116,6 +116,20 @@ public sealed class VideoTimelineMathTests
     }
 
     [Theory]
+    [InlineData(double.NaN, 10000)]
+    [InlineData(double.PositiveInfinity, 10000)]
+    [InlineData(double.NegativeInfinity, 10000)]
+    [InlineData(5000, 0)]
+    [InlineData(5000, -1)]
+    [InlineData(5000, double.NaN)]
+    public void ClampPosition_ShouldReturnZeroForInvalidPositionOrDuration(
+        double position,
+        double duration)
+    {
+        Assert.Equal(0, VideoTimelineMath.ClampPosition(position, duration));
+    }
+
+    [Theory]
     [InlineData(0, 100, 10000)]
     [InlineData(50, 0, 10000)]
     [InlineData(50, 100, 0)]
