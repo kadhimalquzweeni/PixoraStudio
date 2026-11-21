@@ -1,4 +1,5 @@
 using PixoraStudio.Core.Models;
+using SharpGen.Runtime;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
@@ -32,7 +33,7 @@ internal static class D3D11AdapterDiscovery
             using (adapter)
             {
                 AdapterDescription1 description = adapter.Description1;
-                bool isSoftware = (description.Flags & AdapterFlags.Software) != 0;
+                bool isSoftware = (description.Flags & AdapterFlags.Software) != AdapterFlags.None;
                 bool canCreateDevice = !isSoftware &&
                     TryCreateDevice(adapter, out _, out _);
 
@@ -62,7 +63,7 @@ internal static class D3D11AdapterDiscovery
             using (adapter)
             {
                 AdapterDescription1 description = adapter.Description1;
-                if ((description.Flags & AdapterFlags.Software) == 0)
+                if ((description.Flags & AdapterFlags.Software) == AdapterFlags.None)
                     candidates.Add((checked((int)index), description));
             }
         }
