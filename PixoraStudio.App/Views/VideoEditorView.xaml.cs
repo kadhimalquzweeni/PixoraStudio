@@ -242,7 +242,24 @@ public partial class VideoEditorView : UserControl
         object sender,
         MouseButtonEventArgs e)
     {
-        if (IsPlaybackControl(e.OriginalSource as DependencyObject))
+        DependencyObject? source = e.OriginalSource as DependencyObject;
+
+        // The overlay window owns the fullscreen slider, so its routed
+        // PreviewMouseLeftButtonDown event is handled here in the editor view.
+        // Capture playback state before the two-way slider binding changes.
+        if (IsWithinSlider(source))
+        {
+            if (DataContext is VideoEditorViewModel vm &&
+                vm.TotalMilliseconds > 0 &&
+                _mediaPlayer is not null)
+            {
+                _playbackSliderScrubState.Begin(_mediaPlayer.IsPlaying);
+            }
+
+            return;
+        }
+
+        if (IsPlaybackControl(source))
             return;
 
         if (e.ClickCount == 2)
@@ -250,6 +267,19 @@ public partial class VideoEditorView : UserControl
             ToggleFullScreen();
             e.Handled = true;
         }
+    }
+
+    private static bool IsWithinSlider(DependencyObject? element)
+    {
+        while (element is not null)
+        {
+            if (element is Slider)
+                return true;
+
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return false;
     }
 
     private bool IsPlaybackControl(DependencyObject? element)
@@ -1026,21 +1056,6 @@ public partial class VideoEditorView : UserControl
 
         Canvas.SetLeft(label, left);
         Canvas.SetTop(label, top);
-    }
-
-    private void PlaybackSlider_PreviewMouseLeftButtonDown(
-        object sender,
-        MouseButtonEventArgs e)
-    {
-        if (DataContext is not VideoEditorViewModel vm ||
-            vm.TotalMilliseconds <= 0 ||
-            _mediaPlayer is null)
-        {
-            return;
-        }
-
-        // Capture playback state once, before the bound position changes.
-        _playbackSliderScrubState.Begin(_mediaPlayer.IsPlaying);
     }
 
     // Apply the final track-click value after WPF moves the thumb to the
