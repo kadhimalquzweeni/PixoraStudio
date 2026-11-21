@@ -1275,9 +1275,10 @@ public partial class VideoEditorView : UserControl
 
         // Keep controls alive while the pointer is interacting with the
         // overlay. The timer must not hide a button during its click/capture.
-        if (_overlayWindow.IsMouseOver ||
-            _overlayWindow.IsMouseCaptureWithin ||
-            Mouse.Captured is not null)
+        if (VideoOverlayVisibilityPolicy.ShouldKeepControlsVisible(
+            _overlayWindow.IsMouseOver,
+            _overlayWindow.IsMouseCaptureWithin,
+            Mouse.Captured is not null))
         {
             _overlayWindow.ShowControls();
             return;
