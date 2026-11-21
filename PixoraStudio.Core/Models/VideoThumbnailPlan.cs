@@ -10,7 +10,7 @@ public static class VideoThumbnailPlan
     /// Minimum number of thumbnails used to populate the timeline, including for
     /// short videos whose ten-second sampling plan would otherwise leave it sparse.
     /// </summary>
-    public const int MinimumThumbnailCount = 10;
+    public const int MinimumThumbnailCount = 12;
 
     /// <summary>
     /// Returns the greater of the minimum filmstrip count and the regular

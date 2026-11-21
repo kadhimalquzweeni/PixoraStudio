@@ -11,17 +11,17 @@ public sealed class VideoThumbnailPlanTests
     }
 
     [Fact]
-    public void MinimumThumbnailCount_ShouldBeTen()
+    public void MinimumThumbnailCount_ShouldBeTwelve()
     {
-        Assert.Equal(10, VideoThumbnailPlan.MinimumThumbnailCount);
+        Assert.Equal(12, VideoThumbnailPlan.MinimumThumbnailCount);
     }
 
     [Theory]
-    [InlineData(1, 10)]
-    [InlineData(5, 10)]
-    [InlineData(10, 10)]
-    [InlineData(30, 10)]
-    [InlineData(60, 10)]
+    [InlineData(1, 12)]
+    [InlineData(5, 12)]
+    [InlineData(10, 12)]
+    [InlineData(30, 12)]
+    [InlineData(60, 12)]
     [InlineData(120, 12)]
     [InlineData(300, 30)]
     [InlineData(305, 32)]
@@ -74,7 +74,7 @@ public sealed class VideoThumbnailPlanTests
     [InlineData(10)]
     [InlineData(30)]
     [InlineData(60)]
-    public void CreatePositions_ShouldDistributeMinimumTenTargetsAcrossShortVideos(
+    public void CreatePositions_ShouldDistributeMinimumTwelveTargetsAcrossShortVideos(
         int durationSeconds)
     {
         TimeSpan duration = TimeSpan.FromSeconds(durationSeconds);
@@ -90,8 +90,8 @@ public sealed class VideoThumbnailPlanTests
             Assert.True(positions[index] > positions[index - 1]);
             Assert.InRange(
                 positions[index] - positions[index - 1],
-                TimeSpan.FromTicks(duration.Ticks / 10 - 1),
-                TimeSpan.FromTicks(duration.Ticks / 10 + 1));
+                TimeSpan.FromTicks(duration.Ticks / 12 - 1),
+                TimeSpan.FromTicks(duration.Ticks / 12 + 1));
         }
     }
 
