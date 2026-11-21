@@ -5,26 +5,21 @@ namespace PixoraStudio.Tests.Core;
 public sealed class VideoThumbnailPlanTests
 {
     [Fact]
-    public void CreatePositions_ShouldCreateTwelveEvenlyDistributedTargetsForTwoMinutes()
+    public void TargetThumbnailInterval_ShouldBeTenSeconds()
     {
-        IReadOnlyList<TimeSpan> positions =
-            VideoThumbnailPlan.CreatePositions(TimeSpan.FromSeconds(120));
-
-        Assert.Equal(12, positions.Count);
-        Assert.Equal(TimeSpan.Zero, positions[0]);
-        Assert.Equal(TimeSpan.FromSeconds(10), positions[1]);
-        Assert.Equal(TimeSpan.FromSeconds(110), positions[^1]);
+        Assert.Equal(TimeSpan.FromSeconds(10), VideoThumbnailPlan.TargetThumbnailInterval);
     }
 
     [Theory]
-    [InlineData(10, 12)]
-    [InlineData(60, 12)]
-    [InlineData(240, 12)]
-    [InlineData(300, 15)]
-    [InlineData(600, 30)]
-    [InlineData(1200, 48)]
-    [InlineData(3600, 48)]
-    public void GetRecommendedThumbnailCount_ShouldScaleWithDurationAndRespectLimits(
+    [InlineData(5, 1)]
+    [InlineData(10, 1)]
+    [InlineData(60, 6)]
+    [InlineData(120, 12)]
+    [InlineData(300, 30)]
+    [InlineData(305, 32)]
+    [InlineData(600, 60)]
+    [InlineData(3600, 360)]
+    public void GetRecommendedThumbnailCount_ShouldUseTenSecondIntervalsAndIncludePartialEnd(
         int durationSeconds,
         int expectedCount)
     {
@@ -48,18 +43,34 @@ public sealed class VideoThumbnailPlanTests
     }
 
     [Fact]
-    public void CreatePositions_ShouldUseAdaptiveCountAndRemainEvenlyDistributed()
+    public void CreatePositions_ShouldCreateThirtyTargetsTenSecondsApartForFiveMinutes()
     {
-        TimeSpan duration = TimeSpan.FromMinutes(10);
-
-        IReadOnlyList<TimeSpan> positions = VideoThumbnailPlan.CreatePositions(duration);
+        IReadOnlyList<TimeSpan> positions =
+            VideoThumbnailPlan.CreatePositions(TimeSpan.FromMinutes(5));
 
         Assert.Equal(30, positions.Count);
         Assert.Equal(TimeSpan.Zero, positions[0]);
-        Assert.Equal(TimeSpan.FromSeconds(20), positions[1]);
-        Assert.Equal(TimeSpan.FromSeconds(580), positions[^1]);
-        Assert.All(positions, position =>
-            Assert.InRange(position, TimeSpan.Zero, duration - TimeSpan.FromTicks(1)));
+        Assert.Equal(TimeSpan.FromSeconds(10), positions[1]);
+        Assert.Equal(TimeSpan.FromSeconds(290), positions[^1]);
+
+        for (int index = 1; index < positions.Count; index++)
+        {
+            Assert.Equal(
+                TimeSpan.FromSeconds(10),
+                positions[index] - positions[index - 1]);
+        }
+    }
+
+    [Fact]
+    public void CreatePositions_ShouldAppendFinalFrameWhenDurationHasPartialInterval()
+    {
+        TimeSpan duration = TimeSpan.FromSeconds(305);
+
+        IReadOnlyList<TimeSpan> positions = VideoThumbnailPlan.CreatePositions(duration);
+
+        Assert.Equal(32, positions.Count);
+        Assert.Equal(TimeSpan.FromSeconds(300), positions[^2]);
+        Assert.Equal(duration - TimeSpan.FromTicks(1), positions[^1]);
     }
 
     [Fact]

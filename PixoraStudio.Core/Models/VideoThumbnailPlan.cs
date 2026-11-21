@@ -1,21 +1,14 @@
 namespace PixoraStudio.Core.Models;
 
-/// <summary>Creates evenly distributed seek targets for a video filmstrip.</summary>
+/// <summary>Creates filmstrip seek targets at a fixed time interval.</summary>
 public static class VideoThumbnailPlan
 {
-    /// <summary>Minimum number of representative frames used by the editor filmstrip.</summary>
-    public const int DefaultThumbnailCount = 12;
-
-    /// <summary>Maximum number of frames used to keep long-video filmstrips responsive.</summary>
-    public const int MaximumThumbnailCount = 48;
-
-    /// <summary>Target spacing between filmstrip thumbnails before applying the count limits.</summary>
-    public static readonly TimeSpan TargetThumbnailInterval = TimeSpan.FromSeconds(20);
+    /// <summary>Target spacing between consecutive filmstrip thumbnails.</summary>
+    public static readonly TimeSpan TargetThumbnailInterval = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// Chooses a thumbnail count based on video duration. The count grows by
-    /// approximately one thumbnail per 20 seconds, with a minimum of 12 and
-    /// maximum of 48 to balance visual coverage and generation time.
+    /// Returns the number of regular ten-second positions, plus a final position
+    /// when the duration has a partial interval and is longer than one interval.
     /// </summary>
     public static int GetRecommendedThumbnailCount(TimeSpan duration)
     {
@@ -25,16 +18,41 @@ public static class VideoThumbnailPlan
         if (duration == TimeSpan.Zero)
             return 0;
 
-        long intervals = 1 + ((duration.Ticks - 1) / TargetThumbnailInterval.Ticks);
-        return (int)Math.Clamp(
-            intervals,
-            DefaultThumbnailCount,
-            MaximumThumbnailCount);
+        long intervalCount = 1 + ((duration.Ticks - 1) / TargetThumbnailInterval.Ticks);
+        bool hasPartialInterval =
+            duration > TargetThumbnailInterval &&
+            duration.Ticks % TargetThumbnailInterval.Ticks != 0;
+
+        return checked((int)(intervalCount + (hasPartialInterval ? 1 : 0)));
     }
 
-    /// <summary>Creates evenly distributed positions using the adaptive thumbnail count.</summary>
-    public static IReadOnlyList<TimeSpan> CreatePositions(TimeSpan duration) =>
-        CreatePositions(duration, GetRecommendedThumbnailCount(duration));
+    /// <summary>
+    /// Creates positions at zero and every ten seconds thereafter. If the
+    /// duration ends between ten-second boundaries, the final frame is also
+    /// included so the end of the video is represented in the filmstrip.
+    /// </summary>
+    public static IReadOnlyList<TimeSpan> CreatePositions(TimeSpan duration)
+    {
+        if (duration < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(duration));
+
+        if (duration == TimeSpan.Zero)
+            return Array.Empty<TimeSpan>();
+
+        int count = GetRecommendedThumbnailCount(duration);
+        var positions = new List<TimeSpan>(count);
+
+        for (long ticks = 0; ticks < duration.Ticks; ticks += TargetThumbnailInterval.Ticks)
+            positions.Add(TimeSpan.FromTicks(ticks));
+
+        if (duration > TargetThumbnailInterval &&
+            duration.Ticks % TargetThumbnailInterval.Ticks != 0)
+        {
+            positions.Add(duration - TimeSpan.FromTicks(1));
+        }
+
+        return positions;
+    }
 
     /// <summary>Creates evenly distributed positions using an explicit thumbnail count.</summary>
     public static IReadOnlyList<TimeSpan> CreatePositions(TimeSpan duration, int count)
