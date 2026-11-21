@@ -17,7 +17,6 @@ namespace PixoraStudio.Infrastructure.Services;
 public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbnailDecoder
 {
     private const int ThumbnailWidth = 240;
-    private const long MediaFoundationTicksPerSecond = 10_000_000;
     private const uint CoInitializeMultithreaded = 0;
 
     public Task<bool> TryGenerateThumbnailsAsync(
@@ -150,48 +149,67 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
             reader.SetCurrentPosition(targetTimestamp);
 
             byte[]? encodedFrame = null;
-            while (encodedFrame is null)
+            IMFSample? previousSample = null;
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                using IMFSample? sample = reader.ReadSample(
-                    SourceReaderIndex.FirstVideoStream,
-                    SourceReaderControlFlag.None,
-                    out _,
-                    out SourceReaderFlag flags,
-                    out long timestamp);
-
-                SampleReadDisposition disposition = GetReadDisposition(
-                    sample is not null,
-                    flags.HasFlag(SourceReaderFlag.Error),
-                    flags.HasFlag(SourceReaderFlag.EndOfStream),
-                    timestamp,
-                    targetTimestamp);
-
-                switch (disposition)
+                while (encodedFrame is null)
                 {
-                    case SampleReadDisposition.Error:
-                        throw new InvalidDataException(
-                            "Media Foundation reported a decoding error.");
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                    case SampleReadDisposition.EndOfStream:
-                        throw new EndOfStreamException(
-                            $"No decoded frame was available at {positions[index]}.");
+                    using IMFSample? sample = reader.ReadSample(
+                        SourceReaderIndex.FirstVideoStream,
+                        SourceReaderControlFlag.None,
+                        out _,
+                        out SourceReaderFlag flags,
+                        out long timestamp);
 
-                    case SampleReadDisposition.Accept:
-                        using (IMFMediaType currentType =
-                            reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream))
-                        {
-                            encodedFrame = EncodeSample(
-                                sample!, currentType, d3dDevice, d3dContext);
-                        }
-                        break;
+                    SampleReadDisposition disposition = GetReadDisposition(
+                        sample is not null,
+                        previousSample is not null,
+                        flags.HasFlag(SourceReaderFlag.Error),
+                        flags.HasFlag(SourceReaderFlag.EndOfStream),
+                        timestamp,
+                        targetTimestamp);
 
-                    case SampleReadDisposition.Skip:
-                        // Seeking may return preroll samples or stream ticks.
-                        // Keep reading until the requested presentation time is reached.
-                        break;
+                    switch (disposition)
+                    {
+                        case SampleReadDisposition.Error:
+                            throw new InvalidDataException(
+                                "Media Foundation reported a decoding error.");
+
+                        case SampleReadDisposition.EndOfStream:
+                            throw new EndOfStreamException(
+                                $"No decoded frame was available at {positions[index]}.");
+
+                        case SampleReadDisposition.Accept:
+                            encodedFrame = EncodeReaderSample(
+                                sample!, d3dDevice, d3dContext, reader);
+                            break;
+
+                        case SampleReadDisposition.AcceptLastAvailable:
+                            // The final displayed frame usually starts before the
+                            // media duration. Use it when the target is the final
+                            // filmstrip position and no later frame exists.
+                            encodedFrame = EncodeReaderSample(
+                                sample ?? previousSample!, d3dDevice, d3dContext, reader);
+                            break;
+
+                        case SampleReadDisposition.Skip:
+                            // Keep only the latest preroll frame. If the requested
+                            // position falls after the final frame timestamp, it
+                            // becomes the last-frame fallback.
+                            if (sample is not null)
+                            {
+                                previousSample?.Dispose();
+                                previousSample = sample.QueryInterface<IMFSample>();
+                            }
+                            break;
+                    }
                 }
+            }
+            finally
+            {
+                previousSample?.Dispose();
             }
 
             encodedFrames.Add(encodedFrame);
@@ -219,17 +237,19 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
     {
         Skip,
         Accept,
+        AcceptLastAvailable,
         EndOfStream,
         Error
     }
 
     /// <summary>
-    /// Determines how a Source Reader result should be handled. A final sample
-    /// can be returned together with EndOfStream, so a usable sample must be
-    /// accepted before treating the stream as exhausted.
+    /// Determines how a Source Reader result should be handled. The final
+    /// displayed frame can have a timestamp earlier than the media duration,
+    /// so the latest decoded frame is retained as a fallback for end targets.
     /// </summary>
     internal static SampleReadDisposition GetReadDisposition(
         bool hasSample,
+        bool hasPreviousSample,
         bool hasError,
         bool endOfStream,
         long sampleTimestamp,
@@ -241,9 +261,23 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
         if (hasSample && sampleTimestamp >= targetTimestamp)
             return SampleReadDisposition.Accept;
 
+        if (endOfStream && (hasSample || hasPreviousSample))
+            return SampleReadDisposition.AcceptLastAvailable;
+
         return endOfStream
             ? SampleReadDisposition.EndOfStream
             : SampleReadDisposition.Skip;
+    }
+
+    private static byte[] EncodeReaderSample(
+        IMFSample sample,
+        ID3D11Device d3dDevice,
+        ID3D11DeviceContext d3dContext,
+        IMFSourceReader reader)
+    {
+        using IMFMediaType currentType =
+            reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream);
+        return EncodeSample(sample, currentType, d3dDevice, d3dContext);
     }
 
     private static byte[] EncodeSample(
