@@ -14,26 +14,7 @@ public partial class VideoOverlayWindow : Window
 
     public VideoOverlayWindow()
     {
-        InitializeComponent();
-
-        MouseEnter += Overlay_MouseEnter;
-        MouseLeave += Overlay_MouseLeave;
-    }
-
-    private void Overlay_MouseEnter(
-        object sender,
-        MouseEventArgs e)
-    {
-        ShowControls();
-    }
-
-    private void Overlay_MouseLeave(
-        object sender,
-        MouseEventArgs e)
-    {
-        HideControls();
-    }
-
+        InitializeComponent();}
     public void ShowControls()
     {
         PlayPauseButton.Visibility = Visibility.Visible;
