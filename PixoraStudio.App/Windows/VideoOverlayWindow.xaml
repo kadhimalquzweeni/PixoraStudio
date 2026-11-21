@@ -153,31 +153,6 @@
                                Margin="10,0,0,0"/>
                 </Grid>
 
-                <!-- Frame-by-frame navigation -->
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Center"
-                            Margin="0,0,0,14">
-                    <Button Content="◀ Previous Frame"
-                            Command="{Binding PreviousFrameCommand}"
-                            IsEnabled="{Binding CanStepFrames}"
-                            ToolTip="Show previous video frame"
-                            Padding="14,8"
-                            Margin="0,0,8,0"
-                            Background="#303640"
-                            Foreground="White"
-                            BorderBrush="#555B66"
-                            Cursor="Hand"/>
-                    <Button Content="Next Frame ▶"
-                            Command="{Binding NextFrameCommand}"
-                            IsEnabled="{Binding CanStepFrames}"
-                            ToolTip="Show next video frame"
-                            Padding="14,8"
-                            Background="#303640"
-                            Foreground="White"
-                            BorderBrush="#555B66"
-                            Cursor="Hand"/>
-                </StackPanel>
-
                 <!-- Trim Buttons -->
                 <StackPanel Orientation="Horizontal"
                             HorizontalAlignment="Right">
