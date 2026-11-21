@@ -98,7 +98,6 @@ public partial class VideoOverlayWindow : Window
 
         PlaybackSlider.Value = value;
         vm.SeekCommand.Execute(value);
-        e.Handled = true;
     }
 
     // Keep seeking continuously while the user drags the playback thumb.
@@ -131,7 +130,6 @@ public partial class VideoOverlayWindow : Window
 
         VolumeSlider.Value = value;
         vm.ChangeVolumeCommand.Execute(value);
-        e.Handled = true;
     }
 
     // Keep volume changes responsive while the user drags the thumb.
@@ -158,28 +156,49 @@ public partial class VideoOverlayWindow : Window
         slider.UpdateLayout();
 
         Track? track = FindVisualChild<Track>(slider);
-        if (track is null)
+
+        // Clicking the thumb should be left to WPF so its normal drag
+        // behaviour and mouse capture are preserved.
+        if (track?.Thumb?.IsMouseOver == true)
         {
             value = slider.Value;
             return false;
         }
 
-        // Let the Slider handle thumb clicks so mouse capture and dragging
-        // continue to work as normal.
-        if (track.Thumb?.IsMouseOver == true)
+        double clickX;
+        double trackWidth;
+        double thumbWidth;
+
+        if (track is not null && track.ActualWidth > 0)
+        {
+            clickX = e.GetPosition(track).X;
+            trackWidth = track.ActualWidth;
+            thumbWidth = track.Thumb?.ActualWidth ?? 0;
+        }
+        else
+        {
+            // Some WPF templates do not expose a Track at this point in
+            // the routed event. Fall back to the Slider's own coordinates.
+            clickX = e.GetPosition(slider).X;
+            trackWidth = slider.ActualWidth;
+            thumbWidth = 0;
+        }
+
+        if (trackWidth <= 0)
         {
             value = slider.Value;
             return false;
         }
 
-        Point click = e.GetPosition(track);
         value = VideoTimelineMath.GetValueFromTrackClick(
-            click.X,
-            track.ActualWidth,
-            track.Thumb?.ActualWidth ?? 0,
+            clickX,
+            trackWidth,
+            thumbWidth,
             slider.Minimum,
             slider.Maximum);
 
+        // Do not mark the event handled: WPF can still update/capture the
+        // slider thumb, while the command below applies the click instantly.
         return true;
     }
 

@@ -163,6 +163,7 @@
                             Grid.Column="2"
                             Minimum="0"
                             Maximum="100"
+                            IsMoveToPointEnabled="True"
                             Value="{Binding Volume, Mode=TwoWay}"
                             VerticalAlignment="Center"
                             ValueChanged="FullscreenVolumeSlider_ValueChanged"/>
