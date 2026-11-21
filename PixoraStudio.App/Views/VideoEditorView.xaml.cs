@@ -50,7 +50,7 @@ public partial class VideoEditorView : UserControl
     private GridLength _previousHeaderRowHeight;
     private readonly DispatcherTimer _timer = new()
     {
-        Interval = TimeSpan.FromMilliseconds(200)
+        Interval = TimeSpan.FromMilliseconds(UiTickMilliseconds)
     };
 
     // Keeps the separate overlay aligned with the video preview.
@@ -60,6 +60,12 @@ public partial class VideoEditorView : UserControl
     };
 
     private bool _wasPlayingBeforeScrubbing;
+
+    // The playhead and time label refresh at ~25 fps. Audio drift correction
+    // is far more expensive, so it still runs only every fifth tick (200 ms).
+    private const int UiTickMilliseconds = 40;
+    private const int AudioSyncEveryTicks = 5;
+    private int _ticksSinceAudioSync;
     private int _scrubSeekBusy;
     private double? _pendingScrubPosition;
     private readonly PlaybackScrubState _playbackSliderScrubState = new();
@@ -301,7 +307,7 @@ public partial class VideoEditorView : UserControl
     }
 
     /// <summary>
-    /// Shows the real video frame at <paramref name="position"/> while the user
+    /// Shows a video frame near <paramref name="position"/> while the user
     /// drags. Seeks are expensive, so one runs at a time and the newest
     /// requested position replaces any that queued behind it. Audio is left
     /// alone until the scrub is committed by <see cref="OnSeek"/>.
@@ -324,8 +330,11 @@ public partial class VideoEditorView : UserControl
                 _pendingScrubPosition = null;
                 _mediaPlayer.Time = (long)target;
 
+                // Show the keyframe at or before the pointer: one decoded picture,
+                // cached, instead of decoding forward to the exact frame on every
+                // move. OnSeek lands on the exact frame when the scrub ends.
                 if (_usesManagedH264Video)
-                    await _managedH264PlaybackService.SeekAsync(target / 1000d);
+                    await _managedH264PlaybackService.ShowKeyframePreviewAsync(target / 1000d);
             }
         }
         catch (Exception exception)
@@ -832,12 +841,17 @@ public partial class VideoEditorView : UserControl
                 TimeSpan.FromMilliseconds(playbackMilliseconds));
         }
 
-        if (_usesCustomAacAudio &&
-            _mediaPlayer.IsPlaying &&
-            !_aacAudioPlaybackService.IsSeeking)
+        if (++_ticksSinceAudioSync >= AudioSyncEveryTicks)
         {
-            _ = SynchroniseAudioAsync(
-                TimeSpan.FromMilliseconds(_mediaPlayer.Time));
+            _ticksSinceAudioSync = 0;
+
+            if (_usesCustomAacAudio &&
+                _mediaPlayer.IsPlaying &&
+                !_aacAudioPlaybackService.IsSeeking)
+            {
+                _ = SynchroniseAudioAsync(
+                    TimeSpan.FromMilliseconds(_mediaPlayer.Time));
+            }
         }
 
         UpdateTrimTimeline();

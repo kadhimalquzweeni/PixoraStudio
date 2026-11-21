@@ -17,6 +17,7 @@ namespace PixoraStudio.App.Services;
 public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 {
     private const int DecodeBufferCapacity = 3;
+    private const int KeyframePreviewCacheCapacity = 32;
 
     private readonly H264Mp4FramePresentationScheduler _presentationScheduler = new();
     private readonly H264YuvToBgraConverter _converter = new();
@@ -32,6 +33,13 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     private Action<Exception>? _failed;
     private CancellationTokenSource? _decodeCancellation;
     private Task? _decodeTask;
+
+    // Keyframe pictures shown while scrubbing, keyed by MP4 sample number.
+    // Dragging back and forth over the same keyframes then costs nothing.
+    // Only touched while holding _operationLock.
+    private readonly Dictionary<uint, BitmapSource> _keyframePreviews = new();
+    private readonly Queue<uint> _keyframePreviewOrder = new();
+    private readonly H264Mp4VideoSeekPlanner _seekPlanner = new();
 
 
     public bool IsActive => _mediaInfo is not null && _decodeCancellation is not null;
@@ -93,6 +101,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             _playbackClock = playbackClock;
             _frameReady = frameReady;
             _failed = failed;
+            ClearKeyframePreviews();
 
             await StartDecodeAsync(0, cancellationToken).ConfigureAwait(false);
             return true;
@@ -124,6 +133,104 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Publishes the keyframe at or before <paramref name="positionSeconds"/>
+    /// without waiting for the playback clock. Decoding one picture costs a
+    /// fraction of decoding forward to the exact frame, so this keeps a drag
+    /// responsive on videos with long keyframe intervals. Call
+    /// <see cref="SeekAsync"/> afterwards to land on the exact frame.
+    /// </summary>
+    public async Task ShowKeyframePreviewAsync(
+        double positionSeconds,
+        CancellationToken cancellationToken = default)
+    {
+        if (!double.IsFinite(positionSeconds) || positionSeconds < 0)
+            throw new ArgumentOutOfRangeException(nameof(positionSeconds));
+
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            Mp4MediaInfo? info = _mediaInfo;
+            string? path = _filePath;
+            Action<BitmapSource>? publish = _frameReady;
+            if (info is null || path is null || publish is null)
+                return;
+
+            // Playback would otherwise overwrite the preview with later frames.
+            await StopDecodeTaskAsync().ConfigureAwait(false);
+
+            uint trackId = _trackId;
+            BitmapSource? preview = await Task.Run(() =>
+            {
+                Mp4MediaTrack track = info.GetTrack(trackId) ??
+                    throw new InvalidOperationException("The active MP4 video track is unavailable.");
+                uint sampleNumber = _seekPlanner
+                    .Plan(track, positionSeconds)
+                    .FirstSampleToDecode;
+
+                if (_keyframePreviews.TryGetValue(sampleNumber, out BitmapSource? cached))
+                    return cached;
+
+                using FileStream stream = new(
+                    path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                H264Mp4DecodedVideoFrame? frame = _decoder.DecodeSyncSample(
+                    stream, info, trackId, sampleNumber,
+                    cancellationToken: cancellationToken);
+                if (frame is null)
+                    return null;
+
+                BitmapSource created = ConvertToBitmap(
+                    frame, new(ReferenceEqualityComparer.Instance));
+                RememberKeyframePreview(sampleNumber, created);
+                return created;
+            }, cancellationToken).ConfigureAwait(false);
+
+            if (preview is not null)
+                publish(preview);
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    private void RememberKeyframePreview(uint sampleNumber, BitmapSource bitmap)
+    {
+        if (_keyframePreviews.TryAdd(sampleNumber, bitmap))
+            _keyframePreviewOrder.Enqueue(sampleNumber);
+
+        while (_keyframePreviewOrder.Count > KeyframePreviewCacheCapacity)
+            _keyframePreviews.Remove(_keyframePreviewOrder.Dequeue());
+    }
+
+    private void ClearKeyframePreviews()
+    {
+        _keyframePreviews.Clear();
+        _keyframePreviewOrder.Clear();
+    }
+
+    private BitmapSource ConvertToBitmap(
+        H264Mp4DecodedVideoFrame frame,
+        Dictionary<H264AvcDecoderConfiguration, H264AvcParameterSetCollection> parameterSetCache)
+    {
+        H264AvcDecoderConfiguration configuration = frame.SourceSample.Configuration;
+        if (!parameterSetCache.TryGetValue(
+                configuration, out H264AvcParameterSetCollection? parameterSets) ||
+            parameterSets is null)
+        {
+            parameterSets = _parameterSetReader.Read(configuration);
+            parameterSetCache.Add(configuration, parameterSets);
+        }
+
+        H264SequenceParameterSet sps = parameterSets.SequenceParameterSets.Values.First();
+        H264BgraFrame bgra = _converter.Convert(frame.Surface, sps);
+        BitmapSource bitmap = BitmapSource.Create(
+            bgra.Width, bgra.Height, 96, 96,
+            PixelFormats.Bgra32, null, bgra.Pixels, bgra.Stride);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
     public async Task StopAsync()
     {
         await _operationLock.WaitAsync().ConfigureAwait(false);
@@ -136,6 +243,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             _frameReady = null;
             _failed = null;
             _trackId = 0;
+            ClearKeyframePreviews();
         }
         finally
         {
@@ -262,23 +370,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                 if (decision.Action == H264FramePresentationAction.Drop)
                     continue;
 
-                H264AvcDecoderConfiguration configuration =
-                    frame.SourceSample.Configuration;
-                if (!parameterSetCache.TryGetValue(
-                        configuration, out H264AvcParameterSetCollection? parameterSets) ||
-                    parameterSets is null)
-                {
-                    parameterSets = _parameterSetReader.Read(configuration);
-                    parameterSetCache.Add(configuration, parameterSets);
-                }
-
-                H264SequenceParameterSet sps =
-                    parameterSets.SequenceParameterSets.Values.First();
-                H264BgraFrame bgra = _converter.Convert(frame.Surface, sps);
-                BitmapSource bitmap = BitmapSource.Create(
-                    bgra.Width, bgra.Height, 96, 96,
-                    PixelFormats.Bgra32, null, bgra.Pixels, bgra.Stride);
-                bitmap.Freeze();
+                BitmapSource bitmap = ConvertToBitmap(frame, parameterSetCache);
                 publish(bitmap);
             }
 
