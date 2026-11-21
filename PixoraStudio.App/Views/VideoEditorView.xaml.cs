@@ -32,6 +32,7 @@ public partial class VideoEditorView : UserControl
     private bool _usesManagedH264Video;
     private readonly object _managedFrameSync = new();
     private BitmapSource? _pendingManagedBitmap;
+    private int _pendingManagedLoadVersion;
     private bool _managedFrameDispatchPending;
     private CancellationTokenSource? _videoLoadCancellation;
     private bool _usesCustomAacAudio;
