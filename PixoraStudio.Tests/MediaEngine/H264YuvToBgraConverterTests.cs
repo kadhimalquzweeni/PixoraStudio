@@ -145,6 +145,38 @@ public sealed class H264YuvToBgraConverterTests
     }
 
     [Fact]
+    public void ConvertScaled_ShouldAreaAverageHighFrequencyCheckerboardWithoutAliasing()
+    {
+        H264SequenceParameterSet sps = Sps(1, fullRange: false, matrix: 6);
+        byte[] luma = new byte[256];
+
+        for (int row = 0; row < 16; row++)
+        {
+            for (int column = 0; column < 16; column++)
+                luma[row * 16 + column] =
+                    (row + column) % 2 == 0 ? (byte)16 : (byte)235;
+        }
+
+        H264DecodedPictureSurface surface = Surface(sps, luma,
+            Enumerable.Repeat((byte)128, 64).ToArray(),
+            Enumerable.Repeat((byte)128, 64).ToArray());
+
+        H264BgraFrame frame = new H264YuvToBgraConverter().ConvertScaled(surface, sps, 2);
+
+        Assert.Equal(2, frame.Width);
+        Assert.Equal(2, frame.Height);
+
+        for (int pixel = 0; pixel < 4; pixel++)
+        {
+            int offset = pixel * 4;
+            Assert.InRange(frame.Pixels[offset], (byte)126, (byte)129);
+            Assert.InRange(frame.Pixels[offset + 1], (byte)126, (byte)129);
+            Assert.InRange(frame.Pixels[offset + 2], (byte)126, (byte)129);
+            Assert.Equal(255, frame.Pixels[offset + 3]);
+        }
+    }
+
+    [Fact]
     public void ConvertScaled_ShouldApplyTheSameColourMatrixAsConvert()
     {
         H264SequenceParameterSet sps = Sps(1, fullRange: false, matrix: 6);

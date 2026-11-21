@@ -19,16 +19,13 @@ public sealed class H264YuvToBgraConverter
     private static readonly ConcurrentDictionary<(bool FullRange, uint Matrix), ConversionLookup>
         LookupCache = new();
 
-    /// <summary>Largest number of source samples averaged along one axis per output pixel.</summary>
-    private const int MaximumSamplesPerAxis = 3;
-
     /// <summary>
-    /// Converts a decoded picture straight to a smaller BGRA image. Each output
-    /// pixel averages up to 3x3 source samples spread across the source area it
-    /// covers, so the full-resolution BGRA frame (about 8 MB at 1080p) is never
-    /// built. Scaling before colour conversion means far fewer pixels go through
-    /// the colour matrix. The output keeps the source aspect ratio. A target width at or
-    /// above the source width returns the full-size conversion unchanged.
+    /// Converts a decoded picture straight to a smaller BGRA image using an
+    /// area-weighted box filter. Every source pixel covered by an output pixel
+    /// contributes according to its exact overlap, avoiding the aliasing that
+    /// occurs when a small fixed set of source samples is used. Filtering is
+    /// performed in YCbCr before colour conversion, and the full-resolution
+    /// BGRA frame is never allocated.
     /// </summary>
     public H264BgraFrame ConvertScaled(
         H264DecodedPictureSurface surface,
@@ -53,47 +50,68 @@ public sealed class H264YuvToBgraConverter
         int chromaSubsampleY = surface.ChromaFormatIdc == 1 ? 2 : 1;
         ConversionLookup lookup = GetLookup(sps);
 
-        int[] columns = CreateSamplePositions(width, targetWidth, out int samplesX);
-        int[] rows = CreateSamplePositions(height, targetHeight, out int samplesY);
-        double sampleWeight = 1.0 / (samplesX * samplesY);
-
         int stride = checked(targetWidth * 4);
         byte[] pixels = new byte[checked(stride * targetHeight)];
 
         for (int outputRow = 0; outputRow < targetHeight; outputRow++)
         {
+            double sourceTop = (double)outputRow * height / targetHeight;
+            double sourceBottom = (double)(outputRow + 1) * height / targetHeight;
+            int firstSourceRow = (int)Math.Floor(sourceTop);
+            int endSourceRow = (int)Math.Ceiling(sourceBottom);
             int outputRowOffset = outputRow * stride;
 
             for (int outputColumn = 0; outputColumn < targetWidth; outputColumn++)
             {
-                double red = 0;
-                double green = 0;
-                double blue = 0;
+                double sourceLeft = (double)outputColumn * width / targetWidth;
+                double sourceRight = (double)(outputColumn + 1) * width / targetWidth;
+                int firstSourceColumn = (int)Math.Floor(sourceLeft);
+                int endSourceColumn = (int)Math.Ceiling(sourceRight);
 
-                for (int sampleRow = 0; sampleRow < samplesY; sampleRow++)
+                double lumaSum = 0;
+                double cbSum = 0;
+                double crSum = 0;
+                double totalWeight = 0;
+
+                for (int sourceRow = firstSourceRow; sourceRow < endSourceRow; sourceRow++)
                 {
-                    int sourceRow = rows[outputRow * samplesY + sampleRow];
+                    double verticalWeight =
+                        Math.Min(sourceBottom, sourceRow + 1.0) -
+                        Math.Max(sourceTop, sourceRow);
                     int lumaRowOffset = sourceRow * width;
                     int chromaRowOffset = sourceRow / chromaSubsampleY * chromaWidth;
 
-                    for (int sampleColumn = 0; sampleColumn < samplesX; sampleColumn++)
+                    for (int sourceColumn = firstSourceColumn;
+                         sourceColumn < endSourceColumn;
+                         sourceColumn++)
                     {
-                        int sourceColumn = columns[outputColumn * samplesX + sampleColumn];
+                        double horizontalWeight =
+                            Math.Min(sourceRight, sourceColumn + 1.0) -
+                            Math.Max(sourceLeft, sourceColumn);
+                        double weight = horizontalWeight * verticalWeight;
                         int chromaIndex = chromaRowOffset + sourceColumn / 2;
-                        double luma = lookup.Luma[yPlane[lumaRowOffset + sourceColumn]];
-                        byte cb = cbPlane[chromaIndex];
-                        byte cr = crPlane[chromaIndex];
 
-                        red += luma + lookup.CrRed[cr];
-                        green += luma + lookup.CbGreen[cb] + lookup.CrGreen[cr];
-                        blue += luma + lookup.CbBlue[cb];
+                        lumaSum += yPlane[lumaRowOffset + sourceColumn] * weight;
+                        cbSum += cbPlane[chromaIndex] * weight;
+                        crSum += crPlane[chromaIndex] * weight;
+                        totalWeight += weight;
                     }
                 }
 
+                double averageLuma = lumaSum / totalWeight;
+                double averageCb = cbSum / totalWeight;
+                double averageCr = crSum / totalWeight;
+
+                double luma = Interpolate(lookup.Luma, averageLuma);
+                double cbGreen = Interpolate(lookup.CbGreen, averageCb);
+                double cbBlue = Interpolate(lookup.CbBlue, averageCb);
+                double crRed = Interpolate(lookup.CrRed, averageCr);
+                double crGreen = Interpolate(lookup.CrGreen, averageCr);
+
                 int outputIndex = outputRowOffset + outputColumn * 4;
-                pixels[outputIndex] = Clip(blue * sampleWeight);
-                pixels[outputIndex + 1] = Clip(green * sampleWeight);
-                pixels[outputIndex + 2] = Clip(red * sampleWeight);
+                pixels[outputIndex] = Clip(luma + cbBlue);
+                pixels[outputIndex + 1] = Clip(luma + cbGreen + crGreen);
+                pixels[outputIndex + 2] = Clip(luma + crRed);
                 pixels[outputIndex + 3] = 255;
             }
         }
@@ -101,37 +119,14 @@ public sealed class H264YuvToBgraConverter
         return new H264BgraFrame(targetWidth, targetHeight, stride, pixels);
     }
 
-    /// <summary>
-    /// For each output index, picks <c>samples</c> source positions at the
-    /// centres of equal sub-blocks of the source span that output index covers.
-    /// The result is laid out as <c>[outputIndex * samples + sampleIndex]</c>.
-    /// </summary>
-    private static int[] CreateSamplePositions(
-        int sourceLength,
-        int targetLength,
-        out int samplesPerOutput)
+    /// <summary>Interpolates a lookup table for an area-averaged source component.</summary>
+    private static double Interpolate(double[] lookup, double value)
     {
-        // Every output pixel covers at least floor(source / target) >= 1 source
-        // samples because the caller only scales down.
-        samplesPerOutput = Math.Clamp(sourceLength / targetLength, 1, MaximumSamplesPerAxis);
-        int[] positions = new int[checked(targetLength * samplesPerOutput)];
-
-        for (int output = 0; output < targetLength; output++)
-        {
-            long spanStart = (long)output * sourceLength / targetLength;
-            long spanEnd = Math.Max(
-                spanStart + 1, (long)(output + 1) * sourceLength / targetLength);
-            long spanLength = spanEnd - spanStart;
-
-            for (int sample = 0; sample < samplesPerOutput; sample++)
-            {
-                long offset = (2L * sample + 1) * spanLength / (2L * samplesPerOutput);
-                positions[output * samplesPerOutput + sample] =
-                    (int)Math.Min(spanStart + offset, sourceLength - 1);
-            }
-        }
-
-        return positions;
+        int lowerIndex = Math.Clamp((int)value, 0, 255);
+        int upperIndex = Math.Min(lowerIndex + 1, 255);
+        double fraction = value - lowerIndex;
+        return lookup[lowerIndex] +
+            (lookup[upperIndex] - lookup[lowerIndex]) * fraction;
     }
 
     private static void ValidateSurface(
