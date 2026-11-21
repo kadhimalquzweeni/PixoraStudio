@@ -114,11 +114,52 @@
                                 ValueChanged="VolumeSlider_ValueChanged"/>
 
                         <Button Grid.Column="5"
-                                Content="{Binding MuteButtonText}"
                                 Click="MuteButton_Click"
                                 Margin="10,0,0,0"
-                                Padding="10,4"
-                                VerticalAlignment="Center"/>
+                                Width="36"
+                                Height="30"
+                                Padding="0"
+                                VerticalAlignment="Center">
+                            <Button.Style>
+                                <Style TargetType="{x:Type Button}"
+                                       BasedOn="{StaticResource IconButtonStyle}">
+                                    <Setter Property="ToolTip" Value="Mute"/>
+                                    <Setter Property="Content">
+                                        <Setter.Value>
+                                            <Path Data="{StaticResource Volume2IconGeometry}"
+                                                  Width="19"
+                                                  Height="19"
+                                                  Stretch="Uniform"
+                                                  Stroke="White"
+                                                  StrokeThickness="1.8"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Fill="Transparent"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                            <Setter Property="ToolTip" Value="Unmute"/>
+                                            <Setter Property="Content">
+                                                <Setter.Value>
+                                                    <Path Data="{StaticResource VolumeOffIconGeometry}"
+                                                          Width="19"
+                                                          Height="19"
+                                                          Stretch="Uniform"
+                                                          Stroke="White"
+                                                          StrokeThickness="1.8"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
 
                     </Grid>
                 </Border>

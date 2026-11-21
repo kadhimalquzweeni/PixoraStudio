@@ -2,6 +2,8 @@
 using PixoraStudio.App.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Input;
 
 namespace PixoraStudio.App.Windows;
@@ -57,10 +59,35 @@ public partial class VideoOverlayWindow : Window
             ? "Exit Fullscreen"
             : "Enter Fullscreen";
 
+        FullscreenButton.Content = CreateIcon(
+            (Geometry)FindResource(
+                isFullScreen
+                    ? "MinimizeIconGeometry"
+                    : "MaximizeIconGeometry"),
+            20);
+
         FullscreenControls.Visibility =
             isFullScreen && IsMouseOver
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+    }
+
+    private Path CreateIcon(Geometry geometry, double size)
+    {
+        return new Path
+        {
+            Data = geometry,
+            Width = size,
+            Height = size,
+            Stretch = Stretch.Uniform,
+            Stroke = Brushes.White,
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+            Fill = Brushes.Transparent,
+            IsHitTestVisible = false
+        };
     }
 
     private void FullscreenButton_Click(
