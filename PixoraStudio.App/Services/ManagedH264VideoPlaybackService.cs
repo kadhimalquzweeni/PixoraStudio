@@ -17,7 +17,13 @@ namespace PixoraStudio.App.Services;
 public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 {
     private const int DecodeBufferCapacity = 3;
-    private const int KeyframePreviewCacheCapacity = 32;
+    private const int KeyframePreviewCacheCapacity = 64;
+
+    /// <summary>
+    /// Width of scrub-preview pictures. They are transient, so converting at
+    /// reduced size (4x4 area sampled) is far cheaper than a full-size frame.
+    /// </summary>
+    private const int KeyframePreviewWidth = 960;
 
     private readonly H264Mp4FramePresentationScheduler _presentationScheduler = new();
     private readonly H264YuvToBgraConverter _converter = new();
@@ -182,7 +188,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                     return null;
 
                 BitmapSource created = ConvertToBitmap(
-                    frame, new(ReferenceEqualityComparer.Instance));
+                    frame, new(ReferenceEqualityComparer.Instance), KeyframePreviewWidth);
                 RememberKeyframePreview(sampleNumber, created);
                 return created;
             }, cancellationToken).ConfigureAwait(false);
@@ -223,7 +229,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 
     private BitmapSource ConvertToBitmap(
         H264Mp4DecodedVideoFrame frame,
-        Dictionary<H264AvcDecoderConfiguration, H264AvcParameterSetCollection> parameterSetCache)
+        Dictionary<H264AvcDecoderConfiguration, H264AvcParameterSetCollection> parameterSetCache,
+        int? maximumWidth = null)
     {
         H264AvcDecoderConfiguration configuration = frame.SourceSample.Configuration;
         if (!parameterSetCache.TryGetValue(
@@ -235,7 +242,9 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         }
 
         H264SequenceParameterSet sps = parameterSets.SequenceParameterSets.Values.First();
-        H264BgraFrame bgra = _converter.Convert(frame.Surface, sps);
+        H264BgraFrame bgra = maximumWidth is int width
+            ? _converter.ConvertScaled(frame.Surface, sps, width)
+            : _converter.Convert(frame.Surface, sps);
         BitmapSource bitmap = BitmapSource.Create(
             bgra.Width, bgra.Height, 96, 96,
             PixelFormats.Bgra32, null, bgra.Pixels, bgra.Stride);

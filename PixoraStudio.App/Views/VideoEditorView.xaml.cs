@@ -294,6 +294,27 @@ public partial class VideoEditorView : UserControl
         ScrubTo(positionMilliseconds);
     }
 
+    private void ShowThumbnailPlaceholder(double positionMilliseconds)
+    {
+        if (DataContext is not VideoEditorViewModel vm ||
+            vm.VideoFrames.Count == 0)
+            return;
+
+        int index = VideoScrubPreviewSelector.FindNearestThumbnailIndex(
+            positionMilliseconds, vm.TotalMilliseconds, vm.VideoFrames.Count);
+        if (index < 0)
+            return;
+
+        ScrubPreviewFrame.Source = vm.VideoFrames[index];
+        ScrubPreviewFrame.Visibility = Visibility.Visible;
+    }
+
+    private void HideThumbnailPlaceholder()
+    {
+        ScrubPreviewFrame.Visibility = Visibility.Collapsed;
+        ScrubPreviewFrame.Source = null;
+    }
+
     private bool IsScrubActive =>
         _isDraggingPlayhead || _playbackSliderScrubState.IsActive;
 
@@ -330,6 +351,10 @@ public partial class VideoEditorView : UserControl
                 _pendingScrubPosition = null;
                 _mediaPlayer.Time = (long)target;
 
+                // Instant feedback: the nearest filmstrip thumbnail is already in
+                // memory. The decoded keyframe below replaces it when ready.
+                ShowThumbnailPlaceholder(target);
+
                 // LibVLC owns the visible video surface. A paused player does
                 // not draw the frame at a new Time until it is asked to step,
                 // so refresh it for both the managed and LibVLC-only paths.
@@ -346,6 +371,11 @@ public partial class VideoEditorView : UserControl
                     // Fall back to the exact seek that the release uses.
                     if (!shown && IsScrubActive)
                         await _managedH264PlaybackService.SeekAsync(target / 1000d);
+
+                    // The real picture is up; drop the placeholder unless the
+                    // pointer has already moved on to a newer position.
+                    if (_pendingScrubPosition is null)
+                        HideThumbnailPlaceholder();
                 }
                 else
                 {
