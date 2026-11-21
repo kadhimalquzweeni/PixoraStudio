@@ -3,9 +3,6 @@ using PixoraStudio.App.ViewModels;
 using PixoraStudio.Core.Models;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Media;
-using System.Windows.Shapes;
 using System.Windows.Input;
 
 namespace PixoraStudio.App.Windows;
@@ -82,22 +79,25 @@ public partial class VideoOverlayWindow : Window
         FullscreenRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    // A click on the playback track seeks immediately; clicking the thumb
-    // remains a normal drag operation.
-    private void PlaybackSlider_PreviewMouseLeftButtonDown(
+    // WPF moves the thumb to the clicked point because IsMoveToPointEnabled
+    // is enabled in XAML. Apply the final value on mouse-up so a track click
+    // seeks even when WPF never captures the mouse for that click.
+    private void PlaybackSlider_PreviewMouseLeftButtonUp(
         object sender,
         MouseButtonEventArgs e)
     {
         if (!IsLoaded ||
             DataContext is not VideoEditorViewModel vm ||
-            vm.TotalMilliseconds <= 0 ||
-            !TryGetTrackClickValue(PlaybackSlider, e, out double value))
+            vm.TotalMilliseconds <= 0)
         {
             return;
         }
 
-        PlaybackSlider.Value = value;
-        vm.SeekCommand.Execute(value);
+        double position = VideoTimelineMath.ClampPosition(
+            PlaybackSlider.Value,
+            vm.TotalMilliseconds);
+
+        vm.SeekCommand.Execute(position);
     }
 
     // Keep seeking continuously while the user drags the playback thumb.
@@ -115,21 +115,24 @@ public partial class VideoOverlayWindow : Window
             vm.SeekCommand.Execute(e.NewValue);
     }
 
-    // A click on the volume track sets the level immediately; the thumb
-    // remains draggable for fine adjustments.
-    private void FullscreenVolumeSlider_PreviewMouseLeftButtonDown(
+    // Apply the final value after a track click. This does not depend on
+    // Slider mouse capture, which WPF does not guarantee for track clicks.
+    private void FullscreenVolumeSlider_PreviewMouseLeftButtonUp(
         object sender,
         MouseButtonEventArgs e)
     {
         if (!IsLoaded ||
-            DataContext is not VideoEditorViewModel vm ||
-            !TryGetTrackClickValue(VolumeSlider, e, out double value))
+            DataContext is not VideoEditorViewModel vm)
         {
             return;
         }
 
-        VolumeSlider.Value = value;
-        vm.ChangeVolumeCommand.Execute(value);
+        double volume = Math.Clamp(
+            VolumeSlider.Value,
+            VolumeSlider.Minimum,
+            VolumeSlider.Maximum);
+
+        vm.ChangeVolumeCommand.Execute(volume);
     }
 
     // Keep volume changes responsive while the user drags the thumb.
@@ -145,81 +148,6 @@ public partial class VideoOverlayWindow : Window
 
         if (DataContext is VideoEditorViewModel vm)
             vm.ChangeVolumeCommand.Execute(e.NewValue);
-    }
-
-    private static bool TryGetTrackClickValue(
-        Slider slider,
-        MouseButtonEventArgs e,
-        out double value)
-    {
-        slider.ApplyTemplate();
-        slider.UpdateLayout();
-
-        Track? track = FindVisualChild<Track>(slider);
-
-        // Clicking the thumb should be left to WPF so its normal drag
-        // behaviour and mouse capture are preserved.
-        if (track?.Thumb?.IsMouseOver == true)
-        {
-            value = slider.Value;
-            return false;
-        }
-
-        double clickX;
-        double trackWidth;
-        double thumbWidth;
-
-        if (track is not null && track.ActualWidth > 0)
-        {
-            clickX = e.GetPosition(track).X;
-            trackWidth = track.ActualWidth;
-            thumbWidth = track.Thumb?.ActualWidth ?? 0;
-        }
-        else
-        {
-            // Some WPF templates do not expose a Track at this point in
-            // the routed event. Fall back to the Slider's own coordinates.
-            clickX = e.GetPosition(slider).X;
-            trackWidth = slider.ActualWidth;
-            thumbWidth = 0;
-        }
-
-        if (trackWidth <= 0)
-        {
-            value = slider.Value;
-            return false;
-        }
-
-        value = VideoTimelineMath.GetValueFromTrackClick(
-            clickX,
-            trackWidth,
-            thumbWidth,
-            slider.Minimum,
-            slider.Maximum);
-
-        // Do not mark the event handled: WPF can still update/capture the
-        // slider thumb, while the command below applies the click instantly.
-        return true;
-    }
-
-    private static T? FindVisualChild<T>(DependencyObject parent)
-        where T : DependencyObject
-    {
-        int childCount = VisualTreeHelper.GetChildrenCount(parent);
-
-        for (int i = 0; i < childCount; i++)
-        {
-            DependencyObject child = VisualTreeHelper.GetChild(parent, i);
-
-            if (child is T match)
-                return match;
-
-            T? descendant = FindVisualChild<T>(child);
-            if (descendant is not null)
-                return descendant;
-        }
-
-        return null;
     }
 
     // Set trim start to the current playback position.
