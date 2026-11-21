@@ -137,10 +137,12 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     /// Publishes the keyframe at or before <paramref name="positionSeconds"/>
     /// without waiting for the playback clock. Decoding one picture costs a
     /// fraction of decoding forward to the exact frame, so this keeps a drag
-    /// responsive on videos with long keyframe intervals. Call
-    /// <see cref="SeekAsync"/> afterwards to land on the exact frame.
+    /// responsive on videos with long keyframe intervals. Returns false when
+    /// no preview could be produced (the caller should then use
+    /// <see cref="SeekAsync"/>). Call <see cref="SeekAsync"/> afterwards to land
+    /// on the exact frame.
     /// </summary>
-    public async Task ShowKeyframePreviewAsync(
+    public async Task<bool> ShowKeyframePreviewAsync(
         double positionSeconds,
         CancellationToken cancellationToken = default)
     {
@@ -154,7 +156,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             string? path = _filePath;
             Action<BitmapSource>? publish = _frameReady;
             if (info is null || path is null || publish is null)
-                return;
+                return false;
 
             // Playback would otherwise overwrite the preview with later frames.
             await StopDecodeTaskAsync().ConfigureAwait(false);
@@ -185,8 +187,18 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                 return created;
             }, cancellationToken).ConfigureAwait(false);
 
-            if (preview is not null)
-                publish(preview);
+            if (preview is null)
+                return false;
+
+            publish(preview);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is not OperationCanceledException)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Keyframe preview failed; using an exact seek instead: {exception}");
+            return false;
         }
         finally
         {

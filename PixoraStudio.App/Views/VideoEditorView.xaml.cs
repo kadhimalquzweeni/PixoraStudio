@@ -334,7 +334,20 @@ public partial class VideoEditorView : UserControl
                 // cached, instead of decoding forward to the exact frame on every
                 // move. OnSeek lands on the exact frame when the scrub ends.
                 if (_usesManagedH264Video)
-                    await _managedH264PlaybackService.ShowKeyframePreviewAsync(target / 1000d);
+                {
+                    bool shown = await _managedH264PlaybackService
+                        .ShowKeyframePreviewAsync(target / 1000d);
+
+                    // Fall back to the exact seek that the release uses.
+                    if (!shown && IsScrubActive)
+                        await _managedH264PlaybackService.SeekAsync(target / 1000d);
+                }
+                else if (_mediaPlayer is not null && !_mediaPlayer.IsPlaying)
+                {
+                    // A paused LibVLC player does not draw the frame at a new
+                    // Time until it is asked to step; NextFrame refreshes it.
+                    _mediaPlayer.NextFrame();
+                }
             }
         }
         catch (Exception exception)
