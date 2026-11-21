@@ -99,13 +99,28 @@
                                    VerticalAlignment="Center"
                                    Margin="8,0,0,0"/>
 
-                        <TextBlock Grid.Column="3"
-                                   Text="Volume"
-                                   Foreground="White"
-                                   VerticalAlignment="Center"
-                                   Margin="10,0"/>
+                        <Button Grid.Column="4"
+                                Click="MuteButton_Click"
+                                Margin="10,0,6,0"
+                                Width="36"
+                                Height="30"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                ToolTip="Change volume or mute"
+                                Style="{StaticResource IconButtonStyle}">
+                            <Path Style="{StaticResource VolumeLevelIconStyle}"
+                                  Width="19"
+                                  Height="19"
+                                  Stretch="Uniform"
+                                  Stroke="White"
+                                  StrokeThickness="1.8"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Fill="Transparent"/>
+                        </Button>
 
-                        <Slider Grid.Column="4"
+                        <Slider Grid.Column="5"
                                 Minimum="0"
                                 Maximum="100"
                                 Value="{Binding Volume, Mode=TwoWay}"
@@ -113,53 +128,7 @@
                                 VerticalAlignment="Center"
                                 ValueChanged="VolumeSlider_ValueChanged"/>
 
-                        <Button Grid.Column="5"
-                                Click="MuteButton_Click"
-                                Margin="10,0,0,0"
-                                Width="36"
-                                Height="30"
-                                Padding="0"
-                                VerticalAlignment="Center">
-                            <Button.Style>
-                                <Style TargetType="{x:Type Button}"
-                                       BasedOn="{StaticResource IconButtonStyle}">
-                                    <Setter Property="ToolTip" Value="Mute"/>
-                                    <Setter Property="Content">
-                                        <Setter.Value>
-                                            <Path Data="{StaticResource Volume2IconGeometry}"
-                                                  Width="19"
-                                                  Height="19"
-                                                  Stretch="Uniform"
-                                                  Stroke="White"
-                                                  StrokeThickness="1.8"
-                                                  StrokeStartLineCap="Round"
-                                                  StrokeEndLineCap="Round"
-                                                  StrokeLineJoin="Round"
-                                                  Fill="Transparent"/>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsMuted}" Value="True">
-                                            <Setter Property="ToolTip" Value="Unmute"/>
-                                            <Setter Property="Content">
-                                                <Setter.Value>
-                                                    <Path Data="{StaticResource VolumeOffIconGeometry}"
-                                                          Width="19"
-                                                          Height="19"
-                                                          Stretch="Uniform"
-                                                          Stroke="White"
-                                                          StrokeThickness="1.8"
-                                                          StrokeStartLineCap="Round"
-                                                          StrokeEndLineCap="Round"
-                                                          StrokeLineJoin="Round"
-                                                          Fill="Transparent"/>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+
 
                     </Grid>
                 </Border>

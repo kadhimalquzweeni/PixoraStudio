@@ -145,7 +145,7 @@
                              Height="20"
                              Margin="0,0,8,0"
                              VerticalAlignment="Center">
-                        <Path Data="{StaticResource Volume2IconGeometry}"
+                        <Path Style="{StaticResource VolumeLevelIconStyle}"
                               Width="24"
                               Height="24"
                               Stretch="Uniform"

@@ -241,7 +241,8 @@ public partial class VideoEditorViewModel : ObservableObject
     [ObservableProperty]
     private bool isMuted;
 
-    public string MuteButtonText => IsMuted ? "Unmute" : "Mute";
+    public string VolumeIconKey =>
+        VolumeIconSelector.GetResourceKey(Volume, IsMuted);
 
     public event Action? PlayPauseRequested;
     public event Action<double>? SeekRequested;
@@ -250,8 +251,13 @@ public partial class VideoEditorViewModel : ObservableObject
 
     partial void OnIsMutedChanged(bool value)
     {
-        OnPropertyChanged(nameof(MuteButtonText));
+        OnPropertyChanged(nameof(VolumeIconKey));
         MuteChanged?.Invoke(value);
+    }
+
+    partial void OnVolumeChanged(double value)
+    {
+        OnPropertyChanged(nameof(VolumeIconKey));
     }
 
     [RelayCommand]
