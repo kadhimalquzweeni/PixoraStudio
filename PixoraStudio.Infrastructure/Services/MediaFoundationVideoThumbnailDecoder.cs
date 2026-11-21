@@ -229,11 +229,10 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
         int width,
         int height)
     {
-        dxgiBuffer.GetResource(typeof(ID3D11Texture2D).GUID, out IntPtr texturePointer).CheckError();
+        (IntPtr texturePointer, uint subresource) = GetDxgiTexture(dxgiBuffer);
         using ID3D11Texture2D sourceTexture = new(texturePointer);
-        dxgiBuffer.GetSubresourceIndex(out uint subresource).CheckError();
 
-        Texture2DDescription description = sourceTexture.GetDescription();
+        Texture2DDescription description = sourceTexture.Description;
         using ID3D11Texture2D stagingTexture = d3dDevice.CreateTexture2D(
             description.Format,
             description.Width,
@@ -261,6 +260,47 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
             d3dContext.Unmap(stagingTexture, subresource);
         }
     }
+
+
+    private static (IntPtr TexturePointer, uint Subresource) GetDxgiTexture(
+        IMFDXGIBuffer dxgiBuffer)
+    {
+        IntPtr nativePointer = dxgiBuffer.NativePointer;
+        IntPtr vtable = Marshal.ReadIntPtr(nativePointer);
+
+        IntPtr getResourceAddress = Marshal.ReadIntPtr(vtable, 3 * IntPtr.Size);
+        var getResource = Marshal.GetDelegateForFunctionPointer<GetDxgiResourceDelegate>(
+            getResourceAddress);
+
+        Guid textureInterfaceId = typeof(ID3D11Texture2D).GUID;
+        int resourceResult = getResource(
+            nativePointer, ref textureInterfaceId, out IntPtr texturePointer);
+        Marshal.ThrowExceptionForHR(resourceResult);
+
+        IntPtr getSubresourceAddress = Marshal.ReadIntPtr(vtable, 4 * IntPtr.Size);
+        var getSubresource = Marshal.GetDelegateForFunctionPointer<GetDxgiSubresourceDelegate>(
+            getSubresourceAddress);
+
+        int subresourceResult = getSubresource(nativePointer, out uint subresource);
+        if (subresourceResult < 0)
+        {
+            Marshal.Release(texturePointer);
+            Marshal.ThrowExceptionForHR(subresourceResult);
+        }
+
+        return (texturePointer, subresource);
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int GetDxgiResourceDelegate(
+        IntPtr self,
+        ref Guid interfaceId,
+        out IntPtr resource);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int GetDxgiSubresourceDelegate(
+        IntPtr self,
+        out uint subresource);
 
     private static void CopySystemMemoryBufferToBitmap(
         IMFMediaBuffer buffer,
