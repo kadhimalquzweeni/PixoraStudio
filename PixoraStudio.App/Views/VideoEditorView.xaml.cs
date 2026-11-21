@@ -60,6 +60,7 @@ public partial class VideoEditorView : UserControl
     };
 
     private bool _wasPlayingBeforeScrubbing;
+    private readonly PlaybackScrubState _playbackSliderScrubState = new();
     private bool _isDraggingTrimStart;
     private bool _isDraggingTrimEnd;
     private bool _isDraggingPlayhead;
@@ -492,9 +493,15 @@ public partial class VideoEditorView : UserControl
             return;
 
         int seekVersion = Interlocked.Increment(ref _seekOperationVersion);
-        bool resumePlayback = _mediaPlayer.IsPlaying ||
-            _wasPlayingBeforeScrubbing ||
-            _resumePlaybackAfterSeek;
+
+        // Use the state captured on pointer-down for fullscreen scrubbing.
+        // The decoder may temporarily report paused while a seek is committed.
+        bool resumePlayback = _playbackSliderScrubState.IsActive
+            ? _playbackSliderScrubState.Complete()
+            : _mediaPlayer.IsPlaying ||
+              _wasPlayingBeforeScrubbing ||
+              _resumePlaybackAfterSeek;
+
         _resumePlaybackAfterSeek = resumePlayback;
 
         double targetPosition = DataContext is VideoEditorViewModel seekVm &&
@@ -695,7 +702,9 @@ public partial class VideoEditorView : UserControl
         // LibVLC may report Length == 0 during opening or for some
         // containers. Its Time remains the playback clock; don't gate the
         // timeline on Length becoming available.
-        if (!_isDraggingPlayhead)
+        // PlaybackPosition is two-way bound to the fullscreen Slider.
+        // Do not overwrite the thumb while the user is dragging it.
+        if (!_isDraggingPlayhead && !_playbackSliderScrubState.IsActive)
         {
             double playbackMilliseconds = Math.Max(0, _mediaPlayer.Time);
 
@@ -1017,6 +1026,21 @@ public partial class VideoEditorView : UserControl
 
         Canvas.SetLeft(label, left);
         Canvas.SetTop(label, top);
+    }
+
+    private void PlaybackSlider_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (DataContext is not VideoEditorViewModel vm ||
+            vm.TotalMilliseconds <= 0 ||
+            _mediaPlayer is null)
+        {
+            return;
+        }
+
+        // Capture playback state once, before the bound position changes.
+        _playbackSliderScrubState.Begin(_mediaPlayer.IsPlaying);
     }
 
     // Apply the final track-click value after WPF moves the thumb to the

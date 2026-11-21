@@ -152,4 +152,16 @@ public sealed class VideoTimelineMathTests
 
         Assert.Equal(position, actual, precision: 8);
     }
+    [Fact]
+    public void PlaybackScrubState_ShouldPreservePlaybackStateAcrossScrub()
+    {
+        PlaybackScrubState state = new();
+
+        state.Begin(wasPlaying: true);
+
+        // The live decoder may report paused while the seek is being applied.
+        Assert.True(state.Complete());
+        Assert.False(state.IsActive);
+    }
+
 }
