@@ -6,19 +6,15 @@ namespace PixoraStudio.Core.Models;
 public static class VideoOverlayVisibilityPolicy
 {
     public static bool ShouldShow(
-        bool ownerIsActive,
-        bool overlayIsActive,
         bool ownerIsMinimized,
         bool videoHostIsVisible)
     {
-        // Clicking a control can activate the owned overlay window and
-        // temporarily deactivate its owner. Both windows belong to the
-        // same application, so either being active keeps the overlay alive.
-        return (ownerIsActive || overlayIsActive) &&
-               !ownerIsMinimized &&
-               videoHostIsVisible;
+        // Do not tie visibility to window activation. Clicking an owned
+        // overlay can deactivate the editor window, but must not hide the
+        // overlay before the control receives its click.
+        return !ownerIsMinimized && videoHostIsVisible;
     }
-    
+
     /// <summary>
     /// Determines whether hover controls must remain visible during pointer interaction.
     /// </summary>

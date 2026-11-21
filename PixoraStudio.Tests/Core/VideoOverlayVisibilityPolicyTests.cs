@@ -4,38 +4,36 @@ namespace PixoraStudio.Tests.Core;
 
 public sealed class VideoOverlayVisibilityPolicyTests
 {
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    public void ShouldShow_ShouldReturnTrueWhenEitherApplicationWindowIsActive(
-        bool ownerIsActive,
-        bool overlayIsActive)
+    [Fact]
+    public void ShouldShow_ShouldReturnTrueWhenOwnerIsNotMinimizedAndVideoHostIsVisible()
     {
         Assert.True(VideoOverlayVisibilityPolicy.ShouldShow(
-            ownerIsActive,
-            overlayIsActive,
             ownerIsMinimized: false,
             videoHostIsVisible: true));
     }
 
-    [Theory]
-    [InlineData(false, false, false, true)]
-    [InlineData(true, true, true, true)]
-    [InlineData(false, false, true, true)]
-    [InlineData(true, false, false, false)]
-    [InlineData(false, true, false, false)]
-    public void ShouldShow_ShouldReturnFalseWhenBothWindowsAreInactiveOrOwnerCannotDisplay(
-        bool ownerIsActive,
-        bool overlayIsActive,
-        bool ownerIsMinimized,
-        bool videoHostIsVisible)
+    [Fact]
+    public void ShouldShow_ShouldReturnFalseWhenOwnerIsMinimized()
     {
         Assert.False(VideoOverlayVisibilityPolicy.ShouldShow(
-            ownerIsActive,
-            overlayIsActive,
-            ownerIsMinimized,
-            videoHostIsVisible));
+            ownerIsMinimized: true,
+            videoHostIsVisible: true));
+    }
+
+    [Fact]
+    public void ShouldShow_ShouldReturnFalseWhenVideoHostIsNotVisible()
+    {
+        Assert.False(VideoOverlayVisibilityPolicy.ShouldShow(
+            ownerIsMinimized: false,
+            videoHostIsVisible: false));
+    }
+
+    [Fact]
+    public void ShouldShow_ShouldReturnFalseWhenOwnerIsMinimizedAndVideoHostIsNotVisible()
+    {
+        Assert.False(VideoOverlayVisibilityPolicy.ShouldShow(
+            ownerIsMinimized: true,
+            videoHostIsVisible: false));
     }
 
     [Theory]
