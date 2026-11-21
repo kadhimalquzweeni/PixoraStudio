@@ -37,4 +37,29 @@ public sealed class VideoOverlayVisibilityPolicyTests
             ownerIsMinimized,
             videoHostIsVisible));
     }
+
+    [Theory]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, true, true)]
+    public void ShouldKeepControlsVisible_ShouldReturnTrueDuringPointerInteraction(
+        bool pointerIsOverOverlay,
+        bool overlayHasMouseCapture,
+        bool applicationHasMouseCapture)
+    {
+        Assert.True(VideoOverlayVisibilityPolicy.ShouldKeepControlsVisible(
+            pointerIsOverOverlay,
+            overlayHasMouseCapture,
+            applicationHasMouseCapture));
+    }
+
+    [Fact]
+    public void ShouldKeepControlsVisible_ShouldReturnFalseWhenPointerIsOutsideAndNothingIsCaptured()
+    {
+        Assert.False(VideoOverlayVisibilityPolicy.ShouldKeepControlsVisible(
+            pointerIsOverOverlay: false,
+            overlayHasMouseCapture: false,
+            applicationHasMouseCapture: false));
+    }
 }
