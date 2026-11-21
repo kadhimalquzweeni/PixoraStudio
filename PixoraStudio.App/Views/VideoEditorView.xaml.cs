@@ -322,10 +322,13 @@ public partial class VideoEditorView : UserControl
         topLeft = transform.Transform(topLeft);
         bottomRight = transform.Transform(bottomRight);
 
-        _overlayWindow.Left = topLeft.X;
-        _overlayWindow.Top = topLeft.Y;
-        _overlayWindow.Width = bottomRight.X - topLeft.X;
-        _overlayWindow.Height = bottomRight.Y - topLeft.Y;
+        // Avoid resetting native window bounds every timer tick. Reapplying
+        // unchanged bounds can interrupt mouse capture on a layered WPF window.
+        SetOverlayBounds(
+            topLeft.X,
+            topLeft.Y,
+            bottomRight.X - topLeft.X,
+            bottomRight.Y - topLeft.Y);
     }
 
     private void MediaPlayer_EndReached(object? sender, EventArgs e)
@@ -1240,12 +1243,43 @@ public partial class VideoEditorView : UserControl
         VideoPlayer.MediaPlayer = null;
     }
 
+    private void SetOverlayBounds(
+        double left,
+        double top,
+        double width,
+        double height)
+    {
+        const double tolerance = 0.5;
+
+        if (Math.Abs(_overlayWindow!.Left - left) > tolerance)
+            _overlayWindow.Left = left;
+
+        if (Math.Abs(_overlayWindow.Top - top) > tolerance)
+            _overlayWindow.Top = top;
+
+        if (Math.Abs(_overlayWindow.Width - width) > tolerance)
+            _overlayWindow.Width = width;
+
+        if (Math.Abs(_overlayWindow.Height - height) > tolerance)
+            _overlayWindow.Height = height;
+    }
+
     private void CheckVideoHover()
     {
         if (_overlayWindow == null ||
             !CanDisplayOverlay ||
             !VideoHost.IsVisible)
         {
+            return;
+        }
+
+        // Keep controls alive while the pointer is interacting with the
+        // overlay. The timer must not hide a button during its click/capture.
+        if (_overlayWindow.IsMouseOver ||
+            _overlayWindow.IsMouseCaptureWithin ||
+            Mouse.Captured is not null)
+        {
+            _overlayWindow.ShowControls();
             return;
         }
 
