@@ -204,6 +204,7 @@ public partial class VideoEditorView : UserControl
         _editorWindow is not null &&
         VideoOverlayVisibilityPolicy.ShouldShow(
             _editorWindow.IsActive,
+            _overlayWindow?.IsActive == true,
             _editorWindow.WindowState == WindowState.Minimized,
             VideoHost.IsVisible);
 
