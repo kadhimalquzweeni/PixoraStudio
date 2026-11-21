@@ -228,7 +228,7 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
         }
 
         Debug.WriteLine(
-            $"[Media Foundation] Generated {encodedFrames.Count} thumbnails using D3D11/DXVA.");
+            $"[Media Foundation] Generated {encodedFrames.Count} thumbnails with the D3D11 device manager and DXVA enabled.");
         return true;
     }
 
