@@ -7,10 +7,14 @@ public static class VideoOverlayVisibilityPolicy
 {
     public static bool ShouldShow(
         bool ownerIsActive,
+        bool overlayIsActive,
         bool ownerIsMinimized,
         bool videoHostIsVisible)
     {
-        return ownerIsActive &&
+        // Clicking a control can activate the owned overlay window and
+        // temporarily deactivate its owner. Both windows belong to the
+        // same application, so either being active keeps the overlay alive.
+        return (ownerIsActive || overlayIsActive) &&
                !ownerIsMinimized &&
                videoHostIsVisible;
     }
