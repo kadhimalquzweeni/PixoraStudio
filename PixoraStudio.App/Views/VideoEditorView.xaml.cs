@@ -322,8 +322,6 @@ public partial class VideoEditorView : UserControl
                    _mediaPlayer is not null)
             {
                 _pendingScrubPosition = null;
-                _lastDisplayedFrame = null;
-                _pendingFrameStepTarget = null;
                 _mediaPlayer.Time = (long)target;
 
                 if (_usesManagedH264Video)
