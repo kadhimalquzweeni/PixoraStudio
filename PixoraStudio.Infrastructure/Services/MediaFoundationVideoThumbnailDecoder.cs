@@ -3,7 +3,6 @@ using PixoraStudio.Core.Models;
 using SkiaSharp;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.MediaFoundation;
 
@@ -61,25 +60,25 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
             MediaFactory.MFStartup().CheckError();
             mediaFoundationStarted = true;
 
-            D3D11.D3D11CreateDevice(
-                null,
-                DriverType.Hardware,
-                DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport,
-                [FeatureLevel.Level_11_1, FeatureLevel.Level_11_0],
-                out ID3D11Device d3dDevice,
-                out ID3D11DeviceContext d3dContext).CheckError();
+            using D3D11DeviceBundle deviceBundle =
+                D3D11AdapterDiscovery.CreateBestDevice();
 
-            using (d3dDevice)
-            using (d3dContext)
-            {
-                using ID3D11Multithread multithread =
-                    d3dContext.QueryInterface<ID3D11Multithread>();
-                multithread.SetMultithreadProtected(true);
+            ID3D11Device d3dDevice = deviceBundle.Device;
+            ID3D11DeviceContext d3dContext = deviceBundle.Context;
 
-                return GenerateWithDevice(
-                    d3dDevice, d3dContext, filePath, positions, outputPaths,
-                    progress, cancellationToken);
-            }
+            using ID3D11Multithread multithread =
+                d3dContext.QueryInterface<ID3D11Multithread>();
+            multithread.SetMultithreadProtected(true);
+
+            Debug.WriteLine(
+                $"[Media Foundation] Selected GPU: {deviceBundle.Adapter.Name} " +
+                $"({deviceBundle.Adapter.Vendor}, vendorId=0x{deviceBundle.Adapter.VendorId:X4}, " +
+                $"deviceId=0x{deviceBundle.Adapter.DeviceId:X4}, " +
+                $"dedicatedMemory={deviceBundle.Adapter.DedicatedVideoMemoryBytes / (1024 * 1024)} MB).");
+
+            return GenerateWithDevice(
+                d3dDevice, d3dContext, filePath, positions, outputPaths,
+                progress, cancellationToken);
         }
         finally
         {
