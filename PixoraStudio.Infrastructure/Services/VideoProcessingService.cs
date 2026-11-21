@@ -11,11 +11,18 @@ using System.Diagnostics;
 namespace PixoraStudio.Infrastructure.Services;
 
 /// <summary>
-/// Reads MP4 metadata and creates thumbnails using PixoraStudio's managed
-/// MP4 reader and H.264 decoder.
+/// Generates thumbnails with the Windows Media Foundation hardware decoder when
+/// available, falling back to PixoraStudio's managed MP4 reader and H.264 decoder.
 /// </summary>
 public sealed class VideoProcessingService : IVideoProcessingService
 {
+    private readonly IHardwareVideoThumbnailDecoder? _hardwareDecoder;
+
+    public VideoProcessingService(IHardwareVideoThumbnailDecoder? hardwareDecoder = null)
+    {
+        _hardwareDecoder = hardwareDecoder;
+    }
+
     private const int MaximumThumbnailParallelism = 4;
     private const string WorkerCountEnvironmentVariable = "PIXORA_H264_THUMBNAIL_WORKERS";
     private const string CabacProfilingEnvironmentVariable = "PIXORA_H264_CABAC_PROFILE";
@@ -88,9 +95,31 @@ public sealed class VideoProcessingService : IVideoProcessingService
         if (positions.Count == 0)
             return Task.CompletedTask;
 
-        return Task.Run(() =>
+        return Task.Run(async () =>
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (_hardwareDecoder is not null)
+            {
+                try
+                {
+                    bool hardwareHandled = await _hardwareDecoder.TryGenerateThumbnailsAsync(
+                        filePath, positions, outputPaths, progress, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (hardwareHandled)
+                        return;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    Debug.WriteLine(
+                        $"[Media Foundation] Hardware thumbnail decoding failed; " +
+                        $"using the managed decoder instead: {exception}");
+                }
+            }
 
             Mp4MediaInfo mediaInfo;
             using (FileStream metadataStream = new(

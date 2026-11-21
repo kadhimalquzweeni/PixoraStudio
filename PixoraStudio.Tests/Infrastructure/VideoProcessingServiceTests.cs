@@ -1,4 +1,6 @@
 using PixoraStudio.Infrastructure.Services;
+using PixoraStudio.Core.Interfaces;
+using PixoraStudio.Core.Models;
 
 namespace PixoraStudio.Tests.Infrastructure;
 
@@ -195,4 +197,101 @@ public sealed class VideoProcessingServiceTests
         Assert.Equal(42u, single[0].FirstSample);
         Assert.Equal(new[] { 0 }, single[0].Indices);
     }
+    [Fact]
+    public async Task GenerateThumbnailsAsync_ShouldUseHardwareDecoderWhenItCompletesTheBatch()
+    {
+        string filePath = Path.GetTempFileName();
+        string outputPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");
+        StubHardwareVideoThumbnailDecoder hardware = new() { Result = true };
+
+        try
+        {
+            VideoProcessingService service = new(hardware);
+            await service.GenerateThumbnailsAsync(
+                filePath,
+                [TimeSpan.Zero],
+                [outputPath]);
+
+            Assert.Equal(1, hardware.CallCount);
+        }
+        finally
+        {
+            File.Delete(filePath);
+            if (File.Exists(outputPath))
+                File.Delete(outputPath);
+        }
+    }
+
+    [Fact]
+    public async Task GenerateThumbnailsAsync_ShouldFallBackToManagedDecoderWhenHardwareIsUnavailable()
+    {
+        string filePath = Path.GetTempFileName();
+        StubHardwareVideoThumbnailDecoder hardware = new() { Result = false };
+
+        try
+        {
+            VideoProcessingService service = new(hardware);
+
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+                service.GenerateThumbnailsAsync(
+                    filePath,
+                    [TimeSpan.Zero],
+                    [Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png")]));
+
+            Assert.Equal(1, hardware.CallCount);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    [Fact]
+    public async Task GenerateThumbnailsAsync_ShouldFallBackToManagedDecoderWhenHardwareThrows()
+    {
+        string filePath = Path.GetTempFileName();
+        StubHardwareVideoThumbnailDecoder hardware = new()
+        {
+            Exception = new InvalidOperationException("GPU decoder unavailable.")
+        };
+
+        try
+        {
+            VideoProcessingService service = new(hardware);
+
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+                service.GenerateThumbnailsAsync(
+                    filePath,
+                    [TimeSpan.Zero],
+                    [Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png")]));
+
+            Assert.Equal(1, hardware.CallCount);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    private sealed class StubHardwareVideoThumbnailDecoder : IHardwareVideoThumbnailDecoder
+    {
+        public bool Result { get; init; }
+        public Exception? Exception { get; init; }
+        public int CallCount { get; private set; }
+
+        public Task<bool> TryGenerateThumbnailsAsync(
+            string filePath,
+            IReadOnlyList<TimeSpan> positions,
+            IReadOnlyList<string> outputPaths,
+            IProgress<VideoThumbnailResult>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            if (Exception is not null)
+                throw Exception;
+
+            return Task.FromResult(Result);
+        }
+    }
+
 }
