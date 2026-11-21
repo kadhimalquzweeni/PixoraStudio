@@ -50,12 +50,12 @@ public sealed class MediaFoundationVideoThumbnailDecoderTests
     }
 
     [Fact]
-    public void GetReadDisposition_ShouldStopWhenEndOfStreamSampleIsBeforeTarget()
+    public void GetReadDisposition_ShouldUseLastAvailableSampleWhenEndOfStreamSampleIsBeforeTarget()
     {
         var result = MediaFoundationVideoThumbnailDecoder.GetReadDisposition(
             true, false, false, true, 29_000_000, 30_000_000);
 
-        Assert.Equal(MediaFoundationVideoThumbnailDecoder.SampleReadDisposition.EndOfStream, result);
+        Assert.Equal(MediaFoundationVideoThumbnailDecoder.SampleReadDisposition.AcceptLastAvailable, result);
     }
 
     [Fact]
