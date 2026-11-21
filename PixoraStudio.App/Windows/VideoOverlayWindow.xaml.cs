@@ -105,17 +105,20 @@ public partial class VideoOverlayWindow : Window
         vm.SeekCommand.Execute(position);
     }
 
-    // Publish filmstrip previews while the user drags the playback thumb.
-    // This never seeks the player; the final seek remains a single mouse-up action.
-    private void PlaybackSlider_PreviewMouseMove(object sender, MouseEventArgs e)
+    // ValueChanged runs after the slider has applied the latest thumb position.
+    // Mouse capture gates this to an active drag; it never seeks the player.
+    private void PlaybackSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
     {
         if (!IsLoaded ||
-            e.LeftButton != MouseButtonState.Pressed ||
+            !PlaybackSlider.IsMouseCaptureWithin ||
+            e.NewValue == e.OldValue ||
             DataContext is not VideoEditorViewModel vm ||
             vm.TotalMilliseconds <= 0)
             return;
 
-        PlaybackPreviewRequested?.Invoke(PlaybackSlider.Value);
+        PlaybackPreviewRequested?.Invoke(e.NewValue);
     }
 
     // Apply the final value after a track click. This does not depend on

@@ -110,7 +110,7 @@
                                Margin="0,0,12,0"/>
 
                     <Slider x:Name="PlaybackSlider"
-                            PreviewMouseMove="PlaybackSlider_PreviewMouseMove"
+                            ValueChanged="PlaybackSlider_ValueChanged"
                             PreviewMouseLeftButtonUp="PlaybackSlider_PreviewMouseLeftButtonUp"
                             Grid.Column="1"
                             Minimum="0"
