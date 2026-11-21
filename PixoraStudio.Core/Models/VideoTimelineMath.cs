@@ -58,6 +58,19 @@ public static class VideoTimelineMath
             durationMilliseconds * width;
     }
 
+    public static double ClampSliderValue(double value, double minimum, double maximum)
+    {
+        if (!double.IsFinite(value) ||
+            !double.IsFinite(minimum) ||
+            !double.IsFinite(maximum) ||
+            maximum < minimum)
+        {
+            return minimum;
+        }
+
+        return Math.Clamp(value, minimum, maximum);
+    }
+
     public static double ClampPosition(double positionMilliseconds, double durationMilliseconds)
     {
         if (!double.IsFinite(positionMilliseconds) ||

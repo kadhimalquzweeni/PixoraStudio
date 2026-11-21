@@ -129,7 +129,7 @@ public partial class VideoOverlayWindow : Window
             return;
         }
 
-        double volume = Math.Clamp(
+        double volume = VideoTimelineMath.ClampSliderValue(
             VolumeSlider.Value,
             VolumeSlider.Minimum,
             VolumeSlider.Maximum);

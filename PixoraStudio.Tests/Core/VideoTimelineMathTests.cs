@@ -76,6 +76,37 @@ public sealed class VideoTimelineMathTests
     }
 
     [Theory]
+    [InlineData(50, 0, 100, 50)]
+    [InlineData(-10, 0, 100, 0)]
+    [InlineData(110, 0, 100, 100)]
+    [InlineData(25, 10, 20, 20)]
+    public void ClampSliderValue_ShouldKeepValueWithinSliderRange(
+        double value,
+        double minimum,
+        double maximum,
+        double expected)
+    {
+        Assert.Equal(
+            expected,
+            VideoTimelineMath.ClampSliderValue(value, minimum, maximum));
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 0, 100)]
+    [InlineData(50, double.NaN, 100)]
+    [InlineData(50, 0, double.PositiveInfinity)]
+    [InlineData(50, 100, 0)]
+    public void ClampSliderValue_ShouldReturnMinimumForInvalidValues(
+        double value,
+        double minimum,
+        double maximum)
+    {
+        Assert.Equal(
+            minimum,
+            VideoTimelineMath.ClampSliderValue(value, minimum, maximum));
+    }
+
+    [Theory]
     [InlineData(5000, 10000, 5000)]
     [InlineData(-10, 10000, 0)]
     [InlineData(11000, 10000, 10000)]
