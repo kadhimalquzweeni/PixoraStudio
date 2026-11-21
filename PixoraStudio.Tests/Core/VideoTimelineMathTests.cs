@@ -16,6 +16,55 @@ public sealed class VideoTimelineMathTests
     }
 
     [Theory]
+    [InlineData(10, 100, 20, 0, 100, 0)]
+    [InlineData(50, 100, 20, 0, 100, 50)]
+    [InlineData(90, 100, 20, 0, 100, 100)]
+    [InlineData(-10, 100, 20, 0, 100, 0)]
+    [InlineData(110, 100, 20, 0, 100, 100)]
+    [InlineData(50, 100, 20, 10, 20, 15)]
+    public void GetValueFromTrackClick_ShouldMapClickToSliderValue(
+        double clickX,
+        double trackWidth,
+        double thumbWidth,
+        double minimum,
+        double maximum,
+        double expected)
+    {
+        Assert.Equal(
+            expected,
+            VideoTimelineMath.GetValueFromTrackClick(
+                clickX,
+                trackWidth,
+                thumbWidth,
+                minimum,
+                maximum),
+            precision: 8);
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 100, 20, 0, 100)]
+    [InlineData(50, 0, 0, 0, 100)]
+    [InlineData(50, 100, 100, 0, 100)]
+    [InlineData(50, 100, -1, 0, 100)]
+    [InlineData(50, 100, 20, 100, 0)]
+    public void GetValueFromTrackClick_ShouldReturnMinimumForInvalidDimensions(
+        double clickX,
+        double trackWidth,
+        double thumbWidth,
+        double minimum,
+        double maximum)
+    {
+        Assert.Equal(
+            minimum,
+            VideoTimelineMath.GetValueFromTrackClick(
+                clickX,
+                trackWidth,
+                thumbWidth,
+                minimum,
+                maximum));
+    }
+
+    [Theory]
     [InlineData(0, 100, 10000, 0)]
     [InlineData(5000, 100, 10000, 50)]
     [InlineData(10000, 100, 10000, 100)]

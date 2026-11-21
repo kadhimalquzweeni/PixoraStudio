@@ -110,6 +110,7 @@
                                Margin="0,0,12,0"/>
 
                     <Slider x:Name="PlaybackSlider"
+                            PreviewMouseLeftButtonDown="PlaybackSlider_PreviewMouseLeftButtonDown"
                             Grid.Column="1"
                             Minimum="0"
                             Maximum="{Binding TotalMilliseconds}"
@@ -158,6 +159,7 @@
                     </Viewbox>
 
                     <Slider x:Name="VolumeSlider"
+                            PreviewMouseLeftButtonDown="FullscreenVolumeSlider_PreviewMouseLeftButtonDown"
                             Grid.Column="2"
                             Minimum="0"
                             Maximum="100"

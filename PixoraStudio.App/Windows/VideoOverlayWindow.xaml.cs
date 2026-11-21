@@ -1,7 +1,9 @@
 ﻿
 using PixoraStudio.App.ViewModels;
+using PixoraStudio.Core.Models;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Input;
@@ -80,7 +82,26 @@ public partial class VideoOverlayWindow : Window
         FullscreenRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    // Seek through the video when the user drags the slider.
+    // A click on the playback track seeks immediately; clicking the thumb
+    // remains a normal drag operation.
+    private void PlaybackSlider_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (!IsLoaded ||
+            DataContext is not VideoEditorViewModel vm ||
+            vm.TotalMilliseconds <= 0 ||
+            !TryGetTrackClickValue(PlaybackSlider, e, out double value))
+        {
+            return;
+        }
+
+        PlaybackSlider.Value = value;
+        vm.SeekCommand.Execute(value);
+        e.Handled = true;
+    }
+
+    // Keep seeking continuously while the user drags the playback thumb.
     private void PlaybackSlider_ValueChanged(
         object sender,
         RoutedPropertyChangedEventArgs<double> e)
@@ -92,12 +113,28 @@ public partial class VideoOverlayWindow : Window
         }
 
         if (DataContext is VideoEditorViewModel vm)
-        {
             vm.SeekCommand.Execute(e.NewValue);
-        }
     }
 
-    // Change video volume.
+    // A click on the volume track sets the level immediately; the thumb
+    // remains draggable for fine adjustments.
+    private void FullscreenVolumeSlider_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (!IsLoaded ||
+            DataContext is not VideoEditorViewModel vm ||
+            !TryGetTrackClickValue(VolumeSlider, e, out double value))
+        {
+            return;
+        }
+
+        VolumeSlider.Value = value;
+        vm.ChangeVolumeCommand.Execute(value);
+        e.Handled = true;
+    }
+
+    // Keep volume changes responsive while the user drags the thumb.
     private void FullscreenVolumeSlider_ValueChanged(
         object sender,
         RoutedPropertyChangedEventArgs<double> e)
@@ -109,9 +146,61 @@ public partial class VideoOverlayWindow : Window
         }
 
         if (DataContext is VideoEditorViewModel vm)
-        {
             vm.ChangeVolumeCommand.Execute(e.NewValue);
+    }
+
+    private static bool TryGetTrackClickValue(
+        Slider slider,
+        MouseButtonEventArgs e,
+        out double value)
+    {
+        slider.ApplyTemplate();
+        slider.UpdateLayout();
+
+        Track? track = FindVisualChild<Track>(slider);
+        if (track is null)
+        {
+            value = slider.Value;
+            return false;
         }
+
+        // Let the Slider handle thumb clicks so mouse capture and dragging
+        // continue to work as normal.
+        if (track.Thumb?.IsMouseOver == true)
+        {
+            value = slider.Value;
+            return false;
+        }
+
+        Point click = e.GetPosition(track);
+        value = VideoTimelineMath.GetValueFromTrackClick(
+            click.X,
+            track.ActualWidth,
+            track.Thumb?.ActualWidth ?? 0,
+            slider.Minimum,
+            slider.Maximum);
+
+        return true;
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent)
+        where T : DependencyObject
+    {
+        int childCount = VisualTreeHelper.GetChildrenCount(parent);
+
+        for (int i = 0; i < childCount; i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+
+            if (child is T match)
+                return match;
+
+            T? descendant = FindVisualChild<T>(child);
+            if (descendant is not null)
+                return descendant;
+        }
+
+        return null;
     }
 
     // Set trim start to the current playback position.
