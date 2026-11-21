@@ -1,14 +1,20 @@
 namespace PixoraStudio.Core.Models;
 
-/// <summary>Creates filmstrip seek targets at a fixed time interval.</summary>
+/// <summary>Creates filmstrip seek targets with enough frames to fill the timeline.</summary>
 public static class VideoThumbnailPlan
 {
-    /// <summary>Target spacing between consecutive filmstrip thumbnails.</summary>
+    /// <summary>Target spacing between consecutive filmstrip thumbnails for longer videos.</summary>
     public static readonly TimeSpan TargetThumbnailInterval = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// Returns the number of regular ten-second positions, plus a final position
-    /// when the duration has a partial interval and is longer than one interval.
+    /// Minimum number of thumbnails used to populate the timeline, including for
+    /// short videos whose ten-second sampling plan would otherwise leave it sparse.
+    /// </summary>
+    public const int MinimumThumbnailCount = 10;
+
+    /// <summary>
+    /// Returns the greater of the minimum filmstrip count and the regular
+    /// ten-second sampling count (including a final partial-interval position).
     /// </summary>
     public static int GetRecommendedThumbnailCount(TimeSpan duration)
     {
@@ -23,13 +29,17 @@ public static class VideoThumbnailPlan
             duration > TargetThumbnailInterval &&
             duration.Ticks % TargetThumbnailInterval.Ticks != 0;
 
-        return checked((int)(intervalCount + (hasPartialInterval ? 1 : 0)));
+        int intervalBasedCount = checked((int)(
+            intervalCount + (hasPartialInterval ? 1 : 0)));
+
+        return Math.Max(MinimumThumbnailCount, intervalBasedCount);
     }
 
     /// <summary>
-    /// Creates positions at zero and every ten seconds thereafter. If the
-    /// duration ends between ten-second boundaries, the final frame is also
-    /// included so the end of the video is represented in the filmstrip.
+    /// Creates evenly distributed positions when the regular ten-second plan
+    /// would produce fewer than the minimum number of timeline thumbnails.
+    /// Longer videos retain the existing ten-second sampling and final-frame
+    /// behaviour.
     /// </summary>
     public static IReadOnlyList<TimeSpan> CreatePositions(TimeSpan duration)
     {
@@ -40,16 +50,23 @@ public static class VideoThumbnailPlan
             return Array.Empty<TimeSpan>();
 
         int count = GetRecommendedThumbnailCount(duration);
+        long intervalCount = 1 + ((duration.Ticks - 1) / TargetThumbnailInterval.Ticks);
+        bool hasPartialInterval =
+            duration > TargetThumbnailInterval &&
+            duration.Ticks % TargetThumbnailInterval.Ticks != 0;
+        int intervalBasedCount = checked((int)(
+            intervalCount + (hasPartialInterval ? 1 : 0)));
+
+        if (count > intervalBasedCount)
+            return CreatePositions(duration, count);
+
         var positions = new List<TimeSpan>(count);
 
         for (long ticks = 0; ticks < duration.Ticks; ticks += TargetThumbnailInterval.Ticks)
             positions.Add(TimeSpan.FromTicks(ticks));
 
-        if (duration > TargetThumbnailInterval &&
-            duration.Ticks % TargetThumbnailInterval.Ticks != 0)
-        {
+        if (hasPartialInterval)
             positions.Add(duration - TimeSpan.FromTicks(1));
-        }
 
         return positions;
     }
@@ -64,9 +81,13 @@ public static class VideoThumbnailPlan
         if (count == 0 || duration == TimeSpan.Zero)
             return Array.Empty<TimeSpan>();
 
-        return Enumerable.Range(0, count)
+        // Keep each target inside the video and avoid duplicate positions for
+        // extremely short durations that contain fewer ticks than requested frames.
+        int effectiveCount = (int)Math.Min(count, duration.Ticks);
+
+        return Enumerable.Range(0, effectiveCount)
             .Select(index => TimeSpan.FromTicks(
-                (long)((double)duration.Ticks * index / count)))
+                (long)((double)duration.Ticks * index / effectiveCount)))
             .ToArray();
     }
 }

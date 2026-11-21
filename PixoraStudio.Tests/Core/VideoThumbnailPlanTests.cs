@@ -10,16 +10,24 @@ public sealed class VideoThumbnailPlanTests
         Assert.Equal(TimeSpan.FromSeconds(10), VideoThumbnailPlan.TargetThumbnailInterval);
     }
 
+    [Fact]
+    public void MinimumThumbnailCount_ShouldBeTen()
+    {
+        Assert.Equal(10, VideoThumbnailPlan.MinimumThumbnailCount);
+    }
+
     [Theory]
-    [InlineData(5, 1)]
-    [InlineData(10, 1)]
-    [InlineData(60, 6)]
+    [InlineData(1, 10)]
+    [InlineData(5, 10)]
+    [InlineData(10, 10)]
+    [InlineData(30, 10)]
+    [InlineData(60, 10)]
     [InlineData(120, 12)]
     [InlineData(300, 30)]
     [InlineData(305, 32)]
     [InlineData(600, 60)]
     [InlineData(3600, 360)]
-    public void GetRecommendedThumbnailCount_ShouldUseTenSecondIntervalsAndIncludePartialEnd(
+    public void GetRecommendedThumbnailCount_ShouldRespectMinimumAndTenSecondSampling(
         int durationSeconds,
         int expectedCount)
     {
@@ -61,6 +69,32 @@ public sealed class VideoThumbnailPlanTests
         }
     }
 
+    [Theory]
+    [InlineData(5)]
+    [InlineData(10)]
+    [InlineData(30)]
+    [InlineData(60)]
+    public void CreatePositions_ShouldDistributeMinimumTenTargetsAcrossShortVideos(
+        int durationSeconds)
+    {
+        TimeSpan duration = TimeSpan.FromSeconds(durationSeconds);
+
+        IReadOnlyList<TimeSpan> positions = VideoThumbnailPlan.CreatePositions(duration);
+
+        Assert.Equal(VideoThumbnailPlan.MinimumThumbnailCount, positions.Count);
+        Assert.Equal(TimeSpan.Zero, positions[0]);
+        Assert.True(positions[^1] < duration);
+
+        for (int index = 1; index < positions.Count; index++)
+        {
+            Assert.True(positions[index] > positions[index - 1]);
+            Assert.InRange(
+                positions[index] - positions[index - 1],
+                TimeSpan.FromTicks(duration.Ticks / 10 - 1),
+                TimeSpan.FromTicks(duration.Ticks / 10 + 1));
+        }
+    }
+
     [Fact]
     public void CreatePositions_ShouldAppendFinalFrameWhenDurationHasPartialInterval()
     {
@@ -95,6 +129,18 @@ public sealed class VideoThumbnailPlanTests
         Assert.Equal(5, positions.Count);
         Assert.Equal(TimeSpan.FromSeconds(12), positions[1]);
         Assert.Equal(TimeSpan.FromSeconds(48), positions[^1]);
+    }
+
+    [Fact]
+    public void CreatePositions_WithExplicitCount_ShouldCapAtAvailableTicks()
+    {
+        IReadOnlyList<TimeSpan> positions = VideoThumbnailPlan.CreatePositions(
+            TimeSpan.FromTicks(3), 10);
+
+        Assert.Equal(3, positions.Count);
+        Assert.Equal(
+            new[] { TimeSpan.Zero, TimeSpan.FromTicks(1), TimeSpan.FromTicks(2) },
+            positions);
     }
 
     [Fact]
