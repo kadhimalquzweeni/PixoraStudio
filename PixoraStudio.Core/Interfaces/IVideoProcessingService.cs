@@ -16,6 +16,7 @@ namespace PixoraStudio.Core.Interfaces
             IReadOnlyList<TimeSpan> positions,
             IReadOnlyList<string> outputPaths,
             IProgress<VideoThumbnailResult>? progress = null,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            VideoThumbnailMode mode = VideoThumbnailMode.Exact);
     }
 }

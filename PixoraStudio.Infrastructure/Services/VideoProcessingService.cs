@@ -20,6 +20,9 @@ public sealed class VideoProcessingService : IVideoProcessingService
     private const string WorkerCountEnvironmentVariable = "PIXORA_H264_THUMBNAIL_WORKERS";
     private const string CabacProfilingEnvironmentVariable = "PIXORA_H264_CABAC_PROFILE";
 
+    /// <summary>Width of generated filmstrip thumbnails in pixels.</summary>
+    private const int ThumbnailWidth = 240;
+
     public Task<VideoInfo> GetVideoInfoAsync(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -47,15 +50,19 @@ public sealed class VideoProcessingService : IVideoProcessingService
     }
 
     /// <summary>
-    /// Parses MP4 metadata and builds the track's seek index once. Thumbnail
-    /// workers then reuse precomputed seek plans and independent decoder state.
+    /// Parses MP4 metadata and builds the track's seek index once, then groups
+    /// thumbnails by the keyframe they decode from. Each group is decoded in a
+    /// single pass (or, in <see cref="VideoThumbnailMode.NearestKeyframe"/>
+    /// mode, as a single picture), and groups run in parallel on independent
+    /// decoder state.
     /// </summary>
     public Task GenerateThumbnailsAsync(
         string filePath,
         IReadOnlyList<TimeSpan> positions,
         IReadOnlyList<string> outputPaths,
         IProgress<VideoThumbnailResult>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        VideoThumbnailMode mode = VideoThumbnailMode.Exact)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(positions);
@@ -109,13 +116,19 @@ public sealed class VideoProcessingService : IVideoProcessingService
                     videoTrack, positions[index].TotalSeconds);
             }
 
+            // Thumbnails that seek to the same keyframe share one decode pass.
+            // Decoding each of them separately repeats every picture between
+            // the keyframe and the earlier targets.
+            IReadOnlyList<ThumbnailGroup> groups = GroupBySeekSample(
+                seekPlans.Select(plan => plan.FirstSampleToDecode).ToArray());
+
             int? requestedWorkerCount = GetRequestedWorkerCount();
             int workerCount = GetThumbnailWorkerCount(
-                positions.Count, Environment.ProcessorCount, requestedWorkerCount);
+                groups.Count, Environment.ProcessorCount, requestedWorkerCount);
             bool enableCabacProfiling = IsCabacProfilingEnabled();
             Debug.WriteLine(
-                $"[Thumbnails] Prepared {seekPlans.Length} seek plans; " +
-                $"thumbnailWorkers={workerCount}; " +
+                $"[Thumbnails] mode={mode}; thumbnails={seekPlans.Length}; " +
+                $"decodeGroups={groups.Count}; thumbnailWorkers={workerCount}; " +
                 $"sliceWorkers={H264Mp4AccessUnitDecoder.ConfiguredMaxSliceParallelism}; " +
                 $"processors={Environment.ProcessorCount}; " +
                 $"cabacProfiling={enableCabacProfiling}.");
@@ -123,22 +136,18 @@ public sealed class VideoProcessingService : IVideoProcessingService
             Stopwatch batchStopwatch = Stopwatch.StartNew();
             Parallel.For(
                 0,
-                positions.Count,
+                groups.Count,
                 new ParallelOptions
                 {
                     CancellationToken = cancellationToken,
                     MaxDegreeOfParallelism = workerCount
                 },
-                index =>
+                groupIndex =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    Stopwatch totalStopwatch = Stopwatch.StartNew();
-                    int workerThreadId = Environment.CurrentManagedThreadId;
-                    Debug.WriteLine(
-                        $"[Thumbnail {index}] START thread={workerThreadId} " +
-                        $"target={positions[index]:c} " +
-                        $"firstSample={seekPlans[index].FirstSampleToDecode}");
+                    ThumbnailGroup group = groups[groupIndex];
+                    Stopwatch groupStopwatch = Stopwatch.StartNew();
 
                     using FileStream stream = new(
                         filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -147,22 +156,24 @@ public sealed class VideoProcessingService : IVideoProcessingService
                         enableCabacProfiling ? new H264CabacPerformanceProfiler() : null;
                     H264Mp4TrackDecoder trackDecoder = new(cabacProfiler);
 
-                    Stopwatch decodeStopwatch = Stopwatch.StartNew();
-                    H264Mp4DecodedVideoFrame? frame =
-                        trackDecoder.DecodeFromPlan(
-                            stream,
-                            mediaInfo,
-                            videoTrack.TrackId,
-                            seekPlans[index],
-                            cancellationToken: cancellationToken)
-                        .FirstOrDefault();
-                    decodeStopwatch.Stop();
+                    bool handled =
+                        mode == VideoThumbnailMode.NearestKeyframe &&
+                        TryWriteKeyframeThumbnails(
+                            trackDecoder, stream, mediaInfo, videoTrack.TrackId,
+                            group, outputPaths, progress, cancellationToken);
+
+                    if (!handled)
+                    {
+                        WriteExactThumbnails(
+                            trackDecoder, stream, mediaInfo, videoTrack.TrackId,
+                            group, seekPlans, outputPaths, progress, cancellationToken);
+                    }
 
                     if (cabacProfiler is not null)
                     {
                         H264CabacPerformanceSnapshot snapshot = cabacProfiler.GetSnapshot();
                         Debug.WriteLine(
-                            $"[H264 CABAC profile] thumbnail={index}; " +
+                            $"[H264 CABAC profile] group={groupIndex}; " +
                             $"decisionBins={snapshot.DecisionBinCount}; " +
                             $"decisionElapsed={snapshot.DecisionElapsed}; " +
                             $"bypassBins={snapshot.BypassBinCount}; " +
@@ -172,50 +183,168 @@ public sealed class VideoProcessingService : IVideoProcessingService
                             "(included in decisionElapsed).");
                     }
 
-                    if (frame is null)
-                    {
-                        Debug.WriteLine(
-                            $"[Thumbnail {index}] NO FRAME; " +
-                            $"decode={decodeStopwatch.Elapsed}; total={totalStopwatch.Elapsed}.");
-                        return;
-                    }
-
                     Debug.WriteLine(
-                        $"[Thumbnail {index}] DECODED thread={workerThreadId} " +
-                        $"decode={decodeStopwatch.Elapsed}.");
-
-                    try
-                    {
-                        Stopwatch imageStopwatch = Stopwatch.StartNew();
-                        SaveThumbnail(
-                            frame,
-                            outputPaths[index],
-                            new H264AvcParameterSetCollectionReader(),
-                            new H264YuvToBgraConverter());
-                        imageStopwatch.Stop();
-
-                        progress?.Report(new VideoThumbnailResult(
-                            index, Path.GetFullPath(outputPaths[index])));
-
-                        Debug.WriteLine(
-                            $"[Thumbnail {index}] COMPLETE thread={workerThreadId} " +
-                            $"decode={decodeStopwatch.Elapsed}; image={imageStopwatch.Elapsed}; " +
-                            $"total={totalStopwatch.Elapsed}.");
-                    }
-                    catch (Exception exception) when (
-                        exception is not OperationCanceledException)
-                    {
-                        Debug.WriteLine(
-                            $"[Thumbnail {index}] FAILED during image output " +
-                            $"after {totalStopwatch.Elapsed}: {exception}");
-                    }
+                        $"[Thumbnail group {groupIndex}] firstSample={group.FirstSample}; " +
+                        $"thumbnails={group.Indices.Length}; keyframeOnly={handled}; " +
+                        $"elapsed={groupStopwatch.Elapsed}.");
                 });
 
             batchStopwatch.Stop();
             Debug.WriteLine(
                 $"[Thumbnails] Batch completed; thumbnails={positions.Count}; " +
-                $"workers={workerCount}; elapsed={batchStopwatch.Elapsed}.");
+                $"groups={groups.Count}; workers={workerCount}; elapsed={batchStopwatch.Elapsed}.");
         }, cancellationToken);
+    }
+
+    /// <summary>
+    /// A run of consecutive thumbnails that decode from the same keyframe.
+    /// <see cref="Indices"/> are indices into the caller's position list.
+    /// </summary>
+    internal readonly record struct ThumbnailGroup(uint FirstSample, int[] Indices);
+
+    /// <summary>
+    /// Splits per-thumbnail seek samples into runs of equal consecutive values.
+    /// Positions are ascending, so thumbnails that share a keyframe are adjacent.
+    /// </summary>
+    internal static IReadOnlyList<ThumbnailGroup> GroupBySeekSample(
+        IReadOnlyList<uint> firstSamples)
+    {
+        ArgumentNullException.ThrowIfNull(firstSamples);
+
+        List<ThumbnailGroup> groups = [];
+        int start = 0;
+        for (int index = 1; index <= firstSamples.Count; index++)
+        {
+            if (index < firstSamples.Count && firstSamples[index] == firstSamples[start])
+                continue;
+
+            groups.Add(new ThumbnailGroup(
+                firstSamples[start],
+                Enumerable.Range(start, index - start).ToArray()));
+            start = index;
+        }
+
+        return groups;
+    }
+
+    /// <summary>
+    /// Decodes just the group's keyframe and writes it for every thumbnail in
+    /// the group. Returns false, having written nothing, if the keyframe could
+    /// not be decoded on its own (for example a recovery-point stream whose sync
+    /// sample is not an IDR picture), so the caller can use an exact decode.
+    /// </summary>
+    private static bool TryWriteKeyframeThumbnails(
+        H264Mp4TrackDecoder trackDecoder,
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        ThumbnailGroup group,
+        IReadOnlyList<string> outputPaths,
+        IProgress<VideoThumbnailResult>? progress,
+        CancellationToken cancellationToken)
+    {
+        byte[] png;
+        try
+        {
+            H264Mp4DecodedVideoFrame? frame = trackDecoder.DecodeSyncSample(
+                stream, mediaInfo, trackId, group.FirstSample,
+                cancellationToken: cancellationToken);
+            // Only an IDR picture is guaranteed not to reference earlier
+            // pictures. A non-IDR sync sample (open GOP, gradual refresh) may
+            // decode to a wrong image without throwing, so use the exact path.
+            if (frame is null ||
+                !frame.SourceSample.NalUnits.Any(nal => nal.NalUnitType == 5))
+                return false;
+
+            png = EncodeThumbnail(
+                frame, new H264AvcParameterSetCollectionReader(), new H264YuvToBgraConverter());
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Debug.WriteLine(
+                $"[Thumbnail group] keyframe-only decode of sample {group.FirstSample} " +
+                $"failed; falling back to exact decode: {exception.Message}");
+            return false;
+        }
+
+        // One decode and one encode serve every thumbnail that maps to this keyframe.
+        foreach (int index in group.Indices)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                ReportThumbnail(index, outputPaths[index], png, progress);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                Debug.WriteLine($"[Thumbnail {index}] FAILED during image output: {exception}");
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Decodes forward from the group's keyframe once, writing each thumbnail as
+    /// the frame at its requested position emerges in presentation order.
+    /// </summary>
+    private static void WriteExactThumbnails(
+        H264Mp4TrackDecoder trackDecoder,
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        ThumbnailGroup group,
+        IReadOnlyList<H264Mp4VideoSeekPlan> seekPlans,
+        IReadOnlyList<string> outputPaths,
+        IProgress<VideoThumbnailResult>? progress,
+        CancellationToken cancellationToken)
+    {
+        long[] targets = group.Indices
+            .Select(index => seekPlans[index].TargetPresentationTimeTicks)
+            .ToArray();
+
+        H264AvcParameterSetCollectionReader parameterSetReader = new();
+        H264YuvToBgraConverter converter = new();
+        int written = 0;
+
+        foreach (H264Mp4TargetFrame hit in trackDecoder.DecodeTargetsFromSample(
+            stream, mediaInfo, trackId, group.FirstSample, targets,
+            cancellationToken: cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            int index = group.Indices[hit.TargetIndex];
+
+            try
+            {
+                byte[] png = EncodeThumbnail(hit.Frame, parameterSetReader, converter);
+                ReportThumbnail(index, outputPaths[index], png, progress);
+                written++;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                Debug.WriteLine($"[Thumbnail {index}] FAILED during image output: {exception}");
+            }
+        }
+
+        if (written < group.Indices.Length)
+        {
+            Debug.WriteLine(
+                $"[Thumbnail group {group.FirstSample}] produced {written} of " +
+                $"{group.Indices.Length} thumbnails.");
+        }
+    }
+
+    private static void ReportThumbnail(
+        int index,
+        string outputPath,
+        byte[] png,
+        IProgress<VideoThumbnailResult>? progress)
+    {
+        string fullOutputPath = Path.GetFullPath(outputPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
+        File.WriteAllBytes(fullOutputPath, png);
+        progress?.Report(new VideoThumbnailResult(index, fullOutputPath));
     }
 
     internal static int GetThumbnailWorkerCount(
@@ -249,9 +378,8 @@ public sealed class VideoProcessingService : IVideoProcessingService
             "1",
             StringComparison.Ordinal);
 
-    private static void SaveThumbnail(
+    private static byte[] EncodeThumbnail(
         H264Mp4DecodedVideoFrame frame,
-        string outputPath,
         H264AvcParameterSetCollectionReader parameterSetReader,
         H264YuvToBgraConverter converter)
     {
@@ -262,36 +390,19 @@ public sealed class VideoProcessingService : IVideoProcessingService
             ?? throw new InvalidDataException(
                 "The AVC configuration does not contain a usable sequence parameter set.");
 
-        H264BgraFrame bgra = converter.Convert(frame.Surface, sps);
+        // Convert straight to thumbnail size instead of building a full-size
+        // BGRA frame and downscaling it afterwards.
+        H264BgraFrame bgra = converter.ConvertScaled(frame.Surface, sps, ThumbnailWidth);
 
-        string fullOutputPath = Path.GetFullPath(outputPath);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
-
-        using SKBitmap source = new(
+        using SKBitmap bitmap = new(
             bgra.Width, bgra.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
-        Marshal.Copy(bgra.Pixels, 0, source.GetPixels(), bgra.Pixels.Length);
+        Marshal.Copy(bgra.Pixels, 0, bitmap.GetPixels(), bgra.Pixels.Length);
 
-        const int thumbnailWidth = 240;
-        int thumbnailHeight = Math.Max(
-            1,
-            (int)Math.Round((double)bgra.Height * thumbnailWidth / bgra.Width));
-
-        using SKBitmap thumbnail = new(
-            thumbnailWidth, thumbnailHeight, SKColorType.Bgra8888, SKAlphaType.Opaque);
-        using (SKCanvas canvas = new(thumbnail))
-        {
-            canvas.Clear(SKColors.Black);
-            canvas.DrawBitmap(
-                source, new SKRect(0, 0, thumbnailWidth, thumbnailHeight));
-        }
-
-        using SKImage image = SKImage.FromBitmap(thumbnail);
+        using SKImage image = SKImage.FromBitmap(bitmap);
         using SKData encoded = image.Encode(SKEncodedImageFormat.Png, 90)
             ?? throw new InvalidOperationException(
                 "SkiaSharp could not encode the decoded thumbnail.");
 
-        using FileStream output = new(
-            fullOutputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        encoded.SaveTo(output);
+        return encoded.ToArray();
     }
 }

@@ -163,4 +163,36 @@ public sealed class VideoProcessingServiceTests
         Assert.Throws<ArgumentOutOfRangeException>(
             () => VideoProcessingService.GetThumbnailWorkerCount(4, 0));
     }
+
+    [Fact]
+    public void GroupBySeekSample_ShouldGroupConsecutiveThumbnailsSharingAKeyframe()
+    {
+        var groups = VideoProcessingService.GroupBySeekSample(
+            new uint[] { 1, 1, 1, 90, 90, 300 });
+
+        Assert.Equal(new uint[] { 1, 90, 300 }, groups.Select(group => group.FirstSample));
+        Assert.Equal(new[] { 0, 1, 2 }, groups[0].Indices);
+        Assert.Equal(new[] { 3, 4 }, groups[1].Indices);
+        Assert.Equal(new[] { 5 }, groups[2].Indices);
+    }
+
+    [Fact]
+    public void GroupBySeekSample_ShouldNotMergeNonAdjacentEqualSamples()
+    {
+        var groups = VideoProcessingService.GroupBySeekSample(new uint[] { 5, 9, 5 });
+
+        Assert.Equal(3, groups.Count);
+        Assert.Equal(new uint[] { 5, 9, 5 }, groups.Select(group => group.FirstSample));
+    }
+
+    [Fact]
+    public void GroupBySeekSample_ShouldHandleEmptyAndSingleInput()
+    {
+        Assert.Empty(VideoProcessingService.GroupBySeekSample(Array.Empty<uint>()));
+
+        var single = VideoProcessingService.GroupBySeekSample(new uint[] { 42 });
+        Assert.Single(single);
+        Assert.Equal(42u, single[0].FirstSample);
+        Assert.Equal(new[] { 0 }, single[0].Indices);
+    }
 }

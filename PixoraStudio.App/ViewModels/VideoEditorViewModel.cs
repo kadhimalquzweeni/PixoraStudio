@@ -503,7 +503,12 @@ public partial class VideoEditorViewModel : ObservableObject
                 positions,
                 outputPaths,
                 progress,
-                cancellationToken);
+                cancellationToken,
+                // Filmstrip tiles don't need frame-exact positions. Decoding only
+                // the nearest keyframe (a fast keyframe seek) costs one
+                // picture per tile instead of a whole GOP. Use
+                // VideoThumbnailMode.Exact to decode the exact frame instead.
+                VideoThumbnailMode.NearestKeyframe);
         }
         finally
         {

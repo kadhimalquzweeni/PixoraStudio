@@ -117,6 +117,108 @@ public sealed class H264YuvToBgraConverterTests
             new H264YuvToBgraConverter().Convert(surface, sps));
     }
 
+    [Fact]
+    public void ConvertScaled_ShouldAverageSourceRegionsIntoTheirOutputPixel()
+    {
+        H264SequenceParameterSet sps = Sps(1, fullRange: false, matrix: 6);
+        byte[] luma = new byte[256];
+        for (int row = 0; row < 16; row++)
+        {
+            for (int column = 0; column < 16; column++)
+                luma[row * 16 + column] = column < 8 ? (byte)16 : (byte)235;
+        }
+
+        H264DecodedPictureSurface surface = Surface(sps, luma,
+            Enumerable.Repeat((byte)128, 64).ToArray(),
+            Enumerable.Repeat((byte)128, 64).ToArray());
+
+        H264BgraFrame frame = new H264YuvToBgraConverter().ConvertScaled(surface, sps, 2);
+
+        Assert.Equal(2, frame.Width);
+        Assert.Equal(2, frame.Height);
+        Assert.Equal(8, frame.Stride);
+        Assert.Equal(16, frame.Pixels.Length);
+        Assert.Equal(new byte[] { 0, 0, 0, 255 }, frame.Pixels[..4]);
+        Assert.Equal(new byte[] { 255, 255, 255, 255 }, frame.Pixels[4..8]);
+        Assert.Equal(new byte[] { 0, 0, 0, 255 }, frame.Pixels[8..12]);
+        Assert.Equal(new byte[] { 255, 255, 255, 255 }, frame.Pixels[12..16]);
+    }
+
+    [Fact]
+    public void ConvertScaled_ShouldApplyTheSameColourMatrixAsConvert()
+    {
+        H264SequenceParameterSet sps = Sps(1, fullRange: false, matrix: 6);
+        H264DecodedPictureSurface surface = Surface(sps,
+            Enumerable.Repeat((byte)81, 256).ToArray(),
+            Enumerable.Repeat((byte)90, 64).ToArray(),
+            Enumerable.Repeat((byte)240, 64).ToArray());
+
+        H264BgraFrame frame = new H264YuvToBgraConverter().ConvertScaled(surface, sps, 4);
+
+        Assert.Equal(4, frame.Width);
+        Assert.Equal(4, frame.Height);
+        for (int pixel = 0; pixel < 16; pixel++)
+        {
+            int offset = pixel * 4;
+            Assert.InRange(frame.Pixels[offset + 2], (byte)250, (byte)255);
+            Assert.InRange(frame.Pixels[offset + 1], (byte)0, (byte)5);
+            Assert.InRange(frame.Pixels[offset], (byte)0, (byte)5);
+            Assert.Equal(255, frame.Pixels[offset + 3]);
+        }
+    }
+
+    [Fact]
+    public void ConvertScaled_ShouldPreserveAspectRatio()
+    {
+        H264SequenceParameterSet sps = Sps(1, fullRange: false, matrix: 6);
+        H264DecodedPictureSurface surface = Surface(sps,
+            Enumerable.Repeat((byte)128, 256).ToArray(),
+            Enumerable.Repeat((byte)128, 64).ToArray(),
+            Enumerable.Repeat((byte)128, 64).ToArray());
+
+        H264BgraFrame frame = new H264YuvToBgraConverter().ConvertScaled(surface, sps, 5);
+
+        Assert.Equal(5, frame.Width);
+        Assert.Equal(5, frame.Height);
+        Assert.Equal(20, frame.Stride);
+        Assert.Equal(100, frame.Pixels.Length);
+    }
+
+    [Theory]
+    [InlineData(16)]
+    [InlineData(64)]
+    public void ConvertScaled_TargetAtOrAboveSourceWidth_ShouldMatchFullConversion(int targetWidth)
+    {
+        H264SequenceParameterSet sps = Sps(1, fullRange: false, matrix: 6);
+        H264DecodedPictureSurface surface = Surface(sps,
+            Enumerable.Range(0, 256).Select(value => (byte)value).ToArray(),
+            Enumerable.Repeat((byte)100, 64).ToArray(),
+            Enumerable.Repeat((byte)150, 64).ToArray());
+
+        H264YuvToBgraConverter converter = new();
+        H264BgraFrame full = converter.Convert(surface, sps);
+        H264BgraFrame scaled = converter.ConvertScaled(surface, sps, targetWidth);
+
+        Assert.Equal(full.Width, scaled.Width);
+        Assert.Equal(full.Height, scaled.Height);
+        Assert.Equal(full.Pixels, scaled.Pixels);
+    }
+
+    [Fact]
+    public void ConvertScaled_ShouldRejectNonPositiveWidthAndIncompleteSurface()
+    {
+        H264SequenceParameterSet sps = Sps(1, false, 6);
+        H264DecodedPictureSurface complete = Surface(sps,
+            Enumerable.Repeat((byte)128, 256).ToArray(),
+            Enumerable.Repeat((byte)128, 64).ToArray(),
+            Enumerable.Repeat((byte)128, 64).ToArray());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new H264YuvToBgraConverter().ConvertScaled(complete, sps, 0));
+        Assert.Throws<InvalidOperationException>(() =>
+            new H264YuvToBgraConverter().ConvertScaled(new H264DecodedPictureSurface(sps), sps, 4));
+    }
+
     private static H264SequenceParameterSet Sps(
         uint chromaFormat,
         bool fullRange,

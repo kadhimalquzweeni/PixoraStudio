@@ -68,6 +68,30 @@ or the next frame when the target falls into a presentation gap. Seeking is
 not equivalent to starting a fresh decoder at an arbitrary P/B sample: all
 samples from the selected sync sample onward must be supplied contiguously.
 
+### Fast paths for thumbnails and filmstrips
+
+Decoding from the preceding sync sample to an exact frame costs every picture in
+between, and doing it once per thumbnail repeats the same pictures when several
+targets share a keyframe. Two helpers avoid that:
+
+- `DecodeTargetsFromSample` decodes forward from one sync sample **once** and
+  yields, for each ascending target time, the same frame `DecodeFromPlan` would
+  return for it. Decoding stops after the last target. Frames are identical to
+  the per-target path; only the repeated work is removed.
+- `DecodeSyncSample` decodes only the sync sample itself, with no P/B pictures.
+  This is keyframe-only seeking. The picture is the keyframe at or
+  before the target, not the exact frame, so it is for previews and filmstrips.
+  It is only valid for an IDR sync sample; `VideoProcessingService` falls back to
+  the exact path for anything else.
+
+`VideoProcessingService.GenerateThumbnailsAsync` groups thumbnails by their seek
+sample and takes a `VideoThumbnailMode`: `Exact` (default) uses
+`DecodeTargetsFromSample`; `NearestKeyframe` uses `DecodeSyncSample` and shares
+one image between positions that fall between the same pair of keyframes. The
+editor filmstrip uses `NearestKeyframe`. Thumbnails are colour-converted
+straight to 240 px with `H264YuvToBgraConverter.ConvertScaled` instead of
+building a full-size BGRA frame first.
+
 ## Decode individual samples
 
 For callers that already read MP4 samples, use `H264Mp4TrackSampleReader` to resolve each sample's sample description, parse its `avcC` configuration, split its length-prefixed NAL units, and retain DTS, PTS and duration ticks. Create an `H264Mp4AccessUnitDecoder` from the first sample's parameter sets, then supply contiguous samples in decode order:

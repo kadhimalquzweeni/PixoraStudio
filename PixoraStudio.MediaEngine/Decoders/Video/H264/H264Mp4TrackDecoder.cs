@@ -124,6 +124,141 @@ public sealed class H264Mp4TrackDecoder
             maxNumReorderFramesFallback, cancellationToken);
     }
 
+    /// <summary>
+    /// Decodes forward once from a random-access sample and yields, for each
+    /// ascending presentation-time target, the first frame whose presentation
+    /// interval ends after that target. This is the same frame
+    /// <see cref="DecodeFromPlan"/> returns for a single target, but every
+    /// target that shares the random-access point is served by one decode pass
+    /// instead of each target re-decoding the same pictures. Decoding stops as
+    /// soon as the last target has been satisfied.
+    /// </summary>
+    public IEnumerable<H264Mp4TargetFrame> DecodeTargetsFromSample(
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        uint firstSampleToDecode,
+        IReadOnlyList<long> targetPresentationTimeTicks,
+        int? maxNumReorderFramesFallback = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(mediaInfo);
+        ArgumentNullException.ThrowIfNull(targetPresentationTimeTicks);
+        ValidateStream(stream);
+
+        for (int index = 1; index < targetPresentationTimeTicks.Count; index++)
+        {
+            if (targetPresentationTimeTicks[index] < targetPresentationTimeTicks[index - 1])
+                throw new ArgumentException(
+                    "Target presentation times must be in ascending order.",
+                    nameof(targetPresentationTimeTicks));
+        }
+
+        Mp4MediaTrack mediaTrack = GetVideoTrack(mediaInfo, trackId);
+        if (firstSampleToDecode == 0 || firstSampleToDecode > mediaTrack.SampleCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(firstSampleToDecode),
+                "The first sample is outside the video track.");
+
+        if (targetPresentationTimeTicks.Count == 0)
+            return [];
+
+        uint remainingSamples = checked(
+            mediaTrack.SampleCount - firstSampleToDecode + 1);
+        IEnumerable<Mp4EncodedSample> samples = mediaTrack.ReadSamples(
+            stream,
+            firstSampleToDecode,
+            remainingSamples,
+            mediaInfo.MediaDataRegions,
+            cancellationToken);
+
+        return DecodeTargets(
+            mediaTrack.Track,
+            samples,
+            targetPresentationTimeTicks,
+            maxNumReorderFramesFallback,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Decodes only the given sync sample and returns its picture, without
+    /// decoding any of the P/B pictures that follow it. This is keyframe-only
+    /// seeking: it costs one picture instead of every picture between the
+    /// keyframe and an exact target. The sample must be
+    /// self-contained (an IDR or an I picture that does not reference earlier
+    /// pictures); callers should fall back to an exact decode if this throws.
+    /// </summary>
+    public H264Mp4DecodedVideoFrame? DecodeSyncSample(
+        Stream stream,
+        Mp4MediaInfo mediaInfo,
+        uint trackId,
+        uint sampleNumber,
+        int? maxNumReorderFramesFallback = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(mediaInfo);
+        ValidateStream(stream);
+
+        Mp4MediaTrack mediaTrack = GetVideoTrack(mediaInfo, trackId);
+        if (sampleNumber == 0 || sampleNumber > mediaTrack.SampleCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(sampleNumber),
+                "The sample is outside the video track.");
+
+        IEnumerable<Mp4EncodedSample> samples = mediaTrack.ReadSamples(
+            stream,
+            sampleNumber,
+            1,
+            mediaInfo.MediaDataRegions,
+            cancellationToken);
+
+        return DecodeSamples(
+                mediaTrack.Track, samples, maxNumReorderFramesFallback, cancellationToken)
+            .FirstOrDefault();
+    }
+
+    private IEnumerable<H264Mp4TargetFrame> DecodeTargets(
+        Mp4Track track,
+        IEnumerable<Mp4EncodedSample> samples,
+        IReadOnlyList<long> targetPresentationTimeTicks,
+        int? maxNumReorderFramesFallback,
+        CancellationToken cancellationToken)
+    {
+        int nextTarget = 0;
+
+        foreach (H264Mp4DecodedVideoFrame frame in DecodeSamples(
+            track, samples, maxNumReorderFramesFallback, cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            long presentationEnd = GetPresentationEnd(frame);
+            while (nextTarget < targetPresentationTimeTicks.Count &&
+                   presentationEnd > targetPresentationTimeTicks[nextTarget])
+            {
+                yield return new H264Mp4TargetFrame(nextTarget, frame);
+                nextTarget++;
+            }
+
+            if (nextTarget == targetPresentationTimeTicks.Count)
+                yield break;
+        }
+    }
+
+    private static long GetPresentationEnd(H264Mp4DecodedVideoFrame frame)
+    {
+        try
+        {
+            return checked(frame.PresentationTimeTicks + frame.DurationTicks);
+        }
+        catch (OverflowException exception)
+        {
+            throw new FormatException(
+                "A decoded MP4 frame has an overflowing presentation interval.", exception);
+        }
+    }
+
     private static Mp4MediaTrack GetVideoTrack(Mp4MediaInfo mediaInfo, uint trackId)
     {
         Mp4MediaTrack mediaTrack = mediaInfo.GetTrack(trackId) ??
