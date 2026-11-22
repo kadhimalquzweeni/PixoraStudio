@@ -1,24 +1,9 @@
 {
   "profiles": {
-    "PixoraStudio - 1 Slice Worker": {
+    "PixoraStudio": {
       "commandName": "Project",
       "environmentVariables": {
-        "PIXORA_H264_THUMBNAIL_WORKERS": "4",
-        "PIXORA_H264_SLICE_WORKERS": "1"
-      }
-    },
-    "PixoraStudio - 2 Slice Workers": {
-      "commandName": "Project",
-      "environmentVariables": {
-        "PIXORA_H264_THUMBNAIL_WORKERS": "4",
-        "PIXORA_H264_SLICE_WORKERS": "2"
-      }
-    },
-    "PixoraStudio - 4 Slice Workers": {
-      "commandName": "Project",
-      "environmentVariables": {
-        "PIXORA_H264_THUMBNAIL_WORKERS": "4",
-        "PIXORA_H264_SLICE_WORKERS": "4"
+        "PIXORA_H264_THUMBNAIL_WORKERS": "4"
       }
     }
   }
