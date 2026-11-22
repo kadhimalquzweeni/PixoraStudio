@@ -45,6 +45,8 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
     // Only touched while holding _operationLock.
     private readonly Dictionary<uint, BitmapSource> _keyframePreviews = new();
     private readonly Queue<uint> _keyframePreviewOrder = new();
+    private CancellationTokenSource? _previewCancellation;
+    private int _previewGeneration;
     private readonly H264Mp4VideoSeekPlanner _seekPlanner = new();
 
 
@@ -62,6 +64,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(frameReady);
         ArgumentNullException.ThrowIfNull(failed);
 
+        CancelKeyframePreview();
         await StopAsync().ConfigureAwait(false);
 
         (Mp4MediaInfo Info, uint TrackId)? prepared;
@@ -127,6 +130,9 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         if (_mediaInfo is null || _filePath is null)
             return;
 
+        // Don't queue behind a slow keyframe preview decode.
+        CancelKeyframePreview();
+
         await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -155,19 +161,41 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
         if (!double.IsFinite(positionSeconds) || positionSeconds < 0)
             throw new ArgumentOutOfRangeException(nameof(positionSeconds));
 
-        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // A newer preview, seek, start or stop supersedes this one.
+        CancellationTokenSource previewCancellation = new();
+        Interlocked.Exchange(ref _previewCancellation, previewCancellation)?.Cancel();
+        int generation = Volatile.Read(ref _previewGeneration);
+        using CancellationTokenSource linked = CancellationTokenSource
+            .CreateLinkedTokenSource(previewCancellation.Token, cancellationToken);
+
         try
         {
-            Mp4MediaInfo? info = _mediaInfo;
-            string? path = _filePath;
-            Action<BitmapSource>? publish = _frameReady;
-            if (info is null || path is null || publish is null)
-                return false;
+            Mp4MediaInfo? info;
+            string? path;
+            Action<BitmapSource>? publish;
+            uint trackId;
 
-            // Playback would otherwise overwrite the preview with later frames.
-            await StopDecodeTaskAsync().ConfigureAwait(false);
+            // Hold the operation lock only long enough to stop playback decoding.
+            // The decode below can take seconds and must not block seeks,
+            // stops or a new video behind it.
+            await _operationLock.WaitAsync(linked.Token).ConfigureAwait(false);
+            try
+            {
+                info = _mediaInfo;
+                path = _filePath;
+                publish = _frameReady;
+                trackId = _trackId;
+                if (info is null || path is null || publish is null)
+                    return false;
 
-            uint trackId = _trackId;
+                // Playback would otherwise overwrite the preview with later frames.
+                await StopDecodeTaskAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _operationLock.Release();
+            }
+
             BitmapSource? preview = await Task.Run(() =>
             {
                 Mp4MediaTrack track = info.GetTrack(trackId) ??
@@ -176,22 +204,32 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
                     .Plan(track, positionSeconds)
                     .FirstSampleToDecode;
 
-                if (_keyframePreviews.TryGetValue(sampleNumber, out BitmapSource? cached))
-                    return cached;
+                lock (_keyframePreviews)
+                {
+                    if (_keyframePreviews.TryGetValue(sampleNumber, out BitmapSource? cached))
+                        return cached;
+                }
 
                 using FileStream stream = new(
                     path, FileMode.Open, FileAccess.Read, FileShare.Read);
                 H264Mp4DecodedVideoFrame? frame = _decoder.DecodeSyncSample(
                     stream, info, trackId, sampleNumber,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: linked.Token);
                 if (frame is null)
                     return null;
 
                 BitmapSource created = ConvertToBitmap(
                     frame, new(ReferenceEqualityComparer.Instance), KeyframePreviewWidth);
-                RememberKeyframePreview(sampleNumber, created);
+                lock (_keyframePreviews)
+                    RememberKeyframePreview(sampleNumber, created);
                 return created;
-            }, cancellationToken).ConfigureAwait(false);
+            }, linked.Token).ConfigureAwait(false);
+
+            // Superseded while decoding: publishing now would draw over a newer
+            // seek or a different video.
+            if (linked.IsCancellationRequested ||
+                generation != Volatile.Read(ref _previewGeneration))
+                return true;
 
             if (preview is null)
                 return false;
@@ -199,17 +237,24 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
             publish(preview);
             return true;
         }
-        catch (Exception exception) when (
-            exception is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer request; nothing more to show for this one.
+            return true;
+        }
+        catch (Exception exception)
         {
             System.Diagnostics.Debug.WriteLine(
                 $"Keyframe preview failed; using an exact seek instead: {exception}");
             return false;
         }
-        finally
-        {
-            _operationLock.Release();
-        }
+    }
+
+    /// <summary>Cancels any keyframe preview decode in flight and invalidates its result.</summary>
+    private void CancelKeyframePreview()
+    {
+        Interlocked.Increment(ref _previewGeneration);
+        Interlocked.Exchange(ref _previewCancellation, null)?.Cancel();
     }
 
     private void RememberKeyframePreview(uint sampleNumber, BitmapSource bitmap)
@@ -223,8 +268,11 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 
     private void ClearKeyframePreviews()
     {
-        _keyframePreviews.Clear();
-        _keyframePreviewOrder.Clear();
+        lock (_keyframePreviews)
+        {
+            _keyframePreviews.Clear();
+            _keyframePreviewOrder.Clear();
+        }
     }
 
     private BitmapSource ConvertToBitmap(
@@ -254,6 +302,7 @@ public sealed class ManagedH264VideoPlaybackService : IAsyncDisposable
 
     public async Task StopAsync()
     {
+        CancelKeyframePreview();
         await _operationLock.WaitAsync().ConfigureAwait(false);
         try
         {

@@ -65,6 +65,7 @@ public partial class VideoEditorView : UserControl
     /// <summary>Open GPU (Media Foundation) reader used for scrub previews.</summary>
     private MediaFoundationFrameReader? _gpuFrameReader;
     private bool _gpuFrameReaderRequested;
+    private Task? _gpuFrameReaderOpening;
 
     // The playhead and time label refresh at ~25 fps. Audio drift correction
     // is far more expensive, so it still runs only every fifth tick (200 ms).
@@ -424,7 +425,7 @@ public partial class VideoEditorView : UserControl
             scrubVm.VideoPath is { Length: > 0 } scrubPath)
         {
             _gpuFrameReaderRequested = true;
-            _ = OpenGpuFrameReaderAsync(scrubPath, _videoLoadVersion);
+            _gpuFrameReaderOpening = OpenGpuFrameReaderAsync(scrubPath, _videoLoadVersion);
         }
 
         if (Interlocked.CompareExchange(ref _scrubSeekBusy, 1, 0) != 0)
@@ -438,6 +439,15 @@ public partial class VideoEditorView : UserControl
             {
                 _pendingScrubPosition = null;
                 _mediaPlayer.Time = (long)target;
+
+                // Opening the GPU reader takes a moment. Wait for it rather than
+                // starting a slow software decode that would be thrown away.
+                if (_gpuFrameReader is null &&
+                    _gpuFrameReaderOpening is { IsCompleted: false } opening)
+                {
+                    ShowThumbnailPlaceholder(target);
+                    await opening;
+                }
 
                 // Preferred path: the GPU decodes the exact frame at this position.
                 if (await TryShowGpuFrameAsync(target))
@@ -622,6 +632,7 @@ public partial class VideoEditorView : UserControl
         // does not have several GPU decode sessions starting at once.
         DisposeGpuFrameReader();
         _gpuFrameReaderRequested = false;
+        _gpuFrameReaderOpening = null;
 
         _videoLoadCancellation?.Cancel();
         _videoLoadCancellation?.Dispose();
