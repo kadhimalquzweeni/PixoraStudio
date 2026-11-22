@@ -116,4 +116,39 @@ public sealed class ImageProcessingServiceTests
         using var source = CreatePattern();
         Assert.Throws<ArgumentOutOfRangeException>(() => _service.Resize(source, width, height));
     }
+    [Theory]
+    [InlineData(45)]
+    [InlineData(-12.5)]
+    [InlineData(135)]
+    public void Rotate_FreeAngle_ShouldExpandCanvasAndPreserveSourceCentre(float angle)
+    {
+        using var source = new SKBitmap(20, 10);
+        source.Erase(SKColors.Red);
+
+        using var result = _service.Rotate(source, angle);
+
+        Assert.True(result.Width >= source.Width);
+        Assert.True(result.Height >= source.Height);
+        Assert.Equal(SKColors.Red, result.GetPixel(result.Width / 2, result.Height / 2));
+    }
+
+    [Fact]
+    public void Rotate_FullTurn_ShouldReturnSameDimensions()
+    {
+        using var source = CreatePattern();
+        using var result = _service.Rotate(source, 360f);
+
+        Assert.Equal(source.Width, result.Width);
+        Assert.Equal(source.Height, result.Height);
+    }
+
+    [Fact]
+    public void Rotate_ShouldRejectNonFiniteAngle()
+    {
+        using var source = CreatePattern();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => _service.Rotate(source, float.NaN));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _service.Rotate(source, float.PositiveInfinity));
+    }
+
 }
