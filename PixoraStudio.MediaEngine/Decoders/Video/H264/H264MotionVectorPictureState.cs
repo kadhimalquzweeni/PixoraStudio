@@ -39,48 +39,6 @@ public sealed class H264MotionVectorPictureState
     }
 
     /// <summary>
-    /// Merges only the motion-vector cells owned by one decoded slice.
-    /// Slice-local states can therefore be decoded independently and combined
-    /// after their workers finish, without exposing cross-slice neighbours.
-    /// </summary>
-    public void MergeSliceFrom(H264MotionVectorPictureState source, int sliceId)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        if (ReferenceEquals(this, source))
-            throw new ArgumentException("A motion-vector state cannot be merged into itself.", nameof(source));
-        if (source.MacroblockWidth != MacroblockWidth ||
-            source.MacroblockHeight != MacroblockHeight)
-            throw new ArgumentException(
-                "Source and destination motion-vector states must have matching dimensions.",
-                nameof(source));
-        if (sliceId < 0)
-            throw new ArgumentOutOfRangeException(nameof(sliceId));
-
-        // Validate the complete merge before writing anything, so a conflict
-        // cannot leave the destination with a partially merged slice.
-        for (int y = 0; y < BlockHeight; y++)
-        for (int x = 0; x < BlockWidth; x++)
-        {
-            Cell? sourceCell = source._cells[x, y];
-            if (sourceCell is { } value &&
-                value.SliceId == sliceId &&
-                _cells[x, y] is not null)
-            {
-                throw new InvalidOperationException(
-                    "The destination motion-vector state already contains data for a source slice region.");
-            }
-        }
-
-        for (int y = 0; y < BlockHeight; y++)
-        for (int x = 0; x < BlockWidth; x++)
-        {
-            Cell? sourceCell = source._cells[x, y];
-            if (sourceCell is { } value && value.SliceId == sliceId)
-                _cells[x, y] = value;
-        }
-    }
-
-    /// <summary>
     /// Resolves A (left), B (above), C (above-right), and D (above-left)
     /// candidates for a current partition. Neighbours outside the picture,
     /// not yet decoded, or belonging to another slice are unavailable.
