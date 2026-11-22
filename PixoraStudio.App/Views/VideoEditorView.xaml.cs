@@ -1558,7 +1558,7 @@ public partial class VideoEditorView : UserControl
         }
     }
 
-    private void VideoEditorView_Unloaded(
+    private async void VideoEditorView_Unloaded(
         object sender,
         RoutedEventArgs e)
     {
@@ -1575,7 +1575,6 @@ public partial class VideoEditorView : UserControl
 
         _aacAudioPlaybackService.Unload();
         DisposeGpuFrameReader();
-        _ = _managedH264PlaybackService.StopAsync();
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
@@ -1610,22 +1609,42 @@ public partial class VideoEditorView : UserControl
             _editorWindow.StateChanged -= EditorWindow_StateChanged;
         }
 
-        if (_mediaPlayer is not null)
-        {
-            _mediaPlayer.EndReached -= MediaPlayer_EndReached;
+        VlcMediaPlayer? playerToDispose = _mediaPlayer;
+        if (playerToDispose is not null)
+            playerToDispose.EndReached -= MediaPlayer_EndReached;
 
-            // Stop and dispose off the UI thread; see OnVideoLoaded.
-            VlcMediaPlayer playerToDispose = _mediaPlayer;
-            _ = Task.Run(() =>
-            {
-                playerToDispose.Stop();
-                playerToDispose.Dispose();
-            });
+        // Detach immediately so any suspended load continuation knows the view
+        // is shutting down. Actual native disposal waits behind the lifecycle gate.
+        _mediaPlayer = null;
+        VideoPlayer.MediaPlayer = null;
+
+        try
+        {
+            await _managedH264PlaybackService.StopAsync();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Stopping managed H.264 playback during unload failed: {exception}");
         }
 
-        _mediaPlayer = null;
+        if (playerToDispose is null)
+            return;
 
-        VideoPlayer.MediaPlayer = null;
+        try
+        {
+            await _playerLifecycleGate.ExecuteAsync(() =>
+                Task.Run(() =>
+                {
+                    playerToDispose.Stop();
+                    playerToDispose.Dispose();
+                }));
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Disposing the LibVLC player during unload failed: {exception}");
+        }
     }
 
     private void SetOverlayBounds(
