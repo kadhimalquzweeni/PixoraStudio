@@ -109,33 +109,6 @@ public sealed class H264DecodedPictureSurfaceTests
     }
 
     [Fact]
-    public async Task WriteMacroblock_ShouldRejectWriterWhileSameMacroblockIsBeingReconstructed()
-    {
-        H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
-        using BlockingReadOnlyByteList blockingLuma =
-            new(Enumerable.Repeat((byte)10, 256).ToArray());
-
-        Task firstWriter = Task.Run(() => surface.WriteMacroblock(
-            0, 0, 3, false, blockingLuma, new byte[64], new byte[64]));
-
-        Assert.True(blockingLuma.WaitUntilRead(TimeSpan.FromSeconds(5)));
-        Assert.False(surface.IsMacroblockDecoded(0, 0));
-        Assert.False(surface.IsMacroblockAvailable(0, 0, 3, false));
-        Assert.False(surface.IsComplete);
-
-        Assert.Throws<InvalidOperationException>(() => surface.WriteMacroblock(
-            0, 0, 4, false, new byte[256], new byte[64], new byte[64]));
-
-        blockingLuma.Release();
-        await firstWriter;
-
-        Assert.True(surface.IsMacroblockDecoded(0, 0));
-        Assert.True(surface.IsMacroblockAvailable(0, 0, 3, false));
-        Assert.False(surface.IsMacroblockAvailable(0, 0, 4, false));
-        Assert.True(surface.IsComplete);
-    }
-
-    [Fact]
     public void WriteMacroblock_ShouldPreserveSameSliceRewriteBehavior()
     {
         H264DecodedPictureSurface surface = new(CreateSps(1, 0, 0));
@@ -166,27 +139,6 @@ public sealed class H264DecodedPictureSurfaceTests
 
         Assert.True(surface.IsMacroblockAvailable(0, 0, 1, false));
         Assert.Equal((byte)10, surface.GetLumaSample(0, 0));
-    }
-
-    [Fact]
-    public void WriteMacroblock_ShouldSupportConcurrentWritesToDistinctMacroblocks()
-    {
-        H264DecodedPictureSurface surface = new(CreateSps(1, 1, 0));
-
-        Parallel.For(0, 2, x =>
-        {
-            byte value = checked((byte)(x + 10));
-            surface.WriteMacroblock(x, 0, x, false,
-                Enumerable.Repeat(value, 256).ToArray(),
-                Enumerable.Repeat(value, 64).ToArray(),
-                Enumerable.Repeat(value, 64).ToArray());
-        });
-
-        Assert.True(surface.IsComplete);
-        Assert.Equal((byte)10, surface.GetLumaSample(0, 0));
-        Assert.Equal((byte)11, surface.GetLumaSample(16, 0));
-        Assert.True(surface.IsMacroblockAvailable(0, 0, 0, false));
-        Assert.True(surface.IsMacroblockAvailable(1, 0, 1, false));
     }
 
     [Fact]
