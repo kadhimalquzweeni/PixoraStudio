@@ -42,6 +42,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool lockAspectRatio = true;
     [ObservableProperty] private bool isCropMode;
     [ObservableProperty] private string? operationError;
+    [ObservableProperty] private float rotationAngle;
 
     public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
 
@@ -219,6 +220,18 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand] private void RotateClockwise() => ApplyTransform(bitmap => _imageService.Rotate(bitmap, 90));
     [RelayCommand] private void RotateCounterClockwise() => ApplyTransform(bitmap => _imageService.Rotate(bitmap, 270));
     [RelayCommand] private void Rotate180() => ApplyTransform(bitmap => _imageService.Rotate(bitmap, 180));
+
+    [RelayCommand]
+    private void ApplyRotation()
+    {
+        if (!IsImageLoaded || Math.Abs(RotationAngle) < 0.01f) return;
+        float angle = RotationAngle;
+        ApplyTransform(bitmap => _imageService.Rotate(bitmap, angle));
+        if (OperationError is null) RotationAngle = 0;
+    }
+
+    [RelayCommand]
+    private void ResetRotation() => RotationAngle = 0;
     [RelayCommand] private void FlipHorizontal() => ApplyTransform(bitmap => _imageService.Flip(bitmap, true, false));
     [RelayCommand] private void FlipVertical() => ApplyTransform(bitmap => _imageService.Flip(bitmap, false, true));
 
