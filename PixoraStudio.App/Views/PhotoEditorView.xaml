@@ -104,6 +104,18 @@
                         </UniformGrid>
                         <Button Content="Apply resize" Command="{Binding ResizeCommand}" Margin="2,8,2,2"/>
 
+                        <TextBlock Text="Straighten / Free rotation" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,12,0,8"/>
+                        <DockPanel>
+                            <TextBlock Text="Angle" Foreground="#D4D6DE"/>
+                            <TextBlock Text="{Binding RotationAngle, StringFormat={}{0:F1}°}" Foreground="#8BC5FF" DockPanel.Dock="Right"/>
+                        </DockPanel>
+                        <Slider Minimum="-45" Maximum="45" Value="{Binding RotationAngle}" TickFrequency="0.5"
+                                IsSnapToTickEnabled="False" Margin="0,8,0,8"/>
+                        <UniformGrid Columns="2">
+                            <Button Content="Reset angle" Command="{Binding ResetRotationCommand}" Margin="2"/>
+                            <Button Content="Apply rotation" Command="{Binding ApplyRotationCommand}" Background="#3478D4" Foreground="White" Margin="2"/>
+                        </UniformGrid>
+
                         <Separator Margin="0,12"/>
                         <TextBlock Text="Adjustments" Foreground="White" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,12"/>
                         <DockPanel><TextBlock Text="Brightness" Foreground="#D4D6DE"/><TextBlock Text="{Binding Brightness, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
