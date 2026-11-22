@@ -151,4 +151,99 @@ public sealed class ImageProcessingServiceTests
         Assert.Throws<ArgumentOutOfRangeException>(() => _service.Rotate(source, float.PositiveInfinity));
     }
 
+    [Fact]
+    public void ApplyAdjustments_NeutralSettings_ShouldPreservePixelsAndAlpha()
+    {
+        using var source = new SKBitmap(1, 1);
+        source.SetPixel(0, 0, new SKColor(80, 120, 160, 90));
+
+        using var result = _service.ApplyAdjustments(source, new PixoraStudio.Core.Models.ImageAdjustment());
+
+        Assert.Equal(source.GetPixel(0, 0), result.GetPixel(0, 0));
+    }
+
+    [Theory]
+    [InlineData(1f, true)]
+    [InlineData(-1f, false)]
+    public void ApplyAdjustments_Exposure_ShouldChangeOverallBrightness(float exposure, bool shouldBrighten)
+    {
+        using var source = new SKBitmap(1, 1);
+        source.SetPixel(0, 0, new SKColor(60, 80, 100));
+        using var result = _service.ApplyAdjustments(source,
+            new PixoraStudio.Core.Models.ImageAdjustment { Exposure = exposure });
+
+        int sourceLuma = source.GetPixel(0, 0).Red + source.GetPixel(0, 0).Green + source.GetPixel(0, 0).Blue;
+        SKColor output = result.GetPixel(0, 0);
+        int resultLuma = output.Red + output.Green + output.Blue;
+        Assert.Equal(shouldBrighten, resultLuma > sourceLuma);
+    }
+
+    [Fact]
+    public void ApplyAdjustments_Highlights_ShouldAffectBrightPixelsMoreThanDarkPixels()
+    {
+        using var source = new SKBitmap(2, 1);
+        source.SetPixel(0, 0, new SKColor(30, 30, 30));
+        source.SetPixel(1, 0, new SKColor(220, 220, 220));
+        using var result = _service.ApplyAdjustments(source,
+            new PixoraStudio.Core.Models.ImageAdjustment { Highlights = -100f });
+
+        Assert.Equal((byte)30, result.GetPixel(0, 0).Red);
+        Assert.True(result.GetPixel(1, 0).Red < 220);
+    }
+
+    [Fact]
+    public void ApplyAdjustments_Shadows_ShouldAffectDarkPixelsMoreThanBrightPixels()
+    {
+        using var source = new SKBitmap(2, 1);
+        source.SetPixel(0, 0, new SKColor(30, 30, 30));
+        source.SetPixel(1, 0, new SKColor(220, 220, 220));
+        using var result = _service.ApplyAdjustments(source,
+            new PixoraStudio.Core.Models.ImageAdjustment { Shadows = 100f });
+
+        Assert.True(result.GetPixel(0, 0).Red > 30);
+        Assert.Equal((byte)220, result.GetPixel(1, 0).Red);
+    }
+
+    [Theory]
+    [InlineData(100f, true)]
+    [InlineData(-100f, false)]
+    public void ApplyAdjustments_Temperature_ShouldShiftRedBlueBalance(float temperature, bool shouldWarm)
+    {
+        using var source = new SKBitmap(1, 1);
+        source.SetPixel(0, 0, new SKColor(100, 100, 100));
+        using var result = _service.ApplyAdjustments(source,
+            new PixoraStudio.Core.Models.ImageAdjustment { Temperature = temperature });
+        SKColor output = result.GetPixel(0, 0);
+
+        Assert.Equal(shouldWarm, output.Red > output.Blue);
+    }
+
+    [Theory]
+    [InlineData(100f, true)]
+    [InlineData(-100f, false)]
+    public void ApplyAdjustments_Tint_ShouldShiftGreenAgainstRedAndBlue(float tint, bool shouldBeMagenta)
+    {
+        using var source = new SKBitmap(1, 1);
+        source.SetPixel(0, 0, new SKColor(100, 100, 100));
+        using var result = _service.ApplyAdjustments(source,
+            new PixoraStudio.Core.Models.ImageAdjustment { Tint = tint });
+        SKColor output = result.GetPixel(0, 0);
+
+        Assert.Equal(shouldBeMagenta, output.Green < output.Red && output.Green < output.Blue);
+    }
+
+    [Fact]
+    public void ApplyAdjustments_ShouldPreserveSourceAlphaAndNotMutateInput()
+    {
+        using var source = new SKBitmap(1, 1);
+        var original = new SKColor(40, 80, 120, 73);
+        source.SetPixel(0, 0, original);
+
+        using var result = _service.ApplyAdjustments(source,
+            new PixoraStudio.Core.Models.ImageAdjustment { Exposure = 1f, Temperature = 20f });
+
+        Assert.Equal(original, source.GetPixel(0, 0));
+        Assert.Equal((byte)73, result.GetPixel(0, 0).Alpha);
+    }
+
 }
