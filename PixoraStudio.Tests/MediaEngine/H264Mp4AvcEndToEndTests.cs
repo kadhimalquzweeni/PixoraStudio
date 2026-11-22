@@ -729,7 +729,7 @@ public sealed class H264Mp4AvcEndToEndTests
 
 
     [Fact]
-    public void Decode_MultiSlicePAndBPictures_ShouldCompleteWithMergedMotionState()
+    public void Decode_MultiSlicePAndBPictures_ShouldCompleteSequentially()
     {
         byte[] spsNal = BuildNal(0x67,
             CreateSpsRbsp(picWidthInMbsMinus1: 1, maxNumRefFrames: 2));
@@ -801,7 +801,7 @@ public sealed class H264Mp4AvcEndToEndTests
 
 
     [Fact]
-    public void Decode_MultiSliceCabacPAndBPictures_ShouldCompleteWithMergedMotionState()
+    public void Decode_MultiSliceCabacPAndBPictures_ShouldCompleteSequentially()
     {
         byte[] spsNal = BuildNal(0x67,
             CreateSpsRbsp(picWidthInMbsMinus1: 1, maxNumRefFrames: 2));
