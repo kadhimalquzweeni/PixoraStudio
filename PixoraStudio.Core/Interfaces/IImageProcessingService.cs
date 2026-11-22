@@ -10,6 +10,7 @@ public interface IImageProcessingService
     SKBitmap CloneImage(SKBitmap source);
     SKBitmap Crop(SKBitmap source, SKRectI bounds);
     SKBitmap Rotate(SKBitmap source, int degrees);
+    SKBitmap Rotate(SKBitmap source, float degrees);
     SKBitmap Flip(SKBitmap source, bool horizontal, bool vertical);
     SKBitmap Resize(SKBitmap source, int width, int height);
 }
