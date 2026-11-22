@@ -40,6 +40,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int resizeWidth;
     [ObservableProperty] private int resizeHeight;
     [ObservableProperty] private bool lockAspectRatio = true;
+    [ObservableProperty] private bool isCropMode;
     [ObservableProperty] private string? operationError;
 
     public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
@@ -227,6 +228,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (_originalBitmap is null) return;
         ApplyTransform(bitmap => _imageService.Crop(bitmap,
             new SKRectI(CropX, CropY, checked(CropX + CropWidth), checked(CropY + CropHeight))));
+        IsCropMode = false;
     }
 
     [RelayCommand]
