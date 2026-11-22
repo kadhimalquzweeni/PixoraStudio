@@ -4,6 +4,7 @@ using PixoraStudio.App.ViewModels;
 using PixoraStudio.App.Windows;
 using PixoraStudio.App.Services;
 using PixoraStudio.Core.Models;
+using PixoraStudio.Infrastructure.Services;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -61,8 +62,12 @@ public partial class VideoEditorView : UserControl
 
     private bool _wasPlayingBeforeScrubbing;
 
+    /// <summary>Open GPU (Media Foundation) reader used for scrub previews.</summary>
+    private MediaFoundationFrameReader? _gpuFrameReader;
+
     // The playhead and time label refresh at ~25 fps. Audio drift correction
     // is far more expensive, so it still runs only every fifth tick (200 ms).
+    private const int GpuPreviewWidth = 960;
     private const int UiTickMilliseconds = 40;
     private const int AudioSyncEveryTicks = 5;
     private int _ticksSinceAudioSync;
@@ -294,6 +299,78 @@ public partial class VideoEditorView : UserControl
         ScrubTo(positionMilliseconds);
     }
 
+    private async Task OpenGpuFrameReaderAsync(string filePath, int loadVersion)
+    {
+        try
+        {
+            MediaFoundationFrameReader? reader =
+                await MediaFoundationFrameReader.TryOpenAsync(filePath, GpuPreviewWidth);
+            if (reader is null)
+                return;
+
+            if (loadVersion != _videoLoadVersion)
+            {
+                reader.Dispose();
+                return;
+            }
+
+            _gpuFrameReader?.Dispose();
+            _gpuFrameReader = reader;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"GPU frame reader unavailable; scrubbing uses the managed decoder: {exception.Message}");
+        }
+    }
+
+    private void DisposeGpuFrameReader()
+    {
+        _gpuFrameReader?.Dispose();
+        _gpuFrameReader = null;
+    }
+
+    /// <summary>
+    /// Shows the exact frame at <paramref name="positionMilliseconds"/> decoded
+    /// by the GPU. Returns false when the GPU reader is unavailable or fails,
+    /// so the caller can use the managed preview instead.
+    /// </summary>
+    private async Task<bool> TryShowGpuFrameAsync(double positionMilliseconds)
+    {
+        MediaFoundationFrameReader? reader = _gpuFrameReader;
+        if (reader is null)
+            return false;
+
+        try
+        {
+            VideoFramePixels pixels = await reader.ReadFrameAsync(
+                TimeSpan.FromMilliseconds(positionMilliseconds));
+
+            // The scrub may have ended while the GPU was decoding.
+            if (!IsScrubActive)
+                return true;
+
+            BitmapSource bitmap = BitmapSource.Create(
+                pixels.Width, pixels.Height, 96, 96,
+                PixelFormats.Bgr32, null, pixels.Bgra, pixels.Stride);
+            bitmap.Freeze();
+
+            ScrubPreviewFrame.Source = bitmap;
+            ScrubPreviewFrame.Visibility = Visibility.Visible;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"GPU scrub frame failed; using the managed decoder instead: {exception.Message}");
+
+            // Don't retry a reader that is failing on every request.
+            if (ReferenceEquals(_gpuFrameReader, reader))
+                DisposeGpuFrameReader();
+            return false;
+        }
+    }
+
     private void ShowThumbnailPlaceholder(double positionMilliseconds)
     {
         if (DataContext is not VideoEditorViewModel vm ||
@@ -350,6 +427,10 @@ public partial class VideoEditorView : UserControl
             {
                 _pendingScrubPosition = null;
                 _mediaPlayer.Time = (long)target;
+
+                // Preferred path: the GPU decodes the exact frame at this position.
+                if (await TryShowGpuFrameAsync(target))
+                    continue;
 
                 // Instant feedback: the nearest filmstrip thumbnail is already in
                 // memory. The decoded keyframe below replaces it when ready.
@@ -582,6 +663,8 @@ public partial class VideoEditorView : UserControl
                 cancellationToken);
             if (!_usesManagedH264Video)
                 ManagedVideoFrame.Visibility = Visibility.Collapsed;
+
+            _ = OpenGpuFrameReaderAsync(filePath, loadVersion);
         }
         catch (OperationCanceledException)
         {
@@ -600,6 +683,7 @@ public partial class VideoEditorView : UserControl
         _videoLoadCancellation?.Dispose();
         _videoLoadCancellation = null;
         _aacAudioPlaybackService.Unload();
+        DisposeGpuFrameReader();
         _ = _managedH264PlaybackService.StopAsync();
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
@@ -1391,6 +1475,7 @@ public partial class VideoEditorView : UserControl
         _videoLoadCancellation = null;
 
         _aacAudioPlaybackService.Unload();
+        DisposeGpuFrameReader();
         _ = _managedH264PlaybackService.StopAsync();
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;

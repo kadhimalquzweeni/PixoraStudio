@@ -285,23 +285,43 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
         ID3D11Device d3dDevice,
         ID3D11DeviceContext d3dContext)
     {
+        using SKBitmap bitmap = CopySampleToBitmap(sample, mediaType, d3dDevice, d3dContext);
+        using SKImage image = SKImage.FromBitmap(bitmap);
+        using SKData png = image.Encode(SKEncodedImageFormat.Png, 90)
+            ?? throw new InvalidOperationException("SkiaSharp could not encode a Media Foundation frame.");
+        return png.ToArray();
+    }
+
+    /// <summary>
+    /// Copies a decoded Source Reader sample (GPU texture or system memory)
+    /// into a BGRA bitmap the caller owns.
+    /// </summary>
+    internal static SKBitmap CopySampleToBitmap(
+        IMFSample sample,
+        IMFMediaType mediaType,
+        ID3D11Device d3dDevice,
+        ID3D11DeviceContext d3dContext)
+    {
         ulong packedSize = mediaType.GetUInt64(MediaTypeAttributeKeys.FrameSize);
         int width = checked((int)(packedSize >> 32));
         int height = checked((int)(packedSize & uint.MaxValue));
 
         using IMFMediaBuffer buffer = sample.ConvertToContiguousBuffer();
         using IMFDXGIBuffer? dxgiBuffer = buffer.QueryInterfaceOrNull<IMFDXGIBuffer>();
-        using SKBitmap bitmap = new(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
-
-        if (dxgiBuffer is not null)
-            CopyDxgiSurfaceToBitmap(dxgiBuffer, d3dDevice, d3dContext, bitmap, width, height);
-        else
-            CopySystemMemoryBufferToBitmap(buffer, mediaType, bitmap, width, height);
-
-        using SKImage image = SKImage.FromBitmap(bitmap);
-        using SKData png = image.Encode(SKEncodedImageFormat.Png, 90)
-            ?? throw new InvalidOperationException("SkiaSharp could not encode a Media Foundation frame.");
-        return png.ToArray();
+        SKBitmap bitmap = new(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+        try
+        {
+            if (dxgiBuffer is not null)
+                CopyDxgiSurfaceToBitmap(dxgiBuffer, d3dDevice, d3dContext, bitmap, width, height);
+            else
+                CopySystemMemoryBufferToBitmap(buffer, mediaType, bitmap, width, height);
+            return bitmap;
+        }
+        catch
+        {
+            bitmap.Dispose();
+            throw;
+        }
     }
 
     private static void CopyDxgiSurfaceToBitmap(

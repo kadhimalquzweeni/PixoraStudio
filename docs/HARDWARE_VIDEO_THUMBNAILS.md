@@ -53,3 +53,13 @@ selection.
   profile to Media Foundation.
 - If hardware decoding is unavailable, PixoraStudio continues with its managed
   C# decoder.
+
+## Scrub previews
+
+`MediaFoundationFrameReader` keeps one Source Reader open for the loaded video
+(same D3D11 device manager and DXVA settings as thumbnail generation, output
+scaled to at most 960 px wide). While the user drags a playback timeline, each
+position is a seek plus GPU decode that returns the exact frame as BGRA pixels,
+with no file or PNG round trip. All Media Foundation calls run on one dedicated
+thread. If the reader cannot open or a request fails, the editor falls back to
+the managed keyframe preview.
