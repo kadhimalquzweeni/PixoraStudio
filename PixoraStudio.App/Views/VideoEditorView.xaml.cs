@@ -805,7 +805,6 @@ public partial class VideoEditorView : UserControl
                     $"Managed H.264 playback could not start; LibVLC fallback remains active: {exception}");
             }
         }
-    }
 
         LogVideoLoad(loadVersion, $"replacement handler finished after {totalLoad.ElapsedMilliseconds} ms");
     }
