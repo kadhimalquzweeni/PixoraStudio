@@ -1,5 +1,7 @@
 using PixoraStudio.App.ViewModels;
 using PixoraStudio.Core.Models;
+using PixoraStudio.Core.Geometry;
+using SkiaSharp;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -38,6 +40,7 @@ public partial class PhotoEditorView : UserControl
             Math.Max(MinimumCropSize, vm.ImageWidth - insetX * 2),
             Math.Max(MinimumCropSize, vm.ImageHeight - insetY * 2));
         _cropSelection.Intersect(new Rect(0, 0, vm.ImageWidth, vm.ImageHeight));
+        _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
         CropOverlay.Visibility = Visibility.Visible;
         CropActionPanel.Visibility = Visibility.Visible;
         DrawCropOverlay();
@@ -53,6 +56,35 @@ public partial class PhotoEditorView : UserControl
     }
 
     private void CancelVisualCrop_Click(object sender, RoutedEventArgs e) => EndCropMode();
+
+    private void CropAspectRatio_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CropOverlay is null || CropOverlay.Visibility != Visibility.Visible ||
+            ViewModel is not { IsImageLoaded: true } vm)
+            return;
+
+        _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
+        DrawCropOverlay();
+        UpdateCropCoordinates();
+    }
+
+    private Rect ApplySelectedAspectRatio(Rect selection, PhotoEditorViewModel vm)
+    {
+        if (CropAspectRatioCombo.SelectedItem is not ComboBoxItem item ||
+            item.Tag is not string tag || tag == "free")
+            return selection;
+
+        float ratio = tag == "original"
+            ? (float)vm.ImageWidth / Math.Max(1, vm.ImageHeight)
+            : float.Parse(tag, System.Globalization.CultureInfo.InvariantCulture);
+
+        var adjusted = CropSelectionGeometry.ConstrainToAspectRatio(
+            new SKRect((float)selection.Left, (float)selection.Top,
+                       (float)selection.Right, (float)selection.Bottom),
+            new SKRect(0, 0, vm.ImageWidth, vm.ImageHeight), ratio);
+
+        return new Rect(adjusted.Left, adjusted.Top, adjusted.Width, adjusted.Height);
+    }
 
     private void EndCropMode()
     {
@@ -101,7 +133,7 @@ public partial class PhotoEditorView : UserControl
         if (_dragMode is DragMode.Bottom or DragMode.BottomLeft or DragMode.BottomRight)
             selection.Height = Math.Clamp(_selectionAtDragStart.Height + dy, MinimumCropSize, bounds.Bottom - selection.Top);
 
-        _cropSelection = selection;
+        _cropSelection = ApplySelectedAspectRatio(selection, vm);
         DrawCropOverlay();
         UpdateCropCoordinates();
     }
