@@ -49,20 +49,30 @@ public class ImageProcessingService : IImageProcessingService
             return CloneImage(source);
 
         double radians = normalized * Math.PI / 180d;
-        int width = Math.Max(1, (int)Math.Ceiling(
-            Math.Abs(source.Width * Math.Cos(radians)) + Math.Abs(source.Height * Math.Sin(radians))));
-        int height = Math.Max(1, (int)Math.Ceiling(
-            Math.Abs(source.Width * Math.Sin(radians)) + Math.Abs(source.Height * Math.Cos(radians))));
+        int width = EnclosingDimension(
+            Math.Abs(source.Width * Math.Cos(radians)) + Math.Abs(source.Height * Math.Sin(radians)));
+        int height = EnclosingDimension(
+            Math.Abs(source.Width * Math.Sin(radians)) + Math.Abs(source.Height * Math.Cos(radians)));
 
         var result = new SKBitmap(width, height, source.ColorType, source.AlphaType);
         using var canvas = new SKCanvas(result);
         canvas.Clear(SKColors.Transparent);
         canvas.Translate(width / 2f, height / 2f);
         canvas.RotateDegrees(normalized);
-        canvas.DrawBitmap(source, -source.Width / 2f, -source.Height / 2f,
-            new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High });
+        canvas.DrawBitmap(source,
+            new SKRect(-source.Width / 2f, -source.Height / 2f,
+                       source.Width / 2f, source.Height / 2f),
+            new SKSamplingOptions(SKCubicResampler.Mitchell));
         canvas.Flush();
         return result;
+    }
+
+    private static int EnclosingDimension(double value)
+    {
+        double nearestInteger = Math.Round(value);
+        if (Math.Abs(value - nearestInteger) < 1e-9)
+            value = nearestInteger;
+        return Math.Max(1, checked((int)Math.Ceiling(value)));
     }
 
     public SKBitmap Flip(SKBitmap source, bool horizontal, bool vertical)
