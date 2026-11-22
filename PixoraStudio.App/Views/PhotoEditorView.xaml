@@ -70,6 +70,17 @@
                         <Button Content="Start visual crop" Click="StartCrop_Click" Background="#3478D4" Foreground="White" Margin="2,0,2,8"/>
                         <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
                             <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,6"/>
+                            <TextBlock Text="Aspect ratio" Foreground="#D4D6DE" Margin="2,4,2,3"/>
+                            <ComboBox x:Name="CropAspectRatioCombo" SelectedIndex="0"
+                                      SelectionChanged="CropAspectRatio_SelectionChanged" Margin="2,0,2,7">
+                                <ComboBoxItem Content="Free" Tag="free"/>
+                                <ComboBoxItem Content="Original" Tag="original"/>
+                                <ComboBoxItem Content="Square (1:1)" Tag="1"/>
+                                <ComboBoxItem Content="4:3" Tag="1.3333333"/>
+                                <ComboBoxItem Content="3:2" Tag="1.5"/>
+                                <ComboBoxItem Content="16:9" Tag="1.7777778"/>
+                                <ComboBoxItem Content="9:16" Tag="0.5625"/>
+                            </ComboBox>
                             <UniformGrid Columns="2">
                                 <Button Content="Apply crop" Click="ApplyVisualCrop_Click" Background="#3478D4" Foreground="White" Margin="2"/>
                                 <Button Content="Cancel" Click="CancelVisualCrop_Click" Margin="2"/>
