@@ -158,7 +158,6 @@ public sealed class VideoProcessingService : IVideoProcessingService
             Debug.WriteLine(
                 $"[Thumbnails] mode={mode}; thumbnails={seekPlans.Length}; " +
                 $"decodeGroups={groups.Count}; thumbnailWorkers={workerCount}; " +
-                $"sliceWorkers={H264Mp4AccessUnitDecoder.ConfiguredMaxSliceParallelism}; " +
                 $"processors={Environment.ProcessorCount}; " +
                 $"cabacProfiling={enableCabacProfiling}.");
 
