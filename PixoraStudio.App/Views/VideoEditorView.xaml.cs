@@ -759,7 +759,6 @@ public partial class VideoEditorView : UserControl
         _videoLoadCancellation = null;
         _aacAudioPlaybackService.Unload();
         DisposeGpuFrameReader();
-        _ = _managedH264PlaybackService.StopAsync();
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
         ManagedVideoFrame.Visibility = Visibility.Collapsed;
@@ -777,6 +776,14 @@ public partial class VideoEditorView : UserControl
             {
                 // If a new file was selected while this close was waiting, its
                 // load owns the player now; do not stop that newer playback.
+                if (closeVersion != _videoLoadVersion ||
+                    !ReferenceEquals(_mediaPlayer, player))
+                {
+                    return;
+                }
+
+                await _managedH264PlaybackService.StopAsync();
+
                 if (closeVersion != _videoLoadVersion ||
                     !ReferenceEquals(_mediaPlayer, player))
                 {
@@ -1620,25 +1627,19 @@ public partial class VideoEditorView : UserControl
 
         try
         {
-            await _managedH264PlaybackService.StopAsync();
-        }
-        catch (Exception exception)
-        {
-            System.Diagnostics.Debug.WriteLine(
-                $"Stopping managed H.264 playback during unload failed: {exception}");
-        }
+            await _playerLifecycleGate.ExecuteAsync(async () =>
+            {
+                await _managedH264PlaybackService.StopAsync();
 
-        if (playerToDispose is null)
-            return;
-
-        try
-        {
-            await _playerLifecycleGate.ExecuteAsync(() =>
-                Task.Run(() =>
+                if (playerToDispose is not null)
                 {
-                    playerToDispose.Stop();
-                    playerToDispose.Dispose();
-                }));
+                    await Task.Run(() =>
+                    {
+                        playerToDispose.Stop();
+                        playerToDispose.Dispose();
+                    });
+                }
+            });
         }
         catch (Exception exception)
         {
