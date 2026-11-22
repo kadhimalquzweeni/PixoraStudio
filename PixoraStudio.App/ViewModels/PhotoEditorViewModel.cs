@@ -51,9 +51,10 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         DisposeBitmaps();
         _originalBitmap = _imageService.LoadImage(filePath);
         ImagePath = filePath;
-        IsImageLoaded = true;
-        ResetAdjustments();
+        IsImageLoaded = false;
+        SetDefaultAdjustments();
         UpdateDimensions();
+        IsImageLoaded = true;
         RefreshPreview();
     }
 
@@ -253,15 +254,33 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         UpdateHistoryState();
     }
 
+    private void SetDefaultAdjustments()
+    {
+        _isRestoringSnapshot = true;
+        try
+        {
+            Brightness = 0f;
+            Contrast = 1f;
+            Saturation = 1f;
+            SelectedFilter = ImageFilter.None;
+        }
+        finally { _isRestoringSnapshot = false; }
+        _lastCommittedAdjustment = GetCurrentAdjustment();
+    }
+
     [RelayCommand]
     private void ResetAdjustments()
     {
-        Brightness = 0f;
-        Contrast = 1f;
-        Saturation = 1f;
-        SelectedFilter = ImageFilter.None;
-        _lastCommittedAdjustment = GetCurrentAdjustment();
-        if (IsImageLoaded) RefreshPreview();
+        if (!IsImageLoaded) return;
+        var current = GetCurrentAdjustment();
+        if (current.Brightness == 0f && current.Contrast == 1f &&
+            current.Saturation == 1f && current.Filter == ImageFilter.None) return;
+
+        SaveUndoState();
+        SetDefaultAdjustments();
+        ClearStack(_redoStack);
+        UpdateHistoryState();
+        RefreshPreview();
     }
 
     [RelayCommand]
