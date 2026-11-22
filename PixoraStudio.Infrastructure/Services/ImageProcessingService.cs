@@ -35,7 +35,12 @@ public class ImageProcessingService : IImageProcessingService
         return result;
     }
 
-    public SKBitmap Rotate(SKBitmap source, int degrees) => Rotate(source, (float)degrees);
+    public SKBitmap Rotate(SKBitmap source, int degrees)
+    {
+        if (degrees % 90 != 0)
+            throw new ArgumentOutOfRangeException(nameof(degrees), "Rotation must be a multiple of 90 degrees.");
+        return Rotate(source, (float)degrees);
+    }
 
     /// <summary>Rotates around the image centre and expands the output to preserve all source pixels.</summary>
     public SKBitmap Rotate(SKBitmap source, float degrees)
@@ -47,6 +52,10 @@ public class ImageProcessingService : IImageProcessingService
         float normalized = degrees % 360f;
         if (Math.Abs(normalized) < 0.0001f || Math.Abs(Math.Abs(normalized) - 360f) < 0.0001f)
             return CloneImage(source);
+
+        float nearestOrthogonal = MathF.Round(normalized / 90f) * 90f;
+        if (Math.Abs(normalized - nearestOrthogonal) < 0.0001f)
+            return RotateOrthogonal(source, ((int)nearestOrthogonal % 360 + 360) % 360);
 
         double radians = normalized * Math.PI / 180d;
         int width = EnclosingDimension(
@@ -64,6 +73,31 @@ public class ImageProcessingService : IImageProcessingService
                        source.Width / 2f, source.Height / 2f),
             new SKSamplingOptions(SKCubicResampler.Mitchell));
         canvas.Flush();
+        return result;
+    }
+
+    private static SKBitmap RotateOrthogonal(SKBitmap source, int degrees)
+    {
+        if (degrees == 0)
+            return CloneImage(source);
+
+        int width = degrees is 90 or 270 ? source.Height : source.Width;
+        int height = degrees is 90 or 270 ? source.Width : source.Height;
+        var result = new SKBitmap(width, height, source.ColorType, source.AlphaType);
+
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
+        {
+            (int sourceX, int sourceY) = degrees switch
+            {
+                90 => (y, source.Height - 1 - x),
+                180 => (source.Width - 1 - x, source.Height - 1 - y),
+                270 => (source.Width - 1 - y, x),
+                _ => throw new ArgumentOutOfRangeException(nameof(degrees))
+            };
+            result.SetPixel(x, y, source.GetPixel(sourceX, sourceY));
+        }
+
         return result;
     }
 
