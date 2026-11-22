@@ -35,23 +35,32 @@ public class ImageProcessingService : IImageProcessingService
         return result;
     }
 
-    public SKBitmap Rotate(SKBitmap source, int degrees)
+    public SKBitmap Rotate(SKBitmap source, int degrees) => Rotate(source, (float)degrees);
+
+    /// <summary>Rotates around the image centre and expands the output to preserve all source pixels.</summary>
+    public SKBitmap Rotate(SKBitmap source, float degrees)
     {
         ArgumentNullException.ThrowIfNull(source);
-        int normalized = ((degrees % 360) + 360) % 360;
-        if (normalized is not (0 or 90 or 180 or 270))
-            throw new ArgumentOutOfRangeException(nameof(degrees), "Rotation must be 0, 90, 180 or 270 degrees.");
-        if (normalized == 0)
+        if (!float.IsFinite(degrees))
+            throw new ArgumentOutOfRangeException(nameof(degrees), "Rotation angle must be finite.");
+
+        float normalized = degrees % 360f;
+        if (Math.Abs(normalized) < 0.0001f || Math.Abs(Math.Abs(normalized) - 360f) < 0.0001f)
             return CloneImage(source);
 
-        int width = normalized is 90 or 270 ? source.Height : source.Width;
-        int height = normalized is 90 or 270 ? source.Width : source.Height;
+        double radians = normalized * Math.PI / 180d;
+        int width = Math.Max(1, (int)Math.Ceiling(
+            Math.Abs(source.Width * Math.Cos(radians)) + Math.Abs(source.Height * Math.Sin(radians))));
+        int height = Math.Max(1, (int)Math.Ceiling(
+            Math.Abs(source.Width * Math.Sin(radians)) + Math.Abs(source.Height * Math.Cos(radians))));
+
         var result = new SKBitmap(width, height, source.ColorType, source.AlphaType);
         using var canvas = new SKCanvas(result);
         canvas.Clear(SKColors.Transparent);
         canvas.Translate(width / 2f, height / 2f);
         canvas.RotateDegrees(normalized);
-        canvas.DrawBitmap(source, -source.Width / 2f, -source.Height / 2f);
+        canvas.DrawBitmap(source, -source.Width / 2f, -source.Height / 2f,
+            new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High });
         canvas.Flush();
         return result;
     }
