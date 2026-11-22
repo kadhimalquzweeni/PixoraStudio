@@ -186,8 +186,6 @@ public sealed class H264Mp4AccessUnitDecoder
             H264PictureOrderCount poc = _outputScheduler.CalculatePictureOrderCount(
                 activeSps, firstSlice, firstNal.NalRefIdc);
 
-            H264PInterSliceDataDecoder? pDecoder = null;
-            H264BInterSliceDataDecoder? bDecoder = null;
             List<string> sliceDecodeSummaries = [];
 
             if (firstSlice.SliceType == H264SliceType.P)
@@ -196,9 +194,6 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
-                pDecoder = new H264PInterSliceDataDecoder(
-                    surface, motionStateL0, new H264PInterMacroblockReconstructor(),
-                    CreateCabacReader);
             }
             else if (firstSlice.SliceType == H264SliceType.B)
             {
@@ -206,9 +201,6 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
-                bDecoder = new H264BInterSliceDataDecoder(
-                    surface, motionStateL0, motionStateL1,
-                    new H264BInterMacroblockReconstructor(), CreateCabacReader);
             }
             else if (firstSlice.SliceType != H264SliceType.I)
             {
@@ -251,7 +243,12 @@ public sealed class H264Mp4AccessUnitDecoder
 
                     case H264SliceType.P:
                     {
-                        H264PInterSliceDecodeResult result = pDecoder!.Decode(
+                        // Keep entropy and neighbour contexts isolated per slice,
+                        // but share the picture motion grid with slice-ID availability.
+                        H264PInterSliceDataDecoder decoder = new(
+                            surface, motionStateL0!, new H264PInterMacroblockReconstructor(),
+                            CreateCabacReader);
+                        H264PInterSliceDecodeResult result = decoder.Decode(
                             nalUnit, activeSps, activePps,
                             _decodedPictureBuffer, currentSliceId);
                         string cabacTrace = result.CabacDiagnostics.Count == 0
@@ -278,7 +275,12 @@ public sealed class H264Mp4AccessUnitDecoder
 
                     case H264SliceType.B:
                     {
-                        H264BInterSliceDecodeResult result = bDecoder!.Decode(
+                        // Each B slice receives fresh syntax/neighbour state;
+                        // motion vectors are retained in the picture-wide slice-tagged grids.
+                        H264BInterSliceDataDecoder decoder = new(
+                            surface, motionStateL0!, motionStateL1!,
+                            new H264BInterMacroblockReconstructor(), CreateCabacReader);
+                        H264BInterSliceDecodeResult result = decoder.Decode(
                             nalUnit, activeSps, activePps, _decodedPictureBuffer,
                             poc.PictureOrderCount, currentSliceId);
                         sliceDecodeSummaries.Add(
