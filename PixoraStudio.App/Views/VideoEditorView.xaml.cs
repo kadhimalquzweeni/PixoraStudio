@@ -759,7 +759,6 @@ public partial class VideoEditorView : UserControl
             await _playerLifecycleGate.ExecuteAsync(async () =>
             {
                 LogVideoLoad(loadVersion, $"acquired lifecycle gate for managed H.264 after {managedGateWait.ElapsedMilliseconds} ms");
-            {
                 if (loadVersion != _videoLoadVersion ||
                     cancellationToken.IsCancellationRequested ||
                     !ReferenceEquals(_mediaPlayer, player))
