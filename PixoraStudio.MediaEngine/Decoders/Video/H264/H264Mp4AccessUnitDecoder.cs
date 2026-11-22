@@ -15,7 +15,6 @@ public sealed class H264Mp4AccessUnitDecoder
     private readonly H264Mp4VideoOutputScheduler _outputScheduler;
     private readonly int? _maxNumReorderFramesFallback;
     private readonly Func<H264BitReader, int, bool, int, IH264CabacSliceDataReader> _cabacReaderFactory;
-    private readonly object _cabacReaderFactoryLock = new();
     private uint? _trackId;
     private uint? _timescale;
     private uint? _lastSampleNumber;
@@ -187,8 +186,6 @@ public sealed class H264Mp4AccessUnitDecoder
             H264PictureOrderCount poc = _outputScheduler.CalculatePictureOrderCount(
                 activeSps, firstSlice, firstNal.NalRefIdc);
 
-            H264IntraSliceDataDecoder? intraDecoder = null;
-            H264CabacIntraSliceDataDecoder? cabacIntraDecoder = null;
             H264PInterSliceDataDecoder? pDecoder = null;
             H264BInterSliceDataDecoder? bDecoder = null;
             List<string> sliceDecodeSummaries = [];
@@ -199,12 +196,9 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
-                if (slices.Count == 1)
-                {
-                    pDecoder = new H264PInterSliceDataDecoder(
-                        surface, motionStateL0, new H264PInterMacroblockReconstructor(),
-                        CreateCabacReader);
-                }
+                pDecoder = new H264PInterSliceDataDecoder(
+                    surface, motionStateL0, new H264PInterMacroblockReconstructor(),
+                    CreateCabacReader);
             }
             else if (firstSlice.SliceType == H264SliceType.B)
             {
@@ -212,254 +206,107 @@ public sealed class H264Mp4AccessUnitDecoder
                     surface.MacroblockWidth, surface.MacroblockHeight);
                 motionStateL1 = new H264MotionVectorPictureState(
                     surface.MacroblockWidth, surface.MacroblockHeight);
-                if (slices.Count == 1)
-                {
-                    bDecoder = new H264BInterSliceDataDecoder(
-                        surface, motionStateL0, motionStateL1,
-                        new H264BInterMacroblockReconstructor(), CreateCabacReader);
-                }
+                bDecoder = new H264BInterSliceDataDecoder(
+                    surface, motionStateL0, motionStateL1,
+                    new H264BInterMacroblockReconstructor(), CreateCabacReader);
             }
-            else if (firstSlice.SliceType == H264SliceType.I && slices.Count == 1)
-            {
-                // A multi-slice I picture creates one isolated decoder per
-                // slice below; do not allocate an unused picture-wide decoder.
-                if (activePps.EntropyCodingModeFlag)
-                {
-                    cabacIntraDecoder = new H264CabacIntraSliceDataDecoder(surface, CreateCabacReader);
-                    cabacIntraDecoder.ResetPictureContexts();
-                }
-                else
-                {
-                    intraDecoder = new H264IntraSliceDataDecoder(surface);
-                }
-            }
-            else if (firstSlice.SliceType == H264SliceType.I)
-            {
-                // Multi-slice I pictures create their isolated decoders in
-                // the parallel branch below.
-            }
-            else
+            else if (firstSlice.SliceType != H264SliceType.I)
             {
                 throw new NotSupportedException(
                     $"Slice type {firstSlice.SliceType} is not supported by the MP4 access-unit decoder.");
             }
 
-            if (firstSlice.SliceType == H264SliceType.I && slices.Count > 1)
+            // Decode slices in bitstream order. Each slice gets fresh entropy and
+            // neighbour state, while picture-wide motion grids retain metadata
+            // tagged with its owning slice ID.
+            for (int i = 0; i < slices.Count; i++)
             {
-                // Each I-slice gets isolated entropy and neighbour contexts.
-                // The shared surface atomically rejects duplicate macroblock writes.
-                H264IntraSliceDecodeResult?[] results = new H264IntraSliceDecodeResult?[slices.Count];
-                ForEachSlice(slices.Count, i =>
+                (H264NalUnit nalUnit, H264SliceHeader header) = slices[i];
+                int currentSliceId = checked(firstSliceId + i);
+
+                switch (header.SliceType)
+                {
+                    case H264SliceType.I:
                     {
-                        H264NalUnit nalUnit = slices[i].NalUnit;
-                        int currentSliceId = checked(firstSliceId + i);
                         H264IntraSliceDecodeResult result;
                         if (activePps.EntropyCodingModeFlag)
                         {
-                            H264CabacIntraSliceDataDecoder decoder = new(surface, CreateCabacReader);
+                            H264CabacIntraSliceDataDecoder decoder =
+                                new(surface, CreateCabacReader);
                             decoder.ResetPictureContexts();
-                            result = decoder.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                            result = decoder.Decode(
+                                nalUnit, activeSps, activePps, currentSliceId);
                         }
                         else
                         {
                             H264IntraSliceDataDecoder decoder = new(surface);
-                            result = decoder.Decode(nalUnit, activeSps, activePps, currentSliceId);
+                            result = decoder.Decode(
+                                nalUnit, activeSps, activePps, currentSliceId);
                         }
 
-                        results[i] = result;
-                    });
+                        sliceDecodeSummaries.Add(
+                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}");
+                        break;
+                    }
 
-                // Keep diagnostics stable regardless of task completion order.
-                for (int i = 0; i < results.Length; i++)
-                {
-                    H264IntraSliceDecodeResult result = results[i] ??
-                        throw new InvalidOperationException($"Parallel I-slice {i} did not return a result.");
-                    sliceDecodeSummaries.Add(
-                        $"slice[{i}] first_mb={slices[i].Header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}");
-                }
-            }
-            else if (firstSlice.SliceType == H264SliceType.P && slices.Count > 1)
-            {
-                // P slices are independent once each slice owns its motion
-                // and entropy/neighbour contexts. The picture surface is the
-                // only shared write target; macroblock ownership is enforced there.
-                H264PInterSliceDecodeResult?[] results =
-                    new H264PInterSliceDecodeResult?[slices.Count];
-                H264MotionVectorPictureState?[] sliceMotionStates =
-                    new H264MotionVectorPictureState?[slices.Count];
-
-                ForEachSlice(slices.Count, i =>
+                    case H264SliceType.P:
                     {
-                        int currentSliceId = checked(firstSliceId + i);
-                        H264MotionVectorPictureState localMotionState =
-                            new(surface.MacroblockWidth, surface.MacroblockHeight);
-                        H264PInterSliceDataDecoder decoder = new(
-                            surface,
-                            localMotionState,
-                            new H264PInterMacroblockReconstructor(),
-                            CreateCabacReader);
-                        results[i] = decoder.Decode(
-                            slices[i].NalUnit, activeSps, activePps,
+                        H264PInterSliceDecodeResult result = pDecoder!.Decode(
+                            nalUnit, activeSps, activePps,
                             _decodedPictureBuffer, currentSliceId);
-                        sliceMotionStates[i] = localMotionState;
-                    });
+                        string cabacTrace = result.CabacDiagnostics.Count == 0
+                            ? string.Empty
+                            : $" cabac_trace=[{string.Join(" | ", result.CabacDiagnostics.TakeLast(24))}]";
+                        sliceDecodeSummaries.Add(
+                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}{cabacTrace}");
 
-                for (int i = 0; i < results.Length; i++)
-                {
-                    H264PInterSliceDecodeResult result = results[i] ??
-                        throw new InvalidOperationException($"Parallel P-slice {i} did not return a result.");
-                    H264MotionVectorPictureState localMotionState = sliceMotionStates[i] ??
-                        throw new InvalidOperationException($"Parallel P-slice {i} did not return motion state.");
-                    int currentSliceId = checked(firstSliceId + i);
-                    motionStateL0!.MergeSliceFrom(localMotionState, currentSliceId);
-
-                    string cabacTrace = result.CabacDiagnostics.Count == 0
-                        ? string.Empty
-                        : $" cabac_trace=[{string.Join(" | ", result.CabacDiagnostics.TakeLast(24))}]";
-                    sliceDecodeSummaries.Add(
-                        $"slice[{i}] first_mb={slices[i].Header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}{cabacTrace}");
-
-                    IReadOnlyList<H264ReferencePicture> currentList0 = result.ReferenceList0 ??
-                        throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
-                    if (referenceList0 is null)
-                    {
-                        referenceList0 = currentList0;
-                        referenceList1 = [];
-                    }
-                    else if (!referenceList0.SequenceEqual(currentList0))
-                    {
-                        throw new NotSupportedException(
-                            "P slices in one picture must use identical RefPicList0 ordering for temporal-direct metadata.");
-                    }
-                }
-            }
-            else if (firstSlice.SliceType == H264SliceType.B && slices.Count > 1)
-            {
-                // B-slice direct prediction reads the completed reference DPB,
-                // while current-picture motion neighbours remain slice-local.
-                H264BInterSliceDecodeResult?[] results =
-                    new H264BInterSliceDecodeResult?[slices.Count];
-                H264MotionVectorPictureState?[] sliceMotionStatesL0 =
-                    new H264MotionVectorPictureState?[slices.Count];
-                H264MotionVectorPictureState?[] sliceMotionStatesL1 =
-                    new H264MotionVectorPictureState?[slices.Count];
-
-                ForEachSlice(slices.Count, i =>
-                    {
-                        int currentSliceId = checked(firstSliceId + i);
-                        H264MotionVectorPictureState localMotionStateL0 =
-                            new(surface.MacroblockWidth, surface.MacroblockHeight);
-                        H264MotionVectorPictureState localMotionStateL1 =
-                            new(surface.MacroblockWidth, surface.MacroblockHeight);
-                        H264BInterSliceDataDecoder decoder = new(
-                            surface,
-                            localMotionStateL0,
-                            localMotionStateL1,
-                            new H264BInterMacroblockReconstructor(),
-                            CreateCabacReader);
-                        results[i] = decoder.Decode(
-                            slices[i].NalUnit, activeSps, activePps,
-                            _decodedPictureBuffer, poc.PictureOrderCount, currentSliceId);
-                        sliceMotionStatesL0[i] = localMotionStateL0;
-                        sliceMotionStatesL1[i] = localMotionStateL1;
-                    });
-
-                for (int i = 0; i < results.Length; i++)
-                {
-                    H264BInterSliceDecodeResult result = results[i] ??
-                        throw new InvalidOperationException($"Parallel B-slice {i} did not return a result.");
-                    H264MotionVectorPictureState localMotionStateL0 = sliceMotionStatesL0[i] ??
-                        throw new InvalidOperationException($"Parallel B-slice {i} did not return List0 motion state.");
-                    H264MotionVectorPictureState localMotionStateL1 = sliceMotionStatesL1[i] ??
-                        throw new InvalidOperationException($"Parallel B-slice {i} did not return List1 motion state.");
-                    int currentSliceId = checked(firstSliceId + i);
-                    motionStateL0!.MergeSliceFrom(localMotionStateL0, currentSliceId);
-                    motionStateL1!.MergeSliceFrom(localMotionStateL1, currentSliceId);
-
-                    sliceDecodeSummaries.Add(
-                        $"slice[{i}] first_mb={slices[i].Header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}");
-                    H264BReferencePictureLists currentLists = result.ReferencePictureLists ??
-                        throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
-                    if (referenceList0 is null)
-                    {
-                        referenceList0 = currentLists.List0;
-                        referenceList1 = currentLists.List1;
-                    }
-                    else if (!referenceList0.SequenceEqual(currentLists.List0) ||
-                             !referenceList1!.SequenceEqual(currentLists.List1))
-                    {
-                        throw new NotSupportedException(
-                            "B slices in one picture must use identical reference-list ordering for temporal-direct metadata.");
-                    }
-                }
-            }
-            else
-            {
-                for (int i = 0; i < slices.Count; i++)
-                {
-                    (H264NalUnit nalUnit, H264SliceHeader header) = slices[i];
-                    int currentSliceId = checked(firstSliceId + i);
-
-                    switch (header.SliceType)
-                    {
-                        case H264SliceType.I:
-                            H264IntraSliceDecodeResult iResult = cabacIntraDecoder is not null
-                                ? cabacIntraDecoder.Decode(nalUnit, activeSps, activePps, currentSliceId)
-                                : intraDecoder!.Decode(nalUnit, activeSps, activePps, currentSliceId);
-                            sliceDecodeSummaries.Add(
-                                $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={iResult.MacroblocksDecoded} bits={iResult.BitsConsumed}");
-                            break;
-
-                        case H264SliceType.P:
-                            H264PInterSliceDecodeResult pResult = pDecoder!.Decode(
-                                nalUnit, activeSps, activePps, _decodedPictureBuffer, currentSliceId);
-                            string cabacTrace = pResult.CabacDiagnostics.Count == 0
-                                ? string.Empty
-                                : $" cabac_trace=[{string.Join(" | ", pResult.CabacDiagnostics.TakeLast(24))}]";
-                            sliceDecodeSummaries.Add(
-                                $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={pResult.MacroblocksDecoded} bits={pResult.BitsConsumed}{cabacTrace}");
-                            IReadOnlyList<H264ReferencePicture> currentList0 = pResult.ReferenceList0 ??
-                                throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
-                            if (referenceList0 is null)
-                            {
-                                referenceList0 = currentList0;
-                                referenceList1 = [];
-                            }
-                            else if (!referenceList0.SequenceEqual(currentList0))
-                            {
-                                throw new NotSupportedException(
-                                    "P slices in one picture must use identical RefPicList0 ordering for temporal-direct metadata.");
-                            }
-                            break;
-
-                        case H264SliceType.B:
-                            H264BInterSliceDecodeResult bResult = bDecoder!.Decode(
-                                nalUnit, activeSps, activePps, _decodedPictureBuffer,
-                                poc.PictureOrderCount, currentSliceId);
-                            sliceDecodeSummaries.Add(
-                                $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={bResult.MacroblocksDecoded} bits={bResult.BitsConsumed}");
-                            H264BReferencePictureLists currentLists = bResult.ReferencePictureLists ??
-                                throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
-                            if (referenceList0 is null)
-                            {
-                                referenceList0 = currentLists.List0;
-                                referenceList1 = currentLists.List1;
-                            }
-                            else if (!referenceList0.SequenceEqual(currentLists.List0) ||
-                                     !referenceList1!.SequenceEqual(currentLists.List1))
-                            {
-                                throw new NotSupportedException(
-                                    "B slices in one picture must use identical reference-list ordering for temporal-direct metadata.");
-                            }
-                            break;
-
-                        default:
+                        IReadOnlyList<H264ReferencePicture> currentList0 = result.ReferenceList0 ??
+                            throw new InvalidOperationException("The P-slice decoder did not return its reference list.");
+                        if (referenceList0 is null)
+                        {
+                            referenceList0 = currentList0;
+                            referenceList1 = [];
+                        }
+                        else if (!referenceList0.SequenceEqual(currentList0))
+                        {
                             throw new NotSupportedException(
-                                $"Slice type {header.SliceType} is not supported by the MP4 access-unit decoder.");
-                    }
-                }
+                                "P slices in one picture must use identical RefPicList0 ordering for temporal-direct metadata.");
+                        }
 
+                        break;
+                    }
+
+                    case H264SliceType.B:
+                    {
+                        H264BInterSliceDecodeResult result = bDecoder!.Decode(
+                            nalUnit, activeSps, activePps, _decodedPictureBuffer,
+                            poc.PictureOrderCount, currentSliceId);
+                        sliceDecodeSummaries.Add(
+                            $"slice[{i}] first_mb={header.FirstMacroblockInSlice} decoded={result.MacroblocksDecoded} bits={result.BitsConsumed}");
+
+                        H264BReferencePictureLists currentLists = result.ReferencePictureLists ??
+                            throw new InvalidOperationException("The B-slice decoder did not return its reference lists.");
+                        if (referenceList0 is null)
+                        {
+                            referenceList0 = currentLists.List0;
+                            referenceList1 = currentLists.List1;
+                        }
+                        else if (!referenceList0.SequenceEqual(currentLists.List0) ||
+                                 !referenceList1!.SequenceEqual(currentLists.List1))
+                        {
+                            throw new NotSupportedException(
+                                "B slices in one picture must use identical reference-list ordering for temporal-direct metadata.");
+                        }
+
+                        break;
+                    }
+
+                    default:
+                        throw new NotSupportedException(
+                            $"Slice type {header.SliceType} is not supported by the MP4 access-unit decoder.");
+                }
             }
+
             if (!surface.IsComplete)
             {
                 IReadOnlyList<uint> missingMacroblocks =
@@ -535,57 +382,8 @@ public sealed class H264Mp4AccessUnitDecoder
         bool isIntra,
         int cabacInitIdc)
     {
-        // The injected factory is user-supplied and may hold state (for
-        // example, scripted test readers). Serialize factory creation while
-        // leaving the actual slice decoding fully parallel.
-        lock (_cabacReaderFactoryLock)
-            return _cabacReaderFactory(reader, qpY, isIntra, cabacInitIdc);
+        return _cabacReaderFactory(reader, qpY, isIntra, cabacInitIdc);
     }
-
-    private static void ForEachSlice(int sliceCount, Action<int> decodeSlice)
-    {
-        try
-        {
-            Parallel.For(
-                0,
-                sliceCount,
-                new ParallelOptions { MaxDegreeOfParallelism = GetMaxSliceParallelism() },
-                decodeSlice);
-        }
-        catch (AggregateException exception) when (exception.InnerExceptions.Count == 1)
-        {
-            System.Runtime.ExceptionServices.ExceptionDispatchInfo
-                .Capture(exception.InnerExceptions[0])
-                .Throw();
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Gets the effective slice worker count selected by the current process
-    /// environment. Exposed so diagnostics can report the active setting.
-    /// </summary>
-    public static int ConfiguredMaxSliceParallelism =>
-        ResolveMaxSliceParallelism(
-            Environment.GetEnvironmentVariable("PIXORA_H264_SLICE_WORKERS"),
-            Environment.ProcessorCount);
-
-    internal static int ResolveMaxSliceParallelism(
-        string? configured,
-        int processorCount)
-    {
-        if (processorCount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(processorCount));
-
-        if (int.TryParse(configured, out int requested) && requested > 0)
-            return Math.Clamp(requested, 1, 4);
-
-        // A small nested worker pool composes with parallel thumbnail workers.
-        return Math.Clamp(processorCount / 4, 1, 2);
-    }
-
-    private static int GetMaxSliceParallelism() =>
-        ConfiguredMaxSliceParallelism;
 
     private void ValidateConfigurationIdentity(H264AvcDecoderConfiguration configuration)
     {
