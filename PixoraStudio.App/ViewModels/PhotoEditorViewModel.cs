@@ -25,6 +25,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private float brightness;
     [ObservableProperty] private float contrast = 1f;
     [ObservableProperty] private float saturation = 1f;
+    [ObservableProperty] private float exposure;
+    [ObservableProperty] private float highlights;
+    [ObservableProperty] private float shadows;
+    [ObservableProperty] private float temperature;
+    [ObservableProperty] private float tint;
     [ObservableProperty] private ImageFilter selectedFilter = ImageFilter.None;
     [ObservableProperty] private bool showOriginal;
     [ObservableProperty] private double zoom = 1.0;
@@ -65,6 +70,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         Brightness = Brightness,
         Contrast = Contrast,
         Saturation = Saturation,
+        Exposure = Exposure,
+        Highlights = Highlights,
+        Shadows = Shadows,
+        Temperature = Temperature,
+        Tint = Tint,
         Filter = SelectedFilter
     };
 
@@ -119,6 +129,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             Brightness = snapshot.Adjustment.Brightness;
             Contrast = snapshot.Adjustment.Contrast;
             Saturation = snapshot.Adjustment.Saturation;
+            Exposure = snapshot.Adjustment.Exposure;
+            Highlights = snapshot.Adjustment.Highlights;
+            Shadows = snapshot.Adjustment.Shadows;
+            Temperature = snapshot.Adjustment.Temperature;
+            Tint = snapshot.Adjustment.Tint;
             SelectedFilter = snapshot.Adjustment.Filter;
             _lastCommittedAdjustment = GetCurrentAdjustment();
         }
@@ -185,6 +200,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     partial void OnBrightnessChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
     partial void OnContrastChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
     partial void OnSaturationChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
+    partial void OnExposureChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
+    partial void OnHighlightsChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
+    partial void OnShadowsChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
+    partial void OnTemperatureChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
+    partial void OnTintChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
     partial void OnSelectedFilterChanged(ImageFilter value) { if (IsImageLoaded) RefreshPreview(); }
     partial void OnShowOriginalChanged(bool value) { if (IsImageLoaded) RefreshPreview(); }
 
@@ -208,6 +228,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (current.Brightness == _lastCommittedAdjustment.Brightness &&
             current.Contrast == _lastCommittedAdjustment.Contrast &&
             current.Saturation == _lastCommittedAdjustment.Saturation &&
+            current.Exposure == _lastCommittedAdjustment.Exposure &&
+            current.Highlights == _lastCommittedAdjustment.Highlights &&
+            current.Shadows == _lastCommittedAdjustment.Shadows &&
+            current.Temperature == _lastCommittedAdjustment.Temperature &&
+            current.Tint == _lastCommittedAdjustment.Tint &&
             current.Filter == _lastCommittedAdjustment.Filter) return;
 
         PushHistory(_undoStack, new EditorSnapshot(
@@ -277,6 +302,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             Brightness = 0f;
             Contrast = 1f;
             Saturation = 1f;
+            Exposure = 0f;
+            Highlights = 0f;
+            Shadows = 0f;
+            Temperature = 0f;
+            Tint = 0f;
             SelectedFilter = ImageFilter.None;
         }
         finally { _isRestoringSnapshot = false; }
@@ -289,7 +319,10 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (!IsImageLoaded) return;
         var current = GetCurrentAdjustment();
         if (current.Brightness == 0f && current.Contrast == 1f &&
-            current.Saturation == 1f && current.Filter == ImageFilter.None) return;
+            current.Saturation == 1f && current.Exposure == 0f &&
+            current.Highlights == 0f && current.Shadows == 0f &&
+            current.Temperature == 0f && current.Tint == 0f &&
+            current.Filter == ImageFilter.None) return;
 
         SaveUndoState();
         SetDefaultAdjustments();
@@ -348,6 +381,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             Brightness = adjustment.Brightness,
             Contrast = adjustment.Contrast,
             Saturation = adjustment.Saturation,
+            Exposure = adjustment.Exposure,
+            Highlights = adjustment.Highlights,
+            Shadows = adjustment.Shadows,
+            Temperature = adjustment.Temperature,
+            Tint = adjustment.Tint,
             Filter = adjustment.Filter
         };
         public void DetachBitmap() => Bitmap = null!;
