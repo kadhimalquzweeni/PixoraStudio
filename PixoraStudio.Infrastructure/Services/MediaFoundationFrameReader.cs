@@ -239,7 +239,7 @@ public sealed class MediaFoundationFrameReader : IDisposable
         D3D11DeviceBundle devices = _deviceBundle!;
 
         long targetTimestamp = position.Ticks;
-        reader.SetCurrentPosition(targetTimestamp);
+        MediaFoundationVideoThumbnailDecoder.SetPositionOrNearestEarlier(reader, targetTimestamp);
 
         IMFSample? previousSample = null;
         try

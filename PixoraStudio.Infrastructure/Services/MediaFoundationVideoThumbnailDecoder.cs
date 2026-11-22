@@ -145,7 +145,7 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
 
             long targetTimestamp = checked(
                 positions[index].Ticks);
-            reader.SetCurrentPosition(targetTimestamp);
+            SetPositionOrNearestEarlier(reader, targetTimestamp);
 
             byte[]? encodedFrame = null;
             IMFSample? previousSample = null;
@@ -231,6 +231,44 @@ public sealed class MediaFoundationVideoThumbnailDecoder : IHardwareVideoThumbna
         return true;
     }
 
+
+    private const int MediaFoundationInvalidPosition = unchecked((int)0xC00D36E5);
+
+    /// <summary>
+    /// Seeks the Source Reader. Targets at or beyond the end of the media (a
+    /// filmstrip's last position is often the full duration) are rejected with
+    /// MF_E_INVALID_POSITION, so retry slightly earlier; the read loop then
+    /// uses the last frame the stream has.
+    /// </summary>
+    internal static void SetPositionOrNearestEarlier(
+        IMFSourceReader reader,
+        long targetTicks)
+    {
+        long[] backOffTicks =
+        [
+            0,
+            TimeSpan.FromMilliseconds(250).Ticks,
+            TimeSpan.FromSeconds(1).Ticks,
+            TimeSpan.FromSeconds(3).Ticks
+        ];
+
+        for (int attempt = 0; attempt < backOffTicks.Length; attempt++)
+        {
+            long position = Math.Max(0, targetTicks - backOffTicks[attempt]);
+            try
+            {
+                reader.SetCurrentPosition(position);
+                return;
+            }
+            catch (Exception exception) when (
+                exception.HResult == MediaFoundationInvalidPosition &&
+                attempt < backOffTicks.Length - 1 &&
+                position > 0)
+            {
+                // Try an earlier position.
+            }
+        }
+    }
 
     internal enum SampleReadDisposition
     {
