@@ -36,16 +36,19 @@
             <Border Background="#202127" CornerRadius="10" Margin="0,0,15,0" ClipToBounds="True">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <Grid MinWidth="300" MinHeight="300">
-                        <Image Source="{Binding PreviewImage}"
-                               Stretch="Uniform"
-                               Width="{Binding PreviewImage.Width}"
-                               Height="{Binding PreviewImage.Height}"
-                               RenderTransformOrigin="0.5,0.5"
-                               HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image.RenderTransform>
+                        <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid.RenderTransform>
                                 <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/>
-                            </Image.RenderTransform>
-                        </Image>
+                            </Grid.RenderTransform>
+                            <Image Source="{Binding PreviewImage}" Stretch="Fill"
+                                   Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
+                            <Canvas x:Name="CropOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                    Background="Transparent" Visibility="Collapsed"
+                                    MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown"
+                                    MouseMove="CropOverlay_MouseMove"
+                                    MouseLeftButtonUp="CropOverlay_MouseLeftButtonUp"/>
+                        </Grid>
                     </Grid>
                 </ScrollViewer>
             </Border>
@@ -64,7 +67,15 @@
 
                         <Separator Margin="0,12"/>
                         <TextBlock Text="Crop" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <TextBlock Text="Position and size (pixels)" Foreground="#AEB2BE" Margin="0,0,0,6"/>
+                        <Button Content="Start visual crop" Click="StartCrop_Click" Background="#3478D4" Foreground="White" Margin="2,0,2,8"/>
+                        <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
+                            <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,6"/>
+                            <UniformGrid Columns="2">
+                                <Button Content="Apply crop" Click="ApplyVisualCrop_Click" Background="#3478D4" Foreground="White" Margin="2"/>
+                                <Button Content="Cancel" Click="CancelVisualCrop_Click" Margin="2"/>
+                            </UniformGrid>
+                        </StackPanel>
+                        <TextBlock Text="Or enter position and size (pixels)" Foreground="#AEB2BE" Margin="0,0,0,6"/>
                         <UniformGrid Columns="2">
                             <StackPanel Margin="2"><TextBlock Text="X" Foreground="#D4D6DE"/><TextBox Text="{Binding CropX, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
                             <StackPanel Margin="2"><TextBlock Text="Y" Foreground="#D4D6DE"/><TextBox Text="{Binding CropY, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
