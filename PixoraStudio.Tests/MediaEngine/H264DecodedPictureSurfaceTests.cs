@@ -176,41 +176,6 @@ public sealed class H264DecodedPictureSurfaceTests
             Enumerable.Repeat(block, 4).ToArray());
     }
 
-    private sealed class BlockingReadOnlyByteList(byte[] values) :
-        IReadOnlyList<byte>, IDisposable
-    {
-        private readonly ManualResetEventSlim _entered = new(false);
-        private readonly ManualResetEventSlim _release = new(false);
-
-        public int Count => values.Length;
-
-        public byte this[int index]
-        {
-            get
-            {
-                _entered.Set();
-                _release.Wait();
-                return values[index];
-            }
-        }
-
-        public bool WaitUntilRead(TimeSpan timeout) => _entered.Wait(timeout);
-
-        public void Release() => _release.Set();
-
-        public IEnumerator<byte> GetEnumerator() =>
-            ((IEnumerable<byte>)values).GetEnumerator();
-
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
-            values.GetEnumerator();
-
-        public void Dispose()
-        {
-            _entered.Dispose();
-            _release.Dispose();
-        }
-    }
-
     private static H264SequenceParameterSet CreateSps(
         uint format, uint widthMinus1, uint heightMinus1) =>
         new(0, 66, 30, format, false, 0, 0, 0, 0, 0, 1,
