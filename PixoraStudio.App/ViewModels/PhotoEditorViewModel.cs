@@ -81,7 +81,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         stack.Push(snapshot);
         while (stack.Count > MaximumHistoryEntries)
         {
-            var retained = stack.Reverse().Take(MaximumHistoryEntries).Reverse().ToArray();
+            var retained = stack.Reverse().Skip(Math.Max(0, stack.Count - MaximumHistoryEntries)).ToArray();
             ClearStack(stack);
             foreach (var entry in retained) stack.Push(entry);
         }
@@ -165,6 +165,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         {
             using var transformed = transform(_originalBitmap);
             SaveUndoState();
+            _lastCommittedAdjustment = GetCurrentAdjustment();
             var replacement = _imageService.CloneImage(transformed);
             _originalBitmap.Dispose();
             _originalBitmap = replacement;
