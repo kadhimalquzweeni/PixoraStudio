@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using NAudio.Wave;
 using PixoraStudio.MediaEngine.Decoders.Audio;
 using PixoraStudio.MediaEngine.Models.Audio;
@@ -167,15 +168,21 @@ public sealed class AacAudioPlaybackService : IDisposable
         _output?.Pause();
     }
 
-    public void Unload()
+    public void Unload(int diagnosticLoadId = 0)
     {
-        Interlocked.Increment(ref _loadGeneration);
-        _seekCancellation?.Cancel();
-        _seekCancellation?.Dispose();
-        _seekCancellation = null;
-        Interlocked.Exchange(ref _isSeeking, 0);
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        LogUnload(diagnosticLoadId, "Unload entered");
+        LogUnloadStep(diagnosticLoadId, "invalidate generation/cancel seek", () =>
+        {
+            Interlocked.Increment(ref _loadGeneration);
+            _seekCancellation?.Cancel();
+            _seekCancellation?.Dispose();
+            _seekCancellation = null;
+            Interlocked.Exchange(ref _isSeeking, 0);
+        });
         if (!_disposed)
-            StopAndRelease();
+            StopAndRelease(diagnosticLoadId);
+        LogUnload(diagnosticLoadId, $"Unload release path finished in {stopwatch.ElapsedMilliseconds} ms");
 
         _sourcePath = null;
         _duration = TimeSpan.Zero;
@@ -668,26 +675,50 @@ public sealed class AacAudioPlaybackService : IDisposable
         }
     }
 
-    private void StopAndRelease()
+    private static void LogUnload(int diagnosticLoadId, string message)
+    {
+        Debug.WriteLine($"[{DateTimeOffset.Now:O}] [AAC-Unload:{diagnosticLoadId}] [Thread:{Environment.CurrentManagedThreadId}] {message}");
+    }
+
+    private static void LogUnloadStep(int diagnosticLoadId, string operation, Action action)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        LogUnload(diagnosticLoadId, $"{operation} started");
+        try
+        {
+            action();
+            LogUnload(diagnosticLoadId, $"{operation} completed in {stopwatch.ElapsedMilliseconds} ms");
+        }
+        catch (Exception exception)
+        {
+            LogUnload(diagnosticLoadId, $"{operation} FAILED after {stopwatch.ElapsedMilliseconds} ms: {exception}");
+            throw;
+        }
+    }
+
+    private void StopAndRelease(int diagnosticLoadId = 0)
     {
         try
         {
-            _output?.Stop();
+            LogUnloadStep(diagnosticLoadId, "NAudio WaveOutEvent.Stop", () => _output?.Stop());
         }
         finally
         {
-            _output?.Dispose();
+            LogUnloadStep(diagnosticLoadId, "NAudio WaveOutEvent.Dispose", () => _output?.Dispose());
             _output = null;
 
-            _reader?.Dispose();
+            LogUnloadStep(diagnosticLoadId, "NAudio WaveFileReader.Dispose", () => _reader?.Dispose());
             _reader = null;
 
             if (_temporaryWavePath is not null)
             {
                 try
                 {
-                    if (File.Exists(_temporaryWavePath))
-                        File.Delete(_temporaryWavePath);
+                    LogUnloadStep(diagnosticLoadId, "delete temporary WAV", () =>
+                    {
+                        if (File.Exists(_temporaryWavePath))
+                            File.Delete(_temporaryWavePath);
+                    });
                 }
                 catch (IOException)
                 {
