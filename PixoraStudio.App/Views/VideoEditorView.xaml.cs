@@ -643,6 +643,10 @@ public partial class VideoEditorView : UserControl
 
     private async void OnVideoLoaded(string filePath)
     {
+        // Stop dispatcher ticks before touching LibVLC during replacement.
+        // Timer_Tick reads MediaPlayer.Time, which can contend with Stop().
+        _timer.Stop();
+
         if (_mediaPlayer == null || _libVLC == null)
             return;
 
@@ -734,6 +738,16 @@ public partial class VideoEditorView : UserControl
                 LogVideoLoad(loadVersion, "LibVLC player.Play() started");
                 player.Play(media);
                 LogVideoLoad(loadVersion, $"LibVLC player.Play() returned in {vlcPlay.ElapsedMilliseconds} ms");
+
+                // Resume UI playback polling only after the old media has been
+                // stopped and the replacement media has been started.
+                if (loadVersion == _videoLoadVersion &&
+                    !cancellationToken.IsCancellationRequested)
+                {
+                    _timer.Start();
+                    LogVideoLoad(loadVersion, "playback UI timer restarted after player.Play()");
+                }
+
                 _isPreparingVideo = false;
                 mediaStarted = true;
             }, cancellationToken);
@@ -825,6 +839,8 @@ public partial class VideoEditorView : UserControl
 
     private async void OnVideoClosed()
     {
+        _timer.Stop();
+
         int closeVersion = ++_videoLoadVersion;
         Interlocked.Increment(ref _seekOperationVersion);
         _resumePlaybackAfterSeek = false;
