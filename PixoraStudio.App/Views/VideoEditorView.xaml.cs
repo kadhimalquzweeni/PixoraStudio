@@ -14,6 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using VlcMediaPlayer = LibVLCSharp.Shared.MediaPlayer;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace PixoraStudio.App.Views;
 
@@ -619,22 +620,48 @@ public partial class VideoEditorView : UserControl
         }));
     }
 
+    private static void LogVideoLoad(int loadVersion, string message)
+    {
+        Debug.WriteLine($"[{DateTimeOffset.Now:O}] [VideoLoad:{loadVersion}] [Thread:{Environment.CurrentManagedThreadId}] {message}");
+    }
+
+    private static void LogVideoLoadStep(int loadVersion, string operation, Action action)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        LogVideoLoad(loadVersion, $"{operation} started");
+        try
+        {
+            action();
+            LogVideoLoad(loadVersion, $"{operation} completed in {stopwatch.ElapsedMilliseconds} ms");
+        }
+        catch (Exception exception)
+        {
+            LogVideoLoad(loadVersion, $"{operation} FAILED after {stopwatch.ElapsedMilliseconds} ms: {exception}");
+            throw;
+        }
+    }
+
     private async void OnVideoLoaded(string filePath)
     {
         if (_mediaPlayer == null || _libVLC == null)
             return;
 
         int loadVersion = ++_videoLoadVersion;
+        Stopwatch totalLoad = Stopwatch.StartNew();
+        LogVideoLoad(loadVersion, $"replacement requested: '{filePath}'");
         Interlocked.Increment(ref _seekOperationVersion);
         _resumePlaybackAfterSeek = false;
         _isPreparingVideo = true;
 
-        DisposeGpuFrameReader();
+        LogVideoLoadStep(loadVersion, "DisposeGpuFrameReader", DisposeGpuFrameReader);
         _gpuFrameReaderRequested = false;
         _gpuFrameReaderOpening = null;
 
-        _videoLoadCancellation?.Cancel();
-        _videoLoadCancellation?.Dispose();
+        LogVideoLoadStep(loadVersion, "Cancel/dispose previous load cancellation", () =>
+        {
+            _videoLoadCancellation?.Cancel();
+            _videoLoadCancellation?.Dispose();
+        });
         _videoLoadCancellation = new CancellationTokenSource();
         CancellationToken cancellationToken = _videoLoadCancellation.Token;
 
@@ -647,9 +674,15 @@ public partial class VideoEditorView : UserControl
             // All native player lifecycle changes share one asynchronous gate.
             // A newer load waits for the previous Stop() to finish, and close or
             // unload cannot dispose the player while a load is using it.
+            Stopwatch gateWait = Stopwatch.StartNew();
+            LogVideoLoad(loadVersion, "waiting for player lifecycle gate");
             await _playerLifecycleGate.ExecuteAsync(async () =>
             {
+                LogVideoLoad(loadVersion, $"acquired player lifecycle gate after {gateWait.ElapsedMilliseconds} ms");
+                Stopwatch vlcStop = Stopwatch.StartNew();
+                LogVideoLoad(loadVersion, "LibVLC player.Stop() started on worker task");
                 await Task.Run(player.Stop);
+                LogVideoLoad(loadVersion, $"LibVLC player.Stop() completed in {vlcStop.ElapsedMilliseconds} ms");
 
                 if (loadVersion != _videoLoadVersion ||
                     cancellationToken.IsCancellationRequested ||
@@ -665,7 +698,7 @@ public partial class VideoEditorView : UserControl
                 ScrubPreviewFrame.Source = null;
                 ScrubPreviewFrame.Visibility = Visibility.Collapsed;
 
-                _aacAudioPlaybackService.Unload();
+                _aacAudioPlaybackService.Unload(loadVersion);
                 _usesCustomAacAudio = false;
 
                 if (loadVersion != _videoLoadVersion ||
@@ -675,22 +708,30 @@ public partial class VideoEditorView : UserControl
                     return;
                 }
 
+                Stopwatch createMedia = Stopwatch.StartNew();
+                LogVideoLoad(loadVersion, "LibVLC Media construction started");
                 using var media = new Media(libVlc, filePath, FromType.FromPath);
+                LogVideoLoad(loadVersion, $"LibVLC Media construction completed in {createMedia.ElapsedMilliseconds} ms");
 
                 if (DataContext is VideoEditorViewModel audioVm)
-                    ApplyAudioOutputSettings(audioVm);
+                    LogVideoLoadStep(loadVersion, "ApplyAudioOutputSettings", () => ApplyAudioOutputSettings(audioVm));
 
+                Stopwatch vlcPlay = Stopwatch.StartNew();
+                LogVideoLoad(loadVersion, "LibVLC player.Play() started");
                 player.Play(media);
+                LogVideoLoad(loadVersion, $"LibVLC player.Play() returned in {vlcPlay.ElapsedMilliseconds} ms");
                 _isPreparingVideo = false;
                 mediaStarted = true;
             }, cancellationToken);
         }
         catch (OperationCanceledException)
         {
+            LogVideoLoad(loadVersion, $"load cancelled after {totalLoad.ElapsedMilliseconds} ms during player setup");
             return;
         }
         catch (Exception exception)
         {
+            LogVideoLoad(loadVersion, $"player setup FAILED after {totalLoad.ElapsedMilliseconds} ms: {exception}");
             if (loadVersion == _videoLoadVersion)
             {
                 _isPreparingVideo = false;
@@ -707,12 +748,17 @@ public partial class VideoEditorView : UserControl
             loadVersion != _videoLoadVersion ||
             cancellationToken.IsCancellationRequested)
         {
+            LogVideoLoad(loadVersion, $"managed H.264 startup skipped; mediaStarted={mediaStarted}, currentLoad={_videoLoadVersion}, cancelled={cancellationToken.IsCancellationRequested}");
             return;
         }
 
         try
         {
+            Stopwatch managedGateWait = Stopwatch.StartNew();
+            LogVideoLoad(loadVersion, "waiting for lifecycle gate before managed H.264 startup");
             await _playerLifecycleGate.ExecuteAsync(async () =>
+            {
+                LogVideoLoad(loadVersion, $"acquired lifecycle gate for managed H.264 after {managedGateWait.ElapsedMilliseconds} ms");
             {
                 if (loadVersion != _videoLoadVersion ||
                     cancellationToken.IsCancellationRequested ||
@@ -721,6 +767,8 @@ public partial class VideoEditorView : UserControl
                     return;
                 }
 
+                Stopwatch managedStart = Stopwatch.StartNew();
+                LogVideoLoad(loadVersion, "ManagedH264VideoPlaybackService.TryStartAsync started");
                 _usesManagedH264Video = await _managedH264PlaybackService.TryStartAsync(
                     filePath,
                     () => player.Time / 1000d,
@@ -737,6 +785,7 @@ public partial class VideoEditorView : UserControl
                             $"Managed H.264 preview stopped; LibVLC fallback remains active: {exception.Message}");
                     })),
                     cancellationToken);
+                LogVideoLoad(loadVersion, $"ManagedH264VideoPlaybackService.TryStartAsync completed in {managedStart.ElapsedMilliseconds} ms; active={_usesManagedH264Video}");
 
                 if (loadVersion == _videoLoadVersion && !_usesManagedH264Video)
                     ManagedVideoFrame.Visibility = Visibility.Collapsed;
@@ -744,10 +793,11 @@ public partial class VideoEditorView : UserControl
         }
         catch (OperationCanceledException)
         {
-            // A newer video selection or editor shutdown superseded this load.
+            LogVideoLoad(loadVersion, $"managed H.264 startup cancelled after {totalLoad.ElapsedMilliseconds} ms");
         }
         catch (Exception exception)
         {
+            LogVideoLoad(loadVersion, $"managed H.264 startup FAILED after {totalLoad.ElapsedMilliseconds} ms: {exception}");
             if (loadVersion == _videoLoadVersion)
             {
                 _usesManagedH264Video = false;
@@ -756,6 +806,9 @@ public partial class VideoEditorView : UserControl
                     $"Managed H.264 playback could not start; LibVLC fallback remains active: {exception}");
             }
         }
+    }
+
+        LogVideoLoad(loadVersion, $"replacement handler finished after {totalLoad.ElapsedMilliseconds} ms");
     }
 
     private async void OnVideoClosed()
