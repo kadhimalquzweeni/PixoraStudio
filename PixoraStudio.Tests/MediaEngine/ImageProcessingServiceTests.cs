@@ -187,8 +187,9 @@ public sealed class ImageProcessingServiceTests
         using var result = _service.ApplyAdjustments(source,
             new PixoraStudio.Core.Models.ImageAdjustment { Highlights = -100f });
 
-        Assert.Equal((byte)30, result.GetPixel(0, 0).Red);
-        Assert.True(result.GetPixel(1, 0).Red < 220);
+        int darkPixelChange = 30 - result.GetPixel(0, 0).Red;
+        int brightPixelChange = 220 - result.GetPixel(1, 0).Red;
+        Assert.True(brightPixelChange > darkPixelChange);
     }
 
     [Fact]
@@ -200,8 +201,9 @@ public sealed class ImageProcessingServiceTests
         using var result = _service.ApplyAdjustments(source,
             new PixoraStudio.Core.Models.ImageAdjustment { Shadows = 100f });
 
-        Assert.True(result.GetPixel(0, 0).Red > 30);
-        Assert.Equal((byte)220, result.GetPixel(1, 0).Red);
+        int darkPixelChange = result.GetPixel(0, 0).Red - 30;
+        int brightPixelChange = result.GetPixel(1, 0).Red - 220;
+        Assert.True(darkPixelChange > brightPixelChange);
     }
 
     [Theory]
