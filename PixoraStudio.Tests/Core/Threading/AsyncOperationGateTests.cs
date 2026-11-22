@@ -70,6 +70,15 @@ public sealed class AsyncOperationGateTests
 
         release.SetResult();
         await first;
+
+        bool followingOperationRan = false;
+        await gate.ExecuteAsync(() =>
+        {
+            followingOperationRan = true;
+            return Task.CompletedTask;
+        });
+
+        Assert.True(followingOperationRan);
     }
 
     [Fact]
