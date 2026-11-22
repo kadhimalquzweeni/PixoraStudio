@@ -639,7 +639,19 @@ public partial class VideoEditorView : UserControl
         _videoLoadCancellation = new CancellationTokenSource();
         CancellationToken cancellationToken = _videoLoadCancellation.Token;
 
-        _mediaPlayer.Stop();
+        // LibVLC's Stop() waits for its video output to shut down, which can
+        // deadlock when called on the UI thread that owns the video window.
+        // Stop on a worker thread and carry on once it has finished.
+        VlcMediaPlayer playerToStop = _mediaPlayer;
+        await Task.Run(() => playerToStop.Stop());
+
+        if (loadVersion != _videoLoadVersion ||
+            cancellationToken.IsCancellationRequested ||
+            _mediaPlayer == null)
+        {
+            return;
+        }
+
         _mediaPlayer.Mute = false;
         _usesManagedH264Video = false;
         ManagedVideoFrame.Source = null;
@@ -721,7 +733,9 @@ public partial class VideoEditorView : UserControl
 
         if (_mediaPlayer is not null)
         {
-            _mediaPlayer.Stop();
+            // Stop off the UI thread; see OnVideoLoaded.
+            VlcMediaPlayer playerToStop = _mediaPlayer;
+            _ = Task.Run(() => playerToStop.Stop());
             _mediaPlayer.Mute = false;
         }
     }
@@ -1541,8 +1555,14 @@ public partial class VideoEditorView : UserControl
         if (_mediaPlayer is not null)
         {
             _mediaPlayer.EndReached -= MediaPlayer_EndReached;
-            _mediaPlayer.Stop();
-            _mediaPlayer.Dispose();
+
+            // Stop and dispose off the UI thread; see OnVideoLoaded.
+            VlcMediaPlayer playerToDispose = _mediaPlayer;
+            _ = Task.Run(() =>
+            {
+                playerToDispose.Stop();
+                playerToDispose.Dispose();
+            });
         }
 
         _mediaPlayer = null;
