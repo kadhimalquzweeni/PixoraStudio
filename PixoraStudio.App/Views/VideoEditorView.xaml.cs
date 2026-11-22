@@ -680,9 +680,23 @@ public partial class VideoEditorView : UserControl
             {
                 LogVideoLoad(loadVersion, $"acquired player lifecycle gate after {gateWait.ElapsedMilliseconds} ms");
                 Stopwatch vlcStop = Stopwatch.StartNew();
-                LogVideoLoad(loadVersion, "LibVLC player.Stop() started on worker task");
-                await Task.Run(player.Stop);
-                LogVideoLoad(loadVersion, $"LibVLC player.Stop() completed in {vlcStop.ElapsedMilliseconds} ms");
+                LogVideoLoad(loadVersion, "scheduling LibVLC player.Stop() on worker task");
+                await Task.Run(() =>
+                {
+                    Stopwatch workerStop = Stopwatch.StartNew();
+                    LogVideoLoad(loadVersion, "LibVLC player.Stop() ENTERED on worker thread");
+                    try
+                    {
+                        player.Stop();
+                        LogVideoLoad(loadVersion, $"LibVLC player.Stop() RETURNED on worker thread in {workerStop.ElapsedMilliseconds} ms");
+                    }
+                    catch (Exception exception)
+                    {
+                        LogVideoLoad(loadVersion, $"LibVLC player.Stop() THREW on worker thread after {workerStop.ElapsedMilliseconds} ms: {exception}");
+                        throw;
+                    }
+                });
+                LogVideoLoad(loadVersion, $"LibVLC player.Stop() task completed; total scheduling/wait time {vlcStop.ElapsedMilliseconds} ms");
 
                 if (loadVersion != _videoLoadVersion ||
                     cancellationToken.IsCancellationRequested ||
