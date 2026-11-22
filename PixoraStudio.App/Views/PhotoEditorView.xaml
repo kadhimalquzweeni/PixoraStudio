@@ -124,6 +124,16 @@
                         <Slider Minimum="0" Maximum="3" Value="{Binding Contrast}" Margin="0,8,0,14"/>
                         <DockPanel><TextBlock Text="Saturation" Foreground="#D4D6DE"/><TextBlock Text="{Binding Saturation, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
                         <Slider Minimum="0" Maximum="3" Value="{Binding Saturation}" Margin="0,8,0,14"/>
+                        <DockPanel><TextBlock Text="Exposure" Foreground="#D4D6DE"/><TextBlock Text="{Binding Exposure, StringFormat={}{0:F2} EV}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
+                        <Slider Minimum="-3" Maximum="3" Value="{Binding Exposure}" Margin="0,8,0,14"/>
+                        <DockPanel><TextBlock Text="Highlights" Foreground="#D4D6DE"/><TextBlock Text="{Binding Highlights, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
+                        <Slider Minimum="-100" Maximum="100" Value="{Binding Highlights}" Margin="0,8,0,14"/>
+                        <DockPanel><TextBlock Text="Shadows" Foreground="#D4D6DE"/><TextBlock Text="{Binding Shadows, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
+                        <Slider Minimum="-100" Maximum="100" Value="{Binding Shadows}" Margin="0,8,0,14"/>
+                        <DockPanel><TextBlock Text="Temperature" Foreground="#D4D6DE"/><TextBlock Text="{Binding Temperature, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
+                        <Slider Minimum="-100" Maximum="100" Value="{Binding Temperature}" Margin="0,8,0,14"/>
+                        <DockPanel><TextBlock Text="Tint" Foreground="#D4D6DE"/><TextBlock Text="{Binding Tint, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
+                        <Slider Minimum="-100" Maximum="100" Value="{Binding Tint}" Margin="0,8,0,14"/>
                         <Button Content="Save adjustment to history" Command="{Binding CommitAdjustmentsCommand}" Margin="0,0,0,10"/>
 
                         <TextBlock Text="Filters" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
