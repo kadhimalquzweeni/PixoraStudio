@@ -13,7 +13,7 @@ public sealed class H264DecodedPictureSurface
     private readonly byte[] _cb;
     private readonly byte[] _cr;
     private readonly int[] _sliceIds;
-    private readonly bool[] _decoded
+    private readonly bool[] _decoded;
     private readonly bool[] _intra;
     private readonly H264DeblockingMacroblockMetadata?[] _deblockingMetadata;
     private bool _deblockingFilterApplied;
