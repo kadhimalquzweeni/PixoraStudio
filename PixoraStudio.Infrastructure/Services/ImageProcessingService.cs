@@ -114,23 +114,41 @@ public class ImageProcessingService : IImageProcessingService
         float brightness = adjustment.Brightness;
         float contrast = adjustment.Contrast;
         float saturation = adjustment.Saturation;
+        float exposureMultiplier = MathF.Pow(2f, Math.Clamp(adjustment.Exposure, -8f, 8f));
+        float highlights = Math.Clamp(adjustment.Highlights, -100f, 100f) / 100f;
+        float shadows = Math.Clamp(adjustment.Shadows, -100f, 100f) / 100f;
+        float temperature = Math.Clamp(adjustment.Temperature, -100f, 100f) * 0.65f;
+        float tint = Math.Clamp(adjustment.Tint, -100f, 100f) * 0.45f;
 
         for (int y = 0; y < original.Height; y++)
         for (int x = 0; x < original.Width; x++)
         {
             SKColor pixel = original.GetPixel(x, y);
-            float r = pixel.Red + brightness;
-            float g = pixel.Green + brightness;
-            float b = pixel.Blue + brightness;
+            float r = pixel.Red * exposureMultiplier + brightness;
+            float g = pixel.Green * exposureMultiplier + brightness;
+            float b = pixel.Blue * exposureMultiplier + brightness;
 
             r = ((r - 128f) * contrast) + 128f;
             g = ((g - 128f) * contrast) + 128f;
             b = ((b - 128f) * contrast) + 128f;
 
+            float luminance = Math.Clamp((0.2126f * r + 0.7152f * g + 0.0722f * b) / 255f, 0f, 1f);
+            float highlightMask = luminance * luminance;
+            float shadowMask = (1f - luminance) * (1f - luminance);
+            float localTone = (highlights * highlightMask + shadows * shadowMask) * 110f;
+            r += localTone;
+            g += localTone;
+            b += localTone;
+
             float gray = (0.299f * r) + (0.587f * g) + (0.114f * b);
             r = gray + saturation * (r - gray);
             g = gray + saturation * (g - gray);
             b = gray + saturation * (b - gray);
+
+            // Positive temperature warms the image; positive tint shifts towards magenta.
+            r += temperature + tint;
+            g -= tint * 2f;
+            b -= temperature - tint;
 
             switch (adjustment.Filter)
             {
