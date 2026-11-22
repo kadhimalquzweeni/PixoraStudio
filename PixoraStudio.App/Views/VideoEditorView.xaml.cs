@@ -712,25 +712,35 @@ public partial class VideoEditorView : UserControl
 
         try
         {
-            _usesManagedH264Video = await _managedH264PlaybackService.TryStartAsync(
-                filePath,
-                () => (player.Time) / 1000d,
-                bitmap => QueueManagedFrame(bitmap, loadVersion),
-                exception => Dispatcher.BeginInvoke(new Action(() =>
+            await _playerLifecycleGate.ExecuteAsync(async () =>
+            {
+                if (loadVersion != _videoLoadVersion ||
+                    cancellationToken.IsCancellationRequested ||
+                    !ReferenceEquals(_mediaPlayer, player))
                 {
-                    if (loadVersion != _videoLoadVersion)
-                        return;
+                    return;
+                }
 
-                    _usesManagedH264Video = false;
-                    ManagedVideoFrame.Source = null;
+                _usesManagedH264Video = await _managedH264PlaybackService.TryStartAsync(
+                    filePath,
+                    () => player.Time / 1000d,
+                    bitmap => QueueManagedFrame(bitmap, loadVersion),
+                    exception => Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (loadVersion != _videoLoadVersion)
+                            return;
+
+                        _usesManagedH264Video = false;
+                        ManagedVideoFrame.Source = null;
+                        ManagedVideoFrame.Visibility = Visibility.Collapsed;
+                        System.Diagnostics.Debug.WriteLine(
+                            $"Managed H.264 preview stopped; LibVLC fallback remains active: {exception.Message}");
+                    })),
+                    cancellationToken);
+
+                if (loadVersion == _videoLoadVersion && !_usesManagedH264Video)
                     ManagedVideoFrame.Visibility = Visibility.Collapsed;
-                    System.Diagnostics.Debug.WriteLine(
-                        $"Managed H.264 preview stopped; LibVLC fallback remains active: {exception.Message}");
-                })),
-                cancellationToken);
-
-            if (loadVersion == _videoLoadVersion && !_usesManagedH264Video)
-                ManagedVideoFrame.Visibility = Visibility.Collapsed;
+            }, cancellationToken);
         }
         catch (OperationCanceledException)
         {
