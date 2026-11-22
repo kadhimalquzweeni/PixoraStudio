@@ -14,10 +14,10 @@ public sealed class AsyncOperationGate
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            await operation().ConfigureAwait(false);
+            await operation();
         }
         finally
         {
