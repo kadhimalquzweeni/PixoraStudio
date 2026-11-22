@@ -4,6 +4,7 @@ using PixoraStudio.App.ViewModels;
 using PixoraStudio.App.Windows;
 using PixoraStudio.App.Services;
 using PixoraStudio.Core.Models;
+using PixoraStudio.Core.Threading;
 using PixoraStudio.Infrastructure.Services;
 using System.Windows;
 using System.Windows.Controls;
@@ -42,6 +43,7 @@ public partial class VideoEditorView : UserControl
     private int _seekOperationVersion;
     private int _audioSyncInProgress;
     private int _videoLoadVersion;
+    private readonly AsyncOperationGate _playerLifecycleGate = new();
     private LibVLC? _libVLC;
 
     private VideoOverlayWindow? _overlayWindow;
@@ -627,9 +629,6 @@ public partial class VideoEditorView : UserControl
         _resumePlaybackAfterSeek = false;
         _isPreparingVideo = true;
 
-        // Release the previous video's GPU reader before starting any other
-        // decoder, and open the next one only when a scrub needs it, so load
-        // does not have several GPU decode sessions starting at once.
         DisposeGpuFrameReader();
         _gpuFrameReaderRequested = false;
         _gpuFrameReaderOpening = null;
@@ -639,56 +638,83 @@ public partial class VideoEditorView : UserControl
         _videoLoadCancellation = new CancellationTokenSource();
         CancellationToken cancellationToken = _videoLoadCancellation.Token;
 
-        // LibVLC's Stop() waits for its video output to shut down, which can
-        // deadlock when called on the UI thread that owns the video window.
-        // Stop on a worker thread and carry on once it has finished.
-        VlcMediaPlayer playerToStop = _mediaPlayer;
-        await Task.Run(() => playerToStop.Stop());
+        VlcMediaPlayer player = _mediaPlayer;
+        LibVLC libVlc = _libVLC;
+        bool mediaStarted = false;
 
-        if (loadVersion != _videoLoadVersion ||
-            cancellationToken.IsCancellationRequested ||
-            _mediaPlayer == null)
+        try
+        {
+            // All native player lifecycle changes share one asynchronous gate.
+            // A newer load waits for the previous Stop() to finish, and close or
+            // unload cannot dispose the player while a load is using it.
+            await _playerLifecycleGate.ExecuteAsync(async () =>
+            {
+                await Task.Run(player.Stop);
+
+                if (loadVersion != _videoLoadVersion ||
+                    cancellationToken.IsCancellationRequested ||
+                    !ReferenceEquals(_mediaPlayer, player))
+                {
+                    return;
+                }
+
+                player.Mute = false;
+                _usesManagedH264Video = false;
+                ManagedVideoFrame.Source = null;
+                ManagedVideoFrame.Visibility = Visibility.Collapsed;
+                ScrubPreviewFrame.Source = null;
+                ScrubPreviewFrame.Visibility = Visibility.Collapsed;
+
+                _aacAudioPlaybackService.Unload();
+                _usesCustomAacAudio = false;
+
+                if (loadVersion != _videoLoadVersion ||
+                    cancellationToken.IsCancellationRequested ||
+                    !ReferenceEquals(_mediaPlayer, player))
+                {
+                    return;
+                }
+
+                using var media = new Media(libVlc, filePath, FromType.FromPath);
+
+                if (DataContext is VideoEditorViewModel audioVm)
+                    ApplyAudioOutputSettings(audioVm);
+
+                player.Play(media);
+                _isPreparingVideo = false;
+                mediaStarted = true;
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException)
         {
             return;
         }
-
-        _mediaPlayer.Mute = false;
-        _usesManagedH264Video = false;
-        ManagedVideoFrame.Source = null;
-        ManagedVideoFrame.Visibility = Visibility.Collapsed;
-        ScrubPreviewFrame.Source = null;
-        ScrubPreviewFrame.Visibility = Visibility.Collapsed;
-
-        // Do not decode the complete AAC track before playback. LibVLC can
-        // stream the MP4's audio immediately while the optional managed video
-        // decoder prepares frames independently in the background.
-        _aacAudioPlaybackService.Unload();
-        _usesCustomAacAudio = false;
-
-        if (loadVersion != _videoLoadVersion ||
-            cancellationToken.IsCancellationRequested ||
-            _mediaPlayer == null ||
-            _libVLC == null)
+        catch (Exception exception)
         {
+            if (loadVersion == _videoLoadVersion)
+            {
+                _isPreparingVideo = false;
+                if (DataContext is VideoEditorViewModel vm)
+                    vm.ErrorMessage = $"Unable to open video: {exception.Message}";
+            }
+
+            System.Diagnostics.Debug.WriteLine(
+                $"Video replacement failed: {exception}");
             return;
         }
 
-        _isPreparingVideo = false;
-
-        using var media = new Media(
-            _libVLC,
-            filePath,
-            FromType.FromPath);
-
-        if (DataContext is VideoEditorViewModel audioVm)
-            ApplyAudioOutputSettings(audioVm);
-        _mediaPlayer.Play(media);
+        if (!mediaStarted ||
+            loadVersion != _videoLoadVersion ||
+            cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
 
         try
         {
             _usesManagedH264Video = await _managedH264PlaybackService.TryStartAsync(
                 filePath,
-                () => (_mediaPlayer?.Time ?? 0) / 1000d,
+                () => (player.Time) / 1000d,
                 bitmap => QueueManagedFrame(bitmap, loadVersion),
                 exception => Dispatcher.BeginInvoke(new Action(() =>
                 {
@@ -702,19 +728,29 @@ public partial class VideoEditorView : UserControl
                         $"Managed H.264 preview stopped; LibVLC fallback remains active: {exception.Message}");
                 })),
                 cancellationToken);
-            if (!_usesManagedH264Video)
+
+            if (loadVersion == _videoLoadVersion && !_usesManagedH264Video)
                 ManagedVideoFrame.Visibility = Visibility.Collapsed;
         }
         catch (OperationCanceledException)
         {
-            return;
+            // A newer video selection or editor shutdown superseded this load.
         }
-
+        catch (Exception exception)
+        {
+            if (loadVersion == _videoLoadVersion)
+            {
+                _usesManagedH264Video = false;
+                ManagedVideoFrame.Visibility = Visibility.Collapsed;
+                System.Diagnostics.Debug.WriteLine(
+                    $"Managed H.264 playback could not start; LibVLC fallback remains active: {exception}");
+            }
+        }
     }
 
-    private void OnVideoClosed()
+    private async void OnVideoClosed()
     {
-        _videoLoadVersion++;
+        int closeVersion = ++_videoLoadVersion;
         Interlocked.Increment(ref _seekOperationVersion);
         _resumePlaybackAfterSeek = false;
         _isPreparingVideo = false;
@@ -731,12 +767,34 @@ public partial class VideoEditorView : UserControl
         ScrubPreviewFrame.Visibility = Visibility.Collapsed;
         _usesCustomAacAudio = false;
 
-        if (_mediaPlayer is not null)
+        VlcMediaPlayer? player = _mediaPlayer;
+        if (player is null)
+            return;
+
+        try
         {
-            // Stop off the UI thread; see OnVideoLoaded.
-            VlcMediaPlayer playerToStop = _mediaPlayer;
-            _ = Task.Run(() => playerToStop.Stop());
-            _mediaPlayer.Mute = false;
+            await _playerLifecycleGate.ExecuteAsync(async () =>
+            {
+                // If a new file was selected while this close was waiting, its
+                // load owns the player now; do not stop that newer playback.
+                if (closeVersion != _videoLoadVersion ||
+                    !ReferenceEquals(_mediaPlayer, player))
+                {
+                    return;
+                }
+
+                await Task.Run(player.Stop);
+                if (closeVersion == _videoLoadVersion &&
+                    ReferenceEquals(_mediaPlayer, player))
+                {
+                    player.Mute = false;
+                }
+            });
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Stopping the closed video failed: {exception}");
         }
     }
 
