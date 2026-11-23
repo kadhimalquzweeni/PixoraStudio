@@ -573,21 +573,30 @@ public partial class PhotoEditorView : UserControl
         }
     }
 
-    private static DragMode GetLayerDragMode(Point point, Rect bounds)
+    private DragMode GetLayerDragMode(Point point, Rect bounds)
     {
-        bool left = Math.Abs(point.X - bounds.Left) <= LayerHandleRadius * 2;
-        bool right = Math.Abs(point.X - bounds.Right) <= LayerHandleRadius * 2;
-        bool top = Math.Abs(point.Y - bounds.Top) <= LayerHandleRadius * 2;
-        bool bottom = Math.Abs(point.Y - bounds.Bottom) <= LayerHandleRadius * 2;
-        if (left && top) return DragMode.TopLeft;
-        if (right && top) return DragMode.TopRight;
-        if (left && bottom) return DragMode.BottomLeft;
-        if (right && bottom) return DragMode.BottomRight;
-        if (left && point.Y >= bounds.Top && point.Y <= bounds.Bottom) return DragMode.Left;
-        if (right && point.Y >= bounds.Top && point.Y <= bounds.Bottom) return DragMode.Right;
-        if (top && point.X >= bounds.Left && point.X <= bounds.Right) return DragMode.Top;
-        if (bottom && point.X >= bounds.Left && point.X <= bounds.Right) return DragMode.Bottom;
-        return bounds.Contains(point) ? DragMode.Move : DragMode.None;
+        var vm = ViewModel;
+        if (vm is null) return DragMode.None;
+
+        var layerBounds = new SKRect((float)bounds.Left, (float)bounds.Top,
+            (float)bounds.Right, (float)bounds.Bottom);
+        var canvasBounds = new SKRect(0, 0, vm.ImageWidth, vm.ImageHeight);
+        var handleIndex = LayerSelectionGeometry.FindHandle(
+            new SKPoint((float)point.X, (float)point.Y),
+            layerBounds, canvasBounds, (float)(LayerHandleRadius * 2));
+
+        return handleIndex switch
+        {
+            0 => DragMode.TopLeft,
+            1 => DragMode.Top,
+            2 => DragMode.TopRight,
+            3 => DragMode.Right,
+            4 => DragMode.BottomRight,
+            5 => DragMode.Bottom,
+            6 => DragMode.BottomLeft,
+            7 => DragMode.Left,
+            _ => bounds.Contains(point) ? DragMode.Move : DragMode.None
+        };
     }
 
     private void DrawLayerSelection()
@@ -605,26 +614,15 @@ public partial class PhotoEditorView : UserControl
         Canvas.SetLeft(border, rect.Left);
         Canvas.SetTop(border, rect.Top);
         LayerOverlay.Children.Add(border);
-        foreach (var x in new[] { rect.Left, rect.Right })
-        foreach (var y in new[] { rect.Top, rect.Bottom })
-        {
-            var handle = new Rectangle
-            {
-                Width = LayerHandleRadius * 2, Height = LayerHandleRadius * 2,
-                Fill = Brushes.White, Stroke = Brushes.DodgerBlue, StrokeThickness = 1.5,
-                IsHitTestVisible = false
-            };
-            Canvas.SetLeft(handle, x - LayerHandleRadius);
-            Canvas.SetTop(handle, y - LayerHandleRadius);
-            LayerOverlay.Children.Add(handle);
-        }
-        foreach (var point in new[]
-        {
-            new Point(rect.Left + rect.Width / 2, rect.Top),
-            new Point(rect.Left + rect.Width / 2, rect.Bottom),
-            new Point(rect.Left, rect.Top + rect.Height / 2),
-            new Point(rect.Right, rect.Top + rect.Height / 2)
-        })
+        var vm = ViewModel;
+        if (vm is null) return;
+        var layerBounds = new SKRect((float)rect.Left, (float)rect.Top,
+            (float)rect.Right, (float)rect.Bottom);
+        var canvasBounds = new SKRect(0, 0, vm.ImageWidth, vm.ImageHeight);
+
+        // Keep all eight transform handles reachable by pinning off-canvas
+        // handle positions to the nearest visible canvas edge.
+        foreach (var point in LayerSelectionGeometry.GetHandlePoints(layerBounds, canvasBounds))
         {
             var handle = new Rectangle
             {
