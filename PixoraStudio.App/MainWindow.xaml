@@ -14,6 +14,33 @@
 
     <Window.Resources>
 
+        <Style x:Key="EditorChromeBorderStyle" TargetType="Border">
+            <Setter Property="Visibility" Value="Visible"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CurrentPage}" Value="Photo Editor">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="EditorSidebarColumnStyle" TargetType="ColumnDefinition">
+            <Setter Property="Width" Value="220"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CurrentPage}" Value="Photo Editor">
+                    <Setter Property="Width" Value="0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="EditorHeaderRowStyle" TargetType="RowDefinition">
+            <Setter Property="Height" Value="65"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CurrentPage}" Value="Photo Editor">
+                    <Setter Property="Height" Value="0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <DataTemplate DataType="{x:Type vm:HomeViewModel}">
             <views:HomeView/>
         </DataTemplate>
@@ -30,12 +57,12 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="SidebarColumn" Width="220"/>
+            <ColumnDefinition x:Name="SidebarColumn" Style="{StaticResource EditorSidebarColumnStyle}"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar -->
-        <Border x:Name="SidebarBorder"
+        <Border x:Name="SidebarBorder" Style="{StaticResource EditorChromeBorderStyle}"
             Background="#1E2026"
             BorderBrush="#30323A"
             BorderThickness="0,0,1,0">
@@ -88,12 +115,12 @@
         <Grid Grid.Column="1">
 
             <Grid.RowDefinitions>
-                <RowDefinition x:Name="HeaderRow" Height="65"/>
+                <RowDefinition x:Name="HeaderRow" Style="{StaticResource EditorHeaderRowStyle}"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <!-- Top Header -->
-            <Border x:Name="TopHeaderBorder"
+            <Border x:Name="TopHeaderBorder" Style="{StaticResource EditorChromeBorderStyle}"
                 Grid.Row="0"
                 Background="#1E2026"
                 BorderBrush="#30323A"
