@@ -214,27 +214,59 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-
-                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,14">
-                        <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold"
-                                   VerticalAlignment="Center"/>
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="+ Add Image" Command="{Binding AddImageLayerCommand}"
+                                Background="#087FC4" Foreground="White" Padding="9,5" Margin="12,0,0,0"/>
                     </DockPanel>
-
                     <Border Grid.Row="1" Background="#30343B" BorderBrush="#168DD0"
-                            BorderThickness="1" CornerRadius="5" Padding="9"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                            BorderThickness="1" CornerRadius="5" Padding="8" Margin="0,0,0,8">
                         <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="68"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#25282E" CornerRadius="3"
-                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                                <controls:SvgIcon IconName="image" Width="30" Height="30"
-                                                  Stroke="#65BFFF" HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center"/>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Background="#25282E" CornerRadius="3" Width="44" Height="44">
+                                <TextBlock Text="BG" Foreground="#65BFFF" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
+                            <StackPanel Grid.Column="1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Background" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding ImagePath}" FontSize="9" Foreground="#AEB4BF"
+                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding ImagePath}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding AdditionalLayers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#30343B" BorderBrush="#454954" BorderThickness="1"
+                                            CornerRadius="5" Padding="7" Margin="0,0,0,7">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Background="#25282E" CornerRadius="3" Width="44" Height="44">
+                                                <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="2"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="8,0,4,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="10" TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding Name}"/>
+                                                <CheckBox Content="Visible" IsChecked="{Binding IsVisible}"
+                                                          Foreground="#AEB4BF" FontSize="9" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Content="×" Width="25" Height="25" Padding="0"
+                                                    ToolTip="Remove layer"
+                                                    Command="{Binding DataContext.RemoveLayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>   </Border>
                             <TextBlock Grid.Row="1" Text="{Binding ImagePath, TargetNullValue=Image}"
                                        TextTrimming="CharacterEllipsis" FontSize="11"
                                        TextAlignment="Center" Margin="0,8,0,4"
