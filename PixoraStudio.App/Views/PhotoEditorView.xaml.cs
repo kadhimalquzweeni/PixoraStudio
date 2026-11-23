@@ -295,6 +295,17 @@ public partial class PhotoEditorView : UserControl
     }
 
 
+    private void LayerItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: PhotoLayerViewModel layer } ||
+            ViewModel is not { } vm)
+            return;
+
+        vm.SelectLayer(layer);
+        DrawLayerSelection();
+        e.Handled = true;
+    }
+
     private void LayerOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (ViewModel is not { IsImageLoaded: true } vm || CropOverlay.Visibility == Visibility.Visible) return;
