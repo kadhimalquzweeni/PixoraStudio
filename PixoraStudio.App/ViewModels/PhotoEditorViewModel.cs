@@ -83,6 +83,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         DisposeBitmaps();
         _canvasBitmap = newCanvas;
         _canvasBackgroundColor = backgroundColor;
+        _isLayerDragPreviewActive = false;
+        LayerDragPreviewImage = null;
         ImagePath = null;
         IsImageLoaded = false;
         SetDefaultAdjustments();
@@ -317,9 +319,21 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         ImageWidth = _canvasBitmap.Width;
         ImageHeight = _canvasBitmap.Height;
         CropX = CropY = 0;
-        CropWidth = ResizeWidth = ImageWidth;
-        CropHeight = ResizeHeight = ImageHeight;
-        _resizeAspectRatio = ImageHeight == 0 ? 1f : (float)ImageWidth / ImageHeight;
+
+        // Canvas dimensions and selected-layer dimensions are independent.
+        // Keep the Resize tool focused on the selected layer after a canvas resize.
+        if (SelectedLayer is { } layer)
+        {
+            CropWidth = ResizeWidth = layer.Width;
+            CropHeight = ResizeHeight = layer.Height;
+            _resizeAspectRatio = layer.Height == 0 ? 1f : (float)layer.Width / layer.Height;
+        }
+        else
+        {
+            CropWidth = ResizeWidth = ImageWidth;
+            CropHeight = ResizeHeight = ImageHeight;
+            _resizeAspectRatio = ImageHeight == 0 ? 1f : (float)ImageWidth / ImageHeight;
+        }
     }
 
     private void ApplyTransform(Func<SKBitmap, SKBitmap> transform)
