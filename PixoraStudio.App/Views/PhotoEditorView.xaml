@@ -109,7 +109,9 @@
                 <Grid>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Grid MinWidth="300" MinHeight="300">
-                            <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            <Grid x:Name="DocumentCanvas" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                  Margin="4096" ClipToBounds="False"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Background="{StaticResource TransparencyCheckerboard}">
                                 <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
                                 <Border x:Name="GpuPreviewHost">
@@ -136,8 +138,9 @@
                                     Background="Transparent" Visibility="Collapsed"
                                     MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown" MouseMove="CropOverlay_MouseMove"
                                     MouseLeftButtonUp="CropOverlay_MouseLeftButtonUp"/>
-                                <Canvas x:Name="LayerOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
-                                    Background="Transparent"
+                                <Canvas x:Name="LayerOverlay"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Background="Transparent" ClipToBounds="False"
                                     MouseLeftButtonDown="LayerOverlay_MouseLeftButtonDown" MouseMove="LayerOverlay_MouseMove"
                                     MouseLeftButtonUp="LayerOverlay_MouseLeftButtonUp"/>
                                 <Border BorderBrush="#8BC5FF" BorderThickness="1"
