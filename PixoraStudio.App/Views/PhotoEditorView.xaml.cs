@@ -28,7 +28,9 @@ public partial class PhotoEditorView : UserControl
     private Rect _layerBoundsAtDragStart;
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
-    private bool _gpuRenderingDisabled;
+    private bool _gpuRenderingDisabled = string.Equals(
+        Environment.GetEnvironmentVariable("PIXORA_DISABLE_GPU_PREVIEW"), "1",
+        StringComparison.Ordinal);
 
     private enum DragMode { None, Move, Left, Right, Top, Bottom, TopLeft, TopRight, BottomLeft, BottomRight }
 
@@ -61,6 +63,12 @@ public partial class PhotoEditorView : UserControl
     private void PhotoEditorView_Loaded(object sender, RoutedEventArgs e)
     {
         DrawLayerSelection();
+        if (_gpuRenderingDisabled)
+        {
+            GpuPreview.Visibility = Visibility.Collapsed;
+            CpuPreviewImage.Visibility = Visibility.Visible;
+            return;
+        }
         GpuPreview.InvalidateVisual();
     }
 
