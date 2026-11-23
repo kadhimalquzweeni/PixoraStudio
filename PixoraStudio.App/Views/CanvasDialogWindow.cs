@@ -219,6 +219,38 @@ internal sealed class CanvasDialogWindow : Window
         }
     }
 
+    private static bool TryParseHexColour(string? value, out SKColor colour)
+    {
+        colour = SKColors.Transparent;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var hex = value.Trim();
+        if (hex.StartsWith('#'))
+            hex = hex[1..];
+
+        if (hex.Length == 6 &&
+            byte.TryParse(hex.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte red) &&
+            byte.TryParse(hex.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte green) &&
+            byte.TryParse(hex.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte blue))
+        {
+            colour = new SKColor(red, green, blue);
+            return true;
+        }
+
+        if (hex.Length == 8 &&
+            byte.TryParse(hex.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte alpha) &&
+            byte.TryParse(hex.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out red) &&
+            byte.TryParse(hex.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out green) &&
+            byte.TryParse(hex.AsSpan(6, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out blue))
+        {
+            colour = new SKColor(red, green, blue, alpha);
+            return true;
+        }
+
+        return false;
+    }
+
     private void Confirm_Click(object sender, RoutedEventArgs e)
     {
         if (!int.TryParse(_widthInput.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int width) ||
@@ -244,13 +276,7 @@ internal sealed class CanvasDialogWindow : Window
                     background = SKColors.Black;
                     break;
                 case 3:
-                    try
-                    {
-                        var colour = (Color)ColorConverter.ConvertFromString(
-                            _customColourInput?.Text ?? "#FFFFFF");
-                        background = new SKColor(colour.R, colour.G, colour.B, colour.A);
-                    }
-                    catch (Exception ex) when (ex is FormatException or NotSupportedException or ArgumentException)
+                    if (!TryParseHexColour(_customColourInput?.Text, out background))
                     {
                         _errorText.Text = "Enter a valid colour, for example #4A90E2 or #804A90E2.";
                         return;
