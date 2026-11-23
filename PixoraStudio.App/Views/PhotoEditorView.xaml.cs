@@ -22,8 +22,6 @@ public partial class PhotoEditorView : UserControl
     private const double MinimumCropSize = 8;
     private const double HandleRadius = 7;
     private const double LayerHandleRadius = 6;
-    private const double MinimumLayerOverlayWorkspacePadding = 512;
-    private double _layerOverlayWorkspacePadding = MinimumLayerOverlayWorkspacePadding;
     private const int MinimumLayerSize = 8;
     private Rect _layerSelection;
     private Point _layerDragStart;
@@ -95,49 +93,15 @@ public partial class PhotoEditorView : UserControl
         GpuPreview?.InvalidateVisual();
     }
 
-    /// <summary>
-    /// Gives the selection overlay a large coordinate workspace around the
-    /// document. The document remains fixed-size; only the overlay extends
-    /// beyond its edges so off-canvas handles can render and receive input.
-    /// </summary>
+    /// <summary>Keep the layer handles aligned with document coordinates.</summary>
     private void UpdateLayerOverlayWorkspace()
     {
         if (DocumentCanvas is null || LayerOverlay is null)
             return;
 
-        if (ViewModel is not { } vm)
-        {
-            DocumentCanvas.Margin = new Thickness(_layerOverlayWorkspacePadding);
-            LayerOverlay.Width = 1;
-            LayerOverlay.Height = 1;
-            return;
-        }
-
-        // Grow the workspace to include the selected layer, even when it is
-        // completely outside the document. Keep a little room for the handles.
-        _layerOverlayWorkspacePadding = MinimumLayerOverlayWorkspacePadding;
-        if (vm.SelectedLayer is { } selectedLayer)
-        {
-            var overflow = Math.Max(
-                Math.Max(Math.Max(0, -selectedLayer.X), Math.Max(0, -selectedLayer.Y)),
-                Math.Max(
-                    Math.Max(0, selectedLayer.X + selectedLayer.Width - vm.ImageWidth),
-                    Math.Max(0, selectedLayer.Y + selectedLayer.Height - vm.ImageHeight)));
-            _layerOverlayWorkspacePadding = Math.Max(
-                MinimumLayerOverlayWorkspacePadding, overflow + LayerHandleRadius * 4);
-        }
-
-        // RenderTransform does not contribute to WPF's scroll extent. Include
-        // the scaled document size and workspace in the surrounding layout.
-        var zoom = Math.Max(0.01, vm.Zoom);
-        var horizontalPadding = _layerOverlayWorkspacePadding * zoom +
-            Math.Max(0, vm.ImageWidth * (zoom - 1) / 2);
-        var verticalPadding = _layerOverlayWorkspacePadding * zoom +
-            Math.Max(0, vm.ImageHeight * (zoom - 1) / 2);
-        DocumentCanvas.Margin = new Thickness(
-            horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
-        LayerOverlay.Width = Math.Max(1, vm.ImageWidth + _layerOverlayWorkspacePadding * 2);
-        LayerOverlay.Height = Math.Max(1, vm.ImageHeight + _layerOverlayWorkspacePadding * 2);
+        DocumentCanvas.Margin = new Thickness(0);
+        LayerOverlay.Width = Math.Max(1, ViewModel?.ImageWidth ?? 1);
+        LayerOverlay.Height = Math.Max(1, ViewModel?.ImageHeight ?? 1);
     }
 
     private void ViewModel_PreviewInvalidated(object? sender, EventArgs e)
@@ -477,8 +441,8 @@ public partial class PhotoEditorView : UserControl
         if (ViewModel is not { IsImageLoaded: true } vm || CropOverlay.Visibility == Visibility.Visible) return;
         var overlayPoint = e.GetPosition(LayerOverlay);
         var point = new Point(
-            overlayPoint.X - _layerOverlayWorkspacePadding,
-            overlayPoint.Y - _layerOverlayWorkspacePadding);
+            overlayPoint.X,
+            overlayPoint.Y);
         _layerDragMode = DragMode.None;
         var selected = vm.SelectedLayer;
         if (selected is not null && selected.IsVisible)
@@ -501,8 +465,8 @@ public partial class PhotoEditorView : UserControl
         // Selecting a previously unselected layer may expand the workspace.
         // Recalculate the document-space pointer after that layout change.
         point = new Point(
-            overlayPoint.X - _layerOverlayWorkspacePadding,
-            overlayPoint.Y - _layerOverlayWorkspacePadding);
+            overlayPoint.X,
+            overlayPoint.Y);
         _layerBoundsAtDragStart = new Rect(selected!.X, selected.Y, selected.Width, selected.Height);
         _layerSelection = _layerBoundsAtDragStart;
         _layerDragStart = point;
@@ -518,8 +482,8 @@ public partial class PhotoEditorView : UserControl
         if (!_isLayerDragging || ViewModel?.SelectedLayer is not { } layer) return;
         var overlayPoint = e.GetPosition(LayerOverlay);
         var point = new Point(
-            overlayPoint.X - _layerOverlayWorkspacePadding,
-            overlayPoint.Y - _layerOverlayWorkspacePadding);
+            overlayPoint.X,
+            overlayPoint.Y);
         var dx = point.X - _layerDragStart.X;
         var dy = point.Y - _layerDragStart.Y;
         var bounds = _layerBoundsAtDragStart;
@@ -681,8 +645,8 @@ public partial class PhotoEditorView : UserControl
             StrokeDashArray = [3, 2], Fill = Brushes.Transparent,
             IsHitTestVisible = false
         };
-        Canvas.SetLeft(border, rect.Left + _layerOverlayWorkspacePadding);
-        Canvas.SetTop(border, rect.Top + _layerOverlayWorkspacePadding);
+        Canvas.SetLeft(border, rect.Left);
+        Canvas.SetTop(border, rect.Top);
         LayerOverlay.Children.Add(border);
         var layerBounds = new SKRect((float)rect.Left, (float)rect.Top,
             (float)rect.Right, (float)rect.Bottom);
@@ -696,8 +660,8 @@ public partial class PhotoEditorView : UserControl
                 Fill = Brushes.White, Stroke = Brushes.DodgerBlue, StrokeThickness = 1.5,
                 IsHitTestVisible = false
             };
-            Canvas.SetLeft(handle, point.X + _layerOverlayWorkspacePadding - LayerHandleRadius);
-            Canvas.SetTop(handle, point.Y + _layerOverlayWorkspacePadding - LayerHandleRadius);
+            Canvas.SetLeft(handle, point.X - LayerHandleRadius);
+            Canvas.SetTop(handle, point.Y - LayerHandleRadius);
             LayerOverlay.Children.Add(handle);
         }
     }
