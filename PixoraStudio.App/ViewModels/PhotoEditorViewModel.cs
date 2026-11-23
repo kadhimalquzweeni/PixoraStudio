@@ -517,6 +517,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         ClearHistory();
+        ClearAdditionalLayers();
         DisposeBitmaps();
     }
 
