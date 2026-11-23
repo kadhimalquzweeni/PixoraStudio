@@ -457,7 +457,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Crop()
     {
-        if (_originalBitmap is null) return;
+        if (SelectedLayer is null) return;
         ApplyTransform(bitmap => _imageService.Crop(bitmap,
             new SKRectI(CropX, CropY, checked(CropX + CropWidth), checked(CropY + CropHeight))));
         IsCropMode = false;
@@ -466,7 +466,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Resize()
     {
-        if (_originalBitmap is null) return;
+        if (SelectedLayer is null) return;
         ApplyTransform(bitmap => _imageService.Resize(bitmap, ResizeWidth, ResizeHeight));
     }
 
@@ -510,7 +510,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ResetAdjustments()
     {
-        if (!IsImageLoaded) return;
+        if (!IsImageLoaded || SelectedLayer is null) return;
         var current = GetCurrentAdjustment();
         if (current.Brightness == 0f && current.Contrast == 1f &&
             current.Saturation == 1f && current.Exposure == 0f &&
@@ -520,6 +520,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
         SaveUndoState();
         SetDefaultAdjustments();
+        if (SelectedLayer is not null) SelectedLayer.Adjustment = GetCurrentAdjustment();
         ClearStack(_redoStack);
         UpdateHistoryState();
         RefreshPreview();
