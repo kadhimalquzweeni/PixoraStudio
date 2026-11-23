@@ -6,6 +6,8 @@ using SkiaSharp;
 using System.IO;
 using System.Collections.ObjectModel;
 using PixoraStudio.Core.Imaging;
+using PixoraStudio.Core.Geometry;
+using PixoraStudio.App.Views;
 using System.Windows.Media.Imaging;
 
 namespace PixoraStudio.App.ViewModels;
@@ -95,8 +97,10 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (_canvasBitmap is null)
             throw new InvalidOperationException("Create or open a canvas before resizing it.");
 
-        int offsetX = centreContent ? (int)Math.Floor((width - ImageWidth) / 2d) : 0;
-        int offsetY = centreContent ? (int)Math.Floor((height - ImageHeight) / 2d) : 0;
+        var offset = CanvasResizeOffset.Calculate(
+            ImageWidth, ImageHeight, width, height, centreContent);
+        int offsetX = offset.X;
+        int offsetY = offset.Y;
         var resizedCanvas = ImageDocumentCanvas.Resize(
             _canvasBitmap, width, height, offsetX, offsetY, _canvasBackgroundColor);
 
