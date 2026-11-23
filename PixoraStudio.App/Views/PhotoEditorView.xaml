@@ -121,6 +121,8 @@
                                            Canvas.Top="{Binding LayerDragPreviewY}"
                                            Stretch="Fill"/>
                                 </Canvas>
+                                <Canvas x:Name="SnapGuideOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                    IsHitTestVisible="False"/>
                                 <Canvas x:Name="CropOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
                                     Background="Transparent" Visibility="Collapsed"
                                     MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown" MouseMove="CropOverlay_MouseMove"
