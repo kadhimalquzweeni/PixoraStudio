@@ -3,8 +3,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
         <Style x:Key="ToolButton" TargetType="Button">
-            <Setter Property="Width" Value="48"/><Setter Property="Height" Value="46"/>
-            <Setter Property="Margin" Value="2"/><Setter Property="Background" Value="#292B30"/>
+            <Setter Property="Width" Value="48"/><Setter Property="Height" Value="48"/>
+            <Setter Property="Margin" Value="2"/><Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#D5D7DC"/><Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="19"/><Setter Property="Cursor" Value="Hand"/>
         </Style>
@@ -30,7 +30,7 @@
     </UserControl.Resources>
 
     <Grid Background="#17191E">
-        <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/><RowDefinition Height="42"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="0"/><RowDefinition Height="*"/><RowDefinition Height="46"/></Grid.RowDefinitions>
 
         <Border Background="#22252D" Padding="12,6">
             <DockPanel LastChildFill="True">
@@ -50,30 +50,31 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="56"/>
+                <ColumnDefinition Width="280"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="286"/>
+                <ColumnDefinition Width="88"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="#25272C">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel HorizontalAlignment="Center" Margin="2,8">
-                        <Button Style="{StaticResource ToolButton}" Content="↖" ToolTip="Select" Tag="0" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="⌗" ToolTip="Transform" Tag="1" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="▣" ToolTip="Crop" Tag="2" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="↔" ToolTip="Resize" Tag="3" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="☷" ToolTip="Adjustments" Tag="4" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="◐" ToolTip="Filters" Tag="5" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="✧" ToolTip="Effects" Tag="6" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="◌" ToolTip="Retouch" Tag="7" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="T" ToolTip="Text" Tag="8" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="◇" ToolTip="Shapes" Tag="9" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE8FB;" FontFamily="Segoe MDL2 Assets" ToolTip="Select" Tag="0" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets" ToolTip="Transform" Tag="1" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE7A7;" FontFamily="Segoe MDL2 Assets" ToolTip="Crop" Tag="2" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE9D2;" FontFamily="Segoe MDL2 Assets" ToolTip="Resize" Tag="3" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE9D9;" FontFamily="Segoe MDL2 Assets" ToolTip="Adjustments" Tag="4" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE790;" FontFamily="Segoe MDL2 Assets" ToolTip="Filters" Tag="5" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE734;" FontFamily="Segoe MDL2 Assets" ToolTip="Effects" Tag="6" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE77B;" FontFamily="Segoe MDL2 Assets" ToolTip="Retouch" Tag="7" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE8D2;" FontFamily="Segoe MDL2 Assets" ToolTip="Text" Tag="8" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE7C1;" FontFamily="Segoe MDL2 Assets" ToolTip="Shapes" Tag="9" Click="Tool_Click"/>
                         <Separator Margin="4,8"/>
-                        <Button Style="{StaticResource ToolButton}" Content="▦" ToolTip="Export icon" Tag="10" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets" ToolTip="Export icon" Tag="10" Click="Tool_Click"/>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
 
-            <Border Grid.Column="1" Background="#171819" ClipToBounds="True">
+            <Border Grid.Column="2" Background="#171819" ClipToBounds="True">
                 <Grid>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Grid MinWidth="300" MinHeight="300">
@@ -90,8 +91,8 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Background="#24262B" BorderBrush="#35383F" BorderThickness="1,0,0,0">
-                <Grid Margin="12">
+            <Border Grid.Column="1" x:Name="ToolSettingsBorder" Background="#24262B" BorderBrush="#35383F" BorderThickness="0,0,1,0" Visibility="Collapsed">
+                <Grid x:Name="ToolSettingsPanel" Margin="14">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="1"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Margin="0,0,0,10">
                         <DockPanel>
@@ -111,7 +112,7 @@
                     </StackPanel>
                     <Border Grid.Row="1" Background="#3A3D44"/>
                     <Grid Grid.Row="2" Margin="0,10,0,0">
-                        <TabControl x:Name="ToolSettingsTabs" SelectedIndex="1" Background="Transparent" BorderThickness="0">
+                        <TabControl x:Name="ToolSettingsTabs" SelectedIndex="0" Background="Transparent" BorderThickness="0">
 
                             <TabItem Header="Select"><StackPanel><TextBlock Text="Select" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Choose an editing tool from the toolbar." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
                             <TabItem Header="Transform">
@@ -211,7 +212,24 @@
                     </Grid>
                 </Grid>
             </Border>
-        </Grid>
+            <Border Grid.Column="3" Background="#252629" BorderBrush="#35383F" BorderThickness="1,0,0,0">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" LastChildFill="False">
+                        <TextBlock Text="Layers" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="＋" Width="28" Height="28" Padding="0" Margin="2,0,0,0" ToolTip="Add layer (coming soon)" IsEnabled="False"/>
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" Margin="0,10,0,0">
+                        <Border Background="#30343B" BorderBrush="#168DD0" BorderThickness="1" CornerRadius="4" Padding="5">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="▧" FontSize="25" Foreground="#65BFFF" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding ImagePath, TargetNullValue=Image}" TextTrimming="CharacterEllipsis" FontSize="10" TextAlignment="Center" MaxWidth="66"/>
+                                <TextBlock Text="◉" FontSize="12" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </ScrollViewer>
+                </Grid>
+            </Border>        </Grid>
 
         <Border Grid.Row="2" Background="#22252D" Padding="12,0">
             <DockPanel VerticalAlignment="Center">
