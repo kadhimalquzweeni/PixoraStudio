@@ -8,8 +8,16 @@
             <Setter Property="Foreground" Value="#D5D7DC"/><Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="19"/><Setter Property="Cursor" Value="Hand"/>
         </Style>
-        <Style x:Key="PanelTab" TargetType="TabItem">
-            <Setter Property="Visibility" Value="Collapsed"/>
+        <Style TargetType="TabControl">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ContentPresenter ContentSource="SelectedContent" Margin="0"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#D4D6DE"/>
@@ -108,7 +116,6 @@
                     <Border Grid.Row="1" Background="#3A3D44"/>
                     <Grid Grid.Row="2" Margin="0,10,0,0">
                         <TabControl x:Name="ToolSettingsTabs" SelectedIndex="1" Background="Transparent" BorderThickness="0">
-                            <TabControl.ItemContainerStyle><Style TargetType="TabItem" BasedOn="{StaticResource PanelTab}"/></TabControl.ItemContainerStyle>
 
                             <TabItem Header="Select"><StackPanel><TextBlock Text="Select" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Choose an editing tool from the toolbar." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
                             <TabItem Header="Transform">
