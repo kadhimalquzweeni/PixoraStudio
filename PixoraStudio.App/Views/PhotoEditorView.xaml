@@ -59,6 +59,10 @@
             <Border Grid.Column="0" Background="#25272C">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel HorizontalAlignment="Center" Margin="2,8">
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Back to Home" Click="CloseEditor_Click">
+                            <controls:SvgIcon IconName="house" Width="23" Height="23" Stroke="#C5C5C5"/>
+                        </Button>
+                        <Separator Width="34" Margin="4,8"/>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Select" Tag="0" Click="Tool_Click"><controls:SvgIcon IconName="mouse-pointer-2" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Crop" Tag="2" Click="Tool_Click"><controls:SvgIcon IconName="crop" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
