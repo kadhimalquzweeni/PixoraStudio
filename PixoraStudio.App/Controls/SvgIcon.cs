@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Xml.Linq;
@@ -53,13 +54,15 @@ public sealed class SvgIcon : FrameworkElement
             $"pack://application:,,,/PixoraStudio.App;component/Assets/Icons/{IconName}.svg",
             UriKind.Absolute);
 
-        var resource = Application.GetResourceStream(uri);
-        if (resource is null)
-            return;
-
-        using (resource.Stream)
+        try
         {
-            var document = XDocument.Load(resource.Stream);
+            var resource = Application.GetResourceStream(uri);
+            if (resource is null)
+                return;
+
+            using (resource.Stream)
+            {
+                var document = XDocument.Load(resource.Stream);
             var root = document.Root;
             if (root is null)
                 return;
@@ -103,7 +106,16 @@ public sealed class SvgIcon : FrameworkElement
             var scaleY = ActualHeight / viewHeight;
             drawingContext.PushTransform(new ScaleTransform(scaleX, scaleY));
             drawingContext.DrawDrawing(group);
-            drawingContext.Pop();
+                drawingContext.Pop();
+            }
+        }
+        catch (IOException)
+        {
+            // A missing or unavailable icon must never take down the editor during rendering.
+        }
+        catch (System.Xml.XmlException)
+        {
+            // Ignore malformed SVG assets and keep the rest of the editor usable.
         }
     }
 
