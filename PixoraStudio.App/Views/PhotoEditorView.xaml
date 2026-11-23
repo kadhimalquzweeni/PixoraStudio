@@ -38,7 +38,6 @@
                     <TextBlock Text="PIXORA" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,22,0"/>
                     <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
                     <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
-                    <Button Content="Original" IsEnabled="{Binding IsImageLoaded}" Command="{Binding ResetAdjustmentsCommand}"/>
                     <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
@@ -88,9 +87,6 @@
                             </Grid>
                         </Grid>
                     </ScrollViewer>
-                    <Border Background="#CC202127" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12">
-                        <TextBlock Text="{Binding ImageWidth, StringFormat={}{0} × }" FontSize="11"/>
-                    </Border>
                 </Grid>
             </Border>
 
