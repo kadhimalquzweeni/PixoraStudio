@@ -105,7 +105,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     private EditorSnapshot CaptureSnapshot() =>
-        new(_imageService.CloneImage(SelectedLayer!.Bitmap), SelectedLayer.Adjustment);
+        new(_imageService.CloneImage(SelectedLayer!.Bitmap), GetCurrentAdjustment());
 
     private void PushHistory(Stack<EditorSnapshot> stack, EditorSnapshot snapshot)
     {
@@ -220,6 +220,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             using var transformed = transform(SelectedLayer.Bitmap);
             SaveUndoState();
             SelectedLayer.ReplaceBitmap(_imageService.CloneImage(transformed));
+            SelectedLayer.Adjustment = GetCurrentAdjustment();
             _lastCommittedAdjustment = GetCurrentAdjustment();
             OperationError = null;
             CropX = CropY = 0;
