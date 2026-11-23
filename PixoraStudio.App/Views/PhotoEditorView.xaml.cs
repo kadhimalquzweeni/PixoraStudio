@@ -81,7 +81,7 @@ public partial class PhotoEditorView : UserControl
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PhotoEditorViewModel.ImageWidth) or nameof(PhotoEditorViewModel.ImageHeight))
+        if (e.PropertyName is nameof(PhotoEditorViewModel.ImageWidth) or nameof(PhotoEditorViewModel.ImageHeight) or nameof(PhotoEditorViewModel.Zoom))
             Dispatcher.Invoke(UpdateLayerOverlayWorkspace);
 
         if (e.PropertyName == nameof(PhotoEditorViewModel.SelectedLayer))
@@ -104,15 +104,19 @@ public partial class PhotoEditorView : UserControl
         if (DocumentCanvas is null || LayerOverlay is null)
             return;
 
-        DocumentCanvas.Margin = new Thickness(LayerOverlayWorkspacePadding);
-
         if (ViewModel is not { } vm)
         {
+            DocumentCanvas.Margin = new Thickness(LayerOverlayWorkspacePadding);
             LayerOverlay.Width = 1;
             LayerOverlay.Height = 1;
             return;
         }
 
+        // RenderTransform does not contribute to WPF's scroll extent. Scale
+        // the surrounding layout margin with zoom so the enlarged workspace
+        // remains scrollable while keeping all overlay coordinates in pixels.
+        var scaledPadding = LayerOverlayWorkspacePadding * Math.Max(0.01, vm.Zoom);
+        DocumentCanvas.Margin = new Thickness(scaledPadding);
         LayerOverlay.Width = Math.Max(1, vm.ImageWidth + LayerOverlayWorkspacePadding * 2);
         LayerOverlay.Height = Math.Max(1, vm.ImageHeight + LayerOverlayWorkspacePadding * 2);
     }
