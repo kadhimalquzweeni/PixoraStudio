@@ -3,9 +3,9 @@ using SkiaSharp;
 namespace PixoraStudio.Core.Geometry;
 
 /// <summary>
-/// Keeps a layer's transform handles reachable when its bounds extend beyond
-/// the fixed document canvas. Layer coordinates remain unmodified; only the
-/// on-screen handle centres are clamped to the visible canvas.
+/// Calculates transform handle positions and hit testing in document coordinates.
+/// Handles are deliberately not clamped to the document canvas: layers may
+/// extend beyond the canvas and must remain fully transformable.
 /// </summary>
 public static class LayerSelectionGeometry
 {
@@ -13,32 +13,13 @@ public static class LayerSelectionGeometry
     /// Returns handle centres in clockwise order: top-left, top, top-right,
     /// right, bottom-right, bottom, bottom-left, left.
     /// </summary>
-    public static SKPoint[] GetHandlePoints(SKRect layerBounds, SKRect canvasBounds)
+    public static SKPoint[] GetHandlePoints(SKRect layerBounds)
     {
         ValidateBounds(layerBounds, nameof(layerBounds));
-        ValidateBounds(canvasBounds, nameof(canvasBounds));
-
-        // A fully off-canvas layer has no visible edge to clamp its handles
-        // against. Give it a small transform proxy at the nearest canvas edge
-        // so it can still be resized after selecting it in the Layers panel.
-        if (layerBounds.Right <= canvasBounds.Left || layerBounds.Left >= canvasBounds.Right ||
-            layerBounds.Bottom <= canvasBounds.Top || layerBounds.Top >= canvasBounds.Bottom)
-        {
-            var proxyWidth = Math.Min(32f, canvasBounds.Width);
-            var proxyHeight = Math.Min(32f, canvasBounds.Height);
-            var proxyCentreX = Math.Clamp(layerBounds.MidX, canvasBounds.Left, canvasBounds.Right);
-            var proxyCentreY = Math.Clamp(layerBounds.MidY, canvasBounds.Top, canvasBounds.Bottom);
-            var proxyLeft = Math.Clamp(proxyCentreX - proxyWidth / 2f,
-                canvasBounds.Left, canvasBounds.Right - proxyWidth);
-            var proxyTop = Math.Clamp(proxyCentreY - proxyHeight / 2f,
-                canvasBounds.Top, canvasBounds.Bottom - proxyHeight);
-            layerBounds = new SKRect(proxyLeft, proxyTop,
-                proxyLeft + proxyWidth, proxyTop + proxyHeight);
-        }
 
         var centreX = layerBounds.MidX;
         var centreY = layerBounds.MidY;
-        SKPoint[] points =
+        return
         [
             new(layerBounds.Left, layerBounds.Top),
             new(centreX, layerBounds.Top),
@@ -49,28 +30,20 @@ public static class LayerSelectionGeometry
             new(layerBounds.Left, layerBounds.Bottom),
             new(layerBounds.Left, centreY)
         ];
-
-        for (var i = 0; i < points.Length; i++)
-        {
-            points[i] = new SKPoint(
-                Math.Clamp(points[i].X, canvasBounds.Left, canvasBounds.Right),
-                Math.Clamp(points[i].Y, canvasBounds.Top, canvasBounds.Bottom));
-        }
-
-        return points;
     }
 
     /// <summary>
-    /// Returns the index of the nearest reachable handle within the supplied
-    /// hit radius, or null when the pointer is not over a handle.
+    /// Returns the nearest handle index within the supplied hit radius,
+    /// or null when the pointer is not over a handle.
     /// </summary>
-    public static int? FindHandle(
-        SKPoint point, SKRect layerBounds, SKRect canvasBounds, float hitRadius)
+    public static int? FindHandle(SKPoint point, SKRect layerBounds, float hitRadius)
     {
+        if (!float.IsFinite(point.X) || !float.IsFinite(point.Y))
+            throw new ArgumentOutOfRangeException(nameof(point));
         if (hitRadius < 0 || !float.IsFinite(hitRadius))
             throw new ArgumentOutOfRangeException(nameof(hitRadius));
 
-        var handles = GetHandlePoints(layerBounds, canvasBounds);
+        var handles = GetHandlePoints(layerBounds);
         var maximumDistanceSquared = hitRadius * hitRadius;
         var bestIndex = -1;
         var bestDistanceSquared = float.PositiveInfinity;
