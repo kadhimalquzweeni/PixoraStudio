@@ -14,6 +14,9 @@
                 <Button Content="Export Image" Command="{Binding SaveImageCommand}"
                         Background="#3478D4" Foreground="White" Padding="15,5"
                         BorderThickness="0" DockPanel.Dock="Right"/>
+                <Button Content="Export Icon" Command="{Binding ExportIconCommand}"
+                        Background="#4A5365" Foreground="White" Padding="15,5"
+                        BorderThickness="0" Margin="0,0,8,0" DockPanel.Dock="Right"/>
                 <StackPanel Orientation="Horizontal">
                     <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" Margin="0,0,5,0"/>
                     <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" Margin="0,0,15,0"/>
@@ -116,6 +119,19 @@
                             <Button Content="Apply rotation" Command="{Binding ApplyRotationCommand}" Background="#3478D4" Foreground="White" Margin="2"/>
                         </UniformGrid>
 
+                        <Separator Margin="0,12"/>
+                        <TextBlock Text="Create Windows icon (.ico)" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <TextBlock Text="Export the current edited image as a multi-size icon. Transparent padding preserves the image proportions." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,8"/>
+                        <UniformGrid Columns="4">
+                            <CheckBox Content="16 px" IsChecked="{Binding IconSize16}" Foreground="#D4D6DE" Margin="2"/>
+                            <CheckBox Content="24 px" IsChecked="{Binding IconSize24}" Foreground="#D4D6DE" Margin="2"/>
+                            <CheckBox Content="32 px" IsChecked="{Binding IconSize32}" Foreground="#D4D6DE" Margin="2"/>
+                            <CheckBox Content="48 px" IsChecked="{Binding IconSize48}" Foreground="#D4D6DE" Margin="2"/>
+                            <CheckBox Content="64 px" IsChecked="{Binding IconSize64}" Foreground="#D4D6DE" Margin="2"/>
+                            <CheckBox Content="128 px" IsChecked="{Binding IconSize128}" Foreground="#D4D6DE" Margin="2"/>
+                            <CheckBox Content="256 px" IsChecked="{Binding IconSize256}" Foreground="#D4D6DE" Margin="2"/>
+                        </UniformGrid>
+                        <Button Content="Export selected icon sizes" Command="{Binding ExportIconCommand}" Background="#3478D4" Foreground="White" Margin="2,8,2,2"/>
                         <Separator Margin="0,12"/>
                         <TextBlock Text="Adjustments" Foreground="White" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,12"/>
                         <DockPanel><TextBlock Text="Brightness" Foreground="#D4D6DE"/><TextBlock Text="{Binding Brightness, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
