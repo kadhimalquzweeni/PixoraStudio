@@ -62,15 +62,16 @@ public partial class PhotoEditorView : UserControl
 
     private void StartCrop_Click(object sender, RoutedEventArgs e)
     {
-        if (ViewModel is not { IsImageLoaded: true } vm || vm.ImageWidth < 1 || vm.ImageHeight < 1)
+        if (ViewModel is not { IsImageLoaded: true, SelectedLayer: { } layer } vm ||
+            layer.Width < 1 || layer.Height < 1)
             return;
 
-        var insetX = Math.Max(1, vm.ImageWidth * 0.1);
-        var insetY = Math.Max(1, vm.ImageHeight * 0.1);
-        _cropSelection = new Rect(insetX, insetY,
-            Math.Max(MinimumCropSize, vm.ImageWidth - insetX * 2),
-            Math.Max(MinimumCropSize, vm.ImageHeight - insetY * 2));
-        _cropSelection.Intersect(new Rect(0, 0, vm.ImageWidth, vm.ImageHeight));
+        var insetX = Math.Max(1, layer.Width * 0.1);
+        var insetY = Math.Max(1, layer.Height * 0.1);
+        _cropSelection = new Rect(layer.X + insetX, layer.Y + insetY,
+            Math.Max(MinimumCropSize, layer.Width - insetX * 2),
+            Math.Max(MinimumCropSize, layer.Height - insetY * 2));
+        _cropSelection.Intersect(new Rect(layer.X, layer.Y, layer.Width, layer.Height));
         _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
         CropOverlay.Visibility = Visibility.Visible;
         LayerOverlay.Visibility = Visibility.Collapsed;
@@ -106,14 +107,15 @@ public partial class PhotoEditorView : UserControl
             item.Tag is not string tag || tag == "free")
             return selection;
 
+        if (vm.SelectedLayer is not { } layer) return selection;
         float ratio = tag == "original"
-            ? (float)vm.ImageWidth / Math.Max(1, vm.ImageHeight)
+            ? (float)layer.Width / Math.Max(1, layer.Height)
             : float.Parse(tag, System.Globalization.CultureInfo.InvariantCulture);
 
         var adjusted = CropSelectionGeometry.ConstrainToAspectRatio(
             new SKRect((float)selection.Left, (float)selection.Top,
                        (float)selection.Right, (float)selection.Bottom),
-            new SKRect(0, 0, vm.ImageWidth, vm.ImageHeight), ratio);
+            new SKRect(layer.X, layer.Y, layer.X + layer.Width, layer.Y + layer.Height), ratio);
 
         return new Rect(adjusted.Left, adjusted.Top, adjusted.Width, adjusted.Height);
     }
@@ -144,7 +146,8 @@ public partial class PhotoEditorView : UserControl
         var point = e.GetPosition(CropOverlay);
         var dx = point.X - _dragStart.X;
         var dy = point.Y - _dragStart.Y;
-        var bounds = new Rect(0, 0, vm.ImageWidth, vm.ImageHeight);
+        if (vm.SelectedLayer is not { } layer) return;
+        var bounds = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
         var selection = _selectionAtDragStart;
 
         switch (_dragMode)
@@ -288,8 +291,9 @@ public partial class PhotoEditorView : UserControl
     private void UpdateCropCoordinates()
     {
         if (ViewModel is not { } vm) return;
-        vm.CropX = Math.Max(0, (int)Math.Round(_cropSelection.Left));
-        vm.CropY = Math.Max(0, (int)Math.Round(_cropSelection.Top));
+        if (vm.SelectedLayer is not { } layer) return;
+        vm.CropX = Math.Max(0, (int)Math.Round(_cropSelection.Left - layer.X));
+        vm.CropY = Math.Max(0, (int)Math.Round(_cropSelection.Top - layer.Y));
         vm.CropWidth = Math.Max(1, (int)Math.Round(_cropSelection.Width));
         vm.CropHeight = Math.Max(1, (int)Math.Round(_cropSelection.Height));
     }
