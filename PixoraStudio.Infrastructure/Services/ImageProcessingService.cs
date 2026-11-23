@@ -144,6 +144,8 @@ public class ImageProcessingService : IImageProcessingService
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(sizes);
+        if (source.Width <= 0 || source.Height <= 0)
+            throw new ArgumentException("The source image must have non-zero dimensions.", nameof(source));
 
         int[] orderedSizes = sizes.Distinct().Order().ToArray();
         if (orderedSizes.Length == 0)
