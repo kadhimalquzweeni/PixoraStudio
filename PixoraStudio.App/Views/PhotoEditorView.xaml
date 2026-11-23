@@ -59,17 +59,21 @@
             <DockPanel LastChildFill="True">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                     <TextBlock Text="PIXORA" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                    <Button Content="Open image" Command="{Binding OpenImageCommand}"
+                    <Button Content="New Canvas" Command="{Binding NewCanvasCommand}"
                             Background="#087FC4" Foreground="White" Padding="12,6"
-                            ToolTip="Open another image"/>
+                            ToolTip="Create a blank canvas"/>
+                    <Button Content="Canvas Size" Command="{Binding ResizeCanvasCommand}"
+                            IsEnabled="{Binding IsImageLoaded}" ToolTip="Change the document canvas dimensions"/>
+                    <Button Content="Open image" Command="{Binding OpenImageCommand}"
+                            ToolTip="Open an image as a new document"/>
                     <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
                     <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
                     <CheckBox Content="Snap" IsChecked="{Binding IsSnappingEnabled}" Foreground="White" VerticalAlignment="Center" Margin="8,2" ToolTip="Snap layers to the canvas and other layers"/>
                     <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button Content="Export icon" Command="{Binding ExportIconCommand}"/>
-                    <Button Content="Save image" Command="{Binding SaveImageCommand}" Background="#087FC4" Foreground="White" Padding="16,6"/>
+                    <Button Content="Export icon" Command="{Binding ExportIconCommand}" IsEnabled="{Binding IsImageLoaded}"/>
+                    <Button Content="Save image" Command="{Binding SaveImageCommand}" IsEnabled="{Binding IsImageLoaded}" Background="#087FC4" Foreground="White" Padding="16,6"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -148,6 +152,32 @@
                             </Grid>
                         </Grid>
                     </ScrollViewer>
+
+                    <Border Background="#17191E" Panel.ZIndex="10">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsImageLoaded}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440">
+                            <TextBlock Text="Start with a canvas" FontSize="26" FontWeight="SemiBold"
+                                       Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Create a blank document, or open an image to begin editing."
+                                       Foreground="#A0A3AD" TextWrapping="Wrap" TextAlignment="Center"
+                                       Margin="0,10,0,22"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="＋  New Canvas" Command="{Binding NewCanvasCommand}"
+                                        Background="#087FC4" Foreground="White" Padding="18,10"/>
+                                <Button Content="Open image" Command="{Binding OpenImageCommand}"
+                                        Padding="18,10" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 
@@ -268,6 +298,7 @@
                     <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
                         <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <Button Content="+ Add Image" Command="{Binding AddImageLayerCommand}"
+                                IsEnabled="{Binding IsImageLoaded}"
                                 Background="#087FC4" Foreground="White" Padding="9,5" Margin="12,0,0,0"/>
                     </DockPanel>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
