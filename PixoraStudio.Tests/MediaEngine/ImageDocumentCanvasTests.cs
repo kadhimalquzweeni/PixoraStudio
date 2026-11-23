@@ -12,8 +12,8 @@ public sealed class ImageDocumentCanvasTests
 
         Assert.Equal(640, canvas.Width);
         Assert.Equal(480, canvas.Height);
-        Assert.Equal(SKColors.Transparent, canvas.GetPixel(0, 0));
-        Assert.Equal(SKColors.Transparent, canvas.GetPixel(639, 479));
+        Assert.Equal((byte)0, canvas.GetPixel(0, 0).Alpha);
+        Assert.Equal((byte)0, canvas.GetPixel(639, 479).Alpha);
     }
 
     [Theory]

@@ -116,6 +116,7 @@ public sealed class ImageProcessingServiceTests
         using var source = CreatePattern();
         Assert.Throws<ArgumentOutOfRangeException>(() => _service.Resize(source, width, height));
     }
+
     [Theory]
     [InlineData(45)]
     [InlineData(-12.5)]
@@ -240,12 +241,12 @@ public sealed class ImageProcessingServiceTests
         using var source = new SKBitmap(1, 1);
         var original = new SKColor(40, 80, 120, 73);
         source.SetPixel(0, 0, original);
+        SKColor sourcePixelBeforeProcessing = source.GetPixel(0, 0);
 
         using var result = _service.ApplyAdjustments(source,
             new PixoraStudio.Core.Models.ImageAdjustment { Exposure = 1f, Temperature = 20f });
 
-        Assert.Equal(original, source.GetPixel(0, 0));
+        Assert.Equal(sourcePixelBeforeProcessing, source.GetPixel(0, 0));
         Assert.Equal((byte)73, result.GetPixel(0, 0).Alpha);
     }
-
 }

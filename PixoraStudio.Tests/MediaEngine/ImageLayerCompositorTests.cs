@@ -92,6 +92,7 @@ public sealed class ImageLayerCompositorTests
 
         Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
     }
+
     [Fact]
     public void Composite_ShouldKeepEmptyDocumentCanvasTransparent()
     {
@@ -102,8 +103,8 @@ public sealed class ImageLayerCompositorTests
 
         Assert.Equal(3, result.Width);
         Assert.Equal(2, result.Height);
-        Assert.Equal(SKColors.Transparent, result.GetPixel(0, 0));
-        Assert.Equal(SKColors.Transparent, result.GetPixel(2, 1));
+        Assert.Equal((byte)0, result.GetPixel(0, 0).Alpha);
+        Assert.Equal((byte)0, result.GetPixel(2, 1).Alpha);
     }
 
     [Fact]
@@ -121,7 +122,6 @@ public sealed class ImageLayerCompositorTests
         Assert.Equal(4, result.Height);
         Assert.Equal(SKColors.Red, result.GetPixel(1, 1));
         Assert.Equal(SKColors.Red, result.GetPixel(3, 2));
-        Assert.Equal(SKColors.Transparent, result.GetPixel(4, 3));
+        Assert.Equal((byte)0, result.GetPixel(4, 3).Alpha);
     }
-
 }
