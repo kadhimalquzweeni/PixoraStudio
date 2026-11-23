@@ -1,6 +1,7 @@
 using PixoraStudio.Core.Imaging;
 using PixoraStudio.Core.Models;
 using SkiaSharp;
+using PixoraStudio.Infrastructure.Services;
 
 namespace PixoraStudio.Tests.MediaEngine;
 
@@ -132,6 +133,43 @@ public sealed class GpuImageRendererTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             GpuImageRenderer.Render(skCanvas, width, height, []));
+    }
+
+    [Fact]
+    public void Render_Adjustments_ShouldMatchCpuProcessingForRepresentativeCases()
+    {
+        using var source = new SKBitmap(3, 1, SKColorType.Rgba8888, SKAlphaType.Premul);
+        source.SetPixel(0, 0, new SKColor(35, 60, 95));
+        source.SetPixel(1, 0, new SKColor(160, 120, 80, 180));
+        source.SetPixel(2, 0, new SKColor(210, 225, 240));
+
+        ImageAdjustment[] adjustments =
+        [
+            new() { Brightness = 17f, Contrast = 1.2f, Saturation = 0.65f, Exposure = 0.4f },
+            new() { Highlights = -65f, Shadows = 55f },
+            new() { Temperature = 75f, Tint = -30f },
+            new() { Brightness = -12f, Contrast = 0.8f, Filter = ImageFilter.Grayscale },
+            new() { Saturation = 1.4f, Temperature = 20f, Tint = 35f, Filter = ImageFilter.Sepia }
+        ];
+
+        var cpuService = new ImageProcessingService();
+        foreach (var adjustment in adjustments)
+        {
+            using var expected = cpuService.ApplyAdjustments(source, adjustment);
+            using var actual = Render(source.Width, source.Height,
+                new GpuImageLayer(source, 0, 0, source.Width, source.Height, true, adjustment));
+
+            for (int x = 0; x < source.Width; x++)
+            {
+                var expectedPixel = expected.GetPixel(x, 0);
+                var actualPixel = actual.GetPixel(x, 0);
+
+                Assert.Equal(expectedPixel.Alpha, actualPixel.Alpha);
+                Assert.InRange(Math.Abs(expectedPixel.Red - actualPixel.Red), 0, 2);
+                Assert.InRange(Math.Abs(expectedPixel.Green - actualPixel.Green), 0, 2);
+                Assert.InRange(Math.Abs(expectedPixel.Blue - actualPixel.Blue), 0, 2);
+            }
+        }
     }
 
     [Fact]

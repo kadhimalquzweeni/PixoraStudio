@@ -113,11 +113,11 @@
                             <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Background="{StaticResource TransparencyCheckerboard}">
                                 <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
-                                <Image x:Name="CpuPreviewImage" Source="{Binding PreviewImage}"
-                                       Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
                                 <skia:SKGLElement x:Name="GpuPreview"
                                                   Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
                                                   PaintSurface="GpuPreview_PaintSurface"/>
+                                <Image x:Name="CpuPreviewImage" Source="{Binding PreviewImage}"
+                                       Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
                                 <Canvas Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
                                         IsHitTestVisible="False">
                                     <Image Source="{Binding LayerDragPreviewImage}"
