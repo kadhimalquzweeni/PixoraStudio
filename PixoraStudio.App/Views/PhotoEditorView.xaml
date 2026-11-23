@@ -112,6 +112,15 @@
                                   Background="{StaticResource TransparencyCheckerboard}">
                                 <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
                                 <Image Source="{Binding PreviewImage}" Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
+                                <Canvas Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                        IsHitTestVisible="False">
+                                    <Image Source="{Binding LayerDragPreviewImage}"
+                                           Width="{Binding LayerDragPreviewWidth}"
+                                           Height="{Binding LayerDragPreviewHeight}"
+                                           Canvas.Left="{Binding LayerDragPreviewX}"
+                                           Canvas.Top="{Binding LayerDragPreviewY}"
+                                           Stretch="Fill"/>
+                                </Canvas>
                                 <Canvas x:Name="CropOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
                                     Background="Transparent" Visibility="Collapsed"
                                     MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown" MouseMove="CropOverlay_MouseMove"
