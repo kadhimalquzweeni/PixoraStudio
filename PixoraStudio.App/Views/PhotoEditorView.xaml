@@ -53,7 +53,7 @@
                 <ColumnDefinition Width="56"/>
                 <ColumnDefinition x:Name="ToolSettingsColumn" Width="0"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="88"/>
+                <ColumnDefinition Width="176"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="#25272C">
@@ -205,21 +205,51 @@
                 </Grid>
             </Border>
             <Border Grid.Column="3" Background="#252629" BorderBrush="#35383F" BorderThickness="1,0,0,0">
-                <Grid Margin="8">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" LastChildFill="False">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><controls:SvgIcon IconName="layers" Width="18" Height="18" Stroke="#AEB4BF" Margin="0,0,6,0"/><TextBlock Text="Layers" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
-                        <Button Width="28" Height="28" Padding="0" Margin="2,0,0,0" ToolTip="Add layer (coming soon)" IsEnabled="False"><controls:SvgIcon IconName="layers-plus" Width="18" Height="18" Stroke="#AEB4BF"/></Button>
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,14">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:SvgIcon IconName="layers" Width="19" Height="19" Stroke="#AEB4BF" Margin="0,0,8,0"/>
+                            <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Button Width="28" Height="28" Padding="0" Margin="8,0,0,0"
+                                ToolTip="Add layer (coming soon)" IsEnabled="False">
+                            <controls:SvgIcon IconName="layers-plus" Width="18" Height="18" Stroke="#AEB4BF"/>
+                        </Button>
                     </DockPanel>
-                    <ScrollViewer Grid.Row="1" Margin="0,10,0,0">
-                        <Border Background="#30343B" BorderBrush="#168DD0" BorderThickness="1" CornerRadius="4" Padding="5">
-                            <StackPanel HorizontalAlignment="Center">
-                                <controls:SvgIcon IconName="layers" Width="28" Height="28" Stroke="#65BFFF" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{Binding ImagePath, TargetNullValue=Image}" TextTrimming="CharacterEllipsis" FontSize="10" TextAlignment="Center" MaxWidth="66"/>
-                                <TextBlock Text="◉" FontSize="12" HorizontalAlignment="Center"/>
+
+                    <Border Grid.Row="1" Background="#30343B" BorderBrush="#168DD0"
+                            BorderThickness="1" CornerRadius="5" Padding="9"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="68"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="#25282E" CornerRadius="3"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <controls:SvgIcon IconName="image" Width="30" Height="30"
+                                                  Stroke="#65BFFF" HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Grid.Row="1" Text="{Binding ImagePath, TargetNullValue=Image}"
+                                       TextTrimming="CharacterEllipsis" FontSize="11"
+                                       TextAlignment="Center" Margin="0,8,0,4"
+                                       ToolTip="{Binding ImagePath}"/>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal"
+                                        HorizontalAlignment="Center" Margin="0,3,0,0">
+                                <controls:SvgIcon IconName="eye" Width="13" Height="13"
+                                                  Stroke="#AEB4BF" Margin="0,0,5,0"/>
+                                <TextBlock Text="Visible" FontSize="10" Foreground="#AEB4BF"/>
                             </StackPanel>
-                        </Border>
-                    </ScrollViewer>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>        </Grid>
 
