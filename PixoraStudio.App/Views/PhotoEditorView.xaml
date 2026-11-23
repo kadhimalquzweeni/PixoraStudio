@@ -1,12 +1,13 @@
 <UserControl x:Class="PixoraStudio.App.Views.PhotoEditorView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixoraStudio.App.Controls">
     <UserControl.Resources>
         <Style x:Key="ToolButton" TargetType="Button">
             <Setter Property="Width" Value="48"/><Setter Property="Height" Value="48"/>
             <Setter Property="Margin" Value="2"/><Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#D5D7DC"/><Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="19"/><Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="19"/><Setter Property="Cursor" Value="Hand"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style TargetType="TabControl">
             <Setter Property="Template">
@@ -58,18 +59,18 @@
             <Border Grid.Column="0" Background="#25272C">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel HorizontalAlignment="Center" Margin="2,8">
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE8FB;" FontFamily="Segoe MDL2 Assets" ToolTip="Select" Tag="0" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE7C3;" FontFamily="Segoe MDL2 Assets" ToolTip="Transform" Tag="1" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE7A7;" FontFamily="Segoe MDL2 Assets" ToolTip="Crop" Tag="2" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE9D2;" FontFamily="Segoe MDL2 Assets" ToolTip="Resize" Tag="3" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE9D9;" FontFamily="Segoe MDL2 Assets" ToolTip="Adjustments" Tag="4" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE790;" FontFamily="Segoe MDL2 Assets" ToolTip="Filters" Tag="5" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE734;" FontFamily="Segoe MDL2 Assets" ToolTip="Effects" Tag="6" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE77B;" FontFamily="Segoe MDL2 Assets" ToolTip="Retouch" Tag="7" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE8D2;" FontFamily="Segoe MDL2 Assets" ToolTip="Text" Tag="8" Click="Tool_Click"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE7C1;" FontFamily="Segoe MDL2 Assets" ToolTip="Shapes" Tag="9" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Select" Tag="0" Click="Tool_Click"><controls:SvgIcon IconName="mouse-pointer-2" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Crop" Tag="2" Click="Tool_Click"><controls:SvgIcon IconName="crop" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Resize" Tag="3" Click="Tool_Click"><controls:SvgIcon IconName="maximize" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Adjustments" Tag="4" Click="Tool_Click"><controls:SvgIcon IconName="sliders-horizontal" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Filters" Tag="5" Click="Tool_Click"><controls:SvgIcon IconName="contrast" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Effects" Tag="6" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Retouch" Tag="7" Click="Tool_Click"><controls:SvgIcon IconName="eraser" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Text" Tag="8" Click="Tool_Click"><controls:SvgIcon IconName="type" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Shapes" Tag="9" Click="Tool_Click"><controls:SvgIcon IconName="shapes" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Separator Margin="4,8"/>
-                        <Button Style="{StaticResource ToolButton}" Content="&#xE8A5;" FontFamily="Segoe MDL2 Assets" ToolTip="Export icon" Tag="10" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Export icon" Tag="10" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -203,13 +204,13 @@
                 <Grid Margin="8">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" LastChildFill="False">
-                        <TextBlock Text="Layers" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Content="＋" Width="28" Height="28" Padding="0" Margin="2,0,0,0" ToolTip="Add layer (coming soon)" IsEnabled="False"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><controls:SvgIcon IconName="layers" Width="18" Height="18" Stroke="#AEB4BF" Margin="0,0,6,0"/><TextBlock Text="Layers" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
+                        <Button Width="28" Height="28" Padding="0" Margin="2,0,0,0" ToolTip="Add layer (coming soon)" IsEnabled="False"><controls:SvgIcon IconName="layers-plus" Width="18" Height="18" Stroke="#AEB4BF"/></Button>
                     </DockPanel>
                     <ScrollViewer Grid.Row="1" Margin="0,10,0,0">
                         <Border Background="#30343B" BorderBrush="#168DD0" BorderThickness="1" CornerRadius="4" Padding="5">
                             <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="▧" FontSize="25" Foreground="#65BFFF" HorizontalAlignment="Center"/>
+                                <controls:SvgIcon IconName="layers" Width="28" Height="28" Stroke="#65BFFF" HorizontalAlignment="Center"/>
                                 <TextBlock Text="{Binding ImagePath, TargetNullValue=Image}" TextTrimming="CharacterEllipsis" FontSize="10" TextAlignment="Center" MaxWidth="66"/>
                                 <TextBlock Text="◉" FontSize="12" HorizontalAlignment="Center"/>
                             </StackPanel>
