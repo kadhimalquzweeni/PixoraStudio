@@ -70,8 +70,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         ClearAdditionalLayers();
         DisposeBitmaps();
         var firstImage = _imageService.LoadImage(filePath);
-        _canvasBitmap = new SKBitmap(firstImage.Width, firstImage.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        _canvasBitmap.Erase(SKColors.Transparent);
+        _canvasBitmap = ImageDocumentCanvas.Create(firstImage.Width, firstImage.Height);
         ImagePath = filePath;
         IsImageLoaded = false;
         SetDefaultAdjustments();
