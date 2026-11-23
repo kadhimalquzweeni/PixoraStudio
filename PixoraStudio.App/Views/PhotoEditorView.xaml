@@ -213,14 +213,8 @@
                     </Grid.RowDefinitions>
 
                     <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,14">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <controls:SvgIcon IconName="layers" Width="19" Height="19" Stroke="#AEB4BF" Margin="0,0,8,0"/>
-                            <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <Button Width="28" Height="28" Padding="0" Margin="8,0,0,0"
-                                ToolTip="Add layer (coming soon)" IsEnabled="False">
-                            <controls:SvgIcon IconName="layers-plus" Width="18" Height="18" Stroke="#AEB4BF"/>
-                        </Button>
+                        <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
                     </DockPanel>
 
                     <Border Grid.Row="1" Background="#30343B" BorderBrush="#168DD0"
