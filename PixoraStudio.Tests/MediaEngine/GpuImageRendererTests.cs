@@ -21,7 +21,7 @@ public sealed class GpuImageRendererTests
     {
         var output = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(output);
-        GpuImageRenderer.Render(canvas, width, height, layers);
+        GpuImageRenderer.Render(canvas, width, height, layers, checkerboardBackground: false);
         return output;
     }
 
@@ -170,6 +170,20 @@ public sealed class GpuImageRendererTests
                 Assert.InRange(Math.Abs(expectedPixel.Blue - actualPixel.Blue), 0, 2);
             }
         }
+    }
+
+    [Fact]
+    public void Render_ShouldDrawCheckerboardBehindTransparentLayers()
+    {
+        using var output = new SKBitmap(24, 24, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using var canvas = new SKCanvas(output);
+
+        GpuImageRenderer.Render(canvas, 24, 24, []);
+
+        Assert.Equal(new SKColor(216, 216, 216), output.GetPixel(0, 0));
+        Assert.Equal(new SKColor(240, 240, 240), output.GetPixel(12, 0));
+        Assert.Equal(new SKColor(240, 240, 240), output.GetPixel(0, 12));
+        Assert.Equal(new SKColor(216, 216, 216), output.GetPixel(12, 12));
     }
 
     [Fact]

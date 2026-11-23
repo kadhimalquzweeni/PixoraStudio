@@ -91,14 +91,17 @@ public static class GpuImageRenderer
         new(SKFilterMode.Linear, SKMipmapMode.Linear);
 
     /// <summary>
-    /// Clears the document to transparent and draws visible layers in the
-    /// supplied bottom-to-top order, clipping all content to the document.
+    /// Draws visible layers in the supplied bottom-to-top order, clipping all
+    /// content to the document. The preview uses the editor's checkerboard so
+    /// transparent pixels remain visible even though SKGLElement's default
+    /// OpenGL/DirectX interop surface is opaque.
     /// </summary>
     public static void Render(
         SKCanvas canvas,
         int documentWidth,
         int documentHeight,
-        IReadOnlyCollection<GpuImageLayer> layers)
+        IReadOnlyCollection<GpuImageLayer> layers,
+        bool checkerboardBackground = true)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(layers);
@@ -111,7 +114,25 @@ public static class GpuImageRenderer
         try
         {
             canvas.ClipRect(new SKRect(0, 0, documentWidth, documentHeight));
-            canvas.Clear(SKColors.Transparent);
+            if (checkerboardBackground)
+            {
+                canvas.Clear(new SKColor(240, 240, 240));
+                using var checkerPaint = new SKPaint
+                {
+                    Color = new SKColor(216, 216, 216),
+                    IsAntialias = false
+                };
+                for (int y = 0; y < documentHeight; y += 12)
+                for (int x = 0; x < documentWidth; x += 12)
+                {
+                    if (((x / 12) + (y / 12)) % 2 == 0)
+                        canvas.DrawRect(new SKRect(x, y, x + 12, y + 12), checkerPaint);
+                }
+            }
+            else
+            {
+                canvas.Clear(SKColors.Transparent);
+            }
 
             foreach (var layer in layers)
             {
