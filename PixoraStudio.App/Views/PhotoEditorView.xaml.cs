@@ -382,15 +382,22 @@ public partial class PhotoEditorView : UserControl
             x += dx;
             y += dy;
 
-            var zoom = Math.Max(0.01, ViewModel?.Zoom ?? 1d);
-            var otherLayers = ViewModel!.AdditionalLayers
-                .Where(other => !ReferenceEquals(other, layer) && other.IsVisible)
-                .Select(other => new LayerSnapBounds(other.X, other.Y, other.Width, other.Height));
-            var snapped = LayerSnapping.Snap(x, y, width, height,
-                ViewModel.ImageWidth, ViewModel.ImageHeight, otherLayers, 8d / zoom);
-            x = snapped.X;
-            y = snapped.Y;
-            DrawSnapGuides(snapped.VerticalGuide, snapped.HorizontalGuide);
+            if (ViewModel is { IsSnappingEnabled: true } vm)
+            {
+                var zoom = Math.Max(0.01, vm.Zoom);
+                var otherLayers = vm.AdditionalLayers
+                    .Where(other => !ReferenceEquals(other, layer) && other.IsVisible)
+                    .Select(other => new LayerSnapBounds(other.X, other.Y, other.Width, other.Height));
+                var snapped = LayerSnapping.Snap(x, y, width, height,
+                    vm.ImageWidth, vm.ImageHeight, otherLayers, 8d / zoom);
+                x = snapped.X;
+                y = snapped.Y;
+                DrawSnapGuides(snapped.VerticalGuide, snapped.HorizontalGuide);
+            }
+            else
+            {
+                SnapGuideOverlay.Children.Clear();
+            }
         }
         else
         {
