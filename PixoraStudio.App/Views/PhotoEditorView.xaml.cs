@@ -19,6 +19,13 @@ public partial class PhotoEditorView : UserControl
     private bool _isDragging;
     private const double MinimumCropSize = 8;
     private const double HandleRadius = 7;
+    private const double LayerHandleRadius = 6;
+    private const int MinimumLayerSize = 8;
+    private Rect _layerSelection;
+    private Point _layerDragStart;
+    private Rect _layerBoundsAtDragStart;
+    private DragMode _layerDragMode;
+    private bool _isLayerDragging;
 
     private enum DragMode { None, Move, Left, Right, Top, Bottom, TopLeft, TopRight, BottomLeft, BottomRight }
 
@@ -283,6 +290,172 @@ public partial class PhotoEditorView : UserControl
         vm.CropY = Math.Max(0, (int)Math.Round(_cropSelection.Top));
         vm.CropWidth = Math.Max(1, (int)Math.Round(_cropSelection.Width));
         vm.CropHeight = Math.Max(1, (int)Math.Round(_cropSelection.Height));
+    }
+
+
+    private void LayerOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ViewModel is not { IsImageLoaded: true } vm || CropOverlay.Visibility == Visibility.Visible) return;
+        var point = e.GetPosition(LayerOverlay);
+        var selected = vm.SelectedLayer;
+        if (selected is not null && selected.IsVisible)
+        {
+            var current = new Rect(selected.X, selected.Y, selected.Width, selected.Height);
+            _layerDragMode = GetLayerDragMode(point, current);
+        }
+        if (_layerDragMode == DragMode.None)
+        {
+            selected = vm.HitTestLayer(point.X, point.Y);
+            vm.SelectLayer(selected);
+            if (selected is null)
+            {
+                LayerOverlay.Children.Clear();
+                return;
+            }
+            _layerDragMode = DragMode.Move;
+        }
+        _layerBoundsAtDragStart = new Rect(selected!.X, selected.Y, selected.Width, selected.Height);
+        _layerSelection = _layerBoundsAtDragStart;
+        _layerDragStart = point;
+        _isLayerDragging = true;
+        LayerOverlay.CaptureMouse();
+        DrawLayerSelection();
+        e.Handled = true;
+    }
+
+    private void LayerOverlay_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isLayerDragging || ViewModel?.SelectedLayer is not { } layer) return;
+        var point = e.GetPosition(LayerOverlay);
+        var dx = point.X - _layerDragStart.X;
+        var dy = point.Y - _layerDragStart.Y;
+        var bounds = _layerBoundsAtDragStart;
+        var x = bounds.X;
+        var y = bounds.Y;
+        var width = bounds.Width;
+        var height = bounds.Height;
+
+        if (_layerDragMode == DragMode.Move)
+        {
+            x += dx;
+            y += dy;
+        }
+        else
+        {
+            if (_layerDragMode is DragMode.Left or DragMode.TopLeft or DragMode.BottomLeft)
+            {
+                var right = bounds.Right;
+                x = Math.Min(right - MinimumLayerSize, bounds.Left + dx);
+                width = right - x;
+            }
+            if (_layerDragMode is DragMode.Right or DragMode.TopRight or DragMode.BottomRight)
+                width = Math.Max(MinimumLayerSize, bounds.Width + dx);
+            if (_layerDragMode is DragMode.Top or DragMode.TopLeft or DragMode.TopRight)
+            {
+                var bottom = bounds.Bottom;
+                y = Math.Min(bottom - MinimumLayerSize, bounds.Top + dy);
+                height = bottom - y;
+            }
+            if (_layerDragMode is DragMode.Bottom or DragMode.BottomLeft or DragMode.BottomRight)
+                height = Math.Max(MinimumLayerSize, bounds.Height + dy);
+
+            if (_layerDragMode is DragMode.TopLeft or DragMode.TopRight or DragMode.BottomLeft or DragMode.BottomRight)
+            {
+                var ratio = bounds.Width / Math.Max(1d, bounds.Height);
+                if (Math.Abs(dx) >= Math.Abs(dy))
+                {
+                    height = width / ratio;
+                    if (_layerDragMode is DragMode.TopLeft or DragMode.TopRight) y = bounds.Bottom - height;
+                }
+                else
+                {
+                    width = height * ratio;
+                    if (_layerDragMode is DragMode.TopLeft or DragMode.BottomLeft) x = bounds.Right - width;
+                }
+                width = Math.Max(MinimumLayerSize, width);
+                height = Math.Max(MinimumLayerSize, height);
+            }
+        }
+
+        layer.SetBounds((int)Math.Round(x), (int)Math.Round(y),
+            Math.Max(MinimumLayerSize, (int)Math.Round(width)),
+            Math.Max(MinimumLayerSize, (int)Math.Round(height)));
+        _layerSelection = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
+        DrawLayerSelection();
+        e.Handled = true;
+    }
+
+    private void LayerOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isLayerDragging) return;
+        _isLayerDragging = false;
+        LayerOverlay.ReleaseMouseCapture();
+        e.Handled = true;
+    }
+
+    private static DragMode GetLayerDragMode(Point point, Rect bounds)
+    {
+        bool left = Math.Abs(point.X - bounds.Left) <= LayerHandleRadius * 2;
+        bool right = Math.Abs(point.X - bounds.Right) <= LayerHandleRadius * 2;
+        bool top = Math.Abs(point.Y - bounds.Top) <= LayerHandleRadius * 2;
+        bool bottom = Math.Abs(point.Y - bounds.Bottom) <= LayerHandleRadius * 2;
+        if (left && top) return DragMode.TopLeft;
+        if (right && top) return DragMode.TopRight;
+        if (left && bottom) return DragMode.BottomLeft;
+        if (right && bottom) return DragMode.BottomRight;
+        if (left && point.Y >= bounds.Top && point.Y <= bounds.Bottom) return DragMode.Left;
+        if (right && point.Y >= bounds.Top && point.Y <= bounds.Bottom) return DragMode.Right;
+        if (top && point.X >= bounds.Left && point.X <= bounds.Right) return DragMode.Top;
+        if (bottom && point.X >= bounds.Left && point.X <= bounds.Right) return DragMode.Bottom;
+        return bounds.Contains(point) ? DragMode.Move : DragMode.None;
+    }
+
+    private void DrawLayerSelection()
+    {
+        LayerOverlay.Children.Clear();
+        if (ViewModel?.SelectedLayer is not { IsVisible: true } layer) return;
+        var rect = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
+        var border = new Rectangle
+        {
+            Width = rect.Width, Height = rect.Height,
+            Stroke = Brushes.DodgerBlue, StrokeThickness = 1.5,
+            StrokeDashArray = [3, 2], Fill = Brushes.Transparent,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(border, rect.Left);
+        Canvas.SetTop(border, rect.Top);
+        LayerOverlay.Children.Add(border);
+        foreach (var x in new[] { rect.Left, rect.Right })
+        foreach (var y in new[] { rect.Top, rect.Bottom })
+        {
+            var handle = new Rectangle
+            {
+                Width = LayerHandleRadius * 2, Height = LayerHandleRadius * 2,
+                Fill = Brushes.White, Stroke = Brushes.DodgerBlue, StrokeThickness = 1.5,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(handle, x - LayerHandleRadius);
+            Canvas.SetTop(handle, y - LayerHandleRadius);
+            LayerOverlay.Children.Add(handle);
+        }
+        foreach (var point in new[]
+        {
+            new Point(rect.Left + rect.Width / 2, rect.Top),
+            new Point(rect.Left + rect.Width / 2, rect.Bottom),
+            new Point(rect.Left, rect.Top + rect.Height / 2),
+            new Point(rect.Right, rect.Top + rect.Height / 2)
+        })
+        {
+            var handle = new Rectangle
+            {
+                Width = LayerHandleRadius * 2, Height = LayerHandleRadius * 2,
+                Fill = Brushes.White, Stroke = Brushes.DodgerBlue, StrokeThickness = 1.5,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(handle, point.X - LayerHandleRadius);
+            Canvas.SetTop(handle, point.Y - LayerHandleRadius);
+            LayerOverlay.Children.Add(handle);
+        }
     }
 
     private void Grayscale_Click(object sender, RoutedEventArgs e)
