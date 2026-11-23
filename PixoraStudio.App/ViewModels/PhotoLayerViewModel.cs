@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using SkiaSharp;
+using PixoraStudio.Core.Models;
 using System.Windows.Media.Imaging;
 
 namespace PixoraStudio.App.ViewModels;
@@ -18,7 +19,8 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     }
 
     public string Name { get; }
-    public SKBitmap Bitmap { get; }
+    public SKBitmap Bitmap { get; private set; }
+    public ImageAdjustment Adjustment { get; set; } = new();
     public BitmapSource Thumbnail { get; }
     [ObservableProperty] private int x;
     [ObservableProperty] private int y;
@@ -49,6 +51,16 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
         }
         finally { _isUpdatingBounds = false; }
         GeometryChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ReplaceBitmap(SKBitmap replacement)
+    {
+        ArgumentNullException.ThrowIfNull(replacement);
+        var previous = Bitmap;
+        Bitmap = replacement;
+        Width = replacement.Width;
+        Height = replacement.Height;
+        previous.Dispose();
     }
 
     public void Dispose() => Bitmap.Dispose();
