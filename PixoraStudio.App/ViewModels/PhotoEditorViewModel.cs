@@ -27,6 +27,12 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PhotoLayerViewModel? selectedLayer;
     public ObservableCollection<PhotoLayerViewModel> AdditionalLayers { get; } = [];
     [ObservableProperty] private BitmapSource? previewImage;
+    [ObservableProperty] private BitmapSource? layerDragPreviewImage;
+    [ObservableProperty] private int layerDragPreviewX;
+    [ObservableProperty] private int layerDragPreviewY;
+    [ObservableProperty] private int layerDragPreviewWidth;
+    [ObservableProperty] private int layerDragPreviewHeight;
+    private bool _isLayerDragPreviewActive;
     [ObservableProperty] private float brightness;
     [ObservableProperty] private float contrast = 1f;
     [ObservableProperty] private float saturation = 1f;
@@ -367,7 +373,74 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void OnLayerVisibilityChanged(object? sender, EventArgs e) => RefreshPreview();
 
-    private void OnLayerGeometryChanged(object? sender, EventArgs e) => RefreshPreview();
+    private void OnLayerGeometryChanged(object? sender, EventArgs e)
+    {
+        if (!_isLayerDragPreviewActive)
+            RefreshPreview();
+    }
+
+    public void BeginLayerDragPreview()
+    {
+        if (_canvasBitmap is null || SelectedLayer is not { IsVisible: true } selected ||
+            _isLayerDragPreviewActive)
+            return;
+
+        var renderedLayers = new List<SKBitmap>(Math.Max(0, AdditionalLayers.Count - 1));
+        try
+        {
+            var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)>(
+                Math.Max(0, AdditionalLayers.Count - 1));
+
+            foreach (var layer in AdditionalLayers.Reverse())
+            {
+                if (ReferenceEquals(layer, selected) || !layer.IsVisible)
+                    continue;
+
+                var adjustment = ShowOriginal ? new ImageAdjustment() : layer.Adjustment;
+                var rendered = _imageService.ApplyAdjustments(layer.Bitmap, adjustment);
+                renderedLayers.Add(rendered);
+                entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, true));
+            }
+
+            using var baseComposite = ImageLayerCompositor.Composite(_canvasBitmap, entries);
+            var selectedAdjustment = ShowOriginal ? new ImageAdjustment() : GetCurrentAdjustment();
+            using var selectedBitmap = _imageService.ApplyAdjustments(selected.Bitmap, selectedAdjustment);
+
+            PreviewImage = ConvertToBitmapSource(baseComposite);
+            LayerDragPreviewImage = ConvertToBitmapSource(selectedBitmap);
+            LayerDragPreviewX = selected.X;
+            LayerDragPreviewY = selected.Y;
+            LayerDragPreviewWidth = selected.Width;
+            LayerDragPreviewHeight = selected.Height;
+            _isLayerDragPreviewActive = true;
+        }
+        finally
+        {
+            foreach (var bitmap in renderedLayers)
+                bitmap.Dispose();
+        }
+    }
+
+    public void SetLayerDragPreviewBounds(int x, int y, int width, int height)
+    {
+        if (!_isLayerDragPreviewActive)
+            return;
+
+        LayerDragPreviewX = x;
+        LayerDragPreviewY = y;
+        LayerDragPreviewWidth = width;
+        LayerDragPreviewHeight = height;
+    }
+
+    public void EndLayerDragPreview()
+    {
+        if (!_isLayerDragPreviewActive)
+            return;
+
+        _isLayerDragPreviewActive = false;
+        LayerDragPreviewImage = null;
+        RefreshPreview();
+    }
 
     public void SelectLayer(PhotoLayerViewModel? layer)
     {
