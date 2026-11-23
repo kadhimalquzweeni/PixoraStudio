@@ -1,173 +1,227 @@
 <UserControl x:Class="PixoraStudio.App.Views.PhotoEditorView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="ToolButton" TargetType="Button">
+            <Setter Property="Width" Value="48"/><Setter Property="Height" Value="46"/>
+            <Setter Property="Margin" Value="2"/><Setter Property="Background" Value="#292B30"/>
+            <Setter Property="Foreground" Value="#D5D7DC"/><Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="19"/><Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="PanelTab" TargetType="TabItem">
+            <Setter Property="Visibility" Value="Collapsed"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#D4D6DE"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="8,6"/><Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="#343740"/><Setter Property="Foreground" Value="#F0F1F4"/>
+            <Setter Property="BorderBrush" Value="#454954"/>
+        </Style>
+    </UserControl.Resources>
 
     <Grid Background="#17191E">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="55"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="40"/>
-        </Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/><RowDefinition Height="42"/></Grid.RowDefinitions>
 
-        <Border Background="#22252D" Padding="10">
+        <Border Background="#22252D" Padding="12,6">
             <DockPanel LastChildFill="True">
-                <Button Content="Export Image" Command="{Binding SaveImageCommand}"
-                        Background="#3478D4" Foreground="White" Padding="15,5"
-                        BorderThickness="0" DockPanel.Dock="Right"/>
-                <Button Content="Export Icon" Command="{Binding ExportIconCommand}"
-                        Background="#4A5365" Foreground="White" Padding="15,5"
-                        BorderThickness="0" Margin="0,0,8,0" DockPanel.Dock="Right"/>
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" Margin="0,0,5,0"/>
-                    <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" Margin="0,0,15,0"/>
-                    <Button Content="Reset Adjustments" Command="{Binding ResetAdjustmentsCommand}" Margin="0,0,12,0"/>
-                    <ToggleButton Content="Original" IsChecked="{Binding ShowOriginal}" Foreground="White"
-                                  Background="#343740" Padding="10,5" Margin="0,0,12,0"/>
-                    <Button Content="−" Command="{Binding ZoomOutCommand}" Margin="0,0,5,0"/>
-                    <Button Content="Fit" Command="{Binding FitToScreenCommand}" Margin="0,0,5,0"/>
-                    <Button Content="+" Command="{Binding ZoomInCommand}"/>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <TextBlock Text="PIXORA" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,22,0"/>
+                    <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
+                    <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
+                    <Button Content="Original" IsEnabled="{Binding IsImageLoaded}" Command="{Binding ResetAdjustmentsCommand}"/>
+                    <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button Content="Export icon" Command="{Binding ExportIconCommand}"/>
+                    <Button Content="Save image" Command="{Binding SaveImageCommand}" Background="#087FC4" Foreground="White" Padding="16,6"/>
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <Grid Grid.Row="1" Margin="15">
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="56"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="290"/>
+                <ColumnDefinition Width="286"/>
             </Grid.ColumnDefinitions>
 
-            <Border Background="#202127" CornerRadius="10" Margin="0,0,15,0" ClipToBounds="True">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <Grid MinWidth="300" MinHeight="300">
-                        <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
-                              HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Grid.RenderTransform>
-                                <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/>
-                            </Grid.RenderTransform>
-                            <Image Source="{Binding PreviewImage}" Stretch="Fill"
-                                   Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
-                            <Canvas x:Name="CropOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
-                                    Background="Transparent" Visibility="Collapsed"
-                                    MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown"
-                                    MouseMove="CropOverlay_MouseMove"
-                                    MouseLeftButtonUp="CropOverlay_MouseLeftButtonUp"/>
-                        </Grid>
-                    </Grid>
-                </ScrollViewer>
-            </Border>
-
-            <Border Grid.Column="1" Background="#22252D" CornerRadius="10" Padding="15">
+            <Border Grid.Column="0" Background="#25272C">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <TextBlock Text="Transform" Foreground="White" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                        <UniformGrid Columns="2" Rows="3">
-                            <Button Content="↶ Rotate left" Command="{Binding RotateCounterClockwiseCommand}" Margin="2"/>
-                            <Button Content="↷ Rotate right" Command="{Binding RotateClockwiseCommand}" Margin="2"/>
-                            <Button Content="Rotate 180°" Command="{Binding Rotate180Command}" Margin="2"/>
-                            <Button Content="Flip horizontal" Command="{Binding FlipHorizontalCommand}" Margin="2"/>
-                            <Button Content="Flip vertical" Command="{Binding FlipVerticalCommand}" Margin="2"/>
-                        </UniformGrid>
-
-                        <Separator Margin="0,12"/>
-                        <TextBlock Text="Crop" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <Button Content="Start visual crop" Click="StartCrop_Click" Background="#3478D4" Foreground="White" Margin="2,0,2,8"/>
-                        <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
-                            <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,6"/>
-                            <TextBlock Text="Aspect ratio" Foreground="#D4D6DE" Margin="2,4,2,3"/>
-                            <ComboBox x:Name="CropAspectRatioCombo" SelectedIndex="0"
-                                      SelectionChanged="CropAspectRatio_SelectionChanged" Margin="2,0,2,7">
-                                <ComboBoxItem Content="Free" Tag="free"/>
-                                <ComboBoxItem Content="Original" Tag="original"/>
-                                <ComboBoxItem Content="Square (1:1)" Tag="1"/>
-                                <ComboBoxItem Content="4:3" Tag="1.3333333"/>
-                                <ComboBoxItem Content="3:2" Tag="1.5"/>
-                                <ComboBoxItem Content="16:9" Tag="1.7777778"/>
-                                <ComboBoxItem Content="9:16" Tag="0.5625"/>
-                            </ComboBox>
-                            <UniformGrid Columns="2">
-                                <Button Content="Apply crop" Click="ApplyVisualCrop_Click" Background="#3478D4" Foreground="White" Margin="2"/>
-                                <Button Content="Cancel" Click="CancelVisualCrop_Click" Margin="2"/>
-                            </UniformGrid>
-                        </StackPanel>
-                        <TextBlock Text="Or enter position and size (pixels)" Foreground="#AEB2BE" Margin="0,0,0,6"/>
-                        <UniformGrid Columns="2">
-                            <StackPanel Margin="2"><TextBlock Text="X" Foreground="#D4D6DE"/><TextBox Text="{Binding CropX, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
-                            <StackPanel Margin="2"><TextBlock Text="Y" Foreground="#D4D6DE"/><TextBox Text="{Binding CropY, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
-                            <StackPanel Margin="2"><TextBlock Text="Width" Foreground="#D4D6DE"/><TextBox Text="{Binding CropWidth, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
-                            <StackPanel Margin="2"><TextBlock Text="Height" Foreground="#D4D6DE"/><TextBox Text="{Binding CropHeight, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
-                        </UniformGrid>
-                        <Button Content="Apply crop" Command="{Binding CropCommand}" Background="#3478D4" Foreground="White" Margin="2,8,2,2"/>
-
-                        <Separator Margin="0,12"/>
-                        <TextBlock Text="Resize" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <CheckBox Content="Lock aspect ratio" IsChecked="{Binding LockAspectRatio}" Foreground="#D4D6DE" Margin="2,0,0,8"/>
-                        <UniformGrid Columns="2">
-                            <StackPanel Margin="2"><TextBlock Text="Width" Foreground="#D4D6DE"/><TextBox Text="{Binding ResizeWidth, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
-                            <StackPanel Margin="2"><TextBlock Text="Height" Foreground="#D4D6DE"/><TextBox Text="{Binding ResizeHeight, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
-                        </UniformGrid>
-                        <Button Content="Apply resize" Command="{Binding ResizeCommand}" Margin="2,8,2,2"/>
-
-                        <TextBlock Text="Straighten / Free rotation" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,12,0,8"/>
-                        <DockPanel>
-                            <TextBlock Text="Angle" Foreground="#D4D6DE"/>
-                            <TextBlock Text="{Binding RotationAngle, StringFormat={}{0:F1}°}" Foreground="#8BC5FF" DockPanel.Dock="Right"/>
-                        </DockPanel>
-                        <Slider Minimum="-45" Maximum="45" Value="{Binding RotationAngle}" TickFrequency="0.5"
-                                IsSnapToTickEnabled="False" Margin="0,8,0,8"/>
-                        <UniformGrid Columns="2">
-                            <Button Content="Reset angle" Command="{Binding ResetRotationCommand}" Margin="2"/>
-                            <Button Content="Apply rotation" Command="{Binding ApplyRotationCommand}" Background="#3478D4" Foreground="White" Margin="2"/>
-                        </UniformGrid>
-
-                        <Separator Margin="0,12"/>
-                        <TextBlock Text="Create Windows icon (.ico)" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                        <TextBlock Text="Export the current edited image as a multi-size icon. Transparent padding preserves the image proportions." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,8"/>
-                        <UniformGrid Columns="4">
-                            <CheckBox Content="16 px" IsChecked="{Binding IconSize16}" Foreground="#D4D6DE" Margin="2"/>
-                            <CheckBox Content="24 px" IsChecked="{Binding IconSize24}" Foreground="#D4D6DE" Margin="2"/>
-                            <CheckBox Content="32 px" IsChecked="{Binding IconSize32}" Foreground="#D4D6DE" Margin="2"/>
-                            <CheckBox Content="48 px" IsChecked="{Binding IconSize48}" Foreground="#D4D6DE" Margin="2"/>
-                            <CheckBox Content="64 px" IsChecked="{Binding IconSize64}" Foreground="#D4D6DE" Margin="2"/>
-                            <CheckBox Content="128 px" IsChecked="{Binding IconSize128}" Foreground="#D4D6DE" Margin="2"/>
-                            <CheckBox Content="256 px" IsChecked="{Binding IconSize256}" Foreground="#D4D6DE" Margin="2"/>
-                        </UniformGrid>
-                        <Button Content="Export selected icon sizes" Command="{Binding ExportIconCommand}" Background="#3478D4" Foreground="White" Margin="2,8,2,2"/>
-                        <Separator Margin="0,12"/>
-                        <TextBlock Text="Adjustments" Foreground="White" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                        <DockPanel><TextBlock Text="Brightness" Foreground="#D4D6DE"/><TextBlock Text="{Binding Brightness, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="-100" Maximum="100" Value="{Binding Brightness}" Margin="0,8,0,14"/>
-                        <DockPanel><TextBlock Text="Contrast" Foreground="#D4D6DE"/><TextBlock Text="{Binding Contrast, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="0" Maximum="3" Value="{Binding Contrast}" Margin="0,8,0,14"/>
-                        <DockPanel><TextBlock Text="Saturation" Foreground="#D4D6DE"/><TextBlock Text="{Binding Saturation, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="0" Maximum="3" Value="{Binding Saturation}" Margin="0,8,0,14"/>
-                        <DockPanel><TextBlock Text="Exposure" Foreground="#D4D6DE"/><TextBlock Text="{Binding Exposure, StringFormat={}{0:F2} EV}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="-3" Maximum="3" Value="{Binding Exposure}" Margin="0,8,0,14"/>
-                        <DockPanel><TextBlock Text="Highlights" Foreground="#D4D6DE"/><TextBlock Text="{Binding Highlights, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="-100" Maximum="100" Value="{Binding Highlights}" Margin="0,8,0,14"/>
-                        <DockPanel><TextBlock Text="Shadows" Foreground="#D4D6DE"/><TextBlock Text="{Binding Shadows, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="-100" Maximum="100" Value="{Binding Shadows}" Margin="0,8,0,14"/>
-                        <DockPanel><TextBlock Text="Temperature" Foreground="#D4D6DE"/><TextBlock Text="{Binding Temperature, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="-100" Maximum="100" Value="{Binding Temperature}" Margin="0,8,0,14"/>
-                        <DockPanel><TextBlock Text="Tint" Foreground="#D4D6DE"/><TextBlock Text="{Binding Tint, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
-                        <Slider Minimum="-100" Maximum="100" Value="{Binding Tint}" Margin="0,8,0,14"/>
-                        <Button Content="Save adjustment to history" Command="{Binding CommitAdjustmentsCommand}" Margin="0,0,0,10"/>
-
-                        <TextBlock Text="Filters" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <Button Content="Original" Command="{Binding ResetAdjustmentsCommand}" Margin="0,0,0,5"/>
-                        <Button Content="Grayscale" Click="Grayscale_Click" Margin="0,0,0,5"/>
-                        <Button Content="Sepia" Click="Sepia_Click" Margin="0,0,0,5"/>
-                        <TextBlock Text="{Binding OperationError}" Foreground="#FF8585" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                    <StackPanel HorizontalAlignment="Center" Margin="2,8">
+                        <Button Style="{StaticResource ToolButton}" Content="↖" ToolTip="Select" Tag="0" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="⌗" ToolTip="Transform" Tag="1" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="▣" ToolTip="Crop" Tag="2" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="↔" ToolTip="Resize" Tag="3" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="☷" ToolTip="Adjustments" Tag="4" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="◐" ToolTip="Filters" Tag="5" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="✧" ToolTip="Effects" Tag="6" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="◌" ToolTip="Retouch" Tag="7" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="T" ToolTip="Text" Tag="8" Click="Tool_Click"/>
+                        <Button Style="{StaticResource ToolButton}" Content="◇" ToolTip="Shapes" Tag="9" Click="Tool_Click"/>
+                        <Separator Margin="4,8"/>
+                        <Button Style="{StaticResource ToolButton}" Content="▦" ToolTip="Export icon" Tag="10" Click="Tool_Click"/>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
+
+            <Border Grid.Column="1" Background="#171819" ClipToBounds="True">
+                <Grid>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <Grid MinWidth="300" MinHeight="300">
+                            <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
+                                <Image Source="{Binding PreviewImage}" Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
+                                <Canvas x:Name="CropOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                    Background="Transparent" Visibility="Collapsed"
+                                    MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown" MouseMove="CropOverlay_MouseMove"
+                                    MouseLeftButtonUp="CropOverlay_MouseLeftButtonUp"/>
+                            </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                    <Border Background="#CC202127" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12">
+                        <TextBlock Text="{Binding ImageWidth, StringFormat={}{0} × }" FontSize="11"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Background="#24262B" BorderBrush="#35383F" BorderThickness="1,0,0,0">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="1"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                        <DockPanel>
+                            <TextBlock Text="Layers" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Button Content="+" Width="30" Height="28" Padding="0" DockPanel.Dock="Right" ToolTip="Add layer (coming soon)" IsEnabled="False"/>
+                        </DockPanel>
+                        <Border Background="#30343B" BorderBrush="#168DD0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+                            <DockPanel>
+                                <TextBlock Text="▧" FontSize="20" Foreground="#65BFFF" Margin="0,0,10,0"/>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ImagePath, TargetNullValue=No image loaded}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Image layer" Foreground="#9298A3" FontSize="11"/>
+                                </StackPanel>
+                                <TextBlock Text="◉" DockPanel.Dock="Right" VerticalAlignment="Center"/>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                    <Border Grid.Row="1" Background="#3A3D44"/>
+                    <Grid Grid.Row="2" Margin="0,10,0,0">
+                        <TabControl x:Name="ToolSettingsTabs" SelectedIndex="1" Background="Transparent" BorderThickness="0">
+                            <TabControl.ItemContainerStyle><Style TargetType="TabItem" BasedOn="{StaticResource PanelTab}"/></TabControl.ItemContainerStyle>
+
+                            <TabItem Header="Select"><StackPanel><TextBlock Text="Select" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Choose an editing tool from the toolbar." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Transform">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Transform" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <UniformGrid Columns="2">
+                                        <Button Content="↶ Rotate left" Command="{Binding RotateCounterClockwiseCommand}"/>
+                                        <Button Content="↷ Rotate right" Command="{Binding RotateClockwiseCommand}"/>
+                                        <Button Content="Rotate 180°" Command="{Binding Rotate180Command}"/>
+                                        <Button Content="Flip horizontal" Command="{Binding FlipHorizontalCommand}"/>
+                                        <Button Content="Flip vertical" Command="{Binding FlipVerticalCommand}"/>
+                                    </UniformGrid>
+                                    <Separator Margin="0,12"/>
+                                    <TextBlock Text="Straighten" FontWeight="SemiBold"/>
+                                    <DockPanel Margin="0,8"><TextBlock Text="Angle"/><TextBlock Text="{Binding RotationAngle, StringFormat={}{0:F1}°}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
+                                    <Slider Minimum="-45" Maximum="45" Value="{Binding RotationAngle}" Margin="0,4,0,10"/>
+                                    <UniformGrid Columns="2"><Button Content="Reset" Command="{Binding ResetRotationCommand}"/><Button Content="Apply" Command="{Binding ApplyRotationCommand}" Background="#087FC4"/></UniformGrid>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Crop">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Crop" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <Button Content="Start visual crop" Click="StartCrop_Click" Background="#087FC4"/>
+                                    <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
+                                        <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,8"/>
+                                        <TextBlock Text="Aspect ratio" Margin="2,4"/>
+                                        <ComboBox x:Name="CropAspectRatioCombo" SelectedIndex="0" SelectionChanged="CropAspectRatio_SelectionChanged" Margin="2,0,2,8">
+                                            <ComboBoxItem Content="Free" Tag="free"/><ComboBoxItem Content="Original" Tag="original"/>
+                                            <ComboBoxItem Content="Square (1:1)" Tag="1"/><ComboBoxItem Content="4:3" Tag="1.3333333"/>
+                                            <ComboBoxItem Content="3:2" Tag="1.5"/><ComboBoxItem Content="16:9" Tag="1.7777778"/>
+                                            <ComboBoxItem Content="9:16" Tag="0.5625"/>
+                                        </ComboBox>
+                                        <UniformGrid Columns="2"><Button Content="Apply crop" Click="ApplyVisualCrop_Click" Background="#087FC4"/><Button Content="Cancel" Click="CancelVisualCrop_Click"/></UniformGrid>
+                                    </StackPanel>
+                                    <TextBlock Text="Position and size (pixels)" FontWeight="SemiBold" Margin="0,14,0,6"/>
+                                    <UniformGrid Columns="2">
+                                        <StackPanel Margin="2"><TextBlock Text="X"/><TextBox Text="{Binding CropX, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                        <StackPanel Margin="2"><TextBlock Text="Y"/><TextBox Text="{Binding CropY, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                        <StackPanel Margin="2"><TextBlock Text="Width"/><TextBox Text="{Binding CropWidth, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                        <StackPanel Margin="2"><TextBlock Text="Height"/><TextBox Text="{Binding CropHeight, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                    </UniformGrid>
+                                    <Button Content="Apply crop" Command="{Binding CropCommand}" Background="#087FC4" Margin="2,10"/>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Resize"><StackPanel>
+                                <TextBlock Text="Resize" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                <CheckBox Content="Lock aspect ratio" IsChecked="{Binding LockAspectRatio}" Foreground="#D4D6DE" Margin="2,0,0,8"/>
+                                <UniformGrid Columns="2">
+                                    <StackPanel Margin="2"><TextBlock Text="Width"/><TextBox Text="{Binding ResizeWidth, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                    <StackPanel Margin="2"><TextBlock Text="Height"/><TextBox Text="{Binding ResizeHeight, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                </UniformGrid>
+                                <Button Content="Apply resize" Command="{Binding ResizeCommand}" Background="#087FC4" Margin="2,10"/>
+                            </StackPanel></TabItem>
+                            <TabItem Header="Adjustments">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Adjustments" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <DockPanel><TextBlock Text="Brightness"/><TextBlock Text="{Binding Brightness, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Brightness}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Contrast"/><TextBlock Text="{Binding Contrast, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="0" Maximum="3" Value="{Binding Contrast}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Saturation"/><TextBlock Text="{Binding Saturation, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="0" Maximum="3" Value="{Binding Saturation}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Exposure"/><TextBlock Text="{Binding Exposure, StringFormat={}{0:F2} EV}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-3" Maximum="3" Value="{Binding Exposure}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Highlights"/><TextBlock Text="{Binding Highlights, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Highlights}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Shadows"/><TextBlock Text="{Binding Shadows, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Shadows}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Temperature"/><TextBlock Text="{Binding Temperature, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Temperature}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Tint"/><TextBlock Text="{Binding Tint, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Tint}" Margin="0,8,0,14"/>
+                                    <Button Content="Save adjustment to history" Command="{Binding CommitAdjustmentsCommand}" Margin="0,4,0,10"/>
+                                    <Button Content="Reset adjustments" Command="{Binding ResetAdjustmentsCommand}"/>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Filters"><StackPanel>
+                                <TextBlock Text="Filters" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                <Button Content="Original" Command="{Binding ResetAdjustmentsCommand}"/>
+                                <Button Content="Grayscale" Click="Grayscale_Click"/>
+                                <Button Content="Sepia" Click="Sepia_Click"/>
+                            </StackPanel></TabItem>
+                            <TabItem Header="Effects"><StackPanel><TextBlock Text="Effects" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Creative effects will appear here." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Retouch"><StackPanel><TextBlock Text="Retouch" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Retouching tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Text"><StackPanel><TextBlock Text="Text" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Text layers and typography controls are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Shapes"><StackPanel><TextBlock Text="Shapes" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Shape tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Icon">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Create Windows icon (.ico)" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Export the edited image as a multi-size icon. Transparent padding preserves the image proportions." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,10"/>
+                                    <UniformGrid Columns="2">
+                                        <CheckBox Content="16 px" IsChecked="{Binding IconSize16}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="24 px" IsChecked="{Binding IconSize24}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="32 px" IsChecked="{Binding IconSize32}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="48 px" IsChecked="{Binding IconSize48}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="64 px" IsChecked="{Binding IconSize64}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="128 px" IsChecked="{Binding IconSize128}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="256 px" IsChecked="{Binding IconSize256}" Foreground="#D4D6DE" Margin="2"/>
+                                    </UniformGrid>
+                                    <Button Content="Export selected sizes" Command="{Binding ExportIconCommand}" Background="#087FC4" Margin="2,10"/>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                        </TabControl>
+                        <TextBlock Text="{Binding OperationError}" Foreground="#FF8585" TextWrapping="Wrap" VerticalAlignment="Bottom" Margin="0,8,0,0"/>
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
 
-        <Border Grid.Row="2" Background="#22252D">
-            <DockPanel Margin="15,0">
-                <TextBlock Text="{Binding ImagePath}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center"/>
-                <TextBlock Text="{Binding ImageWidth, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right"/>
-                <TextBlock Text=" × " Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right"/>
+        <Border Grid.Row="2" Background="#22252D" Padding="12,0">
+            <DockPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding ImagePath}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <Button Content="−" Command="{Binding ZoomOutCommand}" Width="30" Padding="0"/>
+                    <TextBlock Text="{Binding Zoom, StringFormat={}{0:P0}}" Foreground="#8BC5FF" VerticalAlignment="Center" Margin="8,0"/>
+                    <Button Content="+" Command="{Binding ZoomInCommand}" Width="30" Padding="0"/>
+                    <Button Content="Fit" Command="{Binding FitToScreenCommand}" Margin="8,2"/>
+                </StackPanel>
+                <TextBlock Text="{Binding ImageWidth, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="12,0,0,0"/>
                 <TextBlock Text="{Binding ImageHeight, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                <TextBlock Text=" × " Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right"/>
             </DockPanel>
         </Border>
     </Grid>
