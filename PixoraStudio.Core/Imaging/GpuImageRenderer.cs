@@ -123,7 +123,8 @@ public static class GpuImageRenderer
         int documentWidth,
         int documentHeight,
         IReadOnlyCollection<GpuImageLayer> layers,
-        bool checkerboardBackground = true)
+        bool checkerboardBackground = true,
+        SKBitmap? documentBackground = null)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(layers);
@@ -149,6 +150,11 @@ public static class GpuImageRenderer
             {
                 canvas.Clear(SKColors.Transparent);
             }
+
+            // A transparent document background leaves the checkerboard visible;
+            // opaque or semi-transparent canvas colours are drawn above it.
+            if (documentBackground is not null)
+                canvas.DrawBitmap(documentBackground, 0, 0);
 
             foreach (var layer in layers)
             {
