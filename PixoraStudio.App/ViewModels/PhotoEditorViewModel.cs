@@ -228,6 +228,35 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void OpenImage()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Open image",
+            Filter = "Supported images|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif|" +
+                     "PNG images|*.png|JPEG images|*.jpg;*.jpeg|" +
+                     "WebP images|*.webp|Bitmap images|*.bmp|GIF images|*.gif|" +
+                     "All files|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        try
+        {
+            LoadImage(dialog.FileName);
+            OperationError = null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+                                   ArgumentException or InvalidOperationException)
+        {
+            OperationError = $"Unable to open image: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
     private void CommitAdjustments()
     {
         if (!IsImageLoaded) return;
