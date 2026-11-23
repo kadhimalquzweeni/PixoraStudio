@@ -50,8 +50,8 @@ public sealed class SvgIcon : FrameworkElement
             return;
 
         var uri = new Uri(
-            $"/PixoraStudio.App;component/Assets/Icons/{IconName}.svg",
-            UriKind.Relative);
+            $"pack://application:,,,/PixoraStudio.App;component/Assets/Icons/{IconName}.svg",
+            UriKind.Absolute);
 
         var resource = Application.GetResourceStream(uri);
         if (resource is null)
