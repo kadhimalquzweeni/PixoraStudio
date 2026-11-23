@@ -3,6 +3,7 @@ using PixoraStudio.Core.Models;
 using PixoraStudio.Core.Geometry;
 using SkiaSharp;
 using System.Windows;
+using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -35,6 +36,28 @@ public partial class PhotoEditorView : UserControl
     }
 
     private PhotoEditorViewModel? ViewModel => DataContext as PhotoEditorViewModel;
+
+    private PhotoEditorViewModel? _observedViewModel;
+
+    private void PhotoEditorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (_observedViewModel is not null)
+            _observedViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        _observedViewModel = e.NewValue as PhotoEditorViewModel;
+        if (_observedViewModel is not null)
+            _observedViewModel.PropertyChanged += ViewModel_PropertyChanged;
+        DrawLayerSelection();
+    }
+
+    private void PhotoEditorView_Loaded(object sender, RoutedEventArgs e) => DrawLayerSelection();
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PhotoEditorViewModel.SelectedLayer))
+            Dispatcher.Invoke(DrawLayerSelection);
+    }
+
+
 
     private void Tool_Click(object sender, RoutedEventArgs e)
     {
