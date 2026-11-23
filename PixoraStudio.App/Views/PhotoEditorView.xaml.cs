@@ -22,8 +22,8 @@ public partial class PhotoEditorView : UserControl
     private const double MinimumCropSize = 8;
     private const double HandleRadius = 7;
     private const double LayerHandleRadius = 6;
-    private const double Minimum_layerOverlayWorkspacePadding = 512;
-    private double _layerOverlayWorkspacePadding = Minimum_layerOverlayWorkspacePadding;
+    private const double MinimumLayerOverlayWorkspacePadding = 512;
+    private double _layerOverlayWorkspacePadding = MinimumLayerOverlayWorkspacePadding;
     private const int MinimumLayerSize = 8;
     private Rect _layerSelection;
     private Point _layerDragStart;
@@ -641,8 +641,7 @@ public partial class PhotoEditorView : UserControl
 
     private DragMode GetLayerDragMode(Point point, Rect bounds)
     {
-        var vm = ViewModel;
-        if (vm is null) return DragMode.None;
+        if (ViewModel is null) return DragMode.None;
 
         var layerBounds = new SKRect((float)bounds.Left, (float)bounds.Top,
             (float)bounds.Right, (float)bounds.Bottom);
@@ -679,8 +678,6 @@ public partial class PhotoEditorView : UserControl
         Canvas.SetLeft(border, rect.Left + _layerOverlayWorkspacePadding);
         Canvas.SetTop(border, rect.Top + _layerOverlayWorkspacePadding);
         LayerOverlay.Children.Add(border);
-        var vm = ViewModel;
-        if (vm is null) return;
         var layerBounds = new SKRect((float)rect.Left, (float)rect.Top,
             (float)rect.Right, (float)rect.Bottom);
         // Draw handles at the layer's real bounds. The expanded overlay gives
