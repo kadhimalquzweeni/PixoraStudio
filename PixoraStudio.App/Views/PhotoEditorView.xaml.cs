@@ -497,6 +497,12 @@ public partial class PhotoEditorView : UserControl
             }
             _layerDragMode = DragMode.Move;
         }
+
+        // Selecting a previously unselected layer may expand the workspace.
+        // Recalculate the document-space pointer after that layout change.
+        point = new Point(
+            overlayPoint.X - _layerOverlayWorkspacePadding,
+            overlayPoint.Y - _layerOverlayWorkspacePadding);
         _layerBoundsAtDragStart = new Rect(selected!.X, selected.Y, selected.Width, selected.Height);
         _layerSelection = _layerBoundsAtDragStart;
         _layerDragStart = point;
