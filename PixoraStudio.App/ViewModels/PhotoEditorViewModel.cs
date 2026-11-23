@@ -21,6 +21,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private ImageAdjustment _lastCommittedAdjustment = new();
     private bool _isRestoringSnapshot;
     private float _resizeAspectRatio = 1f;
+    private PhotoLayerViewModel? _adjustmentLayer;
 
     [ObservableProperty] private string? imagePath;
     [ObservableProperty] private PhotoLayerViewModel? selectedLayer;
@@ -388,6 +389,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedLayerChanged(PhotoLayerViewModel? value)
     {
+        if (_adjustmentLayer is not null)
+            _adjustmentLayer.Adjustment = GetCurrentAdjustment();
+        _adjustmentLayer = value;
         foreach (var layer in AdditionalLayers) layer.IsSelected = ReferenceEquals(layer, value);
         if (value is null) return;
         if (IsImageLoaded) ClearHistory();
