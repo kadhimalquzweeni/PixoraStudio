@@ -172,7 +172,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         try
         {
             var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)>(AdditionalLayers.Count);
-            foreach (var layer in AdditionalLayers)
+            foreach (var layer in AdditionalLayers.Reverse())
             {
                 var adjustment = ShowOriginal ? new ImageAdjustment()
                     : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
@@ -390,6 +390,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         foreach (var layer in AdditionalLayers) layer.IsSelected = ReferenceEquals(layer, value);
         if (value is null) return;
+        if (IsImageLoaded) ClearHistory();
         _isRestoringSnapshot = true;
         try
         {
