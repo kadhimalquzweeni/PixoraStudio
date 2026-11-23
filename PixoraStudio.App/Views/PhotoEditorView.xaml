@@ -115,6 +115,7 @@
                                 <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
                                 <skia:SKGLElement x:Name="GpuPreview"
                                                   Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                                  Focusable="False" IsHitTestVisible="False"
                                                   PaintSurface="GpuPreview_PaintSurface"/>
                                 <Image x:Name="CpuPreviewImage" Source="{Binding PreviewImage}"
                                        Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
