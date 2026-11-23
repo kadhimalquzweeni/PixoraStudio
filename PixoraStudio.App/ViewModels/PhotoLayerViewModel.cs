@@ -22,6 +22,8 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     public int Y { get; }
     [ObservableProperty] private bool isVisible = true;
     [ObservableProperty] private bool isSelected;
+    public event EventHandler? VisibilityChanged;
+    partial void OnIsVisibleChanged(bool value) => VisibilityChanged?.Invoke(this, EventArgs.Empty);
 
     public void Dispose() => Bitmap.Dispose();
 }
