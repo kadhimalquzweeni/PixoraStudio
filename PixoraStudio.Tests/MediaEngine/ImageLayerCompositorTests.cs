@@ -14,7 +14,7 @@ public sealed class ImageLayerCompositorTests
         overlay.SetPixel(0, 0, SKColors.Red);
 
         using var result = ImageLayerCompositor.Composite(background,
-            [(overlay, 1, 1, true)]);
+            [(overlay, 1, 1, 1, 1, true)]);
 
         Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
         Assert.Equal(SKColors.Red, result.GetPixel(1, 1));
@@ -29,7 +29,7 @@ public sealed class ImageLayerCompositorTests
         overlay.SetPixel(0, 0, SKColors.Transparent);
 
         using var result = ImageLayerCompositor.Composite(background,
-            [(overlay, 0, 0, true)]);
+            [(overlay, 0, 0, 1, 1, true)]);
 
         Assert.Equal(new SKColor(20, 40, 60), result.GetPixel(0, 0));
     }
@@ -43,7 +43,7 @@ public sealed class ImageLayerCompositorTests
         overlay.Erase(SKColors.Red);
 
         using var result = ImageLayerCompositor.Composite(background,
-            [(overlay, 0, 0, false)]);
+            [(overlay, 0, 0, 1, 1, false)]);
 
         Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
     }
@@ -57,9 +57,39 @@ public sealed class ImageLayerCompositorTests
         overlay.Erase(SKColors.Red);
 
         using var result = ImageLayerCompositor.Composite(background,
-            [(overlay, 1, 1, true)]);
+            [(overlay, 1, 1, 1, 1, true)]);
 
         Assert.Equal(SKColors.Red, result.GetPixel(1, 1));
+        Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
+    }
+
+    [Fact]
+    public void Composite_ShouldResizeLayerToRequestedBounds()
+    {
+        using var background = new SKBitmap(4, 4);
+        background.Erase(SKColors.Blue);
+        using var overlay = new SKBitmap(1, 1);
+        overlay.Erase(SKColors.Red);
+
+        using var result = ImageLayerCompositor.Composite(background,
+            [(overlay, 1, 1, 2, 2, true)]);
+
+        Assert.Equal(SKColors.Red, result.GetPixel(1, 1));
+        Assert.Equal(SKColors.Red, result.GetPixel(2, 2));
+        Assert.Equal(SKColors.Blue, result.GetPixel(3, 3));
+    }
+
+    [Fact]
+    public void Composite_ShouldIgnoreNonPositiveLayerDimensions()
+    {
+        using var background = new SKBitmap(2, 2);
+        background.Erase(SKColors.Blue);
+        using var overlay = new SKBitmap(1, 1);
+        overlay.Erase(SKColors.Red);
+
+        using var result = ImageLayerCompositor.Composite(background,
+            [(overlay, 0, 0, 0, 1, true)]);
+
         Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
     }
 }
