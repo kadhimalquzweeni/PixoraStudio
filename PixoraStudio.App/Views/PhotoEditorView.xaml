@@ -266,21 +266,8 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Grid>
-            </Border>   </Border>
-                            <TextBlock Grid.Row="1" Text="{Binding ImagePath, TargetNullValue=Image}"
-                                       TextTrimming="CharacterEllipsis" FontSize="11"
-                                       TextAlignment="Center" Margin="0,8,0,4"
-                                       ToolTip="{Binding ImagePath}"/>
-                            <StackPanel Grid.Row="2" Orientation="Horizontal"
-                                        HorizontalAlignment="Center" Margin="0,3,0,0">
-                                <controls:SvgIcon IconName="eye" Width="13" Height="13"
-                                                  Stroke="#AEB4BF" Margin="0,0,5,0"/>
-                                <TextBlock Text="Visible" FontSize="10" Foreground="#AEB4BF"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                </Grid>
-            </Border>        </Grid>
+            </Border>
+        </Grid>
 
         <Border Grid.Row="2" Background="#202124" Padding="12,0">
             <Grid>
