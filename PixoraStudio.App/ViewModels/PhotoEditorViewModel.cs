@@ -160,7 +160,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (_originalBitmap is null) return;
         _processedBitmap?.Dispose();
         _processedBitmap = _imageService.ApplyAdjustments(_originalBitmap, GetCurrentAdjustment());
-        using var composite = ImageLayerCompositor.Composite(ShowOriginal ? _originalBitmap : _processedBitmap, AdditionalLayers.Select(layer => (layer.Bitmap, layer.X, layer.Y, layer.IsVisible)).ToArray());
+        using var composite = ImageLayerCompositor.Composite(ShowOriginal ? _originalBitmap : _processedBitmap, AdditionalLayers.Select(layer => (layer.Bitmap, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible)).ToArray());
         PreviewImage = ConvertToBitmapSource(composite);
     }
 
@@ -284,6 +284,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             finally { thumbnailBitmap.Dispose(); }
             var layer = new PhotoLayerViewModel(Path.GetFileName(dialog.FileName), bitmap, thumbnail, (_originalBitmap.Width - bitmap.Width) / 2, (_originalBitmap.Height - bitmap.Height) / 2);
             layer.VisibilityChanged += OnLayerVisibilityChanged;
+            layer.GeometryChanged += OnLayerGeometryChanged;
             AdditionalLayers.Insert(0, layer);
             SelectedLayer = layer;
             OperationError = null;
@@ -301,6 +302,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (layer is null || !AdditionalLayers.Remove(layer)) return;
         if (ReferenceEquals(SelectedLayer, layer)) SelectedLayer = AdditionalLayers.FirstOrDefault();
         layer.VisibilityChanged -= OnLayerVisibilityChanged;
+        layer.GeometryChanged -= OnLayerGeometryChanged;
         layer.Dispose();
         RefreshPreview();
     }
@@ -310,6 +312,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         foreach (var layer in AdditionalLayers)
         {
             layer.VisibilityChanged -= OnLayerVisibilityChanged;
+            layer.GeometryChanged -= OnLayerGeometryChanged;
             layer.Dispose();
         }
         AdditionalLayers.Clear();
@@ -317,6 +320,25 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     private void OnLayerVisibilityChanged(object? sender, EventArgs e) => RefreshPreview();
+
+    private void OnLayerGeometryChanged(object? sender, EventArgs e) => RefreshPreview();
+
+    public void SelectLayer(PhotoLayerViewModel? layer)
+    {
+        if (layer is not null && !AdditionalLayers.Contains(layer)) return;
+        SelectedLayer = layer;
+    }
+
+    public PhotoLayerViewModel? HitTestLayer(double x, double y)
+    {
+        foreach (var layer in AdditionalLayers)
+        {
+            if (!layer.IsVisible) continue;
+            if (x >= layer.X && x <= layer.X + layer.Width && y >= layer.Y && y <= layer.Y + layer.Height)
+                return layer;
+        }
+        return null;
+    }
 
     partial void OnSelectedLayerChanged(PhotoLayerViewModel? value)
     {
