@@ -13,4 +13,5 @@ public interface IImageProcessingService
     SKBitmap Rotate(SKBitmap source, float degrees);
     SKBitmap Flip(SKBitmap source, bool horizontal, bool vertical);
     SKBitmap Resize(SKBitmap source, int width, int height);
+    byte[] EncodeIcon(SKBitmap source, IReadOnlyCollection<int> sizes);
 }
