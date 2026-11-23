@@ -18,6 +18,24 @@ public static class LayerSelectionGeometry
         ValidateBounds(layerBounds, nameof(layerBounds));
         ValidateBounds(canvasBounds, nameof(canvasBounds));
 
+        // A fully off-canvas layer has no visible edge to clamp its handles
+        // against. Give it a small transform proxy at the nearest canvas edge
+        // so it can still be resized after selecting it in the Layers panel.
+        if (layerBounds.Right <= canvasBounds.Left || layerBounds.Left >= canvasBounds.Right ||
+            layerBounds.Bottom <= canvasBounds.Top || layerBounds.Top >= canvasBounds.Bottom)
+        {
+            var proxyWidth = Math.Min(32f, canvasBounds.Width);
+            var proxyHeight = Math.Min(32f, canvasBounds.Height);
+            var proxyCentreX = Math.Clamp(layerBounds.MidX, canvasBounds.Left, canvasBounds.Right);
+            var proxyCentreY = Math.Clamp(layerBounds.MidY, canvasBounds.Top, canvasBounds.Bottom);
+            var proxyLeft = Math.Clamp(proxyCentreX - proxyWidth / 2f,
+                canvasBounds.Left, canvasBounds.Right - proxyWidth);
+            var proxyTop = Math.Clamp(proxyCentreY - proxyHeight / 2f,
+                canvasBounds.Top, canvasBounds.Bottom - proxyHeight);
+            layerBounds = new SKRect(proxyLeft, proxyTop,
+                proxyLeft + proxyWidth, proxyTop + proxyHeight);
+        }
+
         var centreX = layerBounds.MidX;
         var centreY = layerBounds.MidY;
         SKPoint[] points =
