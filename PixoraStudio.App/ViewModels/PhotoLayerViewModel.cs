@@ -13,17 +13,36 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
         Thumbnail = thumbnail;
         X = x;
         Y = y;
+        Width = bitmap.Width;
+        Height = bitmap.Height;
     }
 
     public string Name { get; }
     public SKBitmap Bitmap { get; }
     public BitmapSource Thumbnail { get; }
-    public int X { get; }
-    public int Y { get; }
+    [ObservableProperty] private int x;
+    [ObservableProperty] private int y;
+    [ObservableProperty] private int width;
+    [ObservableProperty] private int height;
     [ObservableProperty] private bool isVisible = true;
     [ObservableProperty] private bool isSelected;
+
     public event EventHandler? VisibilityChanged;
+    public event EventHandler? GeometryChanged;
+
     partial void OnIsVisibleChanged(bool value) => VisibilityChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnXChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnYChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnWidthChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnHeightChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
+
+    public void SetBounds(int x, int y, int width, int height)
+    {
+        X = x;
+        Y = y;
+        Width = Math.Max(1, width);
+        Height = Math.Max(1, height);
+    }
 
     public void Dispose() => Bitmap.Dispose();
 }
