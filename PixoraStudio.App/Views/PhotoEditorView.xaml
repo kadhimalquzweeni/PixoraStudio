@@ -5,6 +5,26 @@
     DataContextChanged="PhotoEditorView_DataContextChanged"
     Loaded="PhotoEditorView_Loaded">
     <UserControl.Resources>
+        <DrawingBrush x:Key="TransparencyCheckerboard"
+                      TileMode="Tile"
+                      Viewport="0,0,24,24"
+                      ViewportUnits="Absolute"
+                      Viewbox="0,0,24,24"
+                      ViewboxUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#F0F0F0" Geometry="M0,0 H24 V24 H0 Z"/>
+                    <GeometryDrawing Brush="#D8D8D8">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="0,0,12,12"/>
+                                <RectangleGeometry Rect="12,12,12,12"/>
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
         <Style x:Key="ToolButton" TargetType="Button">
             <Setter Property="Width" Value="48"/><Setter Property="Height" Value="48"/>
             <Setter Property="Margin" Value="2"/><Setter Property="Background" Value="Transparent"/>
@@ -88,7 +108,8 @@
                 <Grid>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Grid MinWidth="300" MinHeight="300">
-                            <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Background="{StaticResource TransparencyCheckerboard}">
                                 <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
                                 <Image Source="{Binding PreviewImage}" Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
                                 <Canvas x:Name="CropOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
@@ -99,6 +120,8 @@
                                     Background="Transparent"
                                     MouseLeftButtonDown="LayerOverlay_MouseLeftButtonDown" MouseMove="LayerOverlay_MouseMove"
                                     MouseLeftButtonUp="LayerOverlay_MouseLeftButtonUp"/>
+                                <Border BorderBrush="#8BC5FF" BorderThickness="1"
+                                        IsHitTestVisible="False"/>
                             </Grid>
                         </Grid>
                     </ScrollViewer>
