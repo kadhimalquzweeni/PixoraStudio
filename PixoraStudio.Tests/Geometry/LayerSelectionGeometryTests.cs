@@ -79,10 +79,13 @@ public sealed class LayerSelectionGeometryTests
         var points = LayerSelectionGeometry.GetHandlePoints(
             new SKRect(-200, 10, -100, 60), Canvas);
 
-        Assert.All(points, point => Assert.Equal(0, point.X));
-        Assert.Contains(new SKPoint(0, 10), points);
-        Assert.Contains(new SKPoint(0, 35), points);
-        Assert.Contains(new SKPoint(0, 60), points);
+        Assert.Equal(8, points.Distinct().Count());
+        Assert.Equal(0, points.Min(point => point.X));
+        Assert.All(points, point =>
+        {
+            Assert.InRange(point.X, Canvas.Left, Canvas.Right);
+            Assert.InRange(point.Y, Canvas.Top, Canvas.Bottom);
+        });
     }
 
     [Fact]
