@@ -46,6 +46,20 @@ public sealed class ImageDocumentCanvasTests
     }
 
     [Fact]
+    public void Resize_PreservesSemiTransparentBackgroundAlpha()
+    {
+        var background = new SKColor(40, 80, 120, 128);
+        using var source = ImageDocumentCanvas.Create(2, 2, background);
+        var expected = source.GetPixel(0, 0);
+
+        using var resized = ImageDocumentCanvas.Resize(
+            source, 4, 4, 1, 1, background);
+
+        Assert.Equal(expected, resized.GetPixel(1, 1));
+        Assert.Equal(expected, resized.GetPixel(0, 0));
+    }
+
+    [Fact]
     public void Resize_NegativeOffsetCropsContentOutsideNewCanvas()
     {
         using var source = new SKBitmap(3, 3, SKColorType.Rgba8888, SKAlphaType.Premul);
