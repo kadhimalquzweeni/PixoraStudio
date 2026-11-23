@@ -29,19 +29,26 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
 
     public event EventHandler? VisibilityChanged;
     public event EventHandler? GeometryChanged;
+    private bool _isUpdatingBounds;
 
     partial void OnIsVisibleChanged(bool value) => VisibilityChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnXChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnYChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnWidthChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnHeightChanged(int value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnXChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
+    partial void OnYChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
+    partial void OnWidthChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
+    partial void OnHeightChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
 
     public void SetBounds(int x, int y, int width, int height)
     {
-        X = x;
-        Y = y;
-        Width = Math.Max(1, width);
-        Height = Math.Max(1, height);
+        _isUpdatingBounds = true;
+        try
+        {
+            X = x;
+            Y = y;
+            Width = Math.Max(1, width);
+            Height = Math.Max(1, height);
+        }
+        finally { _isUpdatingBounds = false; }
+        GeometryChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void Dispose() => Bitmap.Dispose();
