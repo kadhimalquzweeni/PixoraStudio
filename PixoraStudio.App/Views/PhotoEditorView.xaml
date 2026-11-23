@@ -31,7 +31,7 @@
     </UserControl.Resources>
 
     <Grid Background="#17191E">
-        <Grid.RowDefinitions><RowDefinition Height="0"/><RowDefinition Height="*"/><RowDefinition Height="46"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="46"/><RowDefinition Height="*"/><RowDefinition Height="46"/></Grid.RowDefinitions>
 
         <Border Background="#22252D" Padding="12,6">
             <DockPanel LastChildFill="True">
