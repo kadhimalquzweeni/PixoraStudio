@@ -37,7 +37,20 @@ public partial class PhotoEditorView : UserControl
             return;
 
         ToolSettingsTabs.SelectedIndex = selectedTool;
+        ToolSettingsColumn.Width = new GridLength(280);
         ToolSettingsBorder.Visibility = Visibility.Visible;
+    }
+
+    private void CloseToolSettings_Click(object sender, RoutedEventArgs e)
+    {
+        ToolSettingsBorder.Visibility = Visibility.Collapsed;
+        ToolSettingsColumn.Width = new GridLength(0);
+    }
+
+    private void CloseEditor_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.GetWindow(this)?.DataContext is MainViewModel mainViewModel)
+            mainViewModel.NavigateHomeCommand.Execute(null);
     }
 
     private void StartCrop_Click(object sender, RoutedEventArgs e)
