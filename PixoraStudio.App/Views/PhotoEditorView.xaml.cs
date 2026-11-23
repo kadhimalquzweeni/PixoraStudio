@@ -73,6 +73,7 @@ public partial class PhotoEditorView : UserControl
         _cropSelection.Intersect(new Rect(0, 0, vm.ImageWidth, vm.ImageHeight));
         _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
         CropOverlay.Visibility = Visibility.Visible;
+        LayerOverlay.Visibility = Visibility.Collapsed;
         CropActionPanel.Visibility = Visibility.Visible;
         DrawCropOverlay();
         UpdateCropCoordinates();
@@ -120,6 +121,7 @@ public partial class PhotoEditorView : UserControl
     private void EndCropMode()
     {
         CropOverlay.Visibility = Visibility.Collapsed;
+        LayerOverlay.Visibility = Visibility.Visible;
         CropActionPanel.Visibility = Visibility.Collapsed;
         CropOverlay.Children.Clear();
     }
@@ -360,9 +362,9 @@ public partial class PhotoEditorView : UserControl
             if (_layerDragMode is DragMode.Bottom or DragMode.BottomLeft or DragMode.BottomRight)
                 height = Math.Max(MinimumLayerSize, bounds.Height + dy);
 
+            var ratio = bounds.Width / Math.Max(1d, bounds.Height);
             if (_layerDragMode is DragMode.TopLeft or DragMode.TopRight or DragMode.BottomLeft or DragMode.BottomRight)
             {
-                var ratio = bounds.Width / Math.Max(1d, bounds.Height);
                 if (Math.Abs(dx) >= Math.Abs(dy))
                 {
                     height = width / ratio;
@@ -373,9 +375,19 @@ public partial class PhotoEditorView : UserControl
                     width = height * ratio;
                     if (_layerDragMode is DragMode.TopLeft or DragMode.BottomLeft) x = bounds.Right - width;
                 }
-                width = Math.Max(MinimumLayerSize, width);
-                height = Math.Max(MinimumLayerSize, height);
             }
+            else if (_layerDragMode is DragMode.Left or DragMode.Right)
+            {
+                height = width / ratio;
+                y = bounds.Top + (bounds.Height - height) / 2d;
+            }
+            else if (_layerDragMode is DragMode.Top or DragMode.Bottom)
+            {
+                width = height * ratio;
+                x = bounds.Left + (bounds.Width - width) / 2d;
+            }
+            width = Math.Max(MinimumLayerSize, width);
+            height = Math.Max(MinimumLayerSize, height);
         }
 
         layer.SetBounds((int)Math.Round(x), (int)Math.Round(y),
