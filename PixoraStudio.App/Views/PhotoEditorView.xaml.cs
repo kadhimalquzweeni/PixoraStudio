@@ -37,6 +37,12 @@ public partial class PhotoEditorView : UserControl
     public PhotoEditorView()
     {
         InitializeComponent();
+        GpuPreview.RenderFailed += GpuPreview_RenderFailed;
+        if (_gpuRenderingDisabled)
+        {
+            GpuPreview.Visibility = Visibility.Collapsed;
+            CpuPreviewImage.Visibility = Visibility.Visible;
+        }
     }
 
     private PhotoEditorViewModel? ViewModel => DataContext as PhotoEditorViewModel;
@@ -116,14 +122,23 @@ public partial class PhotoEditorView : UserControl
         {
             // Keep the editor usable on systems without a compatible OpenGL
             // context or when a driver rejects the runtime shader.
-            _gpuRenderingDisabled = true;
-            GpuPreview.Visibility = Visibility.Collapsed;
-            CpuPreviewImage.Visibility = Visibility.Visible;
-            vm.SetGpuPreviewAvailable(false);
+            DisableGpuPreview(vm);
         }
     }
 
 
+
+    private void GpuPreview_RenderFailed(object? sender, EventArgs e) =>
+        DisableGpuPreview(ViewModel);
+
+    private void DisableGpuPreview(PhotoEditorViewModel? viewModel)
+    {
+        if (_gpuRenderingDisabled) return;
+        _gpuRenderingDisabled = true;
+        GpuPreview.Visibility = Visibility.Collapsed;
+        CpuPreviewImage.Visibility = Visibility.Visible;
+        viewModel?.SetGpuPreviewAvailable(false);
+    }
 
     private void Tool_Click(object sender, RoutedEventArgs e)
     {
