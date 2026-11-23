@@ -16,7 +16,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private readonly IImageProcessingService _imageService;
     private readonly Stack<EditorSnapshot> _undoStack = new();
     private readonly Stack<EditorSnapshot> _redoStack = new();
-    private SKBitmap? _originalBitmap;
+    private SKBitmap? _canvasBitmap;
     private SKBitmap? _processedBitmap;
     private ImageAdjustment _lastCommittedAdjustment = new();
     private bool _isRestoringSnapshot;
@@ -68,11 +68,17 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         ClearHistory();
         ClearAdditionalLayers();
         DisposeBitmaps();
-        _originalBitmap = _imageService.LoadImage(filePath);
+        var firstImage = _imageService.LoadImage(filePath);
+        _canvasBitmap = new SKBitmap(firstImage.Width, firstImage.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        _canvasBitmap.Erase(SKColors.Transparent);
         ImagePath = filePath;
         IsImageLoaded = false;
         SetDefaultAdjustments();
         UpdateDimensions();
+        var firstLayer = CreateLayer(Path.GetFileName(filePath), firstImage, 0, 0);
+        AttachLayer(firstLayer);
+        AdditionalLayers.Add(firstLayer);
+        SelectedLayer = firstLayer;
         IsImageLoaded = true;
         RefreshPreview();
     }
@@ -92,14 +98,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void SaveUndoState()
     {
-        if (_originalBitmap is null) return;
+        if (SelectedLayer is null) return;
         PushHistory(_undoStack, CaptureSnapshot());
         ClearStack(_redoStack);
         UpdateHistoryState();
     }
 
     private EditorSnapshot CaptureSnapshot() =>
-        new(_imageService.CloneImage(_originalBitmap!), GetCurrentAdjustment());
+        new(_imageService.CloneImage(SelectedLayer!.Bitmap), SelectedLayer.Adjustment);
 
     private void PushHistory(Stack<EditorSnapshot> stack, EditorSnapshot snapshot)
     {
@@ -132,8 +138,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void RestoreSnapshot(EditorSnapshot snapshot)
     {
-        _originalBitmap?.Dispose();
-        _originalBitmap = snapshot.Bitmap;
+        if (SelectedLayer is null) { snapshot.Dispose(); return; }
+        SelectedLayer.ReplaceBitmap(_imageService.CloneImage(snapshot.Bitmap));
+        SelectedLayer.Adjustment = snapshot.Adjustment;
         snapshot.DetachBitmap();
         _isRestoringSnapshot = true;
         try
@@ -150,18 +157,34 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             _lastCommittedAdjustment = GetCurrentAdjustment();
         }
         finally { _isRestoringSnapshot = false; }
-        UpdateDimensions();
+        CropX = CropY = 0;
+        CropWidth = ResizeWidth = SelectedLayer.Bitmap.Width;
+        CropHeight = ResizeHeight = SelectedLayer.Bitmap.Height;
+        _resizeAspectRatio = (float)SelectedLayer.Bitmap.Width / Math.Max(1, SelectedLayer.Bitmap.Height);
         RefreshPreview();
         snapshot.Dispose();
     }
 
     private void RefreshPreview()
     {
-        if (_originalBitmap is null) return;
-        _processedBitmap?.Dispose();
-        _processedBitmap = _imageService.ApplyAdjustments(_originalBitmap, GetCurrentAdjustment());
-        using var composite = ImageLayerCompositor.Composite(ShowOriginal ? _originalBitmap : _processedBitmap, AdditionalLayers.Select(layer => (layer.Bitmap, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible)).ToArray());
-        PreviewImage = ConvertToBitmapSource(composite);
+        if (_canvasBitmap is null) return;
+        var renderedLayers = new List<SKBitmap>(AdditionalLayers.Count);
+        try
+        {
+            var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)>(AdditionalLayers.Count);
+            foreach (var layer in AdditionalLayers)
+            {
+                var adjustment = ShowOriginal ? new ImageAdjustment()
+                    : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
+                var rendered = _imageService.ApplyAdjustments(layer.Bitmap, adjustment);
+                renderedLayers.Add(rendered);
+                entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible));
+            }
+            _processedBitmap?.Dispose();
+            _processedBitmap = ImageLayerCompositor.Composite(_canvasBitmap, entries);
+            PreviewImage = ConvertToBitmapSource(_processedBitmap);
+        }
+        finally { foreach (var bitmap in renderedLayers) bitmap.Dispose(); }
     }
 
     private static BitmapSource ConvertToBitmapSource(SKBitmap bitmap)
@@ -180,9 +203,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void UpdateDimensions()
     {
-        if (_originalBitmap is null) return;
-        ImageWidth = _originalBitmap.Width;
-        ImageHeight = _originalBitmap.Height;
+        if (_canvasBitmap is null) return;
+        ImageWidth = _canvasBitmap.Width;
+        ImageHeight = _canvasBitmap.Height;
         CropX = CropY = 0;
         CropWidth = ResizeWidth = ImageWidth;
         CropHeight = ResizeHeight = ImageHeight;
@@ -191,17 +214,18 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void ApplyTransform(Func<SKBitmap, SKBitmap> transform)
     {
-        if (_originalBitmap is null) return;
+        if (SelectedLayer is null) return;
         try
         {
-            using var transformed = transform(_originalBitmap);
+            using var transformed = transform(SelectedLayer.Bitmap);
             SaveUndoState();
+            SelectedLayer.ReplaceBitmap(_imageService.CloneImage(transformed));
             _lastCommittedAdjustment = GetCurrentAdjustment();
-            var replacement = _imageService.CloneImage(transformed);
-            _originalBitmap.Dispose();
-            _originalBitmap = replacement;
             OperationError = null;
-            UpdateDimensions();
+            CropX = CropY = 0;
+            CropWidth = ResizeWidth = SelectedLayer.Bitmap.Width;
+            CropHeight = ResizeHeight = SelectedLayer.Bitmap.Height;
+            _resizeAspectRatio = (float)SelectedLayer.Bitmap.Width / Math.Max(1, SelectedLayer.Bitmap.Height);
             RefreshPreview();
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
@@ -265,7 +289,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void AddImageLayer()
     {
-        if (_originalBitmap is null) return;
+        if (_canvasBitmap is null) return;
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Add image layer",
@@ -278,13 +302,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         try
         {
             var bitmap = _imageService.LoadImage(dialog.FileName);
-            var thumbnailBitmap = _imageService.Resize(bitmap, 64, Math.Max(1, (int)Math.Round(64d * bitmap.Height / bitmap.Width)));
-            BitmapSource thumbnail;
-            try { thumbnail = ConvertToBitmapSource(thumbnailBitmap); }
-            finally { thumbnailBitmap.Dispose(); }
-            var layer = new PhotoLayerViewModel(Path.GetFileName(dialog.FileName), bitmap, thumbnail, (_originalBitmap.Width - bitmap.Width) / 2, (_originalBitmap.Height - bitmap.Height) / 2);
-            layer.VisibilityChanged += OnLayerVisibilityChanged;
-            layer.GeometryChanged += OnLayerGeometryChanged;
+            var layer = CreateLayer(Path.GetFileName(dialog.FileName), bitmap,
+                (_canvasBitmap.Width - bitmap.Width) / 2, (_canvasBitmap.Height - bitmap.Height) / 2);
+            AttachLayer(layer);
             AdditionalLayers.Insert(0, layer);
             SelectedLayer = layer;
             OperationError = null;
@@ -300,10 +320,10 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private void RemoveLayer(PhotoLayerViewModel? layer)
     {
         if (layer is null || !AdditionalLayers.Remove(layer)) return;
-        if (ReferenceEquals(SelectedLayer, layer)) SelectedLayer = AdditionalLayers.FirstOrDefault();
-        layer.VisibilityChanged -= OnLayerVisibilityChanged;
-        layer.GeometryChanged -= OnLayerGeometryChanged;
+        bool removingSelected = ReferenceEquals(SelectedLayer, layer);
+        DetachLayer(layer);
         layer.Dispose();
+        if (removingSelected) SelectedLayer = AdditionalLayers.FirstOrDefault();
         RefreshPreview();
     }
 
@@ -311,12 +331,37 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         foreach (var layer in AdditionalLayers)
         {
-            layer.VisibilityChanged -= OnLayerVisibilityChanged;
-            layer.GeometryChanged -= OnLayerGeometryChanged;
+            DetachLayer(layer);
             layer.Dispose();
         }
         AdditionalLayers.Clear();
         SelectedLayer = null;
+    }
+
+    private PhotoLayerViewModel CreateLayer(string name, SKBitmap bitmap, int x, int y)
+    {
+        try
+        {
+            var thumbnailBitmap = _imageService.Resize(bitmap, 64,
+                Math.Max(1, (int)Math.Round(64d * bitmap.Height / bitmap.Width)));
+            BitmapSource thumbnail;
+            try { thumbnail = ConvertToBitmapSource(thumbnailBitmap); }
+            finally { thumbnailBitmap.Dispose(); }
+            return new PhotoLayerViewModel(name, bitmap, thumbnail, x, y);
+        }
+        catch { bitmap.Dispose(); throw; }
+    }
+
+    private void AttachLayer(PhotoLayerViewModel layer)
+    {
+        layer.VisibilityChanged += OnLayerVisibilityChanged;
+        layer.GeometryChanged += OnLayerGeometryChanged;
+    }
+
+    private void DetachLayer(PhotoLayerViewModel layer)
+    {
+        layer.VisibilityChanged -= OnLayerVisibilityChanged;
+        layer.GeometryChanged -= OnLayerGeometryChanged;
     }
 
     private void OnLayerVisibilityChanged(object? sender, EventArgs e) => RefreshPreview();
@@ -343,12 +388,35 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     partial void OnSelectedLayerChanged(PhotoLayerViewModel? value)
     {
         foreach (var layer in AdditionalLayers) layer.IsSelected = ReferenceEquals(layer, value);
+        if (value is null) return;
+        _isRestoringSnapshot = true;
+        try
+        {
+            Brightness = value.Adjustment.Brightness;
+            Contrast = value.Adjustment.Contrast;
+            Saturation = value.Adjustment.Saturation;
+            Exposure = value.Adjustment.Exposure;
+            Highlights = value.Adjustment.Highlights;
+            Shadows = value.Adjustment.Shadows;
+            Temperature = value.Adjustment.Temperature;
+            Tint = value.Adjustment.Tint;
+            SelectedFilter = value.Adjustment.Filter;
+            _lastCommittedAdjustment = GetCurrentAdjustment();
+            _resizeAspectRatio = (float)value.Bitmap.Width / Math.Max(1, value.Bitmap.Height);
+            ResizeWidth = value.Bitmap.Width;
+            ResizeHeight = value.Bitmap.Height;
+            CropX = CropY = 0;
+            CropWidth = value.Bitmap.Width;
+            CropHeight = value.Bitmap.Height;
+        }
+        finally { _isRestoringSnapshot = false; }
+        if (IsImageLoaded) RefreshPreview();
     }
 
     [RelayCommand]
     private void CommitAdjustments()
     {
-        if (!IsImageLoaded) return;
+        if (!IsImageLoaded || SelectedLayer is null) return;
         var current = GetCurrentAdjustment();
         if (current.Brightness == _lastCommittedAdjustment.Brightness &&
             current.Contrast == _lastCommittedAdjustment.Contrast &&
@@ -361,8 +429,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             current.Filter == _lastCommittedAdjustment.Filter) return;
 
         PushHistory(_undoStack, new EditorSnapshot(
-            _imageService.CloneImage(_originalBitmap!), _lastCommittedAdjustment));
+            _imageService.CloneImage(SelectedLayer.Bitmap), SelectedLayer.Adjustment));
         ClearStack(_redoStack);
+        SelectedLayer.Adjustment = current;
         _lastCommittedAdjustment = current;
         UpdateHistoryState();
     }
@@ -404,7 +473,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Undo()
     {
-        if (_undoStack.Count == 0 || _originalBitmap is null) return;
+        if (_undoStack.Count == 0 || SelectedLayer is null) return;
         PushHistory(_redoStack, CaptureSnapshot());
         RestoreSnapshot(_undoStack.Pop());
         UpdateHistoryState();
@@ -413,7 +482,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Redo()
     {
-        if (_redoStack.Count == 0 || _originalBitmap is null) return;
+        if (_redoStack.Count == 0 || SelectedLayer is null) return;
         PushHistory(_undoStack, CaptureSnapshot());
         RestoreSnapshot(_redoStack.Pop());
         UpdateHistoryState();
@@ -531,9 +600,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void DisposeBitmaps()
     {
-        _originalBitmap?.Dispose();
+        _canvasBitmap?.Dispose();
         _processedBitmap?.Dispose();
-        _originalBitmap = _processedBitmap = null;
+        _canvasBitmap = _processedBitmap = null;
     }
 
     public void Dispose()
