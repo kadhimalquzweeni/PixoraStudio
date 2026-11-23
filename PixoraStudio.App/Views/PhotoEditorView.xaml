@@ -36,7 +36,10 @@
         <Border Background="#22252D" Padding="12,6">
             <DockPanel LastChildFill="True">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
-                    <TextBlock Text="PIXORA" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,22,0"/>
+                    <TextBlock Text="PIXORA" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <Button Content="Open image" Command="{Binding OpenImageCommand}"
+                            Background="#087FC4" Foreground="White" Padding="12,6"
+                            ToolTip="Open another image"/>
                     <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
                     <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
                     <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
