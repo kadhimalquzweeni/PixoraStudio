@@ -24,7 +24,10 @@ internal sealed class CanvasDialogWindow : Window
     private readonly ComboBox? _backgroundInput;
     private readonly TextBox? _customColourInput;
     private readonly CheckBox? _centreContentInput;
+    private readonly CheckBox _lockAspectRatioInput;
     private readonly TextBlock _errorText;
+    private readonly double _initialAspectRatio;
+    private bool _isUpdatingDimensions;
     private CanvasDialogResult? _result;
 
     private CanvasDialogWindow(
@@ -64,6 +67,18 @@ internal sealed class CanvasDialogWindow : Window
         panel.Children.Add(CreateLabel("Height (pixels)"));
         _heightInput = CreateInput(height);
         panel.Children.Add(_heightInput);
+        _initialAspectRatio = width / (double)Math.Max(1, height);
+        _widthInput.TextChanged += WidthInput_TextChanged;
+        _heightInput.TextChanged += HeightInput_TextChanged;
+
+        _lockAspectRatioInput = new CheckBox
+        {
+            Content = "Lock aspect ratio",
+            IsChecked = false,
+            Foreground = Brushes.White,
+            Margin = new Thickness(0, 10, 0, 4)
+        };
+        panel.Children.Add(_lockAspectRatioInput);
 
         if (isResize)
         {
@@ -163,6 +178,37 @@ internal sealed class CanvasDialogWindow : Window
         BorderBrush = new SolidColorBrush(Color.FromRgb(72, 76, 86))
     };
 
+    private void WidthInput_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isUpdatingDimensions || _lockAspectRatioInput.IsChecked != true ||
+            !int.TryParse(_widthInput.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int width) ||
+            width <= 0)
+            return;
+
+        try
+        {
+            _isUpdatingDimensions = true;
+            _heightInput.Text = Math.Max(1, (int)Math.Round(width / _initialAspectRatio))
+                .ToString(CultureInfo.InvariantCulture);
+        }
+        finally { _isUpdatingDimensions = false; }
+    }
+
+    private void HeightInput_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isUpdatingDimensions || _lockAspectRatioInput.IsChecked != true ||
+            !int.TryParse(_heightInput.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int height) ||
+            height <= 0)
+            return;
+
+        try
+        {
+            _isUpdatingDimensions = true;
+            _widthInput.Text = Math.Max(1, (int)Math.Round(height * _initialAspectRatio))
+                .ToString(CultureInfo.InvariantCulture);
+        }
+        finally { _isUpdatingDimensions = false; }
+    }
     private void Background_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_customColourInput is not null && _backgroundInput is not null)
