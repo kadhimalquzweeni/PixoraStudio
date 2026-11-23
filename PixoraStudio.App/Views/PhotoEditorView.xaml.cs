@@ -37,6 +37,7 @@ public partial class PhotoEditorView : UserControl
             return;
 
         ToolSettingsTabs.SelectedIndex = selectedTool;
+        ToolSettingsBorder.Visibility = Visibility.Visible;
     }
 
     private void StartCrop_Click(object sender, RoutedEventArgs e)
