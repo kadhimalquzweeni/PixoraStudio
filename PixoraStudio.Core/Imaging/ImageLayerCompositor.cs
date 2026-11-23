@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace PixoraStudio.Core.Imaging;
 
-/// <summary>Composites visible image layers over a fixed-size document canvas.</summary>
+/// <summary>Composites visible image layers over a fixed-size transparent document canvas.</summary>
 public static class ImageLayerCompositor
 {
     public static SKBitmap Composite(
