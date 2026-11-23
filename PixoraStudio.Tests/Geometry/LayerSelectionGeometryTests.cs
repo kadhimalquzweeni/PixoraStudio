@@ -24,18 +24,19 @@ public sealed class LayerSelectionGeometryTests
     }
 
     [Theory]
-    [InlineData(-30, 10, 50, 50, 0, 10)]
-    [InlineData(50, 10, 130, 50, 100, 10)]
-    [InlineData(10, -30, 50, 50, 10, 0)]
-    [InlineData(10, 40, 50, 100, 10, 80)]
+    [InlineData(-30, 10, 50, 50, 0, 10, 0)]
+    [InlineData(50, 10, 130, 50, 100, 10, 2)]
+    [InlineData(10, -30, 50, 50, 10, 0, 0)]
+    [InlineData(10, 40, 50, 100, 10, 80, 6)]
     public void GetHandlePoints_WhenLayerExtendsBeyondCanvas_ClampsOffCanvasHandles(
-        float left, float top, float right, float bottom, float expectedLeft, float expectedTop)
+        float left, float top, float right, float bottom,
+        float expectedX, float expectedY, int handleIndex)
     {
         var points = LayerSelectionGeometry.GetHandlePoints(
             new SKRect(left, top, right, bottom), Canvas);
 
-        Assert.Equal(expectedLeft, points[0].X);
-        Assert.Equal(expectedTop, points[0].Y);
+        Assert.Equal(expectedX, points[handleIndex].X);
+        Assert.Equal(expectedY, points[handleIndex].Y);
         Assert.All(points, point =>
         {
             Assert.InRange(point.X, Canvas.Left, Canvas.Right);
