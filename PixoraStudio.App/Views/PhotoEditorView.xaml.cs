@@ -297,6 +297,7 @@ public partial class PhotoEditorView : UserControl
     {
         if (ViewModel is not { IsImageLoaded: true } vm || CropOverlay.Visibility == Visibility.Visible) return;
         var point = e.GetPosition(LayerOverlay);
+        _layerDragMode = DragMode.None;
         var selected = vm.SelectedLayer;
         if (selected is not null && selected.IsVisible)
         {
