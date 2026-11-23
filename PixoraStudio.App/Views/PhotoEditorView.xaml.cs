@@ -37,7 +37,6 @@ public partial class PhotoEditorView : UserControl
     public PhotoEditorView()
     {
         InitializeComponent();
-        GpuPreview.RenderFailed += GpuPreview_RenderFailed;
         if (_gpuRenderingDisabled)
         {
             GpuPreview.Visibility = Visibility.Collapsed;
