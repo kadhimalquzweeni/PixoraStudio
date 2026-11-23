@@ -76,7 +76,7 @@ public partial class PhotoEditorView : UserControl
         if (Dispatcher.CheckAccess())
             GpuPreview?.InvalidateVisual();
         else
-            Dispatcher.BeginInvoke(GpuPreview.InvalidateVisual);
+            Dispatcher.BeginInvoke(new Action(() => GpuPreview?.InvalidateVisual()));
     }
 
     private void GpuPreview_PaintSurface(object? sender, SKPaintGLSurfaceEventArgs e)

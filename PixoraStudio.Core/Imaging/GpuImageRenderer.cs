@@ -24,6 +24,7 @@ public static class GpuImageRenderer
     private const string AdjustmentShader = """
         uniform float brightness;
         uniform float contrast;
+        uniform float saturation;
         uniform float exposure;
         uniform float highlights;
         uniform float shadows;
@@ -54,7 +55,6 @@ public static class GpuImageRenderer
             rgb += localTone;
 
             float gray = dot(rgb, float3(0.299, 0.587, 0.114));
-            rgb = gray + contrast * 0.0 + (rgb - gray) * 1.0;
             // Saturation is passed through a dedicated uniform to keep the
             // shader's operation order aligned with the CPU processing path.
             rgb = gray + saturation * (rgb - gray);

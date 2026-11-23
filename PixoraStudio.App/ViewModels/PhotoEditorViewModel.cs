@@ -242,7 +242,10 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (IsGpuPreviewAvailable == available) return;
         IsGpuPreviewAvailable = available;
         if (!available)
+        {
+            _isLayerDragPreviewActive = false;
             BuildCpuPreview();
+        }
         PreviewInvalidated?.Invoke(this, EventArgs.Empty);
     }
 
