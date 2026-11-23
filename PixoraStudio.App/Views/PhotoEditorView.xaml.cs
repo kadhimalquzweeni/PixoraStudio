@@ -29,6 +29,16 @@ public partial class PhotoEditorView : UserControl
 
     private PhotoEditorViewModel? ViewModel => DataContext as PhotoEditorViewModel;
 
+    private void Tool_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string tag } ||
+            !int.TryParse(tag, out int selectedTool) ||
+            selectedTool < 0 || selectedTool >= ToolSettingsTabs.Items.Count)
+            return;
+
+        ToolSettingsTabs.SelectedIndex = selectedTool;
+    }
+
     private void StartCrop_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel is not { IsImageLoaded: true } vm || vm.ImageWidth < 1 || vm.ImageHeight < 1)
