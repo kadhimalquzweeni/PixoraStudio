@@ -93,6 +93,10 @@
                                     Background="Transparent" Visibility="Collapsed"
                                     MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown" MouseMove="CropOverlay_MouseMove"
                                     MouseLeftButtonUp="CropOverlay_MouseLeftButtonUp"/>
+                                <Canvas x:Name="LayerOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                    Background="Transparent"
+                                    MouseLeftButtonDown="LayerOverlay_MouseLeftButtonDown" MouseMove="LayerOverlay_MouseMove"
+                                    MouseLeftButtonUp="LayerOverlay_MouseLeftButtonUp"/>
                             </Grid>
                         </Grid>
                     </ScrollViewer>
