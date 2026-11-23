@@ -18,6 +18,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private readonly Stack<EditorSnapshot> _redoStack = new();
     private SKBitmap? _canvasBitmap;
     private SKBitmap? _processedBitmap;
+    private SKColor _canvasBackgroundColor = SKColors.Transparent;
     private ImageAdjustment _lastCommittedAdjustment = new();
     private bool _isRestoringSnapshot;
     private float _resizeAspectRatio = 1f;
@@ -72,6 +73,47 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
 
+    public void CreateCanvas(int width, int height, SKColor backgroundColor)
+    {
+        var newCanvas = ImageDocumentCanvas.Create(width, height, backgroundColor);
+        ClearHistory();
+        ClearAdditionalLayers();
+        DisposeBitmaps();
+        _canvasBitmap = newCanvas;
+        _canvasBackgroundColor = backgroundColor;
+        ImagePath = null;
+        IsImageLoaded = false;
+        SetDefaultAdjustments();
+        UpdateDimensions();
+        IsImageLoaded = true;
+        OperationError = null;
+        RefreshPreview();
+    }
+
+    public void ResizeCanvas(int width, int height, bool centreContent)
+    {
+        if (_canvasBitmap is null)
+            throw new InvalidOperationException("Create or open a canvas before resizing it.");
+
+        int offsetX = centreContent ? (width - ImageWidth) / 2 : 0;
+        int offsetY = centreContent ? (height - ImageHeight) / 2 : 0;
+        var resizedCanvas = ImageDocumentCanvas.Resize(
+            _canvasBitmap, width, height, offsetX, offsetY, _canvasBackgroundColor);
+
+        var previousCanvas = _canvasBitmap;
+        _canvasBitmap = resizedCanvas;
+        previousCanvas.Dispose();
+
+        foreach (var layer in AdditionalLayers)
+        {
+            layer.SetBounds(layer.X + offsetX, layer.Y + offsetY, layer.Width, layer.Height);
+        }
+
+        UpdateDimensions();
+        OperationError = null;
+        RefreshPreview();
+    }
+
     public void LoadImage(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -80,6 +122,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         DisposeBitmaps();
         var firstImage = _imageService.LoadImage(filePath);
         _canvasBitmap = ImageDocumentCanvas.Create(firstImage.Width, firstImage.Height);
+        _canvasBackgroundColor = SKColors.Transparent;
         ImagePath = filePath;
         IsImageLoaded = false;
         SetDefaultAdjustments();
@@ -233,7 +276,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 layer.IsVisible, adjustment));
         }
 
-        GpuImageRenderer.Render(canvas, ImageWidth, ImageHeight, layers);
+        GpuImageRenderer.Render(canvas, ImageWidth, ImageHeight, layers,
+            checkerboardBackground: true, documentBackground: _canvasBitmap);
     }
 
     /// <summary>Switches between GPU preview rendering and the CPU fallback.</summary>
@@ -318,6 +362,40 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         if (!LockAspectRatio || _isRestoringSnapshot || value <= 0) return;
         ResizeWidth = Math.Max(1, (int)Math.Round(value * _resizeAspectRatio));
+    }
+
+    [RelayCommand]
+    private void NewCanvas()
+    {
+        var result = CanvasDialogWindow.ShowNewCanvas(System.Windows.Application.Current?.MainWindow);
+        if (result is null) return;
+
+        try
+        {
+            CreateCanvas(result.Width, result.Height, result.BackgroundColor);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OutOfMemoryException)
+        {
+            OperationError = $"Unable to create canvas: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void ResizeCanvas()
+    {
+        if (_canvasBitmap is null) return;
+        var result = CanvasDialogWindow.ShowResizeCanvas(
+            System.Windows.Application.Current?.MainWindow, ImageWidth, ImageHeight);
+        if (result is null) return;
+
+        try
+        {
+            ResizeCanvas(result.Width, result.Height, result.CentreContent);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OutOfMemoryException)
+        {
+            OperationError = $"Unable to resize canvas: {ex.Message}";
+        }
     }
 
     [RelayCommand]
