@@ -64,6 +64,7 @@
                             ToolTip="Open another image"/>
                     <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
                     <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
+                    <CheckBox Content="Snap" IsChecked="{Binding IsSnappingEnabled}" Foreground="White" VerticalAlignment="Center" Margin="8,2" ToolTip="Snap layers to the canvas and other layers"/>
                     <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
