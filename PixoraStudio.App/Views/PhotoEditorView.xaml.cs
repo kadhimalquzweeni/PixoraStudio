@@ -176,19 +176,19 @@ public partial class PhotoEditorView : UserControl
         switch (_dragMode)
         {
             case DragMode.Move:
-                selection.X = Math.Clamp(selection.X + dx, 0, bounds.Width - selection.Width);
-                selection.Y = Math.Clamp(selection.Y + dy, 0, bounds.Height - selection.Height);
+                selection.X = Math.Clamp(selection.X + dx, bounds.Left, bounds.Right - selection.Width);
+                selection.Y = Math.Clamp(selection.Y + dy, bounds.Top, bounds.Bottom - selection.Height);
                 break;
             case DragMode.Left:
             case DragMode.TopLeft:
             case DragMode.BottomLeft:
-                selection = ResizeLeft(selection, dx);
+                selection = ResizeLeft(selection, dx, bounds.Left);
                 break;
         }
         if (_dragMode is DragMode.Right or DragMode.TopRight or DragMode.BottomRight)
             selection.Width = Math.Clamp(_selectionAtDragStart.Width + dx, MinimumCropSize, bounds.Right - selection.Left);
         if (_dragMode is DragMode.Top or DragMode.TopLeft or DragMode.TopRight)
-            selection = ResizeTop(selection, dy);
+            selection = ResizeTop(selection, dy, bounds.Top);
         if (_dragMode is DragMode.Bottom or DragMode.BottomLeft or DragMode.BottomRight)
             selection.Height = Math.Clamp(_selectionAtDragStart.Height + dy, MinimumCropSize, bounds.Bottom - selection.Top);
 
@@ -197,19 +197,19 @@ public partial class PhotoEditorView : UserControl
         UpdateCropCoordinates();
     }
 
-    private Rect ResizeLeft(Rect rect, double dx)
+    private Rect ResizeLeft(Rect rect, double dx, double minimumLeft = 0)
     {
         var right = rect.Right;
-        var left = Math.Clamp(rect.Left + dx, 0, right - MinimumCropSize);
+        var left = Math.Clamp(rect.Left + dx, minimumLeft, right - MinimumCropSize);
         rect.X = left;
         rect.Width = right - left;
         return rect;
     }
 
-    private Rect ResizeTop(Rect rect, double dy)
+    private Rect ResizeTop(Rect rect, double dy, double minimumTop = 0)
     {
         var bottom = rect.Bottom;
-        var top = Math.Clamp(rect.Top + dy, 0, bottom - MinimumCropSize);
+        var top = Math.Clamp(rect.Top + dy, minimumTop, bottom - MinimumCropSize);
         rect.Y = top;
         rect.Height = bottom - top;
         return rect;
