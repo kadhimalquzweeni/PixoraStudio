@@ -139,6 +139,74 @@ public class ImageProcessingService : IImageProcessingService
         return result;
     }
 
+    /// <summary>Encodes a multi-resolution Windows icon. Each image is stored as a PNG payload.</summary>
+    public byte[] EncodeIcon(SKBitmap source, IReadOnlyCollection<int> sizes)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(sizes);
+
+        int[] orderedSizes = sizes.Distinct().Order().ToArray();
+        if (orderedSizes.Length == 0)
+            throw new ArgumentException("Select at least one icon size.", nameof(sizes));
+        if (orderedSizes.Any(size => size is < 1 or > 256))
+            throw new ArgumentOutOfRangeException(nameof(sizes), "Icon sizes must be between 1 and 256 pixels.");
+
+        var payloads = new List<byte[]>(orderedSizes.Length);
+        foreach (int size in orderedSizes)
+        {
+            var info = new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using var iconBitmap = new SKBitmap(info);
+            using (var canvas = new SKCanvas(iconBitmap))
+            {
+                canvas.Clear(SKColors.Transparent);
+                float scale = Math.Min((float)size / source.Width, (float)size / source.Height);
+                float width = source.Width * scale;
+                float height = source.Height * scale;
+                var destination = new SKRect(
+                    (size - width) / 2f, (size - height) / 2f,
+                    (size + width) / 2f, (size + height) / 2f);
+                canvas.DrawBitmap(source, destination, new SKSamplingOptions(SKCubicResampler.Mitchell));
+                canvas.Flush();
+            }
+
+            using var image = SKImage.FromBitmap(iconBitmap);
+            using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+            if (encoded is null)
+                throw new InvalidOperationException($"Could not encode the {size}x{size} icon image.");
+            payloads.Add(encoded.ToArray());
+        }
+
+        const int headerLength = 6;
+        const int entryLength = 16;
+        int dataOffset = checked(headerLength + entryLength * payloads.Count);
+        using var output = new MemoryStream();
+        using var writer = new BinaryWriter(output);
+        writer.Write((ushort)0); // Reserved
+        writer.Write((ushort)1); // Icon resource
+        writer.Write(checked((ushort)payloads.Count));
+
+        for (int i = 0; i < orderedSizes.Length; i++)
+        {
+            int size = orderedSizes[i];
+            byte dimension = size == 256 ? (byte)0 : checked((byte)size);
+            writer.Write(dimension);
+            writer.Write(dimension);
+            writer.Write((byte)0); // Palette colours
+            writer.Write((byte)0); // Reserved
+            writer.Write((ushort)1); // Colour planes
+            writer.Write((ushort)32); // Bits per pixel
+            writer.Write(checked((uint)payloads[i].Length));
+            writer.Write(checked((uint)dataOffset));
+            dataOffset = checked(dataOffset + payloads[i].Length);
+        }
+
+        foreach (byte[] payload in payloads)
+            writer.Write(payload);
+
+        writer.Flush();
+        return output.ToArray();
+    }
+
     public SKBitmap ApplyAdjustments(SKBitmap original, ImageAdjustment adjustment)
     {
         ArgumentNullException.ThrowIfNull(original);
