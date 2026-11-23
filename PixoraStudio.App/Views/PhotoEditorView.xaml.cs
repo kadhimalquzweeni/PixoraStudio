@@ -2,6 +2,7 @@ using PixoraStudio.App.ViewModels;
 using PixoraStudio.Core.Models;
 using PixoraStudio.Core.Geometry;
 using SkiaSharp;
+using SkiaSharp.Views.Desktop;
 using System.Windows;
 using System.ComponentModel;
 using System.Windows.Controls;
@@ -27,6 +28,7 @@ public partial class PhotoEditorView : UserControl
     private Rect _layerBoundsAtDragStart;
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
+    private bool _gpuRenderingDisabled;
 
     private enum DragMode { None, Move, Left, Right, Top, Bottom, TopLeft, TopRight, BottomLeft, BottomRight }
 
@@ -42,19 +44,67 @@ public partial class PhotoEditorView : UserControl
     private void PhotoEditorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (_observedViewModel is not null)
+        {
             _observedViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+            _observedViewModel.PreviewInvalidated -= ViewModel_PreviewInvalidated;
+        }
         _observedViewModel = e.NewValue as PhotoEditorViewModel;
         if (_observedViewModel is not null)
+        {
             _observedViewModel.PropertyChanged += ViewModel_PropertyChanged;
+            _observedViewModel.PreviewInvalidated += ViewModel_PreviewInvalidated;
+        }
         DrawLayerSelection();
+        GpuPreview?.InvalidateVisual();
     }
 
-    private void PhotoEditorView_Loaded(object sender, RoutedEventArgs e) => DrawLayerSelection();
+    private void PhotoEditorView_Loaded(object sender, RoutedEventArgs e)
+    {
+        DrawLayerSelection();
+        GpuPreview.InvalidateVisual();
+    }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PhotoEditorViewModel.SelectedLayer))
             Dispatcher.Invoke(DrawLayerSelection);
+        GpuPreview?.InvalidateVisual();
+    }
+
+    private void ViewModel_PreviewInvalidated(object? sender, EventArgs e)
+    {
+        if (Dispatcher.CheckAccess())
+            GpuPreview?.InvalidateVisual();
+        else
+            Dispatcher.BeginInvoke(GpuPreview.InvalidateVisual);
+    }
+
+    private void GpuPreview_PaintSurface(object? sender, SKPaintGLSurfaceEventArgs e)
+    {
+        if (_gpuRenderingDisabled)
+            return;
+
+        if (ViewModel is not { IsImageLoaded: true } vm)
+        {
+            e.Surface.Canvas.Clear(SKColors.Transparent);
+            return;
+        }
+
+        try
+        {
+            vm.RenderGpuPreview(e.Surface.Canvas);
+            vm.SetGpuPreviewAvailable(true);
+            CpuPreviewImage.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception)
+        {
+            // Keep the editor usable on systems without a compatible OpenGL
+            // context or when a driver rejects the runtime shader.
+            _gpuRenderingDisabled = true;
+            GpuPreview.Visibility = Visibility.Collapsed;
+            CpuPreviewImage.Visibility = Visibility.Visible;
+            vm.SetGpuPreviewAvailable(false);
+        }
     }
 
 

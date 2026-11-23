@@ -27,6 +27,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PhotoLayerViewModel? selectedLayer;
     public ObservableCollection<PhotoLayerViewModel> AdditionalLayers { get; } = [];
     [ObservableProperty] private BitmapSource? previewImage;
+    [ObservableProperty] private bool isGpuPreviewAvailable;
+    public event EventHandler? PreviewInvalidated;
     [ObservableProperty] private BitmapSource? layerDragPreviewImage;
     [ObservableProperty] private int layerDragPreviewX;
     [ObservableProperty] private int layerDragPreviewY;
@@ -175,6 +177,19 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private void RefreshPreview()
     {
         if (_canvasBitmap is null) return;
+
+        if (IsGpuPreviewAvailable)
+        {
+            PreviewInvalidated?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        BuildCpuPreview();
+    }
+
+    private void BuildCpuPreview()
+    {
+        if (_canvasBitmap is null) return;
         var renderedLayers = new List<SKBitmap>(AdditionalLayers.Count);
         try
         {
@@ -192,6 +207,43 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             PreviewImage = ConvertToBitmapSource(_processedBitmap);
         }
         finally { foreach (var bitmap in renderedLayers) bitmap.Dispose(); }
+    }
+
+    /// <summary>
+    /// Draws the document directly into the caller's Skia canvas. When the caller
+    /// supplies SKGLElement's OpenGL-backed canvas, layer uploads, adjustment
+    /// shaders, scaling and alpha compositing are performed by the GPU.
+    /// </summary>
+    public void RenderGpuPreview(SKCanvas canvas)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+        if (_canvasBitmap is null || !IsImageLoaded)
+        {
+            canvas.Clear(SKColors.Transparent);
+            return;
+        }
+
+        var layers = new List<GpuImageLayer>(AdditionalLayers.Count);
+        foreach (var layer in AdditionalLayers.Reverse())
+        {
+            var adjustment = ShowOriginal ? new ImageAdjustment()
+                : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
+            layers.Add(new GpuImageLayer(
+                layer.Bitmap, layer.X, layer.Y, layer.Width, layer.Height,
+                layer.IsVisible, adjustment));
+        }
+
+        GpuImageRenderer.Render(canvas, ImageWidth, ImageHeight, layers);
+    }
+
+    /// <summary>Switches between GPU preview rendering and the CPU fallback.</summary>
+    public void SetGpuPreviewAvailable(bool available)
+    {
+        if (IsGpuPreviewAvailable == available) return;
+        IsGpuPreviewAvailable = available;
+        if (!available)
+            BuildCpuPreview();
+        PreviewInvalidated?.Invoke(this, EventArgs.Empty);
     }
 
     private static BitmapSource ConvertToBitmapSource(SKBitmap bitmap)
@@ -386,6 +438,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             _isLayerDragPreviewActive)
             return;
 
+        if (IsGpuPreviewAvailable)
+        {
+            _isLayerDragPreviewActive = true;
+            LayerDragPreviewImage = null;
+            PreviewInvalidated?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         var renderedLayers = new List<SKBitmap>(Math.Max(0, AdditionalLayers.Count - 1));
         try
         {
@@ -431,6 +491,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         LayerDragPreviewY = y;
         LayerDragPreviewWidth = width;
         LayerDragPreviewHeight = height;
+        if (IsGpuPreviewAvailable)
+            PreviewInvalidated?.Invoke(this, EventArgs.Empty);
     }
 
     public void EndLayerDragPreview()
@@ -608,6 +670,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ExportIcon()
     {
+        if (_canvasBitmap is null) return;
+        BuildCpuPreview();
         if (_processedBitmap is null) return;
 
         int[] sizes =
@@ -652,6 +716,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SaveImage()
     {
+        if (_canvasBitmap is null) return;
+        BuildCpuPreview();
         if (_processedBitmap is null) return;
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
