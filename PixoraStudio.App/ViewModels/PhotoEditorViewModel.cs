@@ -43,6 +43,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private float tint;
     [ObservableProperty] private ImageFilter selectedFilter = ImageFilter.None;
     [ObservableProperty] private bool showOriginal;
+    [ObservableProperty] private bool isSnappingEnabled = true;
     [ObservableProperty] private double zoom = 1.0;
     [ObservableProperty] private bool isImageLoaded;
     [ObservableProperty] private bool canUndo;
