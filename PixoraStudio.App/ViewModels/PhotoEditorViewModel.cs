@@ -95,8 +95,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (_canvasBitmap is null)
             throw new InvalidOperationException("Create or open a canvas before resizing it.");
 
-        int offsetX = centreContent ? (width - ImageWidth) / 2 : 0;
-        int offsetY = centreContent ? (height - ImageHeight) / 2 : 0;
+        int offsetX = centreContent ? (int)Math.Floor((width - ImageWidth) / 2d) : 0;
+        int offsetY = centreContent ? (int)Math.Floor((height - ImageHeight) / 2d) : 0;
         var resizedCanvas = ImageDocumentCanvas.Resize(
             _canvasBitmap, width, height, offsetX, offsetY, _canvasBackgroundColor);
 
