@@ -92,4 +92,36 @@ public sealed class ImageLayerCompositorTests
 
         Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
     }
+    [Fact]
+    public void Composite_ShouldKeepEmptyDocumentCanvasTransparent()
+    {
+        using var canvas = new SKBitmap(3, 2, SKColorType.Rgba8888, SKAlphaType.Premul);
+        canvas.Erase(SKColors.Transparent);
+
+        using var result = ImageLayerCompositor.Composite(canvas, []);
+
+        Assert.Equal(3, result.Width);
+        Assert.Equal(2, result.Height);
+        Assert.Equal(SKColors.Transparent, result.GetPixel(0, 0));
+        Assert.Equal(SKColors.Transparent, result.GetPixel(2, 1));
+    }
+
+    [Fact]
+    public void Composite_ShouldKeepDocumentDimensionsWhenLayerIsResized()
+    {
+        using var canvas = new SKBitmap(5, 4, SKColorType.Rgba8888, SKAlphaType.Premul);
+        canvas.Erase(SKColors.Transparent);
+        using var firstImageLayer = new SKBitmap(2, 2);
+        firstImageLayer.Erase(SKColors.Red);
+
+        using var result = ImageLayerCompositor.Composite(canvas,
+            [(firstImageLayer, 1, 1, 3, 2, true)]);
+
+        Assert.Equal(5, result.Width);
+        Assert.Equal(4, result.Height);
+        Assert.Equal(SKColors.Red, result.GetPixel(1, 1));
+        Assert.Equal(SKColors.Red, result.GetPixel(3, 2));
+        Assert.Equal(SKColors.Transparent, result.GetPixel(4, 3));
+    }
+
 }
