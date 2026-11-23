@@ -283,6 +283,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             try { thumbnail = ConvertToBitmapSource(thumbnailBitmap); }
             finally { thumbnailBitmap.Dispose(); }
             var layer = new PhotoLayerViewModel(Path.GetFileName(dialog.FileName), bitmap, thumbnail, (_originalBitmap.Width - bitmap.Width) / 2, (_originalBitmap.Height - bitmap.Height) / 2);
+            layer.VisibilityChanged += OnLayerVisibilityChanged;
             AdditionalLayers.Insert(0, layer);
             SelectedLayer = layer;
             OperationError = null;
@@ -299,16 +300,23 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         if (layer is null || !AdditionalLayers.Remove(layer)) return;
         if (ReferenceEquals(SelectedLayer, layer)) SelectedLayer = AdditionalLayers.FirstOrDefault();
+        layer.VisibilityChanged -= OnLayerVisibilityChanged;
         layer.Dispose();
         RefreshPreview();
     }
 
     private void ClearAdditionalLayers()
     {
-        foreach (var layer in AdditionalLayers) layer.Dispose();
+        foreach (var layer in AdditionalLayers)
+        {
+            layer.VisibilityChanged -= OnLayerVisibilityChanged;
+            layer.Dispose();
+        }
         AdditionalLayers.Clear();
         SelectedLayer = null;
     }
+
+    private void OnLayerVisibilityChanged(object? sender, EventArgs e) => RefreshPreview();
 
     partial void OnSelectedLayerChanged(PhotoLayerViewModel? value)
     {
