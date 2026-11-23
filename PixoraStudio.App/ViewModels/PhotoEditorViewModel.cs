@@ -48,6 +48,13 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isCropMode;
     [ObservableProperty] private string? operationError;
     [ObservableProperty] private float rotationAngle;
+    [ObservableProperty] private bool iconSize16 = true;
+    [ObservableProperty] private bool iconSize24 = true;
+    [ObservableProperty] private bool iconSize32 = true;
+    [ObservableProperty] private bool iconSize48 = true;
+    [ObservableProperty] private bool iconSize64 = true;
+    [ObservableProperty] private bool iconSize128 = true;
+    [ObservableProperty] private bool iconSize256 = true;
 
     public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
 
@@ -329,6 +336,50 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         ClearStack(_redoStack);
         UpdateHistoryState();
         RefreshPreview();
+    }
+
+    [RelayCommand]
+    private void ExportIcon()
+    {
+        if (_processedBitmap is null) return;
+
+        int[] sizes =
+        [
+            IconSize16 ? 16 : 0,
+            IconSize24 ? 24 : 0,
+            IconSize32 ? 32 : 0,
+            IconSize48 ? 48 : 0,
+            IconSize64 ? 64 : 0,
+            IconSize128 ? 128 : 0,
+            IconSize256 ? 256 : 0
+        ];
+        int[] selectedSizes = sizes.Where(size => size > 0).ToArray();
+        if (selectedSizes.Length == 0)
+        {
+            OperationError = "Select at least one icon size.";
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export Windows Icon",
+            Filter = "Icon file|*.ico",
+            DefaultExt = ".ico",
+            AddExtension = true,
+            FileName = $"{(ImagePath is null ? "Pixora-Icon" : Path.GetFileNameWithoutExtension(ImagePath))}.ico"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            byte[] icon = _imageService.EncodeIcon(_processedBitmap, selectedSizes);
+            File.WriteAllBytes(dialog.FileName, icon);
+            OperationError = null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException)
+        {
+            OperationError = ex.Message;
+        }
     }
 
     [RelayCommand]
