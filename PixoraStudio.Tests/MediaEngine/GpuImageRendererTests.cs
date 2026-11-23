@@ -137,7 +137,7 @@ public sealed class GpuImageRendererTests
     [Fact]
     public void Render_ShouldRejectNullArguments()
     {
-        using var bitmap = CreateBitmap(1, 1);
+        using var bitmap = CreateBitmap(1, 1, SKColors.Red);
         using var canvas = new SKCanvas(bitmap);
 
         Assert.Throws<ArgumentNullException>(() =>
