@@ -92,7 +92,15 @@ public partial class PhotoEditorView : UserControl
 
         try
         {
-            vm.RenderGpuPreview(e.Surface.Canvas);
+            var canvas = e.Surface.Canvas;
+            var surfaceSize = GpuPreview.CanvasSize;
+            if (vm.ImageWidth > 0 && vm.ImageHeight > 0 &&
+                surfaceSize.Width > 0 && surfaceSize.Height > 0)
+            {
+                canvas.Scale(surfaceSize.Width / vm.ImageWidth,
+                    surfaceSize.Height / vm.ImageHeight);
+            }
+            vm.RenderGpuPreview(canvas);
             vm.SetGpuPreviewAvailable(true);
             CpuPreviewImage.Visibility = Visibility.Collapsed;
         }
