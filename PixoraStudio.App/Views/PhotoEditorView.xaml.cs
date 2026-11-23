@@ -381,9 +381,20 @@ public partial class PhotoEditorView : UserControl
         {
             x += dx;
             y += dy;
+
+            var zoom = Math.Max(0.01, ViewModel?.Zoom ?? 1d);
+            var otherLayers = ViewModel!.AdditionalLayers
+                .Where(other => !ReferenceEquals(other, layer) && other.IsVisible)
+                .Select(other => new LayerSnapBounds(other.X, other.Y, other.Width, other.Height));
+            var snapped = LayerSnapping.Snap(x, y, width, height,
+                ViewModel.ImageWidth, ViewModel.ImageHeight, otherLayers, 8d / zoom);
+            x = snapped.X;
+            y = snapped.Y;
+            DrawSnapGuides(snapped.VerticalGuide, snapped.HorizontalGuide);
         }
         else
         {
+            SnapGuideOverlay.Children.Clear();
             if (_layerDragMode is DragMode.Left or DragMode.TopLeft or DragMode.BottomLeft)
             {
                 var right = bounds.Right;
@@ -444,7 +455,33 @@ public partial class PhotoEditorView : UserControl
         _isLayerDragging = false;
         LayerOverlay.ReleaseMouseCapture();
         ViewModel?.EndLayerDragPreview();
+        SnapGuideOverlay.Children.Clear();
         e.Handled = true;
+    }
+
+    private void DrawSnapGuides(double? vertical, double? horizontal)
+    {
+        SnapGuideOverlay.Children.Clear();
+        if (vertical is double x)
+        {
+            var line = new Line
+            {
+                X1 = x, X2 = x, Y1 = 0, Y2 = ViewModel?.ImageHeight ?? 0,
+                Stroke = Brushes.Magenta, StrokeThickness = 1,
+                StrokeDashArray = [3, 2], IsHitTestVisible = false
+            };
+            SnapGuideOverlay.Children.Add(line);
+        }
+        if (horizontal is double y)
+        {
+            var line = new Line
+            {
+                X1 = 0, X2 = ViewModel?.ImageWidth ?? 0, Y1 = y, Y2 = y,
+                Stroke = Brushes.Magenta, StrokeThickness = 1,
+                StrokeDashArray = [3, 2], IsHitTestVisible = false
+            };
+            SnapGuideOverlay.Children.Add(line);
+        }
     }
 
     private static DragMode GetLayerDragMode(Point point, Rect bounds)
