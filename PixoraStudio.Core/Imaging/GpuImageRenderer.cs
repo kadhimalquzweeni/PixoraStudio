@@ -90,6 +90,28 @@ public static class GpuImageRenderer
     private static readonly SKSamplingOptions Sampling =
         new(SKFilterMode.Linear, SKMipmapMode.Linear);
 
+    private static readonly Lazy<SKBitmap> CheckerboardBitmap = new(CreateCheckerboard);
+    private static readonly Lazy<SKShader> CheckerboardShader = new(() =>
+        CheckerboardBitmap.Value.ToShader(
+            SKShaderTileMode.Repeat,
+            SKShaderTileMode.Repeat,
+            new SKSamplingOptions(SKFilterMode.Nearest)));
+
+    private static SKBitmap CreateCheckerboard()
+    {
+        var bitmap = new SKBitmap(24, 24, SKColorType.Rgba8888, SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(new SKColor(240, 240, 240));
+        using var paint = new SKPaint
+        {
+            Color = new SKColor(216, 216, 216),
+            IsAntialias = false
+        };
+        canvas.DrawRect(new SKRect(0, 0, 12, 12), paint);
+        canvas.DrawRect(new SKRect(12, 12, 24, 24), paint);
+        return bitmap;
+    }
+
     /// <summary>
     /// Draws visible layers in the supplied bottom-to-top order, clipping all
     /// content to the document. The preview uses the editor's checkerboard so
@@ -116,18 +138,12 @@ public static class GpuImageRenderer
             canvas.ClipRect(new SKRect(0, 0, documentWidth, documentHeight));
             if (checkerboardBackground)
             {
-                canvas.Clear(new SKColor(240, 240, 240));
                 using var checkerPaint = new SKPaint
                 {
-                    Color = new SKColor(216, 216, 216),
+                    Shader = CheckerboardShader.Value,
                     IsAntialias = false
                 };
-                for (int y = 0; y < documentHeight; y += 12)
-                for (int x = 0; x < documentWidth; x += 12)
-                {
-                    if (((x / 12) + (y / 12)) % 2 == 0)
-                        canvas.DrawRect(new SKRect(x, y, x + 12, y + 12), checkerPaint);
-                }
+                canvas.DrawRect(new SKRect(0, 0, documentWidth, documentHeight), checkerPaint);
             }
             else
             {
