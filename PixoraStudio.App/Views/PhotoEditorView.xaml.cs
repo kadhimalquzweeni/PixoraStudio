@@ -39,7 +39,7 @@ public partial class PhotoEditorView : UserControl
         InitializeComponent();
         if (_gpuRenderingDisabled)
         {
-            GpuPreview.Visibility = Visibility.Collapsed;
+            GpuPreviewHost.Child = null;
             CpuPreviewImage.Visibility = Visibility.Visible;
         }
     }
@@ -70,7 +70,6 @@ public partial class PhotoEditorView : UserControl
         DrawLayerSelection();
         if (_gpuRenderingDisabled)
         {
-            GpuPreview.Visibility = Visibility.Collapsed;
             CpuPreviewImage.Visibility = Visibility.Visible;
             return;
         }
@@ -134,9 +133,12 @@ public partial class PhotoEditorView : UserControl
     {
         if (_gpuRenderingDisabled) return;
         _gpuRenderingDisabled = true;
-        GpuPreview.Visibility = Visibility.Collapsed;
         CpuPreviewImage.Visibility = Visibility.Visible;
         viewModel?.SetGpuPreviewAvailable(false);
+
+        // Removing the GL control raises Unloaded, releasing its OpenGL and
+        // Direct3D interop resources after the current paint callback returns.
+        Dispatcher.BeginInvoke(new Action(() => GpuPreviewHost.Child = null));
     }
 
     private void Tool_Click(object sender, RoutedEventArgs e)

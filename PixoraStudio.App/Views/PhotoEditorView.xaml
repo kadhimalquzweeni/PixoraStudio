@@ -112,11 +112,13 @@
                             <Grid Width="{Binding ImageWidth}" Height="{Binding ImageHeight}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Background="{StaticResource TransparencyCheckerboard}">
                                 <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
-                                <controls:SafeGpuPreviewElement x:Name="GpuPreview"
-                                                                Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
-                                                                Focusable="False" IsHitTestVisible="False"
-                                                                PaintSurface="GpuPreview_PaintSurface"
-                                                                RenderFailed="GpuPreview_RenderFailed"/>
+                                <Border x:Name="GpuPreviewHost">
+                                    <controls:SafeGpuPreviewElement x:Name="GpuPreview"
+                                                                    Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                                                    Focusable="False" IsHitTestVisible="False"
+                                                                    PaintSurface="GpuPreview_PaintSurface"
+                                                                    RenderFailed="GpuPreview_RenderFailed"/>
+                                </Border>
                                 <Image x:Name="CpuPreviewImage" Source="{Binding PreviewImage}"
                                        Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
                                 <Canvas Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
