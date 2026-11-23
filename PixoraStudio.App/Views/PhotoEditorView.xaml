@@ -50,7 +50,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="56"/>
-                <ColumnDefinition Width="280"/>
+                <ColumnDefinition x:Name="ToolSettingsColumn" Width="0"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="88"/>
             </Grid.ColumnDefinitions>
@@ -231,19 +231,31 @@
                 </Grid>
             </Border>        </Grid>
 
-        <Border Grid.Row="2" Background="#22252D" Padding="12,0">
-            <DockPanel VerticalAlignment="Center">
-                <TextBlock Text="{Binding ImagePath}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+        <Border Grid.Row="2" Background="#202124" Padding="12,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="−" Command="{Binding ZoomOutCommand}" Width="30" Padding="0"/>
                     <TextBlock Text="{Binding Zoom, StringFormat={}{0:P0}}" Foreground="#8BC5FF" VerticalAlignment="Center" Margin="8,0"/>
-                    <Button Content="+" Command="{Binding ZoomInCommand}" Width="30" Padding="0"/>
+                    <Button Content="＋" Command="{Binding ZoomInCommand}" Width="30" Padding="0"/>
                     <Button Content="Fit" Command="{Binding FitToScreenCommand}" Margin="8,2"/>
+                    <TextBlock Text="{Binding ImageWidth, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    <TextBlock Text=" × " Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ImageHeight, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{Binding ImageWidth, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right" Margin="12,0,0,0"/>
-                <TextBlock Text="{Binding ImageHeight, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right"/>
-                <TextBlock Text=" × " Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" DockPanel.Dock="Right"/>
-            </DockPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button Content="UNDO  ↶" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" Background="Transparent" BorderThickness="0" Foreground="#B8BBC5" Padding="12,6"/>
+                    <Button Content="REDO  ↷" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" Background="Transparent" BorderThickness="0" Foreground="#B8BBC5" Padding="12,6"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Close" Click="CloseEditor_Click" Background="Transparent" BorderBrush="#555963" Padding="20,5" Margin="4"/>
+                    <Button Content="Save" Command="{Binding SaveImageCommand}" Background="#079BD8" Foreground="White" BorderThickness="0" Padding="22,5" Margin="4"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>
