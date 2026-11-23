@@ -79,7 +79,7 @@ public class ImageProcessingService : IImageProcessingService
     private static SKBitmap RotateOrthogonal(SKBitmap source, int degrees)
     {
         if (degrees == 0)
-            return CloneImage(source);
+            return source.Copy();
 
         int width = degrees is 90 or 270 ? source.Height : source.Width;
         int height = degrees is 90 or 270 ? source.Width : source.Height;
