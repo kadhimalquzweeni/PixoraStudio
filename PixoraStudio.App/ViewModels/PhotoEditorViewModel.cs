@@ -4,6 +4,8 @@ using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
 using SkiaSharp;
 using System.IO;
+using System.Collections.ObjectModel;
+using PixoraStudio.Core.Imaging;
 using System.Windows.Media.Imaging;
 
 namespace PixoraStudio.App.ViewModels;
@@ -21,6 +23,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private float _resizeAspectRatio = 1f;
 
     [ObservableProperty] private string? imagePath;
+    [ObservableProperty] private PhotoLayerViewModel? selectedLayer;
+    public ObservableCollection<PhotoLayerViewModel> AdditionalLayers { get; } = [];
     [ObservableProperty] private BitmapSource? previewImage;
     [ObservableProperty] private float brightness;
     [ObservableProperty] private float contrast = 1f;
@@ -62,6 +66,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ClearHistory();
+        ClearAdditionalLayers();
         DisposeBitmaps();
         _originalBitmap = _imageService.LoadImage(filePath);
         ImagePath = filePath;
@@ -155,7 +160,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (_originalBitmap is null) return;
         _processedBitmap?.Dispose();
         _processedBitmap = _imageService.ApplyAdjustments(_originalBitmap, GetCurrentAdjustment());
-        PreviewImage = ConvertToBitmapSource(ShowOriginal ? _originalBitmap : _processedBitmap);
+        using var composite = ImageLayerCompositor.Composite(ShowOriginal ? _originalBitmap : _processedBitmap, AdditionalLayers.Select(layer => (layer.Bitmap, layer.X, layer.Y, layer.IsVisible)).ToArray());
+        PreviewImage = ConvertToBitmapSource(composite);
     }
 
     private static BitmapSource ConvertToBitmapSource(SKBitmap bitmap)
@@ -254,6 +260,59 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         {
             OperationError = $"Unable to open image: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private void AddImageLayer()
+    {
+        if (_originalBitmap is null) return;
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Add image layer",
+            Filter = "Supported images|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif|All files|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            var bitmap = _imageService.LoadImage(dialog.FileName);
+            var thumbnailBitmap = _imageService.Resize(bitmap, 64, Math.Max(1, (int)Math.Round(64d * bitmap.Height / bitmap.Width)));
+            BitmapSource thumbnail;
+            try { thumbnail = ConvertToBitmapSource(thumbnailBitmap); }
+            finally { thumbnailBitmap.Dispose(); }
+            var layer = new PhotoLayerViewModel(Path.GetFileName(dialog.FileName), bitmap, thumbnail, (_originalBitmap.Width - bitmap.Width) / 2, (_originalBitmap.Height - bitmap.Height) / 2);
+            AdditionalLayers.Insert(0, layer);
+            SelectedLayer = layer;
+            OperationError = null;
+            RefreshPreview();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            OperationError = $"Unable to add image layer: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveLayer(PhotoLayerViewModel? layer)
+    {
+        if (layer is null || !AdditionalLayers.Remove(layer)) return;
+        if (ReferenceEquals(SelectedLayer, layer)) SelectedLayer = AdditionalLayers.FirstOrDefault();
+        layer.Dispose();
+        RefreshPreview();
+    }
+
+    private void ClearAdditionalLayers()
+    {
+        foreach (var layer in AdditionalLayers) layer.Dispose();
+        AdditionalLayers.Clear();
+        SelectedLayer = null;
+    }
+
+    partial void OnSelectedLayerChanged(PhotoLayerViewModel? value)
+    {
+        foreach (var layer in AdditionalLayers) layer.IsSelected = ReferenceEquals(layer, value);
     }
 
     [RelayCommand]
