@@ -38,8 +38,9 @@ public static class ImageDocumentCanvas
 
         var resized = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(resized);
+        using var copyPaint = new SKPaint { BlendMode = SKBlendMode.Src };
         canvas.Clear(backgroundColor);
-        canvas.DrawBitmap(source, offsetX, offsetY);
+        canvas.DrawBitmap(source, offsetX, offsetY, copyPaint);
         canvas.Flush();
         return resized;
     }
