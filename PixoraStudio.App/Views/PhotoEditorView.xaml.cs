@@ -359,6 +359,7 @@ public partial class PhotoEditorView : UserControl
         _layerSelection = _layerBoundsAtDragStart;
         _layerDragStart = point;
         _isLayerDragging = true;
+        vm.BeginLayerDragPreview();
         LayerOverlay.CaptureMouse();
         DrawLayerSelection();
         e.Handled = true;
@@ -433,6 +434,7 @@ public partial class PhotoEditorView : UserControl
             Math.Max(MinimumLayerSize, (int)Math.Round(height)));
         _layerSelection = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
         DrawLayerSelection();
+        ViewModel?.SetLayerDragPreviewBounds(layer.X, layer.Y, layer.Width, layer.Height);
         e.Handled = true;
     }
 
@@ -441,6 +443,7 @@ public partial class PhotoEditorView : UserControl
         if (!_isLayerDragging) return;
         _isLayerDragging = false;
         LayerOverlay.ReleaseMouseCapture();
+        ViewModel?.EndLayerDragPreview();
         e.Handled = true;
     }
 
