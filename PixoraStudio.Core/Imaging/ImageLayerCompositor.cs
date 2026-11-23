@@ -7,7 +7,7 @@ public static class ImageLayerCompositor
 {
     public static SKBitmap Composite(
         SKBitmap background,
-        IReadOnlyCollection<(SKBitmap Bitmap, int X, int Y, bool IsVisible)> layers)
+        IReadOnlyCollection<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)> layers)
     {
         ArgumentNullException.ThrowIfNull(background);
         ArgumentNullException.ThrowIfNull(layers);
@@ -21,8 +21,9 @@ public static class ImageLayerCompositor
         foreach (var layer in layers)
         {
             ArgumentNullException.ThrowIfNull(layer.Bitmap);
-            if (!layer.IsVisible) continue;
-            canvas.DrawBitmap(layer.Bitmap, layer.X, layer.Y);
+            if (!layer.IsVisible || layer.Width <= 0 || layer.Height <= 0) continue;
+            var destination = new SKRect(layer.X, layer.Y, layer.X + layer.Width, layer.Y + layer.Height);
+            canvas.DrawBitmap(layer.Bitmap, destination, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
         }
         canvas.Flush();
         return result;
