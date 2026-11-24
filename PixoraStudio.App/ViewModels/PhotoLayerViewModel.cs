@@ -75,10 +75,10 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
         GeometryChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void ReplaceBitmap(SKBitmap replacement)
+    public void ReplaceBitmap(SKBitmap replacement, bool ignoreLock = false)
     {
         ArgumentNullException.ThrowIfNull(replacement);
-        if (IsLocked)
+        if (IsLocked && !ignoreLock)
             throw new InvalidOperationException("A locked layer cannot be modified.");
 
         var previous = Bitmap;
