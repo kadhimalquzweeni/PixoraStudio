@@ -97,6 +97,16 @@ public partial class PhotoEditorView : UserControl
             return;
         }
 
+        if (e.Key == Key.Enter &&
+            ToolSettingsTabs?.SelectedIndex == CutoutToolIndex &&
+            ViewModel is { HasCutoutSelection: true } &&
+            Keyboard.FocusedElement is not (TextBoxBase or ComboBox or PasswordBox))
+        {
+            ApplyCutoutSelection();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Delete)
         {
             if (Keyboard.FocusedElement is TextBoxBase or ComboBox or PasswordBox)
@@ -425,9 +435,15 @@ public partial class PhotoEditorView : UserControl
         DrawCutoutSelection();
     }
 
-    private void ApplyCutout_Click(object sender, RoutedEventArgs e)
+    private void ApplyCutout_Click(object sender, RoutedEventArgs e) =>
+        ApplyCutoutSelection();
+
+    private void ApplyCutoutSelection()
     {
-        ViewModel?.ApplyCutout();
+        if (ViewModel is not { HasCutoutSelection: true } viewModel)
+            return;
+
+        viewModel.ApplyCutout();
         _cutoutSelectionBounds = Rect.Empty;
         _cutoutStrokePoints.Clear();
         DrawCutoutSelection();
