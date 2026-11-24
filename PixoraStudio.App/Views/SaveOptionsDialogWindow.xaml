@@ -223,15 +223,6 @@
                                                      GroupName="OutputScalePreset" Content="Custom" Tag="Custom"
                                                      Click="ScalePreset_Click"/>
                                     </UniformGrid>
-                                    <StackPanel Margin="2,0,2,6">
-                                        <CheckBox x:Name="AiUpscaleCheckBox" Content="AI Upscale (4×)"
-                                                  Foreground="#E8E8E8" Margin="2,2,2,0"
-                                                  Checked="AiUpscaleCheckBox_Checked"
-                                                  ToolTip="Enhance with the local Real-ESRGAN model. First use downloads about 67 MB."/>
-                                        <TextBlock Text="Local AI enhancement; the model downloads the first time you use it."
-                                                   Foreground="#AEB2BE" FontSize="10" TextWrapping="Wrap"
-                                                   Margin="24,0,4,0"/>
-                                    </StackPanel>
                                     <UniformGrid Columns="2">
                                         <StackPanel Margin="0,0,8,0">
                                             <TextBlock Text="Width (px)" Foreground="#C9C9C9"/>
