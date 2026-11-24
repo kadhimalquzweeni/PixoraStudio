@@ -288,7 +288,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible, layer.Opacity));
             }
             _processedBitmap?.Dispose();
-            _processedBitmap = ImageLayerCompositor.Composite(_canvasBitmap, entries);
+            _processedBitmap = ImageLayerCompositor.CompositeWithOpacity(_canvasBitmap, entries);
             PreviewImage = ConvertToBitmapSource(_processedBitmap);
         }
         finally { foreach (var bitmap in renderedLayers) bitmap.Dispose(); }
