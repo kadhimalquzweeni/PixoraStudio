@@ -6,6 +6,7 @@ using SkiaSharp.Views.Desktop;
 using System.Windows;
 using System.ComponentModel;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -463,12 +464,32 @@ public partial class PhotoEditorView : UserControl
 
     private void PhotoEditorView_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (IsLayerOptionsButton(e.OriginalSource as DependencyObject) ||
+        var source = e.OriginalSource as DependencyObject;
+        if (IsLayerOptionsButton(source) ||
+            IsLayerPropertiesPopupSource(source) ||
             ViewModel is not { } vm)
             return;
 
         foreach (var layer in vm.AdditionalLayers)
             layer.IsPropertiesOpen = false;
+    }
+
+    private static bool IsLayerPropertiesPopupSource(DependencyObject? source)
+    {
+        while (source is not null)
+        {
+            if (source is FrameworkElement { Tag: "LayerPropertiesPopupContent" })
+                return true;
+
+            source = source switch
+            {
+                Visual visual => VisualTreeHelper.GetParent(visual),
+                FrameworkContentElement contentElement => contentElement.Parent,
+                _ => null
+            };
+        }
+
+        return false;
     }
 
     private static bool IsLayerOptionsButton(DependencyObject? source)
@@ -531,6 +552,15 @@ public partial class PhotoEditorView : UserControl
         _layerListDragStart = e.GetPosition(this);
         DrawLayerSelection();
         e.Handled = true;
+    }
+
+    private void LayerPropertiesPopup_Opened(object? sender, EventArgs e)
+    {
+        if (sender is Popup { PlacementTarget.DataContext: PhotoLayerViewModel layer } popup &&
+            popup.Child is FrameworkElement popupContent)
+        {
+            popupContent.DataContext = layer;
+        }
     }
 
     private void LayerProperties_Click(object sender, RoutedEventArgs e)
