@@ -30,7 +30,6 @@ public partial class App : Application
         services.AddSingleton<PhotoEditorViewModel>();
         services.AddSingleton<VideoEditorViewModel>();
         services.AddSingleton<IImageProcessingService, ImageProcessingService>();
-        services.AddSingleton<IAiUpscalingService, RealEsrganUpscalingService>();
         services.AddSingleton<IHardwareVideoThumbnailDecoder, MediaFoundationVideoThumbnailDecoder>();
         services.AddSingleton<IHardwareVideoCapabilityService, MediaFoundationHardwareVideoCapabilityService>();
         services.AddSingleton<IVideoProcessingService, VideoProcessingService>();
