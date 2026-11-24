@@ -177,7 +177,7 @@ public sealed class RealEsrganUpscalingService : IAiUpscalingService, IDisposabl
     {
         GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
         ExecutionMode = ExecutionMode.ORT_SEQUENTIAL,
-        EnableMemPattern = false
+        EnableMemoryPattern = false
     };
 
     private static SKBitmap UpscaleCore(
