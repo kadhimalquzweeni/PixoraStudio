@@ -225,6 +225,12 @@ public partial class PhotoEditorView : UserControl
 
     private void StartCrop_Click(object sender, RoutedEventArgs e)
     {
+        if (CropOverlay.Visibility == Visibility.Visible)
+        {
+            EndCropMode();
+            return;
+        }
+
         if (ViewModel is not { IsImageLoaded: true, SelectedLayer: { } layer } vm ||
             layer.Width < 1 || layer.Height < 1)
             return;
@@ -239,6 +245,7 @@ public partial class PhotoEditorView : UserControl
         CropOverlay.Visibility = Visibility.Visible;
         LayerOverlay.Visibility = Visibility.Collapsed;
         CropActionPanel.Visibility = Visibility.Visible;
+        VisualCropToggleButton.Content = "Cancel visual crop";
         DrawCropOverlay();
         UpdateCropCoordinates();
     }
@@ -288,6 +295,7 @@ public partial class PhotoEditorView : UserControl
         CropOverlay.Visibility = Visibility.Collapsed;
         LayerOverlay.Visibility = Visibility.Visible;
         CropActionPanel.Visibility = Visibility.Collapsed;
+        VisualCropToggleButton.Content = "Start visual crop";
         CropOverlay.Children.Clear();
     }
 
