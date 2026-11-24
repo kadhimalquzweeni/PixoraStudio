@@ -762,7 +762,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     public void AddBrushStroke(IReadOnlyList<SKPoint> points)
     {
-        if (_canvasBitmap is null || points.Count == 0)
+        var canvasBitmap = _canvasBitmap;
+        if (canvasBitmap is null || points.Count == 0)
             return;
 
         CommitAdjustmentChange();
@@ -776,18 +777,18 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             float brushSize = (float)Math.Clamp(double.IsFinite(BrushSize) ? BrushSize : 12d, 1d, 100d);
             var color = SKColor.Parse(BrushColor);
             var clippedPoints = points.Select(point => new SKPoint(
-                Math.Clamp(point.X, 0, _canvasBitmap.Width),
-                Math.Clamp(point.Y, 0, _canvasBitmap.Height))).ToArray();
+                Math.Clamp(point.X, 0, canvasBitmap.Width),
+                Math.Clamp(point.Y, 0, canvasBitmap.Height))).ToArray();
 
             float minX = clippedPoints.Min(point => point.X);
             float minY = clippedPoints.Min(point => point.Y);
             float maxX = clippedPoints.Max(point => point.X);
             float maxY = clippedPoints.Max(point => point.Y);
             float margin = brushSize / 2f + 1f;
-            int left = Math.Clamp((int)MathF.Floor(minX - margin), 0, _canvasBitmap.Width - 1);
-            int top = Math.Clamp((int)MathF.Floor(minY - margin), 0, _canvasBitmap.Height - 1);
-            int right = Math.Clamp((int)MathF.Ceiling(maxX + margin), left + 1, _canvasBitmap.Width);
-            int bottom = Math.Clamp((int)MathF.Ceiling(maxY + margin), top + 1, _canvasBitmap.Height);
+            int left = Math.Clamp((int)MathF.Floor(minX - margin), 0, canvasBitmap.Width - 1);
+            int top = Math.Clamp((int)MathF.Floor(minY - margin), 0, canvasBitmap.Height - 1);
+            int right = Math.Clamp((int)MathF.Ceiling(maxX + margin), left + 1, canvasBitmap.Width);
+            int bottom = Math.Clamp((int)MathF.Ceiling(maxY + margin), top + 1, canvasBitmap.Height);
 
             strokeBitmap = new SKBitmap(right - left, bottom - top);
             var localPoints = clippedPoints
@@ -821,7 +822,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 canvas.Flush();
             }
 
-            var ownedBitmap = strokeBitmap;
+            var ownedBitmap = strokeBitmap ?? throw new InvalidOperationException("Unable to create the brush stroke image.");
             strokeBitmap = null;
             layer = CreateLayer("Brush stroke", ownedBitmap, left, top);
             history = CaptureLayerSnapshot(layer, isInLayerCollection: false,
