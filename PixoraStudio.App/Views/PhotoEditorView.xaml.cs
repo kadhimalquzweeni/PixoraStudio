@@ -17,7 +17,6 @@ namespace PixoraStudio.App.Views;
 public partial class PhotoEditorView : UserControl
 {
     private Rect _cropSelection;
-    private bool _cropStartedFromArrange;
     private Point _dragStart;
     private Rect _selectionAtDragStart;
     private DragMode _dragMode;
@@ -315,23 +314,17 @@ public partial class PhotoEditorView : UserControl
             layer.Width < 1 || layer.Height < 1)
             return;
 
-        _cropStartedFromArrange = sender is FrameworkElement { Tag: "Arrange" };
-        var aspectRatioCombo = _cropStartedFromArrange
-            ? ArrangeCropAspectRatioCombo
-            : CropAspectRatioCombo;
         var insetX = Math.Max(1, layer.Width * 0.1);
         var insetY = Math.Max(1, layer.Height * 0.1);
         _cropSelection = new Rect(layer.X + insetX, layer.Y + insetY,
             Math.Max(MinimumCropSize, layer.Width - insetX * 2),
             Math.Max(MinimumCropSize, layer.Height - insetY * 2));
         _cropSelection.Intersect(new Rect(layer.X, layer.Y, layer.Width, layer.Height));
-        _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm, aspectRatioCombo);
+        _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
         CropOverlay.Visibility = Visibility.Visible;
         LayerOverlay.Visibility = Visibility.Collapsed;
         CropActionPanel.Visibility = Visibility.Visible;
-        ArrangeCropActionPanel.Visibility = Visibility.Visible;
         VisualCropToggleButton.Content = "Cancel visual crop";
-        ArrangeVisualCropToggleButton.Content = "Cancel visual crop";
         DrawCropOverlay();
         UpdateCropCoordinates();
     }
@@ -349,22 +342,17 @@ public partial class PhotoEditorView : UserControl
     private void CropAspectRatio_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (CropOverlay is null || CropOverlay.Visibility != Visibility.Visible ||
-            ViewModel is not { IsImageLoaded: true } vm ||
-            sender is not ComboBox aspectRatioCombo)
+            ViewModel is not { IsImageLoaded: true } vm)
             return;
 
-        _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm, aspectRatioCombo);
+        _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
         DrawCropOverlay();
         UpdateCropCoordinates();
     }
 
-    private Rect ApplySelectedAspectRatio(Rect selection, PhotoEditorViewModel vm,
-        ComboBox? aspectRatioCombo = null)
+    private Rect ApplySelectedAspectRatio(Rect selection, PhotoEditorViewModel vm)
     {
-        aspectRatioCombo ??= _cropStartedFromArrange
-            ? ArrangeCropAspectRatioCombo
-            : CropAspectRatioCombo;
-        if (aspectRatioCombo.SelectedItem is not ComboBoxItem item ||
+        if (CropAspectRatioCombo.SelectedItem is not ComboBoxItem item ||
             item.Tag is not string tag || tag == "free")
             return selection;
 
@@ -386,11 +374,8 @@ public partial class PhotoEditorView : UserControl
         CropOverlay.Visibility = Visibility.Collapsed;
         LayerOverlay.Visibility = Visibility.Visible;
         CropActionPanel.Visibility = Visibility.Collapsed;
-        ArrangeCropActionPanel.Visibility = Visibility.Collapsed;
         VisualCropToggleButton.Content = "Start visual crop";
-        ArrangeVisualCropToggleButton.Content = "Start visual crop";
         CropOverlay.Children.Clear();
-        _cropStartedFromArrange = false;
     }
 
     private void CropOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
