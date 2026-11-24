@@ -61,7 +61,7 @@ public partial class ColorPickerDialogWindow : Window
 
         try
         {
-            if (new ColorConverter().ConvertFromString(value.Trim()) is Color parsed)
+            if (ColorConverter.ConvertFromString(value.Trim()) is Color parsed)
             {
                 color = parsed;
                 return true;
