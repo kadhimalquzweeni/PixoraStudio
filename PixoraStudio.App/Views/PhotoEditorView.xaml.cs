@@ -516,12 +516,13 @@ public partial class PhotoEditorView : UserControl
         }
 
         _cutoutSelectionBounds = bounds;
+        double brushRadius = Math.Max(0.5d, viewModel.CutoutBrushSize / 2d);
         if (viewModel.CutoutTool == "Brush")
-            _cutoutSelectionBounds.Inflate(16, 16);
+            _cutoutSelectionBounds.Inflate(brushRadius, brushRadius);
         switch (viewModel.CutoutTool)
         {
             case "Brush":
-                viewModel.CreateCutoutBrushSelection(_cutoutStrokePoints, 16d);
+                viewModel.CreateCutoutBrushSelection(_cutoutStrokePoints, brushRadius);
                 break;
             case "Lasso":
                 viewModel.CreateCutoutLassoSelection(_cutoutStrokePoints);
