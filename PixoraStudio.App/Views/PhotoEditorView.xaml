@@ -103,9 +103,6 @@
                 <DataTrigger Binding="{Binding CutoutTool}" Value="Magic">
                     <Setter Property="Visibility" Value="Visible"/>
                 </DataTrigger>
-                <DataTrigger Binding="{Binding CutoutTool}" Value="Lasso">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="ToolButton" TargetType="Button">
@@ -558,9 +555,6 @@
                                                                      Checked="CutoutOption_Checked"/>
                                                         <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
                                                                      Tag="Tool|Brush" Content="✎" ToolTip="Draw cutout"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
-                                                                     Tag="Tool|Lasso" Content="◯" ToolTip="Lasso cutout"
                                                                      Checked="CutoutOption_Checked"/>
                                                     </UniformGrid>
                                                     <TextBlock Text="Mode" FontWeight="SemiBold" Margin="2,8,2,4"/>
