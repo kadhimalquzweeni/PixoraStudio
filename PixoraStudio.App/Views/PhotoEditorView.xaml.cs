@@ -28,6 +28,8 @@ public partial class PhotoEditorView : UserControl
     private Rect _layerBoundsAtDragStart;
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
+    private const double MinimumLayerOverlayWorkspacePadding = 512;
+    private double _layerOverlayWorkspacePadding = MinimumLayerOverlayWorkspacePadding;
     private Point _layerListDragStart;
     private PhotoLayerViewModel? _layerListDragSource;
     private bool _gpuRenderingDisabled = string.Equals(
@@ -96,14 +98,46 @@ public partial class PhotoEditorView : UserControl
     }
 
     /// <summary>Keep the layer handles aligned with document coordinates.</summary>
+    /// <summary>
+    /// Expands the interactive selection workspace around the fixed document
+    /// so layer bounds and resize handles remain reachable outside the canvas.
+    /// </summary>
     private void UpdateLayerOverlayWorkspace()
     {
         if (DocumentCanvas is null || LayerOverlay is null)
             return;
 
-        DocumentCanvas.Margin = new Thickness(0);
-        LayerOverlay.Width = Math.Max(1, ViewModel?.ImageWidth ?? 1);
-        LayerOverlay.Height = Math.Max(1, ViewModel?.ImageHeight ?? 1);
+        if (ViewModel is not { } vm)
+        {
+            DocumentCanvas.Margin = new Thickness(_layerOverlayWorkspacePadding);
+            LayerOverlay.Width = 1;
+            LayerOverlay.Height = 1;
+            return;
+        }
+
+        _layerOverlayWorkspacePadding = MinimumLayerOverlayWorkspacePadding;
+        if (vm.SelectedLayer is { } selectedLayer)
+        {
+            var overflow = Math.Max(
+                Math.Max(Math.Max(0, -selectedLayer.X), Math.Max(0, -selectedLayer.Y)),
+                Math.Max(
+                    Math.Max(0, selectedLayer.X + selectedLayer.Width - vm.ImageWidth),
+                    Math.Max(0, selectedLayer.Y + selectedLayer.Height - vm.ImageHeight)));
+            _layerOverlayWorkspacePadding = Math.Max(
+                MinimumLayerOverlayWorkspacePadding, overflow + LayerHandleRadius * 4);
+        }
+
+        // RenderTransform does not contribute to WPF's scroll extent, so
+        // include both the scaled canvas and the scaled off-canvas workspace.
+        var zoom = Math.Max(0.01, vm.Zoom);
+        var horizontalPadding = _layerOverlayWorkspacePadding * zoom +
+            Math.Max(0, vm.ImageWidth * (zoom - 1) / 2);
+        var verticalPadding = _layerOverlayWorkspacePadding * zoom +
+            Math.Max(0, vm.ImageHeight * (zoom - 1) / 2);
+        DocumentCanvas.Margin = new Thickness(
+            horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
+        LayerOverlay.Width = Math.Max(1, vm.ImageWidth + _layerOverlayWorkspacePadding * 2);
+        LayerOverlay.Height = Math.Max(1, vm.ImageHeight + _layerOverlayWorkspacePadding * 2);
     }
 
     private void ViewModel_PreviewInvalidated(object? sender, EventArgs e)
@@ -496,8 +530,8 @@ public partial class PhotoEditorView : UserControl
         if (ViewModel is not { IsImageLoaded: true } vm || CropOverlay.Visibility == Visibility.Visible) return;
         var overlayPoint = e.GetPosition(LayerOverlay);
         var point = new Point(
-            overlayPoint.X,
-            overlayPoint.Y);
+            overlayPoint.X - _layerOverlayWorkspacePadding,
+            overlayPoint.Y - _layerOverlayWorkspacePadding);
         _layerDragMode = DragMode.None;
         var selected = vm.SelectedLayer;
         if (selected is not null && selected.IsVisible)
@@ -519,9 +553,10 @@ public partial class PhotoEditorView : UserControl
 
         // Selecting a previously unselected layer may expand the workspace.
         // Recalculate the document-space pointer after that layout change.
+        // Selection may expand the workspace; use the current padding after layout.
         point = new Point(
-            overlayPoint.X,
-            overlayPoint.Y);
+            overlayPoint.X - _layerOverlayWorkspacePadding,
+            overlayPoint.Y - _layerOverlayWorkspacePadding);
         if (selected!.IsLocked)
         {
             DrawLayerSelection();
@@ -544,8 +579,8 @@ public partial class PhotoEditorView : UserControl
         if (!_isLayerDragging || ViewModel?.SelectedLayer is not { } layer) return;
         var overlayPoint = e.GetPosition(LayerOverlay);
         var point = new Point(
-            overlayPoint.X,
-            overlayPoint.Y);
+            overlayPoint.X - _layerOverlayWorkspacePadding,
+            overlayPoint.Y - _layerOverlayWorkspacePadding);
         var dx = point.X - _layerDragStart.X;
         var dy = point.Y - _layerDragStart.Y;
         var bounds = _layerBoundsAtDragStart;
@@ -708,8 +743,8 @@ public partial class PhotoEditorView : UserControl
             StrokeDashArray = [3, 2], Fill = Brushes.Transparent,
             IsHitTestVisible = false
         };
-        Canvas.SetLeft(border, rect.Left);
-        Canvas.SetTop(border, rect.Top);
+        Canvas.SetLeft(border, rect.Left + _layerOverlayWorkspacePadding);
+        Canvas.SetTop(border, rect.Top + _layerOverlayWorkspacePadding);
         LayerOverlay.Children.Add(border);
         var layerBounds = new SKRect((float)rect.Left, (float)rect.Top,
             (float)rect.Right, (float)rect.Bottom);
@@ -723,8 +758,8 @@ public partial class PhotoEditorView : UserControl
                 Fill = Brushes.White, Stroke = Brushes.DodgerBlue, StrokeThickness = 1.5,
                 IsHitTestVisible = false
             };
-            Canvas.SetLeft(handle, point.X - LayerHandleRadius);
-            Canvas.SetTop(handle, point.Y - LayerHandleRadius);
+            Canvas.SetLeft(handle, point.X + _layerOverlayWorkspacePadding - LayerHandleRadius);
+            Canvas.SetTop(handle, point.Y + _layerOverlayWorkspacePadding - LayerHandleRadius);
             LayerOverlay.Children.Add(handle);
         }
     }
