@@ -94,6 +94,14 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="CutoutSelectSettings" TargetType="Border">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CutoutTool}" Value="Select">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="CutoutNonBrushSettings" TargetType="StackPanel">
             <Setter Property="Visibility" Value="Collapsed"/>
             <Style.Triggers>
@@ -564,6 +572,34 @@
                                                                      Checked="CutoutOption_Checked" IsChecked="True"/>
                                                         <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutMode"
                                                                      Tag="Mode|Remove" Content="REMOVE"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                    </UniformGrid>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Background="#25272C" BorderBrush="#35383F" BorderThickness="1"
+                                                    CornerRadius="8" Padding="10" Margin="0,0,0,10"
+                                                    Style="{StaticResource CutoutSelectSettings}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Shape" FontWeight="SemiBold" Margin="2,0,2,6"/>
+                                                    <UniformGrid Columns="3">
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Rectangle" Content="□" ToolTip="Rectangle"
+                                                                     Checked="CutoutOption_Checked" IsChecked="True"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Ellipse" Content="○" ToolTip="Ellipse"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Triangle" Content="△" ToolTip="Triangle"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Star" Content="☆" ToolTip="Star"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Heart" Content="♡" ToolTip="Heart"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Line" Content="╱" ToolTip="Line"
                                                                      Checked="CutoutOption_Checked"/>
                                                     </UniformGrid>
                                                 </StackPanel>
