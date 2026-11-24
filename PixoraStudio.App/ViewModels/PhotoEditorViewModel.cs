@@ -486,6 +486,51 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         RefreshPreview();
     }
 
+    [RelayCommand]
+    private void DuplicateLayer(PhotoLayerViewModel? layer)
+    {
+        if (layer is null || !AdditionalLayers.Contains(layer) || _canvasBitmap is null)
+            return;
+
+        try
+        {
+            var duplicate = CreateLayer($"{layer.Name} Copy", _imageService.CloneImage(layer.Bitmap),
+                layer.X + 16, layer.Y + 16);
+            duplicate.Adjustment = new ImageAdjustment
+            {
+                Brightness = layer.Adjustment.Brightness,
+                Contrast = layer.Adjustment.Contrast,
+                Saturation = layer.Adjustment.Saturation,
+                Exposure = layer.Adjustment.Exposure,
+                Highlights = layer.Adjustment.Highlights,
+                Shadows = layer.Adjustment.Shadows,
+                Temperature = layer.Adjustment.Temperature,
+                Tint = layer.Adjustment.Tint,
+                Filter = layer.Adjustment.Filter
+            };
+            duplicate.Opacity = layer.Opacity;
+            duplicate.IsVisible = layer.IsVisible;
+            AttachLayer(duplicate);
+            AdditionalLayers.Insert(AdditionalLayers.IndexOf(layer), duplicate);
+            SelectedLayer = duplicate;
+            RefreshPreview();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OutOfMemoryException)
+        {
+            OperationError = $"Unable to duplicate layer: {ex.Message}";
+        }
+    }
+
+    public void MoveLayer(int oldIndex, int newIndex)
+    {
+        if (oldIndex < 0 || oldIndex >= AdditionalLayers.Count ||
+            newIndex < 0 || newIndex >= AdditionalLayers.Count || oldIndex == newIndex)
+            return;
+
+        AdditionalLayers.Move(oldIndex, newIndex);
+        RefreshPreview();
+    }
+
     private void ClearAdditionalLayers()
     {
         foreach (var layer in AdditionalLayers)
