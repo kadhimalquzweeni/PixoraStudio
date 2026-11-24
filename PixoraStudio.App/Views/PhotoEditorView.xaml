@@ -290,7 +290,28 @@
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
-                            <TabItem Header="Shapes"><StackPanel><TextBlock Text="Shapes" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Shape tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Shapes">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Shapes" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                        <StackPanel IsEnabled="{Binding SelectedLayer.IsEditable}">
+                                            <TextBlock Text="Shape" FontSize="10" Foreground="#AEB2BE"/>
+                                            <ComboBox SelectedValue="{Binding SelectedLayer.ShapeType}" SelectedValuePath="Content" Margin="0,2,0,10">
+                                                <ComboBoxItem Content="Rectangle"/><ComboBoxItem Content="Ellipse"/><ComboBoxItem Content="Line"/><ComboBoxItem Content="Arrow"/>
+                                            </ComboBox>
+                                            <TextBlock Text="Fill colour (hex)" FontSize="10" Foreground="#AEB2BE"/>
+                                            <TextBox Text="{Binding SelectedLayer.FillColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,10"/>
+                                            <TextBlock Text="Stroke colour (hex)" FontSize="10" Foreground="#AEB2BE"/>
+                                            <TextBox Text="{Binding SelectedLayer.StrokeColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,10"/>
+                                            <DockPanel>
+                                                <TextBlock Text="Stroke width" Foreground="#AEB2BE" FontSize="10"/>
+                                                <TextBlock Text="{Binding SelectedLayer.StrokeWidth, StringFormat={}{0:0}}" Foreground="#AEB2BE" FontSize="10" DockPanel.Dock="Right"/>
+                                            </DockPanel>
+                                            <Slider Minimum="0" Maximum="64" Value="{Binding SelectedLayer.StrokeWidth}" Margin="0,2,0,5"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
                             <TabItem Header="Icon">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
                                     <TextBlock Text="Create Windows icon (.ico)" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
@@ -317,7 +338,6 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
                         <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -386,23 +406,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <Expander Grid.Row="2" Header="Selected layer properties" IsExpanded="True"
-                              Foreground="#D4D6DE" Margin="0,8,0,0">
-                        <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="4" IsEnabled="{Binding SelectedLayer.IsEditable}">
-                                <TextBlock Text="Shape" FontSize="10" Foreground="#AEB4BF"/>
-                                <ComboBox SelectedValue="{Binding SelectedLayer.ShapeType}" SelectedValuePath="Content" Margin="0,2,0,6">
-                                    <ComboBoxItem Content="Rectangle"/><ComboBoxItem Content="Ellipse"/><ComboBoxItem Content="Line"/><ComboBoxItem Content="Arrow"/>
-                                </ComboBox>
-                                <TextBlock Text="Fill colour (hex)" FontSize="10" Foreground="#AEB4BF"/>
-                                <TextBox Text="{Binding SelectedLayer.FillColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,6"/>
-                                <TextBlock Text="Stroke colour (hex)" FontSize="10" Foreground="#AEB4BF"/>
-                                <TextBox Text="{Binding SelectedLayer.StrokeColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,6"/>
-                                <DockPanel><TextBlock Text="Stroke width" Foreground="#AEB4BF" FontSize="10"/><TextBlock Text="{Binding SelectedLayer.StrokeWidth, StringFormat={}{0:0}}" Foreground="#AEB4BF" FontSize="10" DockPanel.Dock="Right"/></DockPanel>
-                                <Slider Minimum="0" Maximum="64" Value="{Binding SelectedLayer.StrokeWidth}"/>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Expander>
+                    
                                     </Grid>
             </Border>
         </Grid>
