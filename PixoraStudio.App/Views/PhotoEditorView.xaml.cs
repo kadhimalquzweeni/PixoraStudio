@@ -52,6 +52,7 @@ public partial class PhotoEditorView : UserControl
     private PhotoEditorViewModel? ViewModel => DataContext as PhotoEditorViewModel;
 
     private PhotoEditorViewModel? _observedViewModel;
+    private PhotoLayerViewModel? _observedLayer;
 
     private void PhotoEditorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
@@ -60,15 +61,45 @@ public partial class PhotoEditorView : UserControl
             _observedViewModel.PropertyChanged -= ViewModel_PropertyChanged;
             _observedViewModel.PreviewInvalidated -= ViewModel_PreviewInvalidated;
         }
+        if (_observedLayer is not null)
+            _observedLayer.PropertyChanged -= SelectedLayer_PropertyChanged;
+
         _observedViewModel = e.NewValue as PhotoEditorViewModel;
         if (_observedViewModel is not null)
         {
             _observedViewModel.PropertyChanged += ViewModel_PropertyChanged;
             _observedViewModel.PreviewInvalidated += ViewModel_PreviewInvalidated;
         }
+        ObserveSelectedLayer();
         UpdateLayerOverlayWorkspace();
         DrawLayerSelection();
         GpuPreview?.InvalidateVisual();
+    }
+
+    private void ObserveSelectedLayer()
+    {
+        if (_observedLayer is not null)
+            _observedLayer.PropertyChanged -= SelectedLayer_PropertyChanged;
+
+        _observedLayer = ViewModel?.SelectedLayer;
+        if (_observedLayer is not null)
+            _observedLayer.PropertyChanged += SelectedLayer_PropertyChanged;
+    }
+
+    private void SelectedLayer_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PhotoLayerViewModel.IsImageLayer))
+            Dispatcher.Invoke(CloseImageOnlyToolPanel);
+    }
+
+    private void CloseImageOnlyToolPanel()
+    {
+        if ((ToolSettingsTabs.SelectedIndex == 4 || ToolSettingsTabs.SelectedIndex == 5) &&
+            ViewModel?.SelectedLayer?.IsImageLayer != true)
+        {
+            ToolSettingsBorder.Visibility = Visibility.Collapsed;
+            ToolSettingsColumn.Width = new GridLength(0);
+        }
     }
 
     private void PhotoEditorView_Loaded(object sender, RoutedEventArgs e)
@@ -91,6 +122,8 @@ public partial class PhotoEditorView : UserControl
         if (e.PropertyName == nameof(PhotoEditorViewModel.SelectedLayer))
             Dispatcher.Invoke(() =>
             {
+                ObserveSelectedLayer();
+                CloseImageOnlyToolPanel();
                 UpdateLayerOverlayWorkspace();
                 DrawLayerSelection();
             });
@@ -204,6 +237,10 @@ public partial class PhotoEditorView : UserControl
         if (sender is not Button { Tag: string tag } ||
             !int.TryParse(tag, out int selectedTool) ||
             selectedTool < 0 || selectedTool >= ToolSettingsTabs.Items.Count)
+            return;
+
+        if ((selectedTool == 4 || selectedTool == 5) &&
+            ViewModel?.SelectedLayer?.IsImageLayer != true)
             return;
 
         ToolSettingsTabs.SelectedIndex = selectedTool;
