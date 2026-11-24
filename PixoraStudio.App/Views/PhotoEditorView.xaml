@@ -546,7 +546,7 @@
                                                     CornerRadius="8" Padding="10" Margin="0,2,0,10">
                                                 <StackPanel>
                                                     <TextBlock Text="Tool" FontWeight="SemiBold" Margin="2,0,2,6"/>
-                                                    <UniformGrid Columns="4">
+                                                    <UniformGrid Columns="3">
                                                         <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
                                                                      Tag="Tool|Select" Content="▣" ToolTip="Shape selection"
                                                                      Checked="CutoutOption_Checked" IsChecked="True"/>
