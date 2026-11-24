@@ -22,7 +22,6 @@ public partial class SaveOptionsDialogWindow : Window
 {
     private readonly int _sourceWidth;
     private readonly int _sourceHeight;
-    private readonly double _aspectRatio;
     private readonly bool _hasTransparency;
     private readonly bool _canUsePixoraAi;
     private bool _isUpdatingDimensions;
@@ -69,7 +68,6 @@ public partial class SaveOptionsDialogWindow : Window
             _selectedFormat = SaveImageFormat.Png;
         _sourceWidth = Math.Max(1, width);
         _sourceHeight = Math.Max(1, height);
-        _aspectRatio = (double)_sourceWidth / _sourceHeight;
 
         PreviewImage.Source = preview;
         FileNameTextBox.Text = initialName;
@@ -299,11 +297,19 @@ public partial class SaveOptionsDialogWindow : Window
             editedValue > 0)
         {
             _isUpdatingDimensions = true;
-            if (ReferenceEquals(editedDimension, WidthTextBox))
-                HeightTextBox.Text = Math.Max(1, (int)Math.Round(editedValue / _aspectRatio)).ToString();
-            else if (ReferenceEquals(editedDimension, HeightTextBox))
-                WidthTextBox.Text = Math.Max(1, (int)Math.Round(editedValue * _aspectRatio)).ToString();
-            _isUpdatingDimensions = false;
+            try
+            {
+                (int width, int height) = ReferenceEquals(editedDimension, WidthTextBox)
+                    ? AspectRatioDimensions.FromWidth(_sourceWidth, _sourceHeight, editedValue)
+                    : AspectRatioDimensions.FromHeight(_sourceWidth, _sourceHeight, editedValue);
+
+                WidthTextBox.Text = width.ToString();
+                HeightTextBox.Text = height.ToString();
+            }
+            finally
+            {
+                _isUpdatingDimensions = false;
+            }
         }
 
         UpdatePreviewDescription();
