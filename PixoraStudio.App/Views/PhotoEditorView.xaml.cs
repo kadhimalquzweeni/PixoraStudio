@@ -560,7 +560,7 @@ public partial class PhotoEditorView : UserControl
                         : new Polyline { Points = points };
                     stroke.Stroke = viewModel.CutoutMode == "Remove" ? Brushes.OrangeRed : Brushes.DeepSkyBlue;
                     stroke.StrokeThickness = viewModel.CutoutTool == "Brush" ? 32 : 2;
-                    stroke.StrokeDashArray = viewModel.CutoutTool == "Lasso" ? [4, 2] : null;
+                    stroke.StrokeDashArray = viewModel.CutoutTool == "Lasso" ? new DoubleCollection { 4, 2 } : null;
                     stroke.IsHitTestVisible = false;
                     CutoutOverlay.Children.Add(stroke);
                 }
