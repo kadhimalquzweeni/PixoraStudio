@@ -197,4 +197,20 @@ public sealed class GpuImageRendererTests
         Assert.Throws<ArgumentNullException>(() =>
             GpuImageRenderer.Render(canvas, 1, 1, null!));
     }
+
+    [Fact]
+    public void Render_ShouldApplyPerLayerOpacity()
+    {
+        using var background = CreateBitmap(1, 1, SKColors.Blue);
+        using var overlay = CreateBitmap(1, 1, SKColors.Red);
+
+        using var result = Render(1, 1,
+            new GpuImageLayer(background, 0, 0, 1, 1, true, new ImageAdjustment()),
+            new GpuImageLayer(overlay, 0, 0, 1, 1, true, new ImageAdjustment(), 0.5f));
+
+        var pixel = result.GetPixel(0, 0);
+        Assert.Equal((byte)255, pixel.Alpha);
+        Assert.InRange(pixel.Red, (byte)126, (byte)129);
+        Assert.InRange(pixel.Blue, (byte)126, (byte)129);
+    }
 }
