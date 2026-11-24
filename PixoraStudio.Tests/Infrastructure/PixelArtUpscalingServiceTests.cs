@@ -49,9 +49,9 @@ public sealed class PixelArtUpscalingServiceTests
 
         Assert.Equal(source.Width * scale, result.Width);
         Assert.Equal(source.Height * scale, result.Height);
-        Assert.Contains(0, GetAlphaValues(result));
-        Assert.Contains(128, GetAlphaValues(result));
-        Assert.Contains(255, GetAlphaValues(result));
+        Assert.Contains((byte)0, GetAlphaValues(result));
+        Assert.Contains((byte)128, GetAlphaValues(result));
+        Assert.Contains((byte)255, GetAlphaValues(result));
     }
 
     [Theory]
@@ -64,9 +64,9 @@ public sealed class PixelArtUpscalingServiceTests
 
         Assert.Equal(source.Width * scale, result.Width);
         Assert.Equal(source.Height * scale, result.Height);
-        Assert.Contains(0, GetAlphaValues(result));
-        Assert.Contains(128, GetAlphaValues(result));
-        Assert.Contains(255, GetAlphaValues(result));
+        Assert.Contains((byte)0, GetAlphaValues(result));
+        Assert.Contains((byte)128, GetAlphaValues(result));
+        Assert.Contains((byte)255, GetAlphaValues(result));
     }
 
     [Theory]
