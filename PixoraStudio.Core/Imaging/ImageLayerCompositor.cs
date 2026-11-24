@@ -10,11 +10,11 @@ public static class ImageLayerCompositor
         IReadOnlyCollection<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)> layers)
     {
         ArgumentNullException.ThrowIfNull(layers);
-        return Composite(background, layers.Select(layer =>
+        return CompositeWithOpacity(background, layers.Select(layer =>
             (layer.Bitmap, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible, 1f)).ToArray());
     }
 
-    public static SKBitmap Composite(
+    public static SKBitmap CompositeWithOpacity(
         SKBitmap background,
         IReadOnlyCollection<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible, float Opacity)> layers)
     {
