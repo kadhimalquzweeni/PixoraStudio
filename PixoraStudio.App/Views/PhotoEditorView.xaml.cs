@@ -290,6 +290,20 @@ public partial class PhotoEditorView : UserControl
         ToolSettingsBorder.Visibility = Visibility.Visible;
     }
 
+    private void OpenImageSize_Click(object sender, RoutedEventArgs e)
+    {
+        ToolSettingsTabs.SelectedIndex = 3;
+    }
+
+    private void SmartResize_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { SelectedLayer: { IsEditable: true } } viewModel)
+            return;
+
+        viewModel.LockAspectRatio = true;
+        ToolSettingsTabs.SelectedIndex = 3;
+    }
+
     private void CloseToolSettings_Click(object sender, RoutedEventArgs e)
     {
         ToolSettingsBorder.Visibility = Visibility.Collapsed;
