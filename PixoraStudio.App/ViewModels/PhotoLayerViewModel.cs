@@ -23,7 +23,7 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
         Height = bitmap.Height;
     }
 
-    [ObservableProperty] private string name;
+    [ObservableProperty] private string name = string.Empty;
     public SKBitmap Bitmap { get; private set; }
     public ImageAdjustment Adjustment { get; set; } = new();
     public BitmapSource Thumbnail { get; }
