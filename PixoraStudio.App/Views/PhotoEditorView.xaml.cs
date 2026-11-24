@@ -461,7 +461,7 @@ public partial class PhotoEditorView : UserControl
         if (viewModel.CutoutTool == "Magic")
         {
             viewModel.CreateCutoutMagicSelection(_cutoutStrokePoints[0]);
-            _cutoutSelectionBounds = layerBounds;
+            _cutoutSelectionBounds = new Rect(0, 0, layer.Width, layer.Height);
             DrawCutoutSelection();
             e.Handled = true;
             return;
@@ -505,7 +505,9 @@ public partial class PhotoEditorView : UserControl
             Math.Min(_cutoutDragStart.Y, _cutoutDragCurrent.Y) - layer.Y,
             Math.Abs(_cutoutDragCurrent.X - _cutoutDragStart.X),
             Math.Abs(_cutoutDragCurrent.Y - _cutoutDragStart.Y));
-        if (bounds.Width < 2 || bounds.Height < 2)
+        if ((viewModel.CutoutTool == "Lasso" && _cutoutStrokePoints.Count < 3) ||
+            (viewModel.CutoutTool == "Brush" && _cutoutStrokePoints.Count == 0) ||
+            (viewModel.CutoutTool == "Select" && (bounds.Width < 2 || bounds.Height < 2)))
         {
             _cutoutSelectionBounds = Rect.Empty;
             DrawCutoutSelection();
@@ -514,6 +516,8 @@ public partial class PhotoEditorView : UserControl
         }
 
         _cutoutSelectionBounds = bounds;
+        if (viewModel.CutoutTool == "Brush")
+            _cutoutSelectionBounds.Inflate(16, 16);
         switch (viewModel.CutoutTool)
         {
             case "Brush":
