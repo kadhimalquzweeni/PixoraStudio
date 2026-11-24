@@ -214,7 +214,7 @@
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="2×" Tag="2"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="3XScaleRadioButton"
+                                        <RadioButton x:Name="ThreeXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="3×" Tag="3"
                                                      Click="ScalePreset_Click"/>
@@ -222,51 +222,51 @@
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="4×" Tag="4"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="5XScaleRadioButton"
+                                        <RadioButton x:Name="FiveXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="5×" Tag="5"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="6XScaleRadioButton"
+                                        <RadioButton x:Name="SixXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="6×" Tag="6"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="7XScaleRadioButton"
+                                        <RadioButton x:Name="SevenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="7×" Tag="7"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="8XScaleRadioButton"
+                                        <RadioButton x:Name="EightXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="8×" Tag="8"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="9XScaleRadioButton"
+                                        <RadioButton x:Name="NineXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="9×" Tag="9"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="10XScaleRadioButton"
+                                        <RadioButton x:Name="TenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="10×" Tag="10"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="11XScaleRadioButton"
+                                        <RadioButton x:Name="ElevenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="11×" Tag="11"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="12XScaleRadioButton"
+                                        <RadioButton x:Name="TwelveXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="12×" Tag="12"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="13XScaleRadioButton"
+                                        <RadioButton x:Name="ThirteenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="13×" Tag="13"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="14XScaleRadioButton"
+                                        <RadioButton x:Name="FourteenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="14×" Tag="14"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="15XScaleRadioButton"
+                                        <RadioButton x:Name="FifteenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="15×" Tag="15"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="16XScaleRadioButton"
+                                        <RadioButton x:Name="SixteenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="16×" Tag="16"
                                                      Click="ScalePreset_Click"/>
