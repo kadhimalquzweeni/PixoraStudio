@@ -4,4 +4,11 @@
   <Project Path="PixoraStudio.Infrastructure/PixoraStudio.Infrastructure.csproj" />
   <Project Path="PixoraStudio.MediaEngine/PixoraStudio.MediaEngine.csproj" Id="5c857324-39e9-4d27-99eb-73876acdc28c" />
   <Project Path="PixoraStudio.Tests/PixoraStudio.Tests.csproj" />
+  <Folder Name="/PixoraStudio.ModelTraining/">
+    <File Path="PixoraStudio.ModelTraining/.gitignore" />
+    <File Path="PixoraStudio.ModelTraining/README.md" />
+    <File Path="PixoraStudio.ModelTraining/pixora_sr.py" />
+    <File Path="PixoraStudio.ModelTraining/requirements.txt" />
+    <File Path="PixoraStudio.ModelTraining/train.py" />
+  </Folder>
 </Solution>
