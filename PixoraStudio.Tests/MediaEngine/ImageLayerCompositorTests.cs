@@ -150,7 +150,7 @@ public sealed class ImageLayerCompositorTests
         using var overlay = new SKBitmap(1, 1);
         overlay.Erase(SKColors.Red);
 
-        using var result = ImageLayerCompositor.Composite(background,
+        using var result = ImageLayerCompositor.CompositeWithOpacity(background,
             [(overlay, 0, 0, 1, 1, true, 0f)]);
 
         Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
