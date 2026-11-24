@@ -900,15 +900,15 @@ public partial class PhotoEditorView : UserControl
                 return;
             }
 
-            var overlayPoint = e.GetPosition(LayerOverlay);
-            float x = (float)Math.Clamp(
-                overlayPoint.X - _layerOverlayWorkspacePadding, 0d, drawingViewModel.ImageWidth);
-            float y = (float)Math.Clamp(
-                overlayPoint.Y - _layerOverlayWorkspacePadding, 0d, drawingViewModel.ImageHeight);
-            _drawStrokePoints.Add(new SKPoint(x, y));
+            var drawOverlayPosition = e.GetPosition(LayerOverlay);
+            float drawX = (float)Math.Clamp(
+                drawOverlayPosition.X - _layerOverlayWorkspacePadding, 0d, drawingViewModel.ImageWidth);
+            float drawY = (float)Math.Clamp(
+                drawOverlayPosition.Y - _layerOverlayWorkspacePadding, 0d, drawingViewModel.ImageHeight);
+            _drawStrokePoints.Add(new SKPoint(drawX, drawY));
             _drawStrokePreview?.Points.Add(new Point(
-                x + _layerOverlayWorkspacePadding,
-                y + _layerOverlayWorkspacePadding));
+                drawX + _layerOverlayWorkspacePadding,
+                drawY + _layerOverlayWorkspacePadding));
             e.Handled = true;
             return;
         }
