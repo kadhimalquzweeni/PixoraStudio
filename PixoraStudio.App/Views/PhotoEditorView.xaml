@@ -700,6 +700,7 @@
                                                             Background="Transparent" BorderBrush="#AEB2BE"
                                                             BorderThickness="1" Padding="10,7" Margin="0,4"/>
                                                     <Button Content="Apply cutout" Click="ApplyCutout_Click"
+                                                            IsDefault="True"
                                                             IsEnabled="{Binding HasCutoutSelection}"
                                                             Background="Transparent" BorderBrush="#AEB2BE"
                                                             BorderThickness="1" Padding="10,7" Margin="0,4"/>
