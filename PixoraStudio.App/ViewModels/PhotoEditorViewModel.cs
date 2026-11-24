@@ -78,6 +78,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private float rotationAngle;
     [ObservableProperty] private string brushColor = "#FF000000";
     [ObservableProperty] private double brushSize = 12d;
+    [ObservableProperty] private string cutoutTool = "Select";
+    [ObservableProperty] private string cutoutMode = "Keep";
+    [ObservableProperty] private string cutoutShape = "Rectangle";
+    [ObservableProperty] private string cutoutSoftness = "None";
+    [ObservableProperty] private bool cutoutHintRemoved;
+    [ObservableProperty] private bool hasCutoutSelection;
+    [ObservableProperty] private bool cutoutInverted;
+    private byte[]? _cutoutSelectionMask;
 
     public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
 
@@ -584,6 +592,302 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             CropHeight = ResizeHeight = ImageHeight;
             _resizeAspectRatio = ImageHeight == 0 ? 1f : (float)ImageWidth / ImageHeight;
         }
+    }
+
+    public void CreateCutoutShapeSelection(Rect bounds)
+    {
+        if (SelectedLayer is not { IsLocked: false } layer)
+            return;
+
+        var bitmap = layer.Bitmap;
+        double scaleX = bitmap.Width / (double)Math.Max(1, layer.Width);
+        double scaleY = bitmap.Height / (double)Math.Max(1, layer.Height);
+        int left = Math.Clamp((int)Math.Floor(bounds.Left * scaleX), 0, bitmap.Width);
+        int top = Math.Clamp((int)Math.Floor(bounds.Top * scaleY), 0, bitmap.Height);
+        int right = Math.Clamp((int)Math.Ceiling(bounds.Right * scaleX), 0, bitmap.Width);
+        int bottom = Math.Clamp((int)Math.Ceiling(bounds.Bottom * scaleY), 0, bitmap.Height);
+        if (right <= left || bottom <= top)
+            return;
+
+        var mask = new byte[checked(bitmap.Width * bitmap.Height)];
+        for (int y = top; y < bottom; y++)
+        for (int x = left; x < right; x++)
+        {
+            if (IsCutoutShapePixel(x + 0.5, y + 0.5, left, top, right, bottom, CutoutShape))
+                mask[y * bitmap.Width + x] = byte.MaxValue;
+        }
+
+        SetCutoutSelectionMask(mask);
+    }
+
+    public void CreateCutoutMagicSelection(Point point)
+    {
+        if (SelectedLayer is not { IsLocked: false } layer)
+            return;
+
+        var bitmap = layer.Bitmap;
+        double scaleX = bitmap.Width / (double)Math.Max(1, layer.Width);
+        double scaleY = bitmap.Height / (double)Math.Max(1, layer.Height);
+        int seedX = Math.Clamp((int)Math.Floor(point.X * scaleX), 0, bitmap.Width - 1);
+        int seedY = Math.Clamp((int)Math.Floor(point.Y * scaleY), 0, bitmap.Height - 1);
+        var seed = bitmap.GetPixel(seedX, seedY);
+        var mask = new byte[checked(bitmap.Width * bitmap.Height)];
+        var visited = new bool[mask.Length];
+        var pending = new Stack<int>();
+        int seedIndex = seedY * bitmap.Width + seedX;
+        pending.Push(seedIndex);
+        visited[seedIndex] = true;
+        while (pending.Count > 0)
+        {
+            int index = pending.Pop();
+            int x = index % bitmap.Width;
+            int y = index / bitmap.Width;
+            var color = bitmap.GetPixel(x, y);
+            if (Math.Abs(color.Red - seed.Red) +
+                Math.Abs(color.Green - seed.Green) +
+                Math.Abs(color.Blue - seed.Blue) > 84)
+                continue;
+
+            mask[index] = byte.MaxValue;
+            TryPush(x - 1, y);
+            TryPush(x + 1, y);
+            TryPush(x, y - 1);
+            TryPush(x, y + 1);
+        }
+
+        SetCutoutSelectionMask(mask);
+
+        void TryPush(int x, int y)
+        {
+            if (x < 0 || x >= bitmap.Width || y < 0 || y >= bitmap.Height)
+                return;
+            int index = y * bitmap.Width + x;
+            if (visited[index])
+                return;
+            visited[index] = true;
+            pending.Push(index);
+        }
+    }
+
+    public void CreateCutoutBrushSelection(IReadOnlyList<Point> points, double radius)
+    {
+        if (SelectedLayer is not { IsLocked: false } layer || points.Count == 0)
+            return;
+
+        var bitmap = layer.Bitmap;
+        double scaleX = bitmap.Width / (double)Math.Max(1, layer.Width);
+        double scaleY = bitmap.Height / (double)Math.Max(1, layer.Height);
+        var scaled = points.Select(point => new Point(point.X * scaleX, point.Y * scaleY)).ToArray();
+        double scaledRadius = Math.Max(1, radius * (scaleX + scaleY) / 2d);
+        var mask = new byte[checked(bitmap.Width * bitmap.Height)];
+        int left = Math.Clamp((int)Math.Floor(scaled.Min(point => point.X) - scaledRadius), 0, bitmap.Width - 1);
+        int right = Math.Clamp((int)Math.Ceiling(scaled.Max(point => point.X) + scaledRadius), 0, bitmap.Width - 1);
+        int top = Math.Clamp((int)Math.Floor(scaled.Min(point => point.Y) - scaledRadius), 0, bitmap.Height - 1);
+        int bottom = Math.Clamp((int)Math.Ceiling(scaled.Max(point => point.Y) + scaledRadius), 0, bitmap.Height - 1);
+
+        for (int y = top; y <= bottom; y++)
+        for (int x = left; x <= right; x++)
+        {
+            var pixel = new Point(x + 0.5, y + 0.5);
+            for (int i = 0; i < scaled.Length; i++)
+            {
+                var from = scaled[i];
+                var to = scaled[Math.Min(i + 1, scaled.Length - 1)];
+                if (DistanceToSegment(pixel, from, to) <= scaledRadius)
+                {
+                    mask[y * bitmap.Width + x] = byte.MaxValue;
+                    break;
+                }
+            }
+        }
+
+        SetCutoutSelectionMask(mask);
+    }
+
+    public void CreateCutoutLassoSelection(IReadOnlyList<Point> points)
+    {
+        if (SelectedLayer is not { IsLocked: false } layer || points.Count < 3)
+            return;
+
+        var bitmap = layer.Bitmap;
+        double scaleX = bitmap.Width / (double)Math.Max(1, layer.Width);
+        double scaleY = bitmap.Height / (double)Math.Max(1, layer.Height);
+        var polygon = points.Select(point => (X: point.X * scaleX, Y: point.Y * scaleY)).ToArray();
+        var mask = new byte[checked(bitmap.Width * bitmap.Height)];
+        int left = Math.Clamp((int)Math.Floor(polygon.Min(point => point.X)), 0, bitmap.Width - 1);
+        int right = Math.Clamp((int)Math.Ceiling(polygon.Max(point => point.X)), 0, bitmap.Width - 1);
+        int top = Math.Clamp((int)Math.Floor(polygon.Min(point => point.Y)), 0, bitmap.Height - 1);
+        int bottom = Math.Clamp((int)Math.Ceiling(polygon.Max(point => point.Y)), 0, bitmap.Height - 1);
+
+        for (int y = top; y <= bottom; y++)
+        for (int x = left; x <= right; x++)
+        {
+            if (IsPointInPolygon(x + 0.5, y + 0.5, polygon))
+                mask[y * bitmap.Width + x] = byte.MaxValue;
+        }
+
+        SetCutoutSelectionMask(mask);
+    }
+
+    public void InvertCutoutSelection()
+    {
+        if (HasCutoutSelection)
+            CutoutInverted = !CutoutInverted;
+    }
+
+    public void ResetCutoutSelection()
+    {
+        _cutoutSelectionMask = null;
+        HasCutoutSelection = false;
+        CutoutInverted = false;
+    }
+
+    public void ApplyCutout()
+    {
+        if (SelectedLayer is not { IsLocked: false } layer ||
+            _cutoutSelectionMask is not { } selectionMask ||
+            selectionMask.Length != layer.Bitmap.Width * layer.Bitmap.Height)
+            return;
+
+        var bitmap = layer.Bitmap;
+        var mask = CutoutSoftness switch
+        {
+            "Light" => BlurCutoutMask(selectionMask, bitmap.Width, bitmap.Height, 2),
+            "Medium" => BlurCutoutMask(selectionMask, bitmap.Width, bitmap.Height, 6),
+            _ => selectionMask
+        };
+        var result = _imageService.CloneImage(bitmap);
+        for (int y = 0; y < bitmap.Height; y++)
+        for (int x = 0; x < bitmap.Width; x++)
+        {
+            int index = y * bitmap.Width + x;
+            float coverage = mask[index] / 255f;
+            if (CutoutInverted)
+                coverage = 1f - coverage;
+            float remaining = string.Equals(CutoutMode, "Keep", StringComparison.OrdinalIgnoreCase)
+                ? coverage
+                : 1f - coverage;
+            var pixel = result.GetPixel(x, y);
+            byte alpha = (byte)Math.Clamp((int)Math.Round(pixel.Alpha * remaining), 0, 255);
+            result.SetPixel(x, y, new SKColor(pixel.Red, pixel.Green, pixel.Blue, alpha));
+        }
+
+        SaveUndoState();
+        layer.ReplaceBitmap(result);
+        OperationError = null;
+        RefreshPreview();
+        ResetCutoutSelection();
+    }
+
+    private void SetCutoutSelectionMask(byte[] mask)
+    {
+        if (SelectedLayer is not { IsLocked: false } layer ||
+            mask.Length != checked(layer.Bitmap.Width * layer.Bitmap.Height))
+            return;
+
+        _cutoutSelectionMask = mask;
+        HasCutoutSelection = mask.Any(value => value != 0);
+        CutoutInverted = false;
+    }
+
+    private bool IsCutoutShapePixel(double x, double y, int left, int top, int right, int bottom, string shape)
+    {
+        double width = Math.Max(1, right - left);
+        double height = Math.Max(1, bottom - top);
+        double u = (x - left) / width;
+        double v = (y - top) / height;
+        if (shape == "Rectangle")
+            return true;
+        if (shape == "Ellipse")
+            return Math.Pow((u - 0.5) / 0.5, 2) + Math.Pow((v - 0.5) / 0.5, 2) <= 1;
+        if (shape == "Line")
+            return Math.Abs(v - u) <= Math.Max(0.025, 2d / Math.Max(1, Math.Min(width, height)));
+
+        IReadOnlyList<(double X, double Y)> polygon = shape switch
+        {
+            "Triangle" => [(0.5, 0.02), (0.98, 0.98), (0.02, 0.98)],
+            "Star" => Enumerable.Range(0, 10)
+                .Select(i =>
+                {
+                    double angle = -Math.PI / 2 + i * Math.PI / 5;
+                    double radius = i % 2 == 0 ? 0.48 : 0.22;
+                    return (0.5 + Math.Cos(angle) * radius, 0.5 + Math.Sin(angle) * radius);
+                }).ToArray(),
+            "Heart" => Enumerable.Range(0, 40)
+                .Select(i =>
+                {
+                    double angle = i * Math.PI * 2 / 40;
+                    double hx = 16 * Math.Pow(Math.Sin(angle), 3);
+                    double hy = 13 * Math.Cos(angle) - 5 * Math.Cos(2 * angle) -
+                                2 * Math.Cos(3 * angle) - Math.Cos(4 * angle);
+                    return (0.5 + hx / 36, 0.5 - hy / 36);
+                }).ToArray(),
+            _ => []
+        };
+        return polygon.Count == 0 || IsPointInPolygon(u, v, polygon);
+    }
+
+    private static bool IsPointInPolygon(double x, double y, IReadOnlyList<(double X, double Y)> polygon)
+    {
+        bool inside = false;
+        for (int i = 0, j = polygon.Count - 1; i < polygon.Count; j = i++)
+        {
+            var a = polygon[i];
+            var b = polygon[j];
+            if ((a.Y > y) != (b.Y > y) &&
+                x < (b.X - a.X) * (y - a.Y) / (b.Y - a.Y) + a.X)
+                inside = !inside;
+        }
+        return inside;
+    }
+
+    private static double DistanceToSegment(Point point, Point from, Point to)
+    {
+        double dx = to.X - from.X;
+        double dy = to.Y - from.Y;
+        double lengthSquared = dx * dx + dy * dy;
+        if (lengthSquared < 0.001)
+            return Math.Sqrt(Math.Pow(point.X - from.X, 2) + Math.Pow(point.Y - from.Y, 2));
+
+        double amount = Math.Clamp(((point.X - from.X) * dx + (point.Y - from.Y) * dy) / lengthSquared, 0d, 1d);
+        double nearestX = from.X + amount * dx;
+        double nearestY = from.Y + amount * dy;
+        return Math.Sqrt(Math.Pow(point.X - nearestX, 2) + Math.Pow(point.Y - nearestY, 2));
+    }
+
+    private static byte[] BlurCutoutMask(byte[] source, int width, int height, int radius)
+    {
+        var horizontal = new byte[source.Length];
+        var result = new byte[source.Length];
+        var prefix = new int[Math.Max(width, height) + 1];
+
+        for (int y = 0; y < height; y++)
+        {
+            prefix[0] = 0;
+            for (int x = 0; x < width; x++)
+                prefix[x + 1] = prefix[x] + source[y * width + x];
+            for (int x = 0; x < width; x++)
+            {
+                int left = Math.Max(0, x - radius);
+                int right = Math.Min(width - 1, x + radius);
+                horizontal[y * width + x] = (byte)((prefix[right + 1] - prefix[left]) / (right - left + 1));
+            }
+        }
+
+        for (int x = 0; x < width; x++)
+        {
+            prefix[0] = 0;
+            for (int y = 0; y < height; y++)
+                prefix[y + 1] = prefix[y] + horizontal[y * width + x];
+            for (int y = 0; y < height; y++)
+            {
+                int top = Math.Max(0, y - radius);
+                int bottom = Math.Min(height - 1, y + radius);
+                result[y * width + x] = (byte)((prefix[bottom + 1] - prefix[top]) / (bottom - top + 1));
+            }
+        }
+
+        return result;
     }
 
     private void ApplyTransform(Func<SKBitmap, SKBitmap> transform)
