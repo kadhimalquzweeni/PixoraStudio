@@ -68,8 +68,19 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     public PhotoLayerContentType ContentType
     {
         get => _contentType;
-        set { if (IsLocked) return; if (SetProperty(ref _contentType, value)) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set
+        {
+            if (IsLocked || !SetProperty(ref _contentType, value))
+                return;
+
+            OnPropertyChanged(nameof(IsTextLayer));
+            OnPropertyChanged(nameof(IsShapeLayer));
+            ContentChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
+
+    public bool IsTextLayer => ContentType == PhotoLayerContentType.Text;
+    public bool IsShapeLayer => ContentType == PhotoLayerContentType.Shape;
     public string TextContent
     {
         get => _textContent;
