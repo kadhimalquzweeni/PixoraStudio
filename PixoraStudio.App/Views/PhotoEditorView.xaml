@@ -43,6 +43,14 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="NoCanvasHint" TargetType="TextBlock">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsImageLoaded}" Value="False">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="SelectedLayerRequiredPanel" TargetType="StackPanel">
             <Setter Property="Visibility" Value="Visible"/>
             <Style.Triggers>
@@ -117,6 +125,7 @@
                         <Button Style="{StaticResource ToolButton}" ToolTip="Retouch" Tag="7" Click="Tool_Click"><controls:SvgIcon IconName="eraser" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Text" Tag="8" Click="Tool_Click"><controls:SvgIcon IconName="type" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Shapes" Tag="9" Click="Tool_Click"><controls:SvgIcon IconName="shapes" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Draw" Tag="10" Click="Tool_Click"><controls:SvgIcon IconName="paintbrush" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -729,7 +738,43 @@
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
-                        </TabControl>
+                                                    <TabItem Header="Draw">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Draw" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Paint on the canvas with a round brush. Each stroke is added as its own editable layer."
+                                                   Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,14"/>
+                                        <TextBlock Text="Create or open a canvas to start drawing."
+                                                   Style="{StaticResource NoCanvasHint}"
+                                                   Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12"/>
+                                        <StackPanel IsEnabled="{Binding IsImageLoaded}">
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="Brush size" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding BrushSize, StringFormat={}{0:0} px}"
+                                                           Foreground="#8BC5FF" DockPanel.Dock="Right"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,12">
+                                                <TextBox Text="{Binding BrushSize, StringFormat={}{0:0}, UpdateSourceTrigger=LostFocus}"
+                                                         Width="58" HorizontalContentAlignment="Right"
+                                                         VerticalContentAlignment="Center" DockPanel.Dock="Right"/>
+                                                <Slider Minimum="1" Maximum="100" Value="{Binding BrushSize}"
+                                                        IsMoveToPointEnabled="True" Margin="0,0,8,0"/>
+                                            </DockPanel>
+                                            <TextBlock Text="Brush colour" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <Button Click="PickBrushColor_Click" HorizontalContentAlignment="Stretch">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Width="22" Height="22" Background="{Binding BrushColor}"
+                                                            BorderBrush="#737783" BorderThickness="1" CornerRadius="3"/>
+                                                    <TextBlock Text="{Binding BrushColor}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Choose" Foreground="#8BC5FF"
+                                                               Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+</TabControl>
                         <TextBlock Text="{Binding OperationError}" Foreground="#FF8585" TextWrapping="Wrap" VerticalAlignment="Bottom" Margin="0,8,0,0"/>
                     </Grid>
                 </Grid>
