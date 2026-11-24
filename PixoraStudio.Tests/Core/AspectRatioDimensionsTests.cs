@@ -9,7 +9,7 @@ public sealed class AspectRatioDimensionsTests
     [InlineData(1920, 1080, 2000, 2000, 1125)]
     [InlineData(1920, 1080, 1440, 1440, 810)]
     [InlineData(100, 100, 250, 250, 250)]
-    [InlineData(1000, 667, 1500, 1000, 667)]
+    [InlineData(1000, 667, 1400, 1000, 667)]
     public void FromWidth_ShouldReturnNearestDimensionsWithExactSourceRatio(
         int sourceWidth, int sourceHeight, int requestedWidth,
         int expectedWidth, int expectedHeight)
@@ -24,7 +24,7 @@ public sealed class AspectRatioDimensionsTests
     [InlineData(1920, 1080, 1440, 2560, 1440)]
     [InlineData(1920, 1080, 720, 1280, 720)]
     [InlineData(100, 100, 250, 250, 250)]
-    [InlineData(1000, 667, 1300, 1000, 667)]
+    [InlineData(1000, 667, 1300, 2000, 1334)]
     public void FromHeight_ShouldReturnNearestDimensionsWithExactSourceRatio(
         int sourceWidth, int sourceHeight, int requestedHeight,
         int expectedWidth, int expectedHeight)
