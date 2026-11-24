@@ -115,7 +115,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
         foreach (var layer in AdditionalLayers)
         {
-            layer.SetBounds(layer.X + offsetX, layer.Y + offsetY, layer.Width, layer.Height);
+            layer.SetBounds(layer.X + offsetX, layer.Y + offsetY, layer.Width, layer.Height, ignoreLock: true);
         }
 
         UpdateDimensions();
@@ -232,7 +232,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         var layer = snapshot.Layer;
         if (!ReferenceEquals(SelectedLayer, layer))
             SelectedLayer = layer;
-        layer.ReplaceBitmap(_imageService.CloneImage(snapshot.Bitmap));
+        layer.ReplaceBitmap(_imageService.CloneImage(snapshot.Bitmap), ignoreLock: true);
         layer.SetBounds(snapshot.X, snapshot.Y, snapshot.Width, snapshot.Height, ignoreLock: true);
         layer.Adjustment = snapshot.Adjustment;
         snapshot.DetachBitmap();
