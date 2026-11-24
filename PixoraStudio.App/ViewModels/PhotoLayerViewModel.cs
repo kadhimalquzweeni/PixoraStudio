@@ -58,9 +58,9 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     partial void OnWidthChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
     partial void OnHeightChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
 
-    public void SetBounds(int x, int y, int width, int height)
+    public void SetBounds(int x, int y, int width, int height, bool ignoreLock = false)
     {
-        if (IsLocked)
+        if (IsLocked && !ignoreLock)
             return;
 
         _isUpdatingBounds = true;
