@@ -134,7 +134,10 @@ public class ImageProcessingService : IImageProcessingService
         var result = new SKBitmap(width, height, source.ColorType, source.AlphaType);
         using var canvas = new SKCanvas(result);
         canvas.Clear(SKColors.Transparent);
-        canvas.DrawBitmap(source, new SKRect(0, 0, width, height), new SKSamplingOptions(SKCubicResampler.Mitchell));
+        bool isUpscaling = width >= source.Width && height >= source.Height;
+        var sampling = new SKSamplingOptions(
+            isUpscaling ? SKCubicResampler.CatmullRom : SKCubicResampler.Mitchell);
+        canvas.DrawBitmap(source, new SKRect(0, 0, width, height), sampling);
         canvas.Flush();
         return result;
     }
