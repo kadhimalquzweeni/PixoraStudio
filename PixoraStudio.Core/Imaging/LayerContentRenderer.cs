@@ -20,14 +20,16 @@ public static class LayerContentRenderer
 
         if (type == PhotoLayerContentType.Text)
         {
-            using var paint = new SKPaint { Color = fill, IsAntialias = true, TextSize = Math.Clamp(fontSize, 1f, 512f), Typeface = SKTypeface.FromFamilyName(fontFamily) };
-            var metrics = paint.FontMetrics;
+            using var typeface = SKTypeface.FromFamilyName(fontFamily);
+            using var font = new SKFont(typeface, Math.Clamp(fontSize, 1f, 512f));
+            using var paint = new SKPaint { Color = fill, IsAntialias = true };
+            var metrics = font.Metrics;
             var baseline = Math.Min(height - Math.Max(1, metrics.Descent), Math.Max(-metrics.Ascent, (height - (metrics.Descent - metrics.Ascent)) / 2f - metrics.Ascent));
             var content = text ?? string.Empty;
-            float textWidth = paint.MeasureText(content);
+            float textWidth = font.MeasureText(content);
             float textX = textAlignment == "Center" ? (width - textWidth) / 2f
                 : textAlignment == "Right" ? width - textWidth - 4 : 4;
-            canvas.DrawText(content, textX, baseline, paint);
+            canvas.DrawText(content, textX, baseline, font, paint);
         }
         else if (type is PhotoLayerContentType.Shape or PhotoLayerContentType.Frame)
         {
