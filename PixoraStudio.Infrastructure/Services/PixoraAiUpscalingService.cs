@@ -41,7 +41,7 @@ public sealed class PixoraAiUpscalingService : IAiUpscalingService, IDisposable
         string modelPath = ModelPath;
         if (!IsModelAvailable())
             throw new FileNotFoundException(
-                "Train Pixora's local upscaler first. The selected model file was not found.", modelPath);
+                "Train Pixora's photo upscaler first. The photo model file was not found.", modelPath);
 
         int outputWidth = checked(source.Width * Scale);
         int outputHeight = checked(source.Height * Scale);
