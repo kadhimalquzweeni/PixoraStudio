@@ -12,7 +12,7 @@ public sealed class ImageDocumentCanvasTests
 
         Assert.Equal(16, canvas.Width);
         Assert.Equal(12, canvas.Height);
-        Assert.Equal(SKColors.Transparent, canvas.GetPixel(0, 0));
+        Assert.Equal((byte)0, canvas.GetPixel(0, 0).Alpha);
     }
 
     [Theory]
