@@ -159,10 +159,8 @@ public partial class SaveOptionsDialogWindow : Window
 
     private RadioButton[] ScalePresetRadioButtons =>
     [
-        OneXScaleRadioButton, TwoXScaleRadioButton, ThreeXScaleRadioButton, FourXScaleRadioButton,
-        FiveXScaleRadioButton, SixXScaleRadioButton, SevenXScaleRadioButton, EightXScaleRadioButton,
-        NineXScaleRadioButton, TenXScaleRadioButton, ElevenXScaleRadioButton, TwelveXScaleRadioButton,
-        ThirteenXScaleRadioButton, FourteenXScaleRadioButton, FifteenXScaleRadioButton, SixteenXScaleRadioButton
+        OneXScaleRadioButton, TwoXScaleRadioButton, FourXScaleRadioButton,
+        EightXScaleRadioButton, SixteenXScaleRadioButton
     ];
 
     private static void SetCardState(Border card, bool isSelected)
@@ -292,30 +290,22 @@ public partial class SaveOptionsDialogWindow : Window
         CustomScaleRadioButton.IsChecked = true;
         PixoraAiUpscaleCheckBox.IsChecked = false;
         UpdatePixelArtSelectorState();
-        UpdatePreviewDescription();
-    }
 
-    private void WidthTextBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_isUpdatingDimensions || LockAspectRatioCheckBox.IsChecked != true ||
-            !int.TryParse(WidthTextBox.Text, out int width) || width <= 0)
-            return;
+        // Keep the original image proportions while the user edits either dimension.
+        // Updating on every valid edit keeps the fields connected without waiting for focus loss.
+        TextBox? editedDimension = sender as TextBox;
+        if (editedDimension is not null &&
+            int.TryParse(editedDimension.Text, out int editedValue) &&
+            editedValue > 0)
+        {
+            _isUpdatingDimensions = true;
+            if (ReferenceEquals(editedDimension, WidthTextBox))
+                HeightTextBox.Text = Math.Max(1, (int)Math.Round(editedValue / _aspectRatio)).ToString();
+            else if (ReferenceEquals(editedDimension, HeightTextBox))
+                WidthTextBox.Text = Math.Max(1, (int)Math.Round(editedValue * _aspectRatio)).ToString();
+            _isUpdatingDimensions = false;
+        }
 
-        _isUpdatingDimensions = true;
-        HeightTextBox.Text = Math.Max(1, (int)Math.Round(width / _aspectRatio)).ToString();
-        _isUpdatingDimensions = false;
-        UpdatePreviewDescription();
-    }
-
-    private void HeightTextBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_isUpdatingDimensions || LockAspectRatioCheckBox.IsChecked != true ||
-            !int.TryParse(HeightTextBox.Text, out int height) || height <= 0)
-            return;
-
-        _isUpdatingDimensions = true;
-        WidthTextBox.Text = Math.Max(1, (int)Math.Round(height * _aspectRatio)).ToString();
-        _isUpdatingDimensions = false;
         UpdatePreviewDescription();
     }
 
