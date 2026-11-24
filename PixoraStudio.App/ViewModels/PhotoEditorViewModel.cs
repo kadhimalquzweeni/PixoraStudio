@@ -76,6 +76,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isCropMode;
     [ObservableProperty] private string? operationError;
     [ObservableProperty] private float rotationAngle;
+    [ObservableProperty] private string brushColor = "#FF000000";
+    [ObservableProperty] private double brushSize = 12d;
 
     public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
 
@@ -755,6 +757,94 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
             OperationError = $"Unable to add image layer: {ex.Message}";
+        }
+    }
+
+    public void AddBrushStroke(IReadOnlyList<SKPoint> points)
+    {
+        if (_canvasBitmap is null || points.Count == 0)
+            return;
+
+        CommitAdjustmentChange();
+        CommitLayerGeometryChange();
+
+        SKBitmap? strokeBitmap = null;
+        PhotoLayerViewModel? layer = null;
+        EditorSnapshot? history = null;
+        try
+        {
+            float brushSize = (float)Math.Clamp(double.IsFinite(BrushSize) ? BrushSize : 12d, 1d, 100d);
+            var color = SKColor.Parse(BrushColor);
+            var clippedPoints = points.Select(point => new SKPoint(
+                Math.Clamp(point.X, 0, _canvasBitmap.Width),
+                Math.Clamp(point.Y, 0, _canvasBitmap.Height))).ToArray();
+
+            float minX = clippedPoints.Min(point => point.X);
+            float minY = clippedPoints.Min(point => point.Y);
+            float maxX = clippedPoints.Max(point => point.X);
+            float maxY = clippedPoints.Max(point => point.Y);
+            float margin = brushSize / 2f + 1f;
+            int left = Math.Clamp((int)MathF.Floor(minX - margin), 0, _canvasBitmap.Width - 1);
+            int top = Math.Clamp((int)MathF.Floor(minY - margin), 0, _canvasBitmap.Height - 1);
+            int right = Math.Clamp((int)MathF.Ceiling(maxX + margin), left + 1, _canvasBitmap.Width);
+            int bottom = Math.Clamp((int)MathF.Ceiling(maxY + margin), top + 1, _canvasBitmap.Height);
+
+            strokeBitmap = new SKBitmap(right - left, bottom - top);
+            var localPoints = clippedPoints
+                .Select(point => new SKPoint(point.X - left, point.Y - top))
+                .ToArray();
+
+            using (var canvas = new SKCanvas(strokeBitmap))
+            using (var paint = new SKPaint
+            {
+                Color = color,
+                IsAntialias = true,
+                StrokeWidth = brushSize,
+                StrokeCap = SKStrokeCap.Round,
+                StrokeJoin = SKStrokeJoin.Round,
+                Style = SKPaintStyle.Stroke
+            })
+            {
+                canvas.Clear(SKColors.Transparent);
+                bool hasMovement = localPoints.Skip(1).Any(point =>
+                    Math.Abs(point.X - localPoints[0].X) > 0.01f ||
+                    Math.Abs(point.Y - localPoints[0].Y) > 0.01f);
+                if (hasMovement)
+                {
+                    canvas.DrawPoints(SKPointMode.Polygon, localPoints, paint);
+                }
+                else
+                {
+                    paint.Style = SKPaintStyle.Fill;
+                    canvas.DrawCircle(localPoints[0].X, localPoints[0].Y, brushSize / 2f, paint);
+                }
+                canvas.Flush();
+            }
+
+            var ownedBitmap = strokeBitmap;
+            strokeBitmap = null;
+            layer = CreateLayer("Brush stroke", ownedBitmap, left, top);
+            history = CaptureLayerSnapshot(layer, isInLayerCollection: false,
+                layerIndex: 0, selectedLayer: SelectedLayer);
+            AttachLayer(layer);
+            AdditionalLayers.Insert(0, layer);
+            RecordLayerCollectionChange(history);
+            history = null;
+            SelectedLayer = layer;
+            OperationError = null;
+            RefreshPreview();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+                                   OutOfMemoryException or FormatException)
+        {
+            strokeBitmap?.Dispose();
+            history?.Dispose();
+            if (layer is not null && !AdditionalLayers.Contains(layer))
+            {
+                DetachLayer(layer);
+                layer.Dispose();
+            }
+            OperationError = $"Unable to draw brush stroke: {ex.Message}";
         }
     }
 
