@@ -385,7 +385,7 @@
                                             <Popup IsOpen="{Binding IsPropertiesOpen, Mode=TwoWay}"
                                                    Placement="Left"
                                                    PlacementTarget="{Binding ElementName=LayerOptionsButton}"
-                                                   StaysOpen="False"
+                                                   StaysOpen="True"
                                                    AllowsTransparency="True"
                                                    DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                                 <Border Width="260" Background="#252629" BorderBrush="#454954"
