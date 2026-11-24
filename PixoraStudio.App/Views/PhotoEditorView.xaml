@@ -367,7 +367,7 @@
                     <Expander Grid.Row="2" Header="Selected layer properties" IsExpanded="True"
                               Foreground="#D4D6DE" Margin="0,8,0,0">
                         <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="4">
+                            <StackPanel Margin="4" IsEnabled="{Binding SelectedLayer.IsEditable}">
                                 <TextBlock Text="Text content" FontSize="10" Foreground="#AEB4BF"/>
                                 <TextBox Text="{Binding SelectedLayer.TextContent, UpdateSourceTrigger=PropertyChanged}"
                                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="42" Margin="0,2,0,6"/>

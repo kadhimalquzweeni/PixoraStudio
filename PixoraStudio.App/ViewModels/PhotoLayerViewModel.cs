@@ -38,6 +38,8 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     private string _shapeType = "Rectangle";
     private bool _isUpdatingBounds;
 
+    public bool IsEditable => !IsLocked;
+
     public float Opacity
     {
         get => _opacity;
@@ -46,42 +48,42 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     public PhotoLayerContentType ContentType
     {
         get => _contentType;
-        set { if (SetProperty(ref _contentType, value)) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _contentType, value)) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public string TextContent
     {
         get => _textContent;
-        set { if (SetProperty(ref _textContent, value ?? string.Empty)) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _textContent, value ?? string.Empty)) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public string FontFamily
     {
         get => _fontFamily;
-        set { if (SetProperty(ref _fontFamily, string.IsNullOrWhiteSpace(value) ? "Arial" : value.Trim())) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _fontFamily, string.IsNullOrWhiteSpace(value) ? "Arial" : value.Trim())) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public float FontSize
     {
         get => _fontSize;
-        set { if (SetProperty(ref _fontSize, Math.Clamp(float.IsFinite(value) ? value : 64f, 1f, 512f))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _fontSize, Math.Clamp(float.IsFinite(value) ? value : 64f, 1f, 512f))) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public string FillColor
     {
         get => _fillColor;
-        set { if (SetProperty(ref _fillColor, NormalizeColor(value, "#FFFFFFFF"))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _fillColor, NormalizeColor(value, "#FFFFFFFF"))) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public string StrokeColor
     {
         get => _strokeColor;
-        set { if (SetProperty(ref _strokeColor, NormalizeColor(value, "#FF202020"))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _strokeColor, NormalizeColor(value, "#FF202020"))) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public float StrokeWidth
     {
         get => _strokeWidth;
-        set { if (SetProperty(ref _strokeWidth, Math.Clamp(float.IsFinite(value) ? value : 0f, 0f, 128f))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _strokeWidth, Math.Clamp(float.IsFinite(value) ? value : 0f, 0f, 128f))) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public string ShapeType
     {
         get => _shapeType;
-        set { if (SetProperty(ref _shapeType, value is "Ellipse" or "Line" or "Arrow" ? value : "Rectangle")) ContentChanged?.Invoke(this, EventArgs.Empty); }
+        set { if (IsLocked) return; if (SetProperty(ref _shapeType, value is "Ellipse" or "Line" or "Arrow" ? value : "Rectangle")) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
 
     public event EventHandler? VisibilityChanged;
@@ -97,7 +99,7 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     }
 
     partial void OnIsVisibleChanged(bool value) => VisibilityChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnIsLockedChanged(bool value) => AppearanceChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnIsLockedChanged(bool value) { OnPropertyChanged(nameof(IsEditable)); AppearanceChanged?.Invoke(this, EventArgs.Empty); }
     partial void OnXChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
     partial void OnYChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
     partial void OnWidthChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
