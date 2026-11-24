@@ -95,6 +95,7 @@
                     <Button Content="Open image" Command="{Binding OpenImageCommand}"
                             ToolTip="Open an image as a new document"/>
                     <CheckBox Content="Snap" IsChecked="{Binding IsSnappingEnabled}" Foreground="White" VerticalAlignment="Center" Margin="8,2" ToolTip="Snap layers to the canvas and other layers"/>
+                    <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
                 </StackPanel>
             </DockPanel>
         </Border>
