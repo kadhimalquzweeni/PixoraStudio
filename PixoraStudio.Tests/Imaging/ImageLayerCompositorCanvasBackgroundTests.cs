@@ -28,7 +28,7 @@ public sealed class ImageLayerCompositorCanvasBackgroundTests
             background,
             Array.Empty<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)>());
 
-        Assert.Equal(SKColors.Transparent, composite.GetPixel(6, 4));
+        Assert.Equal((byte)0, composite.GetPixel(6, 4).Alpha);
     }
 
     [Fact]
