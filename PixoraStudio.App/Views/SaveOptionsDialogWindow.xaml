@@ -94,10 +94,6 @@
                                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                     <DockPanel>
                                         <TextBlock Text="JPG" FontWeight="SemiBold"/>
-                                        <Border DockPanel.Dock="Right" Background="#A87900" CornerRadius="2"
-                                                Padding="5,1">
-                                            <TextBlock Text="Recommend" FontSize="10" Foreground="White"/>
-                                        </Border>
                                     </DockPanel>
                                     <TextBlock Grid.Row="1" Text="Smaller files for photos and sharing"
                                                Foreground="#B9B9B9" FontSize="11" TextWrapping="Wrap"
