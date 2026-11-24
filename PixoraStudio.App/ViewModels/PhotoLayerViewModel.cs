@@ -75,12 +75,14 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
 
             OnPropertyChanged(nameof(IsTextLayer));
             OnPropertyChanged(nameof(IsShapeLayer));
+            OnPropertyChanged(nameof(IsImageLayer));
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
     public bool IsTextLayer => ContentType == PhotoLayerContentType.Text;
     public bool IsShapeLayer => ContentType == PhotoLayerContentType.Shape;
+    public bool IsImageLayer => ContentType == PhotoLayerContentType.Image;
     public string TextContent
     {
         get => _textContent;
