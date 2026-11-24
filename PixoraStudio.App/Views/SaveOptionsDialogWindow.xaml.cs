@@ -38,10 +38,6 @@ public partial class SaveOptionsDialogWindow : Window
             ? algorithm
             : PixelArtUpscalingAlgorithm.NearestNeighbour;
     public int PixelArtScale => OutputWidth / _sourceWidth;
-    public AiUpscaleModel SelectedPixoraAiModel =>
-        PixoraAiModelComboBox.SelectedItem is ComboBoxItem { Tag: AiUpscaleModel model }
-            ? model
-            : AiUpscaleModel.Photo;
     public int OutputWidth => int.Parse(WidthTextBox.Text);
     public int OutputHeight => int.Parse(HeightTextBox.Text);
     public int Quality => (int)Math.Round(QualitySlider.Value);
@@ -60,21 +56,15 @@ public partial class SaveOptionsDialogWindow : Window
 
     public SaveOptionsDialogWindow(BitmapSource preview, int width, int height,
         string initialFolder, string initialName, bool hasTransparency,
-        bool canUsePhotoModel = false, bool canUseSpriteModel = false)
+        bool canUsePhotoModel = false)
     {
         InitializeComponent();
         _hasTransparency = hasTransparency;
-        _canUsePixoraAi = canUsePhotoModel || canUseSpriteModel;
-        if (canUsePhotoModel)
-            PixoraAiModelComboBox.Items.Add(new ComboBoxItem { Content = "Photo model", Tag = AiUpscaleModel.Photo });
-        if (canUseSpriteModel)
-            PixoraAiModelComboBox.Items.Add(new ComboBoxItem { Content = "Sprite / emoji model", Tag = AiUpscaleModel.Sprite });
-        if (PixoraAiModelComboBox.Items.Count > 0)
-            PixoraAiModelComboBox.SelectedIndex = 0;
+        _canUsePixoraAi = canUsePhotoModel;
         PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi;
         PixoraAiUpscaleHint.Text = _canUsePixoraAi
-            ? "Runs locally with the selected model. 4x results are limited to 32 megapixels."
-            : "Train a local Pixora model first to enable AI upscaling.";
+            ? "Enhances photographs using Pixora's locally trained photo model. 4× results are limited to 32 megapixels."
+            : "Train Pixora's photo model to enable AI upscaling.";
         if (_hasTransparency)
             _selectedFormat = SaveImageFormat.Png;
         _sourceWidth = Math.Max(1, width);
@@ -159,14 +149,6 @@ public partial class SaveOptionsDialogWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         FileExtensionText.Text = GetExtension(_selectedFormat);
-        UpdateAiModelSelectorState();
-    }
-
-    private void UpdateAiModelSelectorState()
-    {
-        PixoraAiModelComboBox.IsEnabled =
-            _canUsePixoraAi && PixoraAiUpscaleCheckBox.IsEnabled &&
-            PixoraAiUpscaleCheckBox.IsChecked == true;
     }
 
     private void UpdatePixelArtSelectorState()
@@ -229,7 +211,6 @@ public partial class SaveOptionsDialogWindow : Window
             !int.TryParse(preset, out int multiplier))
         {
             PixoraAiUpscaleCheckBox.IsChecked = false;
-            UpdateAiModelSelectorState();
             UpdatePreviewDescription();
             return;
         }
@@ -238,8 +219,7 @@ public partial class SaveOptionsDialogWindow : Window
         {
             CustomScaleRadioButton.IsChecked = true;
             PixoraAiUpscaleCheckBox.IsChecked = false;
-            UpdateAiModelSelectorState();
-            return;
+                return;
         }
 
         if (multiplier != 4)
