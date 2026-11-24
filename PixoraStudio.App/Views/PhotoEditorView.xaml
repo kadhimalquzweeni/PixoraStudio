@@ -2,6 +2,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:PixoraStudio.App.Controls"
+    Focusable="True"
+    IsTabStop="True"
     DataContextChanged="PhotoEditorView_DataContextChanged"
     Loaded="PhotoEditorView_Loaded"
     PreviewMouseDown="PhotoEditorView_PreviewMouseDown"
