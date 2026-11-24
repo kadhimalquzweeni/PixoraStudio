@@ -79,8 +79,6 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     public void CreateCanvas(int width, int height, SKColor backgroundColor)
     {
         var newCanvas = ImageDocumentCanvas.Create(width, height, backgroundColor);
-        _pendingLayerGeometrySnapshot?.Dispose();
-        _pendingLayerGeometrySnapshot = null;
         ClearHistory();
         ClearAdditionalLayers();
         DisposeBitmaps();
@@ -215,6 +213,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void ClearHistory()
     {
+        _pendingLayerGeometrySnapshot?.Dispose();
+        _pendingLayerGeometrySnapshot = null;
         ClearStack(_undoStack);
         ClearStack(_redoStack);
         UpdateHistoryState();
