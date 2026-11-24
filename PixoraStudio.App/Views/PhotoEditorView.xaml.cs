@@ -522,6 +522,7 @@ public partial class PhotoEditorView : UserControl
             return;
         }
 
+        vm.BeginLayerGeometryChange();
         _layerBoundsAtDragStart = new Rect(selected!.X, selected.Y, selected.Width, selected.Height);
         _layerSelection = _layerBoundsAtDragStart;
         _layerDragStart = point;
@@ -633,6 +634,7 @@ public partial class PhotoEditorView : UserControl
         _isLayerDragging = false;
         LayerOverlay.ReleaseMouseCapture();
         ViewModel?.EndLayerDragPreview();
+        ViewModel?.CommitLayerGeometryChange();
         UpdateLayerOverlayWorkspace();
         DrawLayerSelection();
         SnapGuideOverlay.Children.Clear();
