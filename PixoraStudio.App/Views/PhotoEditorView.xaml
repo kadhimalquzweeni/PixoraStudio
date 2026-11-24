@@ -246,6 +246,10 @@
                             <TabItem Header="Crop">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
                                     <TextBlock Text="Crop" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <TextBlock Text="Select a layer to access its crop controls."
+                                               Style="{StaticResource NoSelectedLayerHint}"
+                                               Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12"/>
+                                    <StackPanel Style="{StaticResource SelectedLayerRequiredPanel}">
                                     <Button x:Name="VisualCropToggleButton" Content="Start visual crop" Click="StartCrop_Click" Background="#087FC4"/>
                                     <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
                                         <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,8"/>
@@ -266,6 +270,7 @@
                                         <StackPanel Margin="2"><TextBlock Text="Height"/><TextBox Text="{Binding CropHeight, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
                                     </UniformGrid>
                                     <Button Content="Apply crop" Command="{Binding CropCommand}" Background="#087FC4" Margin="2,10"/>
+                                    </StackPanel>
                                 </StackPanel></ScrollViewer>
                             </TabItem>
                             <TabItem Header="Resize">
