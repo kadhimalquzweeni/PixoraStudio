@@ -461,6 +461,62 @@ public partial class PhotoEditorView : UserControl
     }
 
 
+    private void PhotoEditorView_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (IsLayerOptionsButton(e.OriginalSource as DependencyObject) ||
+            ViewModel is not { } vm)
+            return;
+
+        foreach (var layer in vm.AdditionalLayers)
+            layer.IsPropertiesOpen = false;
+    }
+
+    private static bool IsLayerOptionsButton(DependencyObject? source)
+    {
+        while (source is not null)
+        {
+            if (source is FrameworkElement { Name: "LayerOptionsButton" })
+                return true;
+
+            source = source switch
+            {
+                Visual visual => VisualTreeHelper.GetParent(visual),
+                FrameworkContentElement contentElement => contentElement.Parent,
+                _ => null
+            };
+        }
+
+        return false;
+    }
+
+    private void PickFillColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.SelectedLayer is not { } layer)
+            return;
+
+        var picker = new ColorPickerDialogWindow(layer.FillColor);
+        if (Window.GetWindow(this) is { } owner)
+            picker.Owner = owner;
+
+        if (picker.ShowDialog() == true)
+            layer.FillColor = picker.SelectedColor;
+        e.Handled = true;
+    }
+
+    private void PickStrokeColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.SelectedLayer is not { } layer)
+            return;
+
+        var picker = new ColorPickerDialogWindow(layer.StrokeColor);
+        if (Window.GetWindow(this) is { } owner)
+            picker.Owner = owner;
+
+        if (picker.ShowDialog() == true)
+            layer.StrokeColor = picker.SelectedColor;
+        e.Handled = true;
+    }
+
     private void LayerItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is Slider or TextBox or System.Windows.Controls.Primitives.ButtonBase)
