@@ -1661,15 +1661,44 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         RefreshPreview();
     }
 
-    private static SKBitmap CompositeOnWhite(SKBitmap source)
+    private static bool HasTransparency(SKBitmap bitmap)
     {
-        var result = new SKBitmap(new SKImageInfo(
-            source.Width, source.Height, SKColorType.Rgba8888, SKAlphaType.Opaque));
-        using var canvas = new SKCanvas(result);
-        canvas.Clear(SKColors.White);
-        canvas.DrawBitmap(source, 0, 0);
-        canvas.Flush();
-        return result;
+        if (bitmap.AlphaType == SKAlphaType.Opaque)
+            return false;
+
+        if (bitmap.ColorType == SKColorType.Rgba8888)
+        {
+            IntPtr pixels = bitmap.GetPixels();
+            if (pixels == IntPtr.Zero)
+                return false;
+
+            int rowBytes = bitmap.RowBytes;
+            const int rowsPerChunk = 32;
+            var rows = new byte[checked(rowBytes * Math.Min(rowsPerChunk, bitmap.Height))];
+            for (int startY = 0; startY < bitmap.Height; startY += rowsPerChunk)
+            {
+                int rowCount = Math.Min(rowsPerChunk, bitmap.Height - startY);
+                int byteCount = checked(rowBytes * rowCount);
+                Marshal.Copy(IntPtr.Add(pixels, checked(startY * rowBytes)), rows, 0, byteCount);
+                for (int y = 0; y < rowCount; y++)
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    if (rows[y * rowBytes + x * 4 + 3] < byte.MaxValue)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        for (int y = 0; y < bitmap.Height; y++)
+        for (int x = 0; x < bitmap.Width; x++)
+        {
+            if (bitmap.GetPixel(x, y).Alpha < byte.MaxValue)
+                return true;
+        }
+
+        return false;
     }
 
     [RelayCommand]
@@ -1689,7 +1718,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             : Path.GetFileNameWithoutExtension(ImagePath);
         var dialog = new SaveOptionsDialogWindow(
             preview, processedBitmap.Width, processedBitmap.Height,
-            initialFolder, $"{baseName}-Edited");
+            initialFolder, $"{baseName}-Edited", HasTransparency(processedBitmap));
         if (Application.Current?.MainWindow is Window owner)
             dialog.Owner = owner;
         if (dialog.ShowDialog() != true) return;
@@ -1715,7 +1744,6 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
 
         SKBitmap? resizedBitmap = null;
-        SKBitmap? jpegBitmap = null;
         try
         {
             if (dialog.SelectedFormat == SaveImageFormat.Icon)
@@ -1733,12 +1761,6 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                     resizedBitmap = _imageService.Resize(
                         processedBitmap, dialog.OutputWidth, dialog.OutputHeight);
                     outputBitmap = resizedBitmap;
-                }
-
-                if (dialog.SelectedFormat == SaveImageFormat.Jpg)
-                {
-                    jpegBitmap = CompositeOnWhite(outputBitmap);
-                    outputBitmap = jpegBitmap;
                 }
 
                 SKEncodedImageFormat format = dialog.SelectedFormat switch
@@ -1764,7 +1786,6 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            jpegBitmap?.Dispose();
             resizedBitmap?.Dispose();
         }
     }
