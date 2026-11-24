@@ -300,6 +300,12 @@ public partial class PhotoEditorView : UserControl
         ToolSettingsTabs.SelectedIndex = 3;
     }
 
+    private void ResizeCanvasFromCrop_Click(object sender, RoutedEventArgs e)
+    {
+        EndCropMode();
+        ViewModel?.ResizeCanvasCommand.Execute(null);
+    }
+
     private void SmartResize_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel is not { SelectedLayer: { IsEditable: true } } viewModel)
