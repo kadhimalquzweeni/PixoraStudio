@@ -381,17 +381,10 @@
                                                 </ComboBox>
                                             </Expander>
 
-                                            <Button x:Name="VisualCropToggleButton" Content="Start visual crop"
-                                                    Click="StartCrop_Click" Background="#087FC4"
-                                                    IsEnabled="{Binding SelectedLayer.IsEditable}"/>
-                                            <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
-                                                <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize."
-                                                           Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,8"/>
-                                                <Button Content="Apply visual crop" Click="ApplyVisualCrop_Click"
-                                                        Background="#087FC4"/>
-                                            </StackPanel>
-                                            <Button Content="Apply crop" Command="{Binding CropCommand}"
-                                                    Background="#087FC4" Margin="2,8,2,12"
+                                            <TextBlock Text="Click the image to start cropping. Click outside the crop area or switch tools to stop."
+                                                       Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,8"/>
+                                            <Button Content="Apply crop" Click="ApplyCrop_Click"
+                                                    Background="#087FC4" Margin="2,4,2,12"
                                                     IsEnabled="{Binding SelectedLayer.IsEditable}"/>
 
                                             <Border Background="#22252D" BorderBrush="#35383F" BorderThickness="1"
