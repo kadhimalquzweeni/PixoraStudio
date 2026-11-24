@@ -749,7 +749,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             var bitmap = _imageService.LoadImage(dialog.FileName);
             var layer = CreateLayer(Path.GetFileName(dialog.FileName), bitmap,
                 (_canvasBitmap.Width - bitmap.Width) / 2, (_canvasBitmap.Height - bitmap.Height) / 2);
-            var history = CaptureLayerSnapshot(layer, isInLayerCollection: false, layerIndex: 0, SelectedLayer);
+            var history = CaptureLayerSnapshot(layer, isInLayerCollection: false, layerIndex: 0, selectedLayer: SelectedLayer);
             AttachLayer(layer);
             AdditionalLayers.Insert(0, layer);
             RecordLayerCollectionChange(history);
@@ -774,7 +774,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
         int layerIndex = AdditionalLayers.IndexOf(layer);
         bool removingSelected = ReferenceEquals(SelectedLayer, layer);
-        var history = CaptureLayerSnapshot(layer, isInLayerCollection: true, layerIndex, selectedLayer: SelectedLayer);
+        var history = CaptureLayerSnapshot(layer, isInLayerCollection: true, layerIndex: layerIndex, selectedLayer: SelectedLayer);
 
         if (!AdditionalLayers.Remove(layer))
         {
