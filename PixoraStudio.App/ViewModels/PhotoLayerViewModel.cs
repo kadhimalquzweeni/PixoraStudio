@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using SkiaSharp;
 using PixoraStudio.Core.Models;
+using SkiaSharp;
 using System.Windows.Media.Imaging;
 
 namespace PixoraStudio.App.ViewModels;
@@ -9,18 +9,11 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
 {
     public PhotoLayerViewModel(string name, SKBitmap bitmap, BitmapSource thumbnail, int x, int y)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("A layer name is required.", nameof(name));
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(bitmap);
         ArgumentNullException.ThrowIfNull(thumbnail);
-
-        Name = name;
-        Bitmap = bitmap;
-        Thumbnail = thumbnail;
-        X = x;
-        Y = y;
-        Width = bitmap.Width;
-        Height = bitmap.Height;
+        Name = name; Bitmap = bitmap; Thumbnail = thumbnail;
+        X = x; Y = y; Width = bitmap.Width; Height = bitmap.Height;
     }
 
     [ObservableProperty] private string name = string.Empty;
@@ -35,21 +28,73 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isSelected;
     [ObservableProperty] private bool isLocked;
     private float _opacity = 1f;
+    private PhotoLayerContentType _contentType = PhotoLayerContentType.Image;
+    private string _textContent = "Your text";
+    private string _fontFamily = "Arial";
+    private float _fontSize = 64;
+    private string _fillColor = "#FFFFFFFF";
+    private string _strokeColor = "#FF202020";
+    private float _strokeWidth;
+    private string _shapeType = "Rectangle";
+    private bool _isUpdatingBounds;
+
     public float Opacity
     {
         get => _opacity;
-        set
-        {
-            float clamped = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f);
-            if (SetProperty(ref _opacity, clamped))
-                AppearanceChanged?.Invoke(this, EventArgs.Empty);
-        }
+        set { var v = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f); if (SetProperty(ref _opacity, v)) AppearanceChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public PhotoLayerContentType ContentType
+    {
+        get => _contentType;
+        set { if (SetProperty(ref _contentType, value)) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public string TextContent
+    {
+        get => _textContent;
+        set { if (SetProperty(ref _textContent, value ?? string.Empty)) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public string FontFamily
+    {
+        get => _fontFamily;
+        set { if (SetProperty(ref _fontFamily, string.IsNullOrWhiteSpace(value) ? "Arial" : value.Trim())) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public float FontSize
+    {
+        get => _fontSize;
+        set { if (SetProperty(ref _fontSize, Math.Clamp(float.IsFinite(value) ? value : 64f, 1f, 512f))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public string FillColor
+    {
+        get => _fillColor;
+        set { if (SetProperty(ref _fillColor, NormalizeColor(value, "#FFFFFFFF"))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public string StrokeColor
+    {
+        get => _strokeColor;
+        set { if (SetProperty(ref _strokeColor, NormalizeColor(value, "#FF202020"))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public float StrokeWidth
+    {
+        get => _strokeWidth;
+        set { if (SetProperty(ref _strokeWidth, Math.Clamp(float.IsFinite(value) ? value : 0f, 0f, 128f))) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public string ShapeType
+    {
+        get => _shapeType;
+        set { if (SetProperty(ref _shapeType, value is "Ellipse" or "Line" or "Arrow" ? value : "Rectangle")) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
 
     public event EventHandler? VisibilityChanged;
     public event EventHandler? GeometryChanged;
     public event EventHandler? AppearanceChanged;
-    private bool _isUpdatingBounds;
+    public event EventHandler? ContentChanged;
+
+    private static string NormalizeColor(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return fallback;
+        try { _ = SKColor.Parse(value); return value; }
+        catch { return fallback; }
+    }
 
     partial void OnIsVisibleChanged(bool value) => VisibilityChanged?.Invoke(this, EventArgs.Empty);
     partial void OnIsLockedChanged(bool value) => AppearanceChanged?.Invoke(this, EventArgs.Empty);
@@ -60,17 +105,9 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
 
     public void SetBounds(int x, int y, int width, int height, bool ignoreLock = false)
     {
-        if (IsLocked && !ignoreLock)
-            return;
-
+        if (IsLocked && !ignoreLock) return;
         _isUpdatingBounds = true;
-        try
-        {
-            X = x;
-            Y = y;
-            Width = Math.Max(1, width);
-            Height = Math.Max(1, height);
-        }
+        try { X = x; Y = y; Width = Math.Max(1, width); Height = Math.Max(1, height); }
         finally { _isUpdatingBounds = false; }
         GeometryChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -78,15 +115,9 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     public void ReplaceBitmap(SKBitmap replacement, bool ignoreLock = false)
     {
         ArgumentNullException.ThrowIfNull(replacement);
-        if (IsLocked && !ignoreLock)
-            throw new InvalidOperationException("A locked layer cannot be modified.");
-
-        var previous = Bitmap;
-        Bitmap = replacement;
-        Width = replacement.Width;
-        Height = replacement.Height;
-        previous.Dispose();
-        GeometryChanged?.Invoke(this, EventArgs.Empty);
+        if (IsLocked && !ignoreLock) throw new InvalidOperationException("A locked layer cannot be modified.");
+        var previous = Bitmap; Bitmap = replacement; Width = replacement.Width; Height = replacement.Height;
+        previous.Dispose(); GeometryChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void Dispose() => Bitmap.Dispose();

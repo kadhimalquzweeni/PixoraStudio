@@ -265,6 +265,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         snapshot.Dispose();
     }
 
+    private static SKBitmap CreateLayerRenderBitmap(PhotoLayerViewModel layer)
+    {
+        if (layer.ContentType is PhotoLayerContentType.Image or PhotoLayerContentType.Empty) return layer.Bitmap;
+        return LayerContentRenderer.Render(layer.Width, layer.Height, layer.ContentType,
+            layer.TextContent, layer.FontFamily, layer.FontSize, layer.FillColor,
+            layer.StrokeColor, layer.StrokeWidth, layer.ShapeType);
+    }
+
     private void RefreshPreview()
     {
         if (_canvasBitmap is null) return;
@@ -287,9 +295,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible, float Opacity)>(AdditionalLayers.Count);
             foreach (var layer in AdditionalLayers.Reverse())
             {
+                var source = CreateLayerRenderBitmap(layer);
                 var adjustment = ShowOriginal ? new ImageAdjustment()
                     : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
-                var rendered = _imageService.ApplyAdjustments(layer.Bitmap, adjustment);
+                var rendered = _imageService.ApplyAdjustments(source, adjustment);
+                if (!ReferenceEquals(source, layer.Bitmap)) source.Dispose();
                 renderedLayers.Add(rendered);
                 entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible, layer.Opacity));
             }
@@ -315,17 +325,22 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
 
         var layers = new List<GpuImageLayer>(AdditionalLayers.Count);
-        foreach (var layer in AdditionalLayers.Reverse())
+        var generated = new List<SKBitmap>();
+        try
         {
-            var adjustment = ShowOriginal ? new ImageAdjustment()
-                : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
-            layers.Add(new GpuImageLayer(
-                layer.Bitmap, layer.X, layer.Y, layer.Width, layer.Height,
-                layer.IsVisible, adjustment, layer.Opacity));
+            foreach (var layer in AdditionalLayers.Reverse())
+            {
+                var source = CreateLayerRenderBitmap(layer);
+                if (!ReferenceEquals(source, layer.Bitmap)) generated.Add(source);
+                var adjustment = ShowOriginal ? new ImageAdjustment()
+                    : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
+                layers.Add(new GpuImageLayer(source, layer.X, layer.Y, layer.Width, layer.Height,
+                    layer.IsVisible, adjustment, layer.Opacity));
+            }
+            GpuImageRenderer.Render(canvas, ImageWidth, ImageHeight, layers,
+                checkerboardBackground: true, documentBackground: _canvasBitmap);
         }
-
-        GpuImageRenderer.Render(canvas, ImageWidth, ImageHeight, layers,
-            checkerboardBackground: true, documentBackground: _canvasBitmap);
+        finally { foreach (var bitmap in generated) bitmap.Dispose(); }
     }
 
     /// <summary>Switches between GPU preview rendering and the CPU fallback.</summary>
@@ -488,6 +503,33 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void AddLayer()
+    {
+        if (_canvasBitmap is null) return;
+        var type = AddLayerDialogWindow.Show(System.Windows.Application.Current?.MainWindow);
+        if (type is null) return;
+        if (type == PhotoLayerContentType.Image) { AddImageLayer(); return; }
+        try
+        {
+            int width = type == PhotoLayerContentType.Text ? 520 : type == PhotoLayerContentType.Empty ? 320 : 240;
+            int height = type == PhotoLayerContentType.Text ? 120 : type == PhotoLayerContentType.Empty ? 240 : 180;
+            using var initial = LayerContentRenderer.Render(width, height, type.Value, text: "Your text",
+                fontSize: 64, fillColor: "#FFFFFFFF", strokeColor: "#FFFFFFFF",
+                strokeWidth: type == PhotoLayerContentType.Frame ? 8 : 0);
+            var layer = CreateLayer(type.Value + " Layer", _imageService.CloneImage(initial),
+                (_canvasBitmap.Width - width) / 2, (_canvasBitmap.Height - height) / 2);
+            layer.ContentType = type.Value;
+            layer.TextContent = "Your text"; layer.FontSize = 64;
+            layer.FillColor = "#FFFFFFFF"; layer.StrokeColor = "#FF202020";
+            layer.StrokeWidth = type == PhotoLayerContentType.Frame ? 8 : 0;
+            AttachLayer(layer); AdditionalLayers.Insert(0, layer); SelectedLayer = layer;
+            OperationError = null; RefreshPreview();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OutOfMemoryException)
+        { OperationError = $"Unable to add layer: {ex.Message}"; }
+    }
+
+    [RelayCommand]
     private void AddImageLayer()
     {
         if (_canvasBitmap is null) return;
@@ -552,6 +594,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             };
             duplicate.Opacity = layer.Opacity;
             duplicate.IsVisible = layer.IsVisible;
+            duplicate.ContentType = layer.ContentType;
+            duplicate.TextContent = layer.TextContent; duplicate.FontFamily = layer.FontFamily;
+            duplicate.FontSize = layer.FontSize; duplicate.FillColor = layer.FillColor;
+            duplicate.StrokeColor = layer.StrokeColor; duplicate.StrokeWidth = layer.StrokeWidth;
+            duplicate.ShapeType = layer.ShapeType;
             AttachLayer(duplicate);
             AdditionalLayers.Insert(AdditionalLayers.IndexOf(layer), duplicate);
             SelectedLayer = duplicate;
@@ -603,6 +650,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         layer.VisibilityChanged += OnLayerVisibilityChanged;
         layer.GeometryChanged += OnLayerGeometryChanged;
         layer.AppearanceChanged += OnLayerAppearanceChanged;
+        layer.ContentChanged += OnLayerContentChanged;
     }
 
     private void DetachLayer(PhotoLayerViewModel layer)
@@ -610,11 +658,13 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         layer.VisibilityChanged -= OnLayerVisibilityChanged;
         layer.GeometryChanged -= OnLayerGeometryChanged;
         layer.AppearanceChanged -= OnLayerAppearanceChanged;
+        layer.ContentChanged -= OnLayerContentChanged;
     }
 
     private void OnLayerVisibilityChanged(object? sender, EventArgs e) => RefreshPreview();
 
     private void OnLayerAppearanceChanged(object? sender, EventArgs e) => RefreshPreview();
+    private void OnLayerContentChanged(object? sender, EventArgs e) => RefreshPreview();
 
     private void OnLayerGeometryChanged(object? sender, EventArgs e)
     {
