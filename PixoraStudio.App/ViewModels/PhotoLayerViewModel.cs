@@ -47,8 +47,8 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
         get => _opacity;
         set
         {
-            var value = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f);
-            if (SetProperty(ref _opacity, value))
+            var normalized = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f);
+            if (SetProperty(ref _opacity, normalized))
             {
                 OnPropertyChanged(nameof(OpacityPercent));
                 AppearanceChanged?.Invoke(this, EventArgs.Empty);
