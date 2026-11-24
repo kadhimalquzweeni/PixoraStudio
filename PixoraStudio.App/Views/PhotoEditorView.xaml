@@ -231,15 +231,16 @@
 
                                             <DockPanel Margin="2,0,2,4">
                                                 <TextBlock Text="Opacity" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{Binding SelectedLayer.OpacityPercent, StringFormat={}{0:F0}%}"
-                                                           Foreground="#8BC5FF" DockPanel.Dock="Right"/>
+                                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                                    <TextBox Text="{Binding SelectedLayer.OpacityPercent, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                                             IsEnabled="{Binding SelectedLayer.IsEditable}"
+                                                             GotKeyboardFocus="LayerProperty_GotKeyboardFocus"
+                                                             LostKeyboardFocus="LayerProperty_LostKeyboardFocus"
+                                                             HorizontalContentAlignment="Right" Width="52" Margin="0,0,4,0"
+                                                             ToolTip="Enter opacity from 0 to 100 percent"/>
+                                                    <TextBlock Text="%" Foreground="#AEB2BE" VerticalAlignment="Center"/>
+                                                </StackPanel>
                                             </DockPanel>
-                                            <TextBox Text="{Binding SelectedLayer.OpacityPercent, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
-                                                     IsEnabled="{Binding SelectedLayer.IsEditable}"
-                                                     GotKeyboardFocus="LayerProperty_GotKeyboardFocus"
-                                                     LostKeyboardFocus="LayerProperty_LostKeyboardFocus"
-                                                     HorizontalContentAlignment="Right" Margin="2,0,2,4"
-                                                     ToolTip="Enter opacity from 0 to 100 percent"/>
                                             <Slider x:Name="SelectLayerOpacitySlider" Minimum="0" Maximum="100"
                                                     Value="{Binding SelectedLayer.OpacityPercent, UpdateSourceTrigger=PropertyChanged}"
                                                     IsEnabled="{Binding SelectedLayer.IsEditable}"
@@ -263,14 +264,14 @@
                                                                      LostKeyboardFocus="LayerProperty_LostKeyboardFocus"/>
                                                         </StackPanel>
                                                         <StackPanel Margin="2">
-                                                            <TextBlock Text="Y"/>
-                                                            <TextBox Text="{Binding SelectedLayer.Y, UpdateSourceTrigger=PropertyChanged}"
+                                                            <TextBlock Text="Width"/>
+                                                            <TextBox Tag="Width" Text="{Binding SelectedLayer.Width, UpdateSourceTrigger=PropertyChanged}"
                                                                      GotKeyboardFocus="LayerProperty_GotKeyboardFocus"
                                                                      LostKeyboardFocus="LayerProperty_LostKeyboardFocus"/>
                                                         </StackPanel>
                                                         <StackPanel Margin="2">
-                                                            <TextBlock Text="Width"/>
-                                                            <TextBox Tag="Width" Text="{Binding SelectedLayer.Width, UpdateSourceTrigger=PropertyChanged}"
+                                                            <TextBlock Text="Y"/>
+                                                            <TextBox Text="{Binding SelectedLayer.Y, UpdateSourceTrigger=PropertyChanged}"
                                                                      GotKeyboardFocus="LayerProperty_GotKeyboardFocus"
                                                                      LostKeyboardFocus="LayerProperty_LostKeyboardFocus"/>
                                                         </StackPanel>
