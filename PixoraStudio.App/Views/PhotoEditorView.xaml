@@ -506,9 +506,11 @@
                                                    PlacementTarget="{Binding ElementName=LayerOptionsButton}"
                                                    StaysOpen="True"
                                                    AllowsTransparency="True"
-                                                   DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                                   DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                                                   Opened="LayerPropertiesPopup_Opened">
                                                 <Border Width="260" Background="#252629" BorderBrush="#454954"
-                                                        BorderThickness="1" CornerRadius="8" Padding="12">
+                                                        BorderThickness="1" CornerRadius="8" Padding="12"
+                                                        Tag="LayerPropertiesPopupContent">
                                                     <Grid>
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/>
