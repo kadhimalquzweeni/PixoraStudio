@@ -311,6 +311,53 @@
                                                 <Button Content="Delete" Command="{Binding RemoveLayerCommand}"
                                                         CommandParameter="{Binding SelectedLayer}"/>
                                             </UniformGrid>
+
+                                            <Expander Header="Crop" Margin="0,12,0,0">
+                                                <StackPanel Margin="2,8,2,2" IsEnabled="{Binding SelectedLayer.IsEditable}">
+                                                    <TextBlock Text="Aspect ratio" Margin="2,0,2,4"/>
+                                                    <ComboBox x:Name="ArrangeCropAspectRatioCombo" SelectedIndex="0"
+                                                              SelectionChanged="CropAspectRatio_SelectionChanged" Margin="2,0,2,8">
+                                                        <ComboBoxItem Content="Free" Tag="free"/>
+                                                        <ComboBoxItem Content="Original" Tag="original"/>
+                                                        <ComboBoxItem Content="Square (1:1)" Tag="1"/>
+                                                        <ComboBoxItem Content="4:3" Tag="1.3333333"/>
+                                                        <ComboBoxItem Content="3:2" Tag="1.5"/>
+                                                        <ComboBoxItem Content="16:9" Tag="1.7777778"/>
+                                                        <ComboBoxItem Content="9:16" Tag="0.5625"/>
+                                                    </ComboBox>
+                                                    <Button x:Name="ArrangeVisualCropToggleButton" Tag="Arrange"
+                                                            Content="Start visual crop" Click="StartCrop_Click"
+                                                            Background="#087FC4"/>
+                                                    <StackPanel x:Name="ArrangeCropActionPanel" Visibility="Collapsed">
+                                                        <TextBlock Text="Drag the crop box to position it, or drag its edges to resize."
+                                                                   Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,8"/>
+                                                        <Button Content="Apply visual crop" Click="ApplyVisualCrop_Click"
+                                                                Background="#087FC4"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Position and size (pixels)" FontWeight="SemiBold"
+                                                               Margin="0,12,0,6"/>
+                                                    <UniformGrid Columns="2">
+                                                        <StackPanel Margin="2">
+                                                            <TextBlock Text="X"/>
+                                                            <TextBox Text="{Binding CropX, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Margin="2">
+                                                            <TextBlock Text="Y"/>
+                                                            <TextBox Text="{Binding CropY, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Margin="2">
+                                                            <TextBlock Text="Width"/>
+                                                            <TextBox Text="{Binding CropWidth, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Margin="2">
+                                                            <TextBlock Text="Height"/>
+                                                            <TextBox Text="{Binding CropHeight, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        </StackPanel>
+                                                    </UniformGrid>
+                                                    <Button Content="Apply crop" Command="{Binding CropCommand}"
+                                                            Background="#087FC4" Margin="2,10"/>
+                                                </StackPanel>
+                                            </Expander>
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
