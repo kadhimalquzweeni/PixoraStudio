@@ -27,6 +27,7 @@ public partial class PhotoEditorView : UserControl
     private const int MinimumLayerSize = 8;
     private Rect _layerSelection;
     private Point _layerDragStart;
+    private double _layerAspectRatioAtEditStart = 1d;
     private Rect _layerBoundsAtDragStart;
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
@@ -1113,6 +1114,117 @@ public partial class PhotoEditorView : UserControl
             Canvas.SetTop(handle, point.Y + _layerOverlayWorkspacePadding - LayerHandleRadius);
             LayerOverlay.Children.Add(handle);
         }
+    }
+
+    private void LayerProperty_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        var viewModel = ViewModel;
+        var layer = viewModel?.SelectedLayer;
+        if (viewModel is null || layer is null)
+            return;
+
+        viewModel.BeginLayerGeometryChange();
+        _layerAspectRatioAtEditStart = layer.Width / (double)Math.Max(1, layer.Height);
+    }
+
+    private void LayerProperty_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        var viewModel = ViewModel;
+        if (sender is TextBox textBox)
+        {
+            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+
+            if (textBox.Tag is string dimension &&
+                dimension is "Width" or "Height" &&
+                viewModel?.SelectedLayer is { IsEditable: true } layer)
+            {
+                int width = Math.Max(1, layer.Width);
+                int height = Math.Max(1, layer.Height);
+                if (viewModel.LockAspectRatio && _layerAspectRatioAtEditStart > 0d &&
+                    double.IsFinite(_layerAspectRatioAtEditStart))
+                {
+                    if (dimension == "Width")
+                        height = Math.Max(1, (int)Math.Round(width / _layerAspectRatioAtEditStart));
+                    else
+                        width = Math.Max(1, (int)Math.Round(height * _layerAspectRatioAtEditStart));
+                }
+
+                layer.SetBounds(layer.X, layer.Y, width, height);
+            }
+        }
+
+        viewModel?.CommitLayerGeometryChange();
+    }
+
+    private void SelectLayerOpacitySlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Slider slider || ViewModel?.SelectedLayer is not { IsEditable: true })
+            return;
+
+        ViewModel.BeginLayerGeometryChange();
+        slider.CaptureMouse();
+        SetSelectLayerOpacityFromPointer(slider, e.GetPosition(slider));
+        e.Handled = true;
+    }
+
+    private void SelectLayerOpacitySlider_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (sender is not Slider slider ||
+            !slider.IsMouseCaptured ||
+            e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        SetSelectLayerOpacityFromPointer(slider, e.GetPosition(slider));
+        e.Handled = true;
+    }
+
+    private void SelectLayerOpacitySlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Slider slider || !slider.IsMouseCaptured)
+            return;
+
+        SetSelectLayerOpacityFromPointer(slider, e.GetPosition(slider));
+        slider.ReleaseMouseCapture();
+        ViewModel?.CommitLayerGeometryChange();
+        e.Handled = true;
+    }
+
+    private static void SetSelectLayerOpacityFromPointer(Slider slider, Point pointerPosition)
+    {
+        if (slider.ActualWidth <= 0)
+            return;
+
+        double percent = pointerPosition.X / slider.ActualWidth;
+        slider.Value = slider.Minimum + Math.Clamp(percent, 0d, 1d) * (slider.Maximum - slider.Minimum);
+    }
+
+    private void SelectLayerOpacitySlider_LostMouseCapture(object sender, MouseEventArgs e)
+    {
+        Dispatcher.BeginInvoke(new Action(() => ViewModel?.CommitLayerGeometryChange()),
+            DispatcherPriority.Background);
+    }
+
+    private void SelectLayerOpacitySlider_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        ViewModel?.BeginLayerGeometryChange();
+    }
+
+    private void SelectLayerOpacitySlider_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        ViewModel?.CommitLayerGeometryChange();
+    }
+
+    private void SelectLayerOpacitySlider_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        ViewModel?.BeginLayerGeometryChange();
+    }
+
+    private void SelectLayerOpacitySlider_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is Slider slider)
+            slider.GetBindingExpression(Slider.ValueProperty)?.UpdateSource();
+
+        ViewModel?.CommitLayerGeometryChange();
     }
 
     private void AdjustmentSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
