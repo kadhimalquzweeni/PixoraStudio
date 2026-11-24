@@ -34,7 +34,17 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isVisible = true;
     [ObservableProperty] private bool isSelected;
     [ObservableProperty] private bool isLocked;
-    [ObservableProperty] private float opacity = 1f;
+    private float _opacity = 1f;
+    public float Opacity
+    {
+        get => _opacity;
+        set
+        {
+            float clamped = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f);
+            if (SetProperty(ref _opacity, clamped))
+                AppearanceChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     public event EventHandler? VisibilityChanged;
     public event EventHandler? GeometryChanged;
@@ -42,11 +52,6 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     private bool _isUpdatingBounds;
 
     partial void OnIsVisibleChanged(bool value) => VisibilityChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnOpacityChanged(float value)
-    {
-        Opacity = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f);
-        AppearanceChanged?.Invoke(this, EventArgs.Empty);
-    }
     partial void OnIsLockedChanged(bool value) => AppearanceChanged?.Invoke(this, EventArgs.Empty);
     partial void OnXChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
     partial void OnYChanged(int value) { if (!_isUpdatingBounds) GeometryChanged?.Invoke(this, EventArgs.Empty); }
