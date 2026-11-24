@@ -381,7 +381,7 @@
                                                 </ComboBox>
                                             </Expander>
 
-                                            <TextBlock Text="Click the image to start cropping. Click outside the crop area or switch tools to stop."
+                                            <TextBlock Text="The selected layer is ready to crop. Drag its bounds to adjust; click outside the crop area or switch tools to stop."
                                                        Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,8"/>
                                             <Button Content="Apply crop" Click="ApplyCrop_Click"
                                                     Background="#087FC4" Margin="2,4,2,12"
