@@ -788,7 +788,6 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     public void PasteImageFromClipboard()
     {
-        if (_canvasBitmap is null) return;
         CommitAdjustmentChange();
         CommitLayerGeometryChange();
 
@@ -877,10 +876,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private void AddPastedImageLayer(string name, SKBitmap bitmap)
     {
         if (_canvasBitmap is null)
-        {
-            bitmap.Dispose();
-            return;
-        }
+            CreateCanvas(bitmap.Width, bitmap.Height, SKColors.Transparent);
 
         var selected = SelectedLayer;
         int x = selected is null ? (_canvasBitmap.Width - bitmap.Width) / 2 : selected.X + 16;
