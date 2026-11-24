@@ -115,7 +115,7 @@
                             <controls:SvgIcon IconName="house" Width="23" Height="23" Stroke="#C5C5C5"/>
                         </Button>
                         <Separator Width="34" Margin="4,8"/>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Select" Tag="0" Click="Tool_Click"><controls:SvgIcon IconName="mouse-pointer-2" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Arrange" Tag="0" Click="Tool_Click"><controls:SvgIcon IconName="mouse-pointer-2" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Crop" Tag="2" Click="Tool_Click"><controls:SvgIcon IconName="crop" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Resize" Tag="3" Click="Tool_Click"><controls:SvgIcon IconName="maximize" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
@@ -215,10 +215,10 @@
                     <Grid Grid.Row="1">
                         <TabControl x:Name="ToolSettingsTabs" SelectedIndex="0" Background="Transparent" BorderThickness="0">
 
-                            <TabItem Header="Select">
+                            <TabItem Header="Arrange">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
-                                        <TextBlock Text="Select" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                        <TextBlock Text="Arrange" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
                                         <TextBlock Text="Select a layer to edit its properties."
                                                    Style="{StaticResource NoSelectedLayerHint}"
                                                    Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12"/>
