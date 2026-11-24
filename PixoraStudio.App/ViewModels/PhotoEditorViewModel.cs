@@ -242,14 +242,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         var renderedLayers = new List<SKBitmap>(AdditionalLayers.Count);
         try
         {
-            var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)>(AdditionalLayers.Count);
+            var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible, float Opacity)>(AdditionalLayers.Count);
             foreach (var layer in AdditionalLayers.Reverse())
             {
                 var adjustment = ShowOriginal ? new ImageAdjustment()
                     : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
                 var rendered = _imageService.ApplyAdjustments(layer.Bitmap, adjustment);
                 renderedLayers.Add(rendered);
-                entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible));
+                entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, layer.IsVisible, layer.Opacity));
             }
             _processedBitmap?.Dispose();
             _processedBitmap = ImageLayerCompositor.Composite(_canvasBitmap, entries);
@@ -279,7 +279,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
             layers.Add(new GpuImageLayer(
                 layer.Bitmap, layer.X, layer.Y, layer.Width, layer.Height,
-                layer.IsVisible, adjustment));
+                layer.IsVisible, adjustment, layer.Opacity));
         }
 
         GpuImageRenderer.Render(canvas, ImageWidth, ImageHeight, layers,
@@ -515,15 +515,19 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         layer.VisibilityChanged += OnLayerVisibilityChanged;
         layer.GeometryChanged += OnLayerGeometryChanged;
+        layer.AppearanceChanged += OnLayerAppearanceChanged;
     }
 
     private void DetachLayer(PhotoLayerViewModel layer)
     {
         layer.VisibilityChanged -= OnLayerVisibilityChanged;
         layer.GeometryChanged -= OnLayerGeometryChanged;
+        layer.AppearanceChanged -= OnLayerAppearanceChanged;
     }
 
     private void OnLayerVisibilityChanged(object? sender, EventArgs e) => RefreshPreview();
+
+    private void OnLayerAppearanceChanged(object? sender, EventArgs e) => RefreshPreview();
 
     private void OnLayerGeometryChanged(object? sender, EventArgs e)
     {
@@ -548,7 +552,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         var renderedLayers = new List<SKBitmap>(Math.Max(0, AdditionalLayers.Count - 1));
         try
         {
-            var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible)>(
+            var entries = new List<(SKBitmap Bitmap, int X, int Y, int Width, int Height, bool IsVisible, float Opacity)>(
                 Math.Max(0, AdditionalLayers.Count - 1));
 
             foreach (var layer in AdditionalLayers.Reverse())
@@ -559,7 +563,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 var adjustment = ShowOriginal ? new ImageAdjustment() : layer.Adjustment;
                 var rendered = _imageService.ApplyAdjustments(layer.Bitmap, adjustment);
                 renderedLayers.Add(rendered);
-                entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, true));
+                entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, true, layer.Opacity));
             }
 
             using var baseComposite = ImageLayerCompositor.Composite(_canvasBitmap, entries);
