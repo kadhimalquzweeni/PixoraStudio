@@ -21,6 +21,7 @@ public partial class SaveOptionsDialogWindow : Window
     private readonly int _sourceWidth;
     private readonly int _sourceHeight;
     private readonly double _aspectRatio;
+    private readonly bool _hasTransparency;
     private bool _isUpdatingDimensions;
     private bool _isInitialized;
     private SaveImageFormat _selectedFormat = SaveImageFormat.Jpg;
@@ -43,9 +44,12 @@ public partial class SaveOptionsDialogWindow : Window
     ];
 
     public SaveOptionsDialogWindow(BitmapSource preview, int width, int height,
-        string initialFolder, string initialName)
+        string initialFolder, string initialName, bool hasTransparency)
     {
         InitializeComponent();
+        _hasTransparency = hasTransparency;
+        if (_hasTransparency)
+            _selectedFormat = SaveImageFormat.Png;
         _sourceWidth = Math.Max(1, width);
         _sourceHeight = Math.Max(1, height);
         _aspectRatio = (double)_sourceWidth / _sourceHeight;
@@ -98,6 +102,11 @@ public partial class SaveOptionsDialogWindow : Window
         SetCardState(WebpCard, _selectedFormat == SaveImageFormat.WebP);
         SetCardState(BmpCard, _selectedFormat == SaveImageFormat.Bmp);
         SetCardState(IconCard, _selectedFormat == SaveImageFormat.Icon);
+        JpgCard.IsEnabled = !_hasTransparency;
+        BmpCard.IsEnabled = !_hasTransparency;
+        JpgCard.Opacity = _hasTransparency ? 0.45 : 1;
+        BmpCard.Opacity = _hasTransparency ? 0.45 : 1;
+        TransparencyHint.Visibility = _hasTransparency ? Visibility.Visible : Visibility.Collapsed;
         PreviewBackground.Background = _selectedFormat == SaveImageFormat.Jpg
             ? Brushes.White
             : new SolidColorBrush(Color.FromRgb(8, 8, 8));
