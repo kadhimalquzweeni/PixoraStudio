@@ -4,7 +4,8 @@
     xmlns:controls="clr-namespace:PixoraStudio.App.Controls"
     DataContextChanged="PhotoEditorView_DataContextChanged"
     Loaded="PhotoEditorView_Loaded"
-    PreviewMouseDown="PhotoEditorView_PreviewMouseDown">
+    PreviewMouseDown="PhotoEditorView_PreviewMouseDown"
+    PreviewKeyDown="PhotoEditorView_PreviewKeyDown">
     <UserControl.Resources>
         <DrawingBrush x:Key="TransparencyCheckerboard"
                       TileMode="Tile"
