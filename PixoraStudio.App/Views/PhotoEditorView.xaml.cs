@@ -96,6 +96,16 @@ public partial class PhotoEditorView : UserControl
 
         switch (e.Key)
         {
+            case Key.C:
+                ViewModel?.CopyImageToClipboard();
+                e.Handled = true;
+                break;
+
+            case Key.V:
+                ViewModel?.PasteImageFromClipboard();
+                e.Handled = true;
+                break;
+
             case Key.Z:
                 ViewModel?.UndoCommand.Execute(null);
                 e.Handled = true;
