@@ -286,9 +286,12 @@
                                                               Foreground="#D4D6DE" Margin="4,8,0,12"/>
                                                     <DockPanel Margin="2,0,2,4">
                                                         <TextBlock Text="Rotate" FontWeight="SemiBold"/>
-                                                        <TextBox Text="{Binding RotationAngle, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F1}}"
-                                                                 HorizontalContentAlignment="Right" Width="58"
-                                                                 ToolTip="Rotation angle in degrees"/>
+                                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                                            <TextBox Text="{Binding RotationAngle, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F1}}"
+                                                                     HorizontalContentAlignment="Right" Width="58"
+                                                                     ToolTip="Rotation angle in degrees"/>
+                                                            <TextBlock Text="°" Foreground="#AEB2BE" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                        </StackPanel>
                                                     </DockPanel>
                                                     <Slider Minimum="-180" Maximum="180" Value="{Binding RotationAngle}"
                                                             Margin="2,0,2,8"/>
