@@ -130,6 +130,7 @@
                                 <Canvas Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
                                         IsHitTestVisible="False">
                                     <Image Source="{Binding LayerDragPreviewImage}"
+                                           Opacity="{Binding SelectedLayer.Opacity}"
                                            Width="{Binding LayerDragPreviewWidth}"
                                            Height="{Binding LayerDragPreviewHeight}"
                                            Canvas.Left="{Binding LayerDragPreviewX}"
