@@ -312,14 +312,7 @@
                                               Foreground="#D4D4D4"
                                               Margin="2,10,2,2"
                                               Click="PixoraAiUpscale_Click"/>
-                                    <ComboBox x:Name="PixoraAiModelComboBox"
-                                              IsEnabled="False"
-                                              Height="32"
-                                              Margin="2,4,2,4"
-                                              Padding="8,4"
-                                              Foreground="#D4D4D4"
-                                              Background="#343434"
-                                              BorderBrush="#4A4A4A"/>
+
                                     <TextBlock x:Name="PixoraAiUpscaleHint"
                                                Text="Train a local Pixora model first."
                                                Foreground="#9C9C9C"
