@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <None Include="..\\PixoraStudio.App\\App.xaml" Link="App.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PixoraStudio.App/App.xaml" Link="App.xaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
