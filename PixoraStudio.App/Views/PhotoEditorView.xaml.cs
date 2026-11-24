@@ -521,6 +521,46 @@ public partial class PhotoEditorView : UserControl
         e.Handled = true;
     }
 
+    private void LayerOpacitySlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Slider slider || slider.DataContext is not PhotoLayerViewModel)
+            return;
+
+        slider.CaptureMouse();
+        SetLayerOpacityFromSliderPointer(slider, e.GetPosition(slider));
+        e.Handled = true;
+    }
+
+    private void LayerOpacitySlider_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (sender is not Slider slider ||
+            !slider.IsMouseCaptured ||
+            e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        SetLayerOpacityFromSliderPointer(slider, e.GetPosition(slider));
+        e.Handled = true;
+    }
+
+    private void LayerOpacitySlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Slider slider && slider.IsMouseCaptured)
+        {
+            SetLayerOpacityFromSliderPointer(slider, e.GetPosition(slider));
+            slider.ReleaseMouseCapture();
+            e.Handled = true;
+        }
+    }
+
+    private static void SetLayerOpacityFromSliderPointer(Slider slider, Point pointerPosition)
+    {
+        if (slider.DataContext is not PhotoLayerViewModel layer || slider.ActualWidth <= 0)
+            return;
+
+        var percent = Math.Clamp(pointerPosition.X / slider.ActualWidth * 100d, 0d, 100d);
+        layer.OpacityPercent = percent;
+    }
+
     private void LayerItem_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (e.OriginalSource is Slider or TextBox or System.Windows.Controls.Primitives.ButtonBase ||
