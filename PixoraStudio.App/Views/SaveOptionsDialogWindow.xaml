@@ -81,7 +81,7 @@
                             <Button Content="Browse" DockPanel.Dock="Right" Margin="8,5,0,0"
                                     Click="BrowseFolder_Click"/>
                             <TextBox x:Name="FolderPathTextBox" IsReadOnly="True"
-                                     TextTrimming="CharacterEllipsis"/>
+                                     ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                         </DockPanel>
 
                         <TextBlock Text="Format" FontWeight="SemiBold" Margin="0,16,0,6"/>
