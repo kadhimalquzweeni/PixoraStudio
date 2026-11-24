@@ -1661,6 +1661,17 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         RefreshPreview();
     }
 
+    private static SKBitmap CompositeOnWhite(SKBitmap source)
+    {
+        var result = new SKBitmap(new SKImageInfo(
+            source.Width, source.Height, SKColorType.Rgba8888, SKAlphaType.Opaque));
+        using var canvas = new SKCanvas(result);
+        canvas.Clear(SKColors.White);
+        canvas.DrawBitmap(source, 0, 0);
+        canvas.Flush();
+        return result;
+    }
+
     [RelayCommand]
     private void SaveImage()
     {
@@ -1704,6 +1715,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
 
         SKBitmap? resizedBitmap = null;
+        SKBitmap? jpegBitmap = null;
         try
         {
             if (dialog.SelectedFormat == SaveImageFormat.Icon)
@@ -1721,6 +1733,12 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                     resizedBitmap = _imageService.Resize(
                         processedBitmap, dialog.OutputWidth, dialog.OutputHeight);
                     outputBitmap = resizedBitmap;
+                }
+
+                if (dialog.SelectedFormat == SaveImageFormat.Jpg)
+                {
+                    jpegBitmap = CompositeOnWhite(outputBitmap);
+                    outputBitmap = jpegBitmap;
                 }
 
                 SKEncodedImageFormat format = dialog.SelectedFormat switch
@@ -1746,6 +1764,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            jpegBitmap?.Dispose();
             resizedBitmap?.Dispose();
         }
     }
