@@ -4,6 +4,7 @@ using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
 using SkiaSharp;
 using System.IO;
+using System.Windows;
 using System.Collections.ObjectModel;
 using PixoraStudio.Core.Imaging;
 using PixoraStudio.Core.Geometry;
@@ -74,13 +75,6 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isCropMode;
     [ObservableProperty] private string? operationError;
     [ObservableProperty] private float rotationAngle;
-    [ObservableProperty] private bool iconSize16 = true;
-    [ObservableProperty] private bool iconSize24 = true;
-    [ObservableProperty] private bool iconSize32 = true;
-    [ObservableProperty] private bool iconSize48 = true;
-    [ObservableProperty] private bool iconSize64 = true;
-    [ObservableProperty] private bool iconSize128 = true;
-    [ObservableProperty] private bool iconSize256 = true;
 
     public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
 
@@ -1127,76 +1121,85 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void ExportIcon()
-    {
-        if (_canvasBitmap is null) return;
-        BuildCpuPreview();
-        if (_processedBitmap is null) return;
-
-        int[] sizes =
-        [
-            IconSize16 ? 16 : 0,
-            IconSize24 ? 24 : 0,
-            IconSize32 ? 32 : 0,
-            IconSize48 ? 48 : 0,
-            IconSize64 ? 64 : 0,
-            IconSize128 ? 128 : 0,
-            IconSize256 ? 256 : 0
-        ];
-        int[] selectedSizes = sizes.Where(size => size > 0).ToArray();
-        if (selectedSizes.Length == 0)
-        {
-            OperationError = "Select at least one icon size.";
-            return;
-        }
-
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "Export Windows Icon",
-            Filter = "Icon file|*.ico",
-            DefaultExt = ".ico",
-            AddExtension = true,
-            FileName = $"{(ImagePath is null ? "Pixora-Icon" : Path.GetFileNameWithoutExtension(ImagePath))}.ico"
-        };
-        if (dialog.ShowDialog() != true) return;
-
-        try
-        {
-            byte[] icon = _imageService.EncodeIcon(_processedBitmap, selectedSizes);
-            File.WriteAllBytes(dialog.FileName, icon);
-            OperationError = null;
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException)
-        {
-            OperationError = ex.Message;
-        }
-    }
-
-    [RelayCommand]
     private void SaveImage()
     {
         if (_canvasBitmap is null) return;
         BuildCpuPreview();
-        if (_processedBitmap is null) return;
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "Export Image",
-            Filter = "PNG Image|*.png|JPEG Image|*.jpg;*.jpeg|WebP Image|*.webp|BMP Image|*.bmp",
-            FileName = "Pixora-Edited"
-        };
+        if (_processedBitmap is null || PreviewImage is null) return;
+
+        string initialFolder = !string.IsNullOrWhiteSpace(ImagePath) && File.Exists(ImagePath)
+            ? Path.GetDirectoryName(ImagePath) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
+            : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+        string baseName = string.IsNullOrWhiteSpace(ImagePath)
+            ? "Pixora"
+            : Path.GetFileNameWithoutExtension(ImagePath);
+        var dialog = new SaveOptionsDialogWindow(
+            PreviewImage, _processedBitmap.Width, _processedBitmap.Height,
+            initialFolder, $"{baseName}-Edited");
+        if (Application.Current?.MainWindow is Window owner)
+            dialog.Owner = owner;
         if (dialog.ShowDialog() != true) return;
-        var extension = Path.GetExtension(dialog.FileName).ToLowerInvariant();
-        var format = extension switch
+
+        string extension = dialog.SelectedFormat switch
         {
-            ".jpg" or ".jpeg" => SKEncodedImageFormat.Jpeg,
-            ".webp" => SKEncodedImageFormat.Webp,
-            ".bmp" => SKEncodedImageFormat.Bmp,
-            _ => SKEncodedImageFormat.Png
+            SaveImageFormat.Jpg => ".jpg",
+            SaveImageFormat.Png => ".png",
+            SaveImageFormat.WebP => ".webp",
+            SaveImageFormat.Bmp => ".bmp",
+            SaveImageFormat.Icon => ".ico",
+            _ => ".jpg"
         };
-        using var image = SKImage.FromBitmap(_processedBitmap);
-        using var data = image.Encode(format, 95);
-        using var output = File.Create(dialog.FileName);
-        data.SaveTo(output);
+        string outputPath = Path.Combine(dialog.OutputFolder, dialog.OutputFileName + extension);
+        if (File.Exists(outputPath) &&
+            MessageBox.Show(dialog, $"Replace the existing file?\n{outputPath}", "Confirm save",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+
+        SKBitmap? resizedBitmap = null;
+        try
+        {
+            if (dialog.SelectedFormat == SaveImageFormat.Icon)
+            {
+                byte[] iconData = _imageService.EncodeIcon(
+                    _processedBitmap, dialog.SelectedIconSizes.Where(size => size > 0).ToArray());
+                File.WriteAllBytes(outputPath, iconData);
+            }
+            else
+            {
+                SKBitmap outputBitmap = _processedBitmap;
+                if (dialog.OutputWidth != _processedBitmap.Width ||
+                    dialog.OutputHeight != _processedBitmap.Height)
+                {
+                    resizedBitmap = _imageService.Resize(
+                        _processedBitmap, dialog.OutputWidth, dialog.OutputHeight);
+                    outputBitmap = resizedBitmap;
+                }
+
+                SKEncodedImageFormat format = dialog.SelectedFormat switch
+                {
+                    SaveImageFormat.Jpg => SKEncodedImageFormat.Jpeg,
+                    SaveImageFormat.WebP => SKEncodedImageFormat.Webp,
+                    SaveImageFormat.Bmp => SKEncodedImageFormat.Bmp,
+                    _ => SKEncodedImageFormat.Png
+                };
+                using var image = SKImage.FromBitmap(outputBitmap);
+                using var data = image.Encode(format, dialog.Quality);
+                using var output = File.Create(outputPath);
+                data.SaveTo(output);
+            }
+
+            OperationError = null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+                                   IOException or UnauthorizedAccessException or OutOfMemoryException or
+                                   NotSupportedException)
+        {
+            OperationError = $"Unable to save image: {ex.Message}";
+        }
+        finally
+        {
+            resizedBitmap?.Dispose();
+        }
     }
 
     [RelayCommand] private void ZoomIn() => Zoom = Math.Min(Zoom + 0.1, 3.0);
