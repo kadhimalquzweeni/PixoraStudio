@@ -174,6 +174,77 @@
                 </Style.Triggers>
             </Style>
 
+            <Style TargetType="{x:Type CheckBox}">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Foreground" Value="#D4D6DE"/>
+                <Setter Property="Padding" Value="2"/>
+                <Setter Property="MinHeight" Value="24"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type CheckBox}">
+                            <Grid SnapsToDevicePixels="True">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="CheckBoxChrome" Width="16" Height="16"
+                                        Background="#202228" BorderBrush="#555C68"
+                                        BorderThickness="1" CornerRadius="3"
+                                        VerticalAlignment="Center">
+                                    <Grid>
+                                        <Path x:Name="CheckMark"
+                                              Data="M 2 8 L 6 12 L 14 4"
+                                              Stroke="#FFFFFF" StrokeThickness="2"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round" Visibility="Collapsed"/>
+                                        <Path x:Name="IndeterminateMark"
+                                              Data="M 3 8 L 13 8"
+                                              Stroke="#FFFFFF" StrokeThickness="2"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                              Visibility="Collapsed"/>
+                                    </Grid>
+                                </Border>
+                                <ContentPresenter Grid.Column="1"
+                                                  Margin="9,0,0,0"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  RecognizesAccessKey="True"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  ContentStringFormat="{TemplateBinding ContentStringFormat}"/>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="CheckBoxChrome" Property="Background" Value="#087FC4"/>
+                                    <Setter TargetName="CheckBoxChrome" Property="BorderBrush" Value="#079BD8"/>
+                                    <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="{x:Null}">
+                                    <Setter TargetName="CheckBoxChrome" Property="Background" Value="#087FC4"/>
+                                    <Setter TargetName="CheckBoxChrome" Property="BorderBrush" Value="#079BD8"/>
+                                    <Setter TargetName="IndeterminateMark" Property="Visibility" Value="Visible"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="CheckBoxChrome" Property="BorderBrush" Value="#079BD8"/>
+                                    <Setter TargetName="CheckBoxChrome" Property="Background" Value="#292E37"/>
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="CheckBoxChrome" Property="BorderBrush" Value="#38B8EA"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5"/>
+                                    <Setter Property="Cursor" Value="Arrow"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style TargetType="{x:Type Slider}">
                 <Setter Property="MinHeight" Value="22"/>
                 <Setter Property="Foreground" Value="#079BD8"/>
