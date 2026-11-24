@@ -728,31 +728,6 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         SetCutoutSelectionMask(mask);
     }
 
-    public void CreateCutoutLassoSelection(IReadOnlyList<Point> points)
-    {
-        if (SelectedLayer is not { IsLocked: false } layer || points.Count < 3)
-            return;
-
-        var bitmap = layer.Bitmap;
-        double scaleX = bitmap.Width / (double)Math.Max(1, layer.Width);
-        double scaleY = bitmap.Height / (double)Math.Max(1, layer.Height);
-        var polygon = points.Select(point => (X: point.X * scaleX, Y: point.Y * scaleY)).ToArray();
-        var mask = new byte[checked(bitmap.Width * bitmap.Height)];
-        int left = Math.Clamp((int)Math.Floor(polygon.Min(point => point.X)), 0, bitmap.Width - 1);
-        int right = Math.Clamp((int)Math.Ceiling(polygon.Max(point => point.X)), 0, bitmap.Width - 1);
-        int top = Math.Clamp((int)Math.Floor(polygon.Min(point => point.Y)), 0, bitmap.Height - 1);
-        int bottom = Math.Clamp((int)Math.Ceiling(polygon.Max(point => point.Y)), 0, bitmap.Height - 1);
-
-        for (int y = top; y <= bottom; y++)
-        for (int x = left; x <= right; x++)
-        {
-            if (IsPointInPolygon(x + 0.5, y + 0.5, polygon))
-                mask[y * bitmap.Width + x] = byte.MaxValue;
-        }
-
-        SetCutoutSelectionMask(mask);
-    }
-
     public void InvertCutoutSelection()
     {
         if (HasCutoutSelection)
