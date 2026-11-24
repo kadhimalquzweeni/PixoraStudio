@@ -45,7 +45,25 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     public float Opacity
     {
         get => _opacity;
-        set { var v = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f); if (SetProperty(ref _opacity, v)) AppearanceChanged?.Invoke(this, EventArgs.Empty); }
+        set
+        {
+            var value = Math.Clamp(float.IsFinite(value) ? value : 1f, 0f, 1f);
+            if (SetProperty(ref _opacity, value))
+            {
+                OnPropertyChanged(nameof(OpacityPercent));
+                AppearanceChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+
+    public double OpacityPercent
+    {
+        get => _opacity * 100d;
+        set
+        {
+            var percent = Math.Clamp(double.IsFinite(value) ? value : 100d, 0d, 100d);
+            Opacity = (float)(percent / 100d);
+        }
     }
     public PhotoLayerContentType ContentType
     {
