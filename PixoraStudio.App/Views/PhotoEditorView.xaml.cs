@@ -81,6 +81,13 @@ public partial class PhotoEditorView : UserControl
         if (e.Handled)
             return;
 
+        if (_isDrawingStroke && e.Key == Key.Escape)
+        {
+            CancelBrushStroke();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Delete)
         {
             if (Keyboard.FocusedElement is TextBoxBase or ComboBox or PasswordBox)
