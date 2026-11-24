@@ -299,7 +299,7 @@
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
                         <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Content="＋" Command="{Binding AddLayerCommand}" IsEnabled="{Binding IsImageLoaded}"
+                        <Button Content="＋" DockPanel.Dock="Right" Command="{Binding AddLayerCommand}" IsEnabled="{Binding IsImageLoaded}"
                                 Background="#087FC4" Foreground="White" FontSize="20" Width="34" Height="30"
                                 Padding="0" Margin="12,0,0,0" ToolTip="Add a layer"/>
                     </DockPanel>
@@ -371,6 +371,10 @@
                                 <TextBlock Text="Text content" FontSize="10" Foreground="#AEB4BF"/>
                                 <TextBox Text="{Binding SelectedLayer.TextContent, UpdateSourceTrigger=PropertyChanged}"
                                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="42" Margin="0,2,0,6"/>
+                                <TextBlock Text="Text alignment" FontSize="10" Foreground="#AEB4BF"/>
+                                <ComboBox SelectedValue="{Binding SelectedLayer.TextAlignment}" SelectedValuePath="Content" Margin="0,2,0,6">
+                                    <ComboBoxItem Content="Left"/><ComboBoxItem Content="Center"/><ComboBoxItem Content="Right"/>
+                                </ComboBox>
                                 <TextBlock Text="Font family" FontSize="10" Foreground="#AEB4BF"/>
                                 <TextBox Text="{Binding SelectedLayer.FontFamily, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,6"/>
                                 <DockPanel><TextBlock Text="Font size" Foreground="#AEB4BF" FontSize="10"/><TextBlock Text="{Binding SelectedLayer.FontSize, StringFormat={}{0:0}}" Foreground="#AEB4BF" FontSize="10" DockPanel.Dock="Right"/></DockPanel>

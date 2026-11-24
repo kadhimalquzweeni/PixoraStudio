@@ -9,7 +9,7 @@ public static class LayerContentRenderer
     public static SKBitmap Render(int width, int height, PhotoLayerContentType type,
         string text = "", string fontFamily = "Arial", float fontSize = 64,
         string fillColor = "#FFFFFFFF", string strokeColor = "#FF202020",
-        float strokeWidth = 0, string shapeType = "Rectangle")
+        float strokeWidth = 0, string shapeType = "Rectangle", string textAlignment = "Left")
     {
         if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width));
         var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -23,7 +23,11 @@ public static class LayerContentRenderer
             using var paint = new SKPaint { Color = fill, IsAntialias = true, TextSize = Math.Clamp(fontSize, 1f, 512f), Typeface = SKTypeface.FromFamilyName(fontFamily) };
             var metrics = paint.FontMetrics;
             var baseline = Math.Min(height - Math.Max(1, metrics.Descent), Math.Max(-metrics.Ascent, (height - (metrics.Descent - metrics.Ascent)) / 2f - metrics.Ascent));
-            canvas.DrawText(text ?? string.Empty, 4, baseline, paint);
+            var content = text ?? string.Empty;
+            float textWidth = paint.MeasureText(content);
+            float textX = textAlignment == "Center" ? (width - textWidth) / 2f
+                : textAlignment == "Right" ? width - textWidth - 4 : 4;
+            canvas.DrawText(content, textX, baseline, paint);
         }
         else if (type is PhotoLayerContentType.Shape or PhotoLayerContentType.Frame)
         {

@@ -30,6 +30,7 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     private float _opacity = 1f;
     private PhotoLayerContentType _contentType = PhotoLayerContentType.Image;
     private string _textContent = "Your text";
+    private string _textAlignment = "Left";
     private string _fontFamily = "Arial";
     private float _fontSize = 64;
     private string _fillColor = "#FFFFFFFF";
@@ -54,6 +55,11 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     {
         get => _textContent;
         set { if (IsLocked) return; if (SetProperty(ref _textContent, value ?? string.Empty)) ContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
+    public string TextAlignment
+    {
+        get => _textAlignment;
+        set { if (IsLocked) return; if (SetProperty(ref _textAlignment, value is "Center" or "Right" ? value : "Left")) ContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public string FontFamily
     {

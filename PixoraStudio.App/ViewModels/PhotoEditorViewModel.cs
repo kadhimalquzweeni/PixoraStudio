@@ -270,7 +270,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (layer.ContentType is PhotoLayerContentType.Image or PhotoLayerContentType.Empty) return layer.Bitmap;
         return LayerContentRenderer.Render(layer.Width, layer.Height, layer.ContentType,
             layer.TextContent, layer.FontFamily, layer.FontSize, layer.FillColor,
-            layer.StrokeColor, layer.StrokeWidth, layer.ShapeType);
+            layer.StrokeColor, layer.StrokeWidth, layer.ShapeType, layer.TextAlignment);
     }
 
     private void RefreshPreview()
@@ -595,7 +595,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             duplicate.Opacity = layer.Opacity;
             duplicate.IsVisible = layer.IsVisible;
             duplicate.ContentType = layer.ContentType;
-            duplicate.TextContent = layer.TextContent; duplicate.FontFamily = layer.FontFamily;
+            duplicate.TextContent = layer.TextContent; duplicate.TextAlignment = layer.TextAlignment; duplicate.FontFamily = layer.FontFamily;
             duplicate.FontSize = layer.FontSize; duplicate.FillColor = layer.FillColor;
             duplicate.StrokeColor = layer.StrokeColor; duplicate.StrokeWidth = layer.StrokeWidth;
             duplicate.ShapeType = layer.ShapeType;
