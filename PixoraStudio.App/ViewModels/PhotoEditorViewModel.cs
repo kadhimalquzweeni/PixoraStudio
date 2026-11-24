@@ -23,6 +23,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private SKColor _canvasBackgroundColor = SKColors.Transparent;
     private ImageAdjustment _lastCommittedAdjustment = new();
     private bool _isRestoringSnapshot;
+    private EditorSnapshot? _pendingLayerGeometrySnapshot;
     private float _resizeAspectRatio = 1f;
     private PhotoLayerViewModel? _adjustmentLayer;
 
@@ -78,6 +79,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     public void CreateCanvas(int width, int height, SKColor backgroundColor)
     {
         var newCanvas = ImageDocumentCanvas.Create(width, height, backgroundColor);
+        _pendingLayerGeometrySnapshot?.Dispose();
+        _pendingLayerGeometrySnapshot = null;
         ClearHistory();
         ClearAdditionalLayers();
         DisposeBitmaps();
@@ -163,7 +166,36 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     private EditorSnapshot CaptureSnapshot() =>
-        new(_imageService.CloneImage(SelectedLayer!.Bitmap), GetCurrentAdjustment());
+        new(SelectedLayer!, _imageService.CloneImage(SelectedLayer!.Bitmap),
+            GetCurrentAdjustment(), SelectedLayer.X, SelectedLayer.Y,
+            SelectedLayer.Width, SelectedLayer.Height);
+
+    public void BeginLayerGeometryChange()
+    {
+        if (SelectedLayer is null || SelectedLayer.IsLocked || _pendingLayerGeometrySnapshot is not null)
+            return;
+        _pendingLayerGeometrySnapshot = CaptureSnapshot();
+    }
+
+    public void CommitLayerGeometryChange()
+    {
+        if (_pendingLayerGeometrySnapshot is not { } snapshot)
+            return;
+
+        _pendingLayerGeometrySnapshot = null;
+        var layer = snapshot.Layer;
+        bool changed = layer.X != snapshot.X || layer.Y != snapshot.Y ||
+                       layer.Width != snapshot.Width || layer.Height != snapshot.Height;
+        if (!changed)
+        {
+            snapshot.Dispose();
+            return;
+        }
+
+        PushHistory(_undoStack, snapshot);
+        ClearStack(_redoStack);
+        UpdateHistoryState();
+    }
 
     private void PushHistory(Stack<EditorSnapshot> stack, EditorSnapshot snapshot)
     {
@@ -196,9 +228,13 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void RestoreSnapshot(EditorSnapshot snapshot)
     {
-        if (SelectedLayer is null) { snapshot.Dispose(); return; }
-        SelectedLayer.ReplaceBitmap(_imageService.CloneImage(snapshot.Bitmap));
-        SelectedLayer.Adjustment = snapshot.Adjustment;
+        if (!AdditionalLayers.Contains(snapshot.Layer)) { snapshot.Dispose(); return; }
+        var layer = snapshot.Layer;
+        if (!ReferenceEquals(SelectedLayer, layer))
+            SelectedLayer = layer;
+        layer.ReplaceBitmap(_imageService.CloneImage(snapshot.Bitmap));
+        layer.SetBounds(snapshot.X, snapshot.Y, snapshot.Width, snapshot.Height, ignoreLock: true);
+        layer.Adjustment = snapshot.Adjustment;
         snapshot.DetachBitmap();
         _isRestoringSnapshot = true;
         try
@@ -216,9 +252,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
         finally { _isRestoringSnapshot = false; }
         CropX = CropY = 0;
-        CropWidth = ResizeWidth = SelectedLayer.Bitmap.Width;
-        CropHeight = ResizeHeight = SelectedLayer.Bitmap.Height;
-        _resizeAspectRatio = (float)SelectedLayer.Bitmap.Width / Math.Max(1, SelectedLayer.Bitmap.Height);
+        CropWidth = ResizeWidth = layer.Bitmap.Width;
+        CropHeight = ResizeHeight = layer.Bitmap.Height;
+        _resizeAspectRatio = (float)layer.Bitmap.Width / Math.Max(1, layer.Bitmap.Height);
         RefreshPreview();
         snapshot.Dispose();
     }
@@ -717,8 +753,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             current.Tint == _lastCommittedAdjustment.Tint &&
             current.Filter == _lastCommittedAdjustment.Filter) return;
 
-        PushHistory(_undoStack, new EditorSnapshot(
-            _imageService.CloneImage(SelectedLayer.Bitmap), SelectedLayer.Adjustment));
+        PushHistory(_undoStack, CaptureSnapshot());
         ClearStack(_redoStack);
         SelectedLayer.Adjustment = current;
         _lastCommittedAdjustment = current;
@@ -906,8 +941,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         DisposeBitmaps();
     }
 
-    private sealed class EditorSnapshot(SKBitmap bitmap, ImageAdjustment adjustment) : IDisposable
+    private sealed class EditorSnapshot(PhotoLayerViewModel layer, SKBitmap bitmap,
+        ImageAdjustment adjustment, int x, int y, int width, int height) : IDisposable
     {
+        public PhotoLayerViewModel Layer { get; } = layer;
+        public int X { get; } = x;
+        public int Y { get; } = y;
+        public int Width { get; } = width;
+        public int Height { get; } = height;
         public SKBitmap Bitmap { get; private set; } = bitmap;
         public ImageAdjustment Adjustment { get; } = new()
         {
