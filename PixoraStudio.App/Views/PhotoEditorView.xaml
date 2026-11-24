@@ -114,7 +114,7 @@
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Grid MinWidth="300" MinHeight="300">
                             <Grid x:Name="DocumentCanvas" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
-                                  Margin="0" ClipToBounds="False"
+                                  Margin="4096" ClipToBounds="False"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Background="{StaticResource TransparencyCheckerboard}">
                                 <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
