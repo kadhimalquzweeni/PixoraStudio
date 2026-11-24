@@ -32,14 +32,6 @@
             <Setter Property="Foreground" Value="#D5D7DC"/><Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="19"/><Setter Property="Cursor" Value="Hand"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        <Style x:Key="ImageLayerToolButton" TargetType="Button" BasedOn="{StaticResource ToolButton}">
-            <Setter Property="Visibility" Value="Collapsed"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding SelectedLayer.IsImageLayer}" Value="True">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
         <Style TargetType="TabControl">
             <Setter Property="Template">
                 <Setter.Value>
@@ -106,8 +98,8 @@
                         <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Crop" Tag="2" Click="Tool_Click"><controls:SvgIcon IconName="crop" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Resize" Tag="3" Click="Tool_Click"><controls:SvgIcon IconName="maximize" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ImageLayerToolButton}" ToolTip="Adjustments" Tag="4" Click="Tool_Click"><controls:SvgIcon IconName="sliders-horizontal" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ImageLayerToolButton}" ToolTip="Filters" Tag="5" Click="Tool_Click"><controls:SvgIcon IconName="contrast" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Adjustments" Tag="4" Click="Tool_Click"><controls:SvgIcon IconName="sliders-horizontal" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Filters" Tag="5" Click="Tool_Click"><controls:SvgIcon IconName="contrast" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Effects" Tag="6" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Retouch" Tag="7" Click="Tool_Click"><controls:SvgIcon IconName="eraser" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Text" Tag="8" Click="Tool_Click"><controls:SvgIcon IconName="type" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
@@ -259,6 +251,30 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
                                         <TextBlock Text="Adjustments" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                                        <TextBlock Text="Select an image to access its adjustments."
+                                                   Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedLayer.IsImageLayer}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <StackPanel>
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedLayer.IsImageLayer}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
                                         <Grid Margin="0,0,0,3">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -495,15 +511,43 @@
                                                    Foreground="#AEB2BE" FontSize="10" TextWrapping="Wrap"
                                                    Margin="2,0,2,8"/>
                                         <Button Content="Reset adjustments" Command="{Binding ResetAdjustmentsCommand}"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
-                            <TabItem Header="Filters"><StackPanel>
-                                <TextBlock Text="Filters" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                                <Button Content="Original" Command="{Binding ResetAdjustmentsCommand}"/>
-                                <Button Content="Grayscale" Click="Grayscale_Click"/>
-                                <Button Content="Sepia" Click="Sepia_Click"/>
-                            </StackPanel></TabItem>
+                            <TabItem Header="Filters">
+                                <StackPanel>
+                                    <TextBlock Text="Filters" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <TextBlock Text="Select an image to access its filters."
+                                               Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedLayer.IsImageLayer}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedLayer.IsImageLayer}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <Button Content="Original" Command="{Binding ResetAdjustmentsCommand}"/>
+                                        <Button Content="Grayscale" Click="Grayscale_Click"/>
+                                        <Button Content="Sepia" Click="Sepia_Click"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </TabItem>
                             <TabItem Header="Effects"><StackPanel><TextBlock Text="Effects" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Creative effects will appear here." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
                             <TabItem Header="Retouch"><StackPanel><TextBlock Text="Retouch" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Retouching tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
                             <TabItem Header="Text">
