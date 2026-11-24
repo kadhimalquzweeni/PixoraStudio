@@ -31,6 +31,7 @@ public partial class PhotoEditorView : UserControl
     private Rect _layerBoundsAtDragStart;
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
+    private const int CropToolIndex = 2;
     private const int DrawToolIndex = 10;
     private bool _isDrawingStroke;
     private readonly List<SKPoint> _drawStrokePoints = [];
@@ -284,6 +285,9 @@ public partial class PhotoEditorView : UserControl
             selectedTool < 0 || selectedTool >= ToolSettingsTabs.Items.Count)
             return;
 
+        if (selectedTool != CropToolIndex)
+            EndCropMode();
+
         ToolSettingsTabs.SelectedIndex = selectedTool;
         LayerOverlay.Cursor = selectedTool == DrawToolIndex ? Cursors.Pen : Cursors.Arrow;
         ToolSettingsColumn.Width = new GridLength(280);
@@ -292,6 +296,7 @@ public partial class PhotoEditorView : UserControl
 
     private void OpenImageSize_Click(object sender, RoutedEventArgs e)
     {
+        EndCropMode();
         ToolSettingsTabs.SelectedIndex = 3;
     }
 
@@ -301,11 +306,13 @@ public partial class PhotoEditorView : UserControl
             return;
 
         viewModel.LockAspectRatio = true;
+        EndCropMode();
         ToolSettingsTabs.SelectedIndex = 3;
     }
 
     private void CloseToolSettings_Click(object sender, RoutedEventArgs e)
     {
+        EndCropMode();
         ToolSettingsBorder.Visibility = Visibility.Collapsed;
         ToolSettingsColumn.Width = new GridLength(0);
     }
@@ -316,15 +323,10 @@ public partial class PhotoEditorView : UserControl
             mainViewModel.NavigateHomeCommand.Execute(null);
     }
 
-    private void StartCrop_Click(object sender, RoutedEventArgs e)
+    private void BeginCropMode()
     {
-        if (CropOverlay.Visibility == Visibility.Visible)
-        {
-            EndCropMode();
-            return;
-        }
-
-        if (ViewModel is not { IsImageLoaded: true, SelectedLayer: { } layer } vm ||
+        if (CropOverlay.Visibility == Visibility.Visible ||
+            ViewModel is not { IsImageLoaded: true, SelectedLayer: { IsLocked: false } layer } vm ||
             layer.Width < 1 || layer.Height < 1)
             return;
 
@@ -337,21 +339,21 @@ public partial class PhotoEditorView : UserControl
         _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
         CropOverlay.Visibility = Visibility.Visible;
         LayerOverlay.Visibility = Visibility.Collapsed;
-        CropActionPanel.Visibility = Visibility.Visible;
-        VisualCropToggleButton.Content = "Cancel visual crop";
         DrawCropOverlay();
         UpdateCropCoordinates();
     }
 
-    private void ApplyVisualCrop_Click(object sender, RoutedEventArgs e)
+    private void ApplyCrop_Click(object sender, RoutedEventArgs e)
     {
-        if (ViewModel is not { IsImageLoaded: true } vm) return;
-        UpdateCropCoordinates();
+        if (ViewModel is not { IsImageLoaded: true, SelectedLayer: { IsLocked: false } } vm)
+            return;
+
+        if (CropOverlay.Visibility == Visibility.Visible)
+            UpdateCropCoordinates();
+
         vm.CropCommand.Execute(null);
         EndCropMode();
     }
-
-    private void CancelVisualCrop_Click(object sender, RoutedEventArgs e) => EndCropMode();
 
     private void CropAspectRatio_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -385,11 +387,14 @@ public partial class PhotoEditorView : UserControl
 
     private void EndCropMode()
     {
+        if (CropOverlay is null)
+            return;
+
         CropOverlay.Visibility = Visibility.Collapsed;
         LayerOverlay.Visibility = Visibility.Visible;
-        CropActionPanel.Visibility = Visibility.Collapsed;
-        VisualCropToggleButton.Content = "Start visual crop";
         CropOverlay.Children.Clear();
+        _isDragging = false;
+        CropOverlay.ReleaseMouseCapture();
     }
 
     private void CropOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -397,6 +402,13 @@ public partial class PhotoEditorView : UserControl
         if (ViewModel is not { IsImageLoaded: true }) return;
         var point = e.GetPosition(CropOverlay);
         _dragMode = GetDragMode(point);
+        if (_dragMode == DragMode.None)
+        {
+            EndCropMode();
+            e.Handled = true;
+            return;
+        }
+
         _dragStart = point;
         _selectionAtDragStart = _cropSelection;
         _isDragging = true;
@@ -566,6 +578,11 @@ public partial class PhotoEditorView : UserControl
     private void PhotoEditorView_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         var source = e.OriginalSource as DependencyObject;
+        if (CropOverlay?.Visibility == Visibility.Visible &&
+            !IsVisualDescendantOrSelf(source, CropOverlay) &&
+            !IsVisualDescendantOrSelf(source, ToolSettingsBorder))
+            EndCropMode();
+
         if (IsLayerOptionsButton(source) ||
             IsLayerPropertiesPopupSource(source) ||
             ViewModel is not { } vm)
@@ -573,6 +590,24 @@ public partial class PhotoEditorView : UserControl
 
         foreach (var layer in vm.AdditionalLayers)
             layer.IsPropertiesOpen = false;
+    }
+
+    private static bool IsVisualDescendantOrSelf(DependencyObject? source, DependencyObject target)
+    {
+        while (source is not null)
+        {
+            if (ReferenceEquals(source, target))
+                return true;
+
+            source = source switch
+            {
+                Visual visual => VisualTreeHelper.GetParent(visual),
+                FrameworkContentElement contentElement => contentElement.Parent,
+                _ => null
+            };
+        }
+
+        return false;
     }
 
     private static bool IsLayerPropertiesPopupSource(DependencyObject? source)
@@ -859,6 +894,18 @@ public partial class PhotoEditorView : UserControl
         var point = new Point(
             overlayPoint.X - _layerOverlayWorkspacePadding,
             overlayPoint.Y - _layerOverlayWorkspacePadding);
+        if (ToolSettingsTabs.SelectedIndex == CropToolIndex)
+        {
+            var cropTarget = vm.HitTestLayer(point.X, point.Y);
+            if (cropTarget is not null)
+            {
+                vm.SelectLayer(cropTarget);
+                BeginCropMode();
+            }
+
+            e.Handled = true;
+            return;
+        }
         if (ToolSettingsTabs.SelectedIndex == DrawToolIndex)
         {
             BeginBrushStroke(vm, overlayPoint, e);
