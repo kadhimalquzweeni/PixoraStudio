@@ -23,6 +23,7 @@ public sealed class PixoraThemeResourceTests
         Assert.Contains("{x:Type ComboBox}", styles);
         Assert.Contains("{x:Type ComboBoxItem}", styles);
         Assert.Contains("{x:Type Slider}", styles);
+        Assert.Contains("{x:Type CheckBox}", styles);
         Assert.Contains("{x:Type Label}", styles);
         Assert.Contains("{x:Type TextBlock}", styles);
         var comboBoxTemplate = document.Descendants(presentation + "Style")
@@ -34,6 +35,17 @@ public sealed class PixoraThemeResourceTests
         Assert.NotNull(comboBoxTemplate!.Descendants(presentation + "Popup").FirstOrDefault());
         Assert.Contains(comboBoxTemplate.Descendants(presentation + "Border"),
             border => (string?)border.Attribute("Background") == "#25282F");
+
+        var checkBoxTemplate = document.Descendants(presentation + "Style")
+            .First(style => (string?)style.Attribute("TargetType") == "{x:Type CheckBox}")
+            .Descendants(presentation + "ControlTemplate")
+            .FirstOrDefault();
+
+        Assert.NotNull(checkBoxTemplate);
+        Assert.NotNull(checkBoxTemplate!.Descendants(presentation + "Path")
+            .FirstOrDefault(path => (string?)path.Attribute("Name") == "CheckMark"));
+        Assert.NotNull(checkBoxTemplate.Descendants(presentation + "Path")
+            .FirstOrDefault(path => (string?)path.Attribute("Name") == "IndeterminateMark"));
 
         Assert.NotNull(document.Descendants(presentation + "Style")
             .FirstOrDefault(style => (string?)style.Attribute("TargetType") == "{x:Type Slider}")
