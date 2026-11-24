@@ -199,13 +199,8 @@
                                 </StackPanel>
 
                                 <StackPanel x:Name="DimensionsPanel" Margin="0,10,0,0">
-                                    <DockPanel Margin="0,0,0,5">
-                                        <TextBlock Text="Output size" FontWeight="SemiBold"/>
-                                        <CheckBox x:Name="LockAspectRatioCheckBox" Content="Lock proportions"
-                                                  IsChecked="True" Foreground="#D4D4D4"
-                                                  HorizontalAlignment="Right"/>
-                                    </DockPanel>
-                                    <UniformGrid Columns="4" Margin="0,0,0,6">
+                                    <TextBlock Text="Output size" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                    <UniformGrid Columns="3" Margin="0,0,0,6">
                                         <RadioButton x:Name="OneXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="1×" Tag="1"
@@ -214,57 +209,13 @@
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="2×" Tag="2"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="ThreeXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="3×" Tag="3"
-                                                     Click="ScalePreset_Click"/>
                                         <RadioButton x:Name="FourXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="4×" Tag="4"
                                                      Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="FiveXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="5×" Tag="5"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="SixXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="6×" Tag="6"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="SevenXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="7×" Tag="7"
-                                                     Click="ScalePreset_Click"/>
                                         <RadioButton x:Name="EightXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="8×" Tag="8"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="NineXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="9×" Tag="9"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="TenXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="10×" Tag="10"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="ElevenXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="11×" Tag="11"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="TwelveXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="12×" Tag="12"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="ThirteenXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="13×" Tag="13"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="FourteenXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="14×" Tag="14"
-                                                     Click="ScalePreset_Click"/>
-                                        <RadioButton x:Name="FifteenXScaleRadioButton"
-                                                     Style="{StaticResource ScalePresetOption}"
-                                                     GroupName="OutputScalePreset" Content="15×" Tag="15"
                                                      Click="ScalePreset_Click"/>
                                         <RadioButton x:Name="SixteenXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
@@ -296,13 +247,11 @@
                                         <StackPanel Margin="0,0,8,0">
                                             <TextBlock Text="Width (px)" Foreground="#C9C9C9"/>
                                             <TextBox x:Name="WidthTextBox" Text="1"
-                                                     LostFocus="WidthTextBox_LostFocus"
                                                      TextChanged="DimensionsTextBox_TextChanged"/>
                                         </StackPanel>
                                         <StackPanel Margin="8,0,0,0">
                                             <TextBlock Text="Height (px)" Foreground="#C9C9C9"/>
                                             <TextBox x:Name="HeightTextBox" Text="1"
-                                                     LostFocus="HeightTextBox_LostFocus"
                                                      TextChanged="DimensionsTextBox_TextChanged"/>
                                         </StackPanel>
                                     </UniformGrid>
