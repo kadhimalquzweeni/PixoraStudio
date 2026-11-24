@@ -124,4 +124,35 @@ public sealed class ImageLayerCompositorTests
         Assert.Equal(SKColors.Red, result.GetPixel(3, 2));
         Assert.Equal((byte)0, result.GetPixel(4, 3).Alpha);
     }
+
+    [Fact]
+    public void Composite_ShouldApplyLayerOpacity()
+    {
+        using var background = new SKBitmap(1, 1);
+        background.Erase(SKColors.Blue);
+        using var overlay = new SKBitmap(1, 1);
+        overlay.Erase(SKColors.Red);
+
+        using var result = ImageLayerCompositor.Composite(background,
+            [(overlay, 0, 0, 1, 1, true, 0.5f)]);
+
+        var pixel = result.GetPixel(0, 0);
+        Assert.InRange(pixel.Red, (byte)126, (byte)129);
+        Assert.InRange(pixel.Blue, (byte)126, (byte)129);
+        Assert.Equal((byte)255, pixel.Alpha);
+    }
+
+    [Fact]
+    public void Composite_ShouldSkipFullyTransparentLayer()
+    {
+        using var background = new SKBitmap(1, 1);
+        background.Erase(SKColors.Blue);
+        using var overlay = new SKBitmap(1, 1);
+        overlay.Erase(SKColors.Red);
+
+        using var result = ImageLayerCompositor.Composite(background,
+            [(overlay, 0, 0, 1, 1, true, 0f)]);
+
+        Assert.Equal(SKColors.Blue, result.GetPixel(0, 0));
+    }
 }
