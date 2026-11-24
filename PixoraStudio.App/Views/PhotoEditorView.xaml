@@ -214,7 +214,7 @@
                             <TabItem Header="Crop">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
                                     <TextBlock Text="Crop" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                                    <Button Content="Start visual crop" Click="StartCrop_Click" Background="#087FC4"/>
+                                    <Button x:Name="VisualCropToggleButton" Content="Start visual crop" Click="StartCrop_Click" Background="#087FC4"/>
                                     <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
                                         <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,8"/>
                                         <TextBlock Text="Aspect ratio" Margin="2,4"/>
@@ -224,7 +224,7 @@
                                             <ComboBoxItem Content="3:2" Tag="1.5"/><ComboBoxItem Content="16:9" Tag="1.7777778"/>
                                             <ComboBoxItem Content="9:16" Tag="0.5625"/>
                                         </ComboBox>
-                                        <UniformGrid Columns="2"><Button Content="Apply crop" Click="ApplyVisualCrop_Click" Background="#087FC4"/><Button Content="Cancel" Click="CancelVisualCrop_Click"/></UniformGrid>
+                                        <Button Content="Apply crop" Click="ApplyVisualCrop_Click" Background="#087FC4"/>
                                     </StackPanel>
                                     <TextBlock Text="Position and size (pixels)" FontWeight="SemiBold" Margin="0,14,0,6"/>
                                     <UniformGrid Columns="2">
