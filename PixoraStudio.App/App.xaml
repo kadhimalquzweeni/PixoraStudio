@@ -174,6 +174,54 @@
                 </Style.Triggers>
             </Style>
 
+            <Style TargetType="{x:Type Button}">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#E5E7EC"/>
+                <Setter Property="Background" Value="#30343D"/>
+                <Setter Property="BorderBrush" Value="#505866"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,7"/>
+                <Setter Property="MinHeight" Value="32"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border x:Name="ButtonChrome"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  RecognizesAccessKey="True"
+                                                  Focusable="False"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="ButtonChrome" Property="Background" Value="#3B424E"/>
+                                    <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#687486"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="ButtonChrome" Property="Background" Value="#252A32"/>
+                                    <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#079BD8"/>
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#079BD8"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="ButtonChrome" Property="Opacity" Value="0.5"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style TargetType="{x:Type CheckBox}">
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="12"/>

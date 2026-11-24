@@ -24,6 +24,20 @@ public sealed class PixoraThemeResourceTests
         Assert.Contains("{x:Type ComboBoxItem}", styles);
         Assert.Contains("{x:Type Slider}", styles);
         Assert.Contains("{x:Type CheckBox}", styles);
+        Assert.Contains("{x:Type Button}", styles);
+
+        var buttonTemplate = document.Descendants(presentation + "Style")
+            .First(style => (string?)style.Attribute("TargetType") == "{x:Type Button}")
+            .Descendants(presentation + "ControlTemplate")
+            .FirstOrDefault();
+
+        Assert.NotNull(buttonTemplate);
+        Assert.Contains(buttonTemplate!.Descendants(presentation + "Border"),
+            border => (string?)border.Attribute("Background") == "{TemplateBinding Background}");
+        Assert.Contains(buttonTemplate.Descendants(presentation + "Trigger"),
+            trigger => (string?)trigger.Attribute("Property") == "IsMouseOver");
+        Assert.Contains(buttonTemplate.Descendants(presentation + "Trigger"),
+            trigger => (string?)trigger.Attribute("Property") == "IsPressed");
         Assert.Contains("{x:Type Label}", styles);
         Assert.Contains("{x:Type TextBlock}", styles);
         var comboBoxTemplate = document.Descendants(presentation + "Style")
