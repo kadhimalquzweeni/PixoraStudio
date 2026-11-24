@@ -25,6 +25,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private ImageAdjustment _lastCommittedAdjustment = new();
     private bool _isRestoringSnapshot;
     private EditorSnapshot? _pendingLayerGeometrySnapshot;
+    private EditorSnapshot? _pendingAdjustmentSnapshot;
     private float _resizeAspectRatio = 1f;
     private PhotoLayerViewModel? _adjustmentLayer;
 
@@ -153,7 +154,10 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (SelectedLayer is { IsLocked: true } lockedLayer)
             return lockedLayer.Adjustment;
 
-        return new ImageAdjustment
+        return GetAdjustmentValues();
+    }
+
+    private ImageAdjustment GetAdjustmentValues() => new()
     {
         Brightness = Brightness,
         Contrast = Contrast,
@@ -164,8 +168,18 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         Temperature = Temperature,
         Tint = Tint,
         Filter = SelectedFilter
-        };
-    }
+    };
+
+    private static bool AreAdjustmentsEqual(ImageAdjustment left, ImageAdjustment right) =>
+        left.Brightness == right.Brightness &&
+        left.Contrast == right.Contrast &&
+        left.Saturation == right.Saturation &&
+        left.Exposure == right.Exposure &&
+        left.Highlights == right.Highlights &&
+        left.Shadows == right.Shadows &&
+        left.Temperature == right.Temperature &&
+        left.Tint == right.Tint &&
+        left.Filter == right.Filter;
 
     private void SaveUndoState()
     {
@@ -175,10 +189,70 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         UpdateHistoryState();
     }
 
-    private EditorSnapshot CaptureSnapshot() =>
+    private EditorSnapshot CaptureSnapshot() => CaptureSnapshot(GetCurrentAdjustment());
+
+    private EditorSnapshot CaptureSnapshot(ImageAdjustment adjustment) =>
         new(SelectedLayer!, _imageService.CloneImage(SelectedLayer!.Bitmap),
-            GetCurrentAdjustment(), SelectedLayer.X, SelectedLayer.Y,
+            adjustment, SelectedLayer.X, SelectedLayer.Y,
             SelectedLayer.Width, SelectedLayer.Height);
+
+    public void BeginAdjustmentChange()
+    {
+        if (_pendingAdjustmentSnapshot is not null || !IsImageLoaded ||
+            SelectedLayer is not { IsLocked: false })
+            return;
+
+        _pendingAdjustmentSnapshot = CaptureSnapshot();
+    }
+
+    public void CommitAdjustmentChange()
+    {
+        if (_pendingAdjustmentSnapshot is not { } snapshot)
+            return;
+
+        _pendingAdjustmentSnapshot = null;
+        if (!AdditionalLayers.Contains(snapshot.Layer))
+        {
+            snapshot.Dispose();
+            return;
+        }
+
+        RecordAdjustmentChange(snapshot, snapshot.Layer, GetAdjustmentValues());
+    }
+
+    private void OnAdjustmentValueChanged()
+    {
+        if (!IsImageLoaded)
+            return;
+
+        RefreshPreview();
+        if (_isRestoringSnapshot || _pendingAdjustmentSnapshot is not null ||
+            SelectedLayer is not { IsLocked: false } layer)
+            return;
+
+        var current = GetAdjustmentValues();
+        if (AreAdjustmentsEqual(current, _lastCommittedAdjustment))
+            return;
+
+        RecordAdjustmentChange(CaptureSnapshot(_lastCommittedAdjustment), layer, current);
+    }
+
+    private void RecordAdjustmentChange(EditorSnapshot snapshot, PhotoLayerViewModel layer, ImageAdjustment current)
+    {
+        if (!AdditionalLayers.Contains(layer) || AreAdjustmentsEqual(snapshot.Adjustment, current))
+        {
+            snapshot.Dispose();
+            return;
+        }
+
+        layer.Adjustment = current;
+        if (ReferenceEquals(layer, SelectedLayer))
+            _lastCommittedAdjustment = current;
+
+        PushHistory(_undoStack, snapshot);
+        ClearStack(_redoStack);
+        UpdateHistoryState();
+    }
 
     public void BeginLayerGeometryChange()
     {
@@ -227,6 +301,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         _pendingLayerGeometrySnapshot?.Dispose();
         _pendingLayerGeometrySnapshot = null;
+        _pendingAdjustmentSnapshot?.Dispose();
+        _pendingAdjustmentSnapshot = null;
         ClearStack(_undoStack);
         ClearStack(_redoStack);
         UpdateHistoryState();
@@ -422,15 +498,15 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
     }
 
-    partial void OnBrightnessChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnContrastChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnSaturationChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnExposureChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnHighlightsChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnShadowsChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnTemperatureChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnTintChanged(float value) { if (IsImageLoaded) RefreshPreview(); }
-    partial void OnSelectedFilterChanged(ImageFilter value) { if (IsImageLoaded) RefreshPreview(); }
+    partial void OnBrightnessChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnContrastChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnSaturationChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnExposureChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnHighlightsChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnShadowsChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnTemperatureChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnTintChanged(float value) => OnAdjustmentValueChanged();
+    partial void OnSelectedFilterChanged(ImageFilter value) => OnAdjustmentValueChanged();
     partial void OnShowOriginalChanged(bool value) { if (IsImageLoaded) RefreshPreview(); }
 
     partial void OnResizeWidthChanged(int value)
@@ -770,8 +846,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedLayerChanged(PhotoLayerViewModel? value)
     {
+        CommitAdjustmentChange();
         if (_adjustmentLayer is not null)
-            _adjustmentLayer.Adjustment = GetCurrentAdjustment();
+            _adjustmentLayer.Adjustment = GetAdjustmentValues();
         _adjustmentLayer = value;
         foreach (var layer in AdditionalLayers) layer.IsSelected = ReferenceEquals(layer, value);
         if (value is null) return;
@@ -801,26 +878,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void CommitAdjustments()
-    {
-        if (!IsImageLoaded || SelectedLayer is null || SelectedLayer.IsLocked) return;
-        var current = GetCurrentAdjustment();
-        if (current.Brightness == _lastCommittedAdjustment.Brightness &&
-            current.Contrast == _lastCommittedAdjustment.Contrast &&
-            current.Saturation == _lastCommittedAdjustment.Saturation &&
-            current.Exposure == _lastCommittedAdjustment.Exposure &&
-            current.Highlights == _lastCommittedAdjustment.Highlights &&
-            current.Shadows == _lastCommittedAdjustment.Shadows &&
-            current.Temperature == _lastCommittedAdjustment.Temperature &&
-            current.Tint == _lastCommittedAdjustment.Tint &&
-            current.Filter == _lastCommittedAdjustment.Filter) return;
-
-        PushHistory(_undoStack, CaptureSnapshot());
-        ClearStack(_redoStack);
-        SelectedLayer.Adjustment = current;
-        _lastCommittedAdjustment = current;
-        UpdateHistoryState();
-    }
+    private void CommitAdjustments() => CommitAdjustmentChange();
 
     [RelayCommand] private void RotateClockwise() => ApplyTransform(bitmap => _imageService.Rotate(bitmap, 90));
     [RelayCommand] private void RotateCounterClockwise() => ApplyTransform(bitmap => _imageService.Rotate(bitmap, 270));
