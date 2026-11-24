@@ -172,6 +172,20 @@ public partial class PhotoEditorView : UserControl
             {
                 UpdateLayerOverlayWorkspace();
                 DrawLayerSelection();
+
+                if (ToolSettingsBorder?.Visibility != Visibility.Visible ||
+                    ToolSettingsTabs?.SelectedIndex != CropToolIndex)
+                    return;
+
+                if (ViewModel?.SelectedLayer is { IsLocked: false })
+                {
+                    if (CropOverlay.Visibility != Visibility.Visible)
+                        BeginCropMode();
+                }
+                else if (CropOverlay.Visibility == Visibility.Visible)
+                {
+                    EndCropMode();
+                }
             });
 
         GpuPreview?.InvalidateVisual();
@@ -292,6 +306,8 @@ public partial class PhotoEditorView : UserControl
         LayerOverlay.Cursor = selectedTool == DrawToolIndex ? Cursors.Pen : Cursors.Arrow;
         ToolSettingsColumn.Width = new GridLength(280);
         ToolSettingsBorder.Visibility = Visibility.Visible;
+        if (selectedTool == CropToolIndex)
+            BeginCropMode();
     }
 
     private void OpenImageSize_Click(object sender, RoutedEventArgs e)
