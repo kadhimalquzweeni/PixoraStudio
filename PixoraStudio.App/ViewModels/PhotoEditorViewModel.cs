@@ -4,6 +4,7 @@ using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
 using SkiaSharp;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Collections.ObjectModel;
 using PixoraStudio.Core.Imaging;
@@ -756,6 +757,146 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             OperationError = $"Unable to add image layer: {ex.Message}";
         }
     }
+
+    public void CopyImageToClipboard()
+    {
+        try
+        {
+            BitmapSource clipboardImage;
+            if (SelectedLayer is { } layer)
+            {
+                using var renderedLayer = RenderLayerForClipboard(layer);
+                clipboardImage = ConvertToBitmapSource(renderedLayer);
+            }
+            else
+            {
+                if (_canvasBitmap is null) return;
+                BuildCpuPreview();
+                if (_processedBitmap is null) return;
+                clipboardImage = ConvertToBitmapSource(_processedBitmap);
+            }
+
+            Clipboard.SetImage(clipboardImage);
+            OperationError = null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+                                   OutOfMemoryException or ExternalException)
+        {
+            OperationError = $"Unable to copy image: {ex.Message}";
+        }
+    }
+
+    public void PasteImageFromClipboard()
+    {
+        if (_canvasBitmap is null) return;
+        CommitAdjustmentChange();
+        CommitLayerGeometryChange();
+
+        try
+        {
+            bool pastedImage = false;
+            if (Clipboard.ContainsFileDropList())
+            {
+                foreach (string filePath in Clipboard.GetFileDropList().Cast<string>())
+                {
+                    if (!File.Exists(filePath) || !IsSupportedClipboardImage(filePath))
+                        continue;
+
+                    try
+                    {
+                        var bitmap = _imageService.LoadImage(filePath);
+                        AddPastedImageLayer(Path.GetFileName(filePath), bitmap);
+                        pastedImage = true;
+                    }
+                    catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+                                               IOException or UnauthorizedAccessException or OutOfMemoryException)
+                    {
+                        OperationError = $"Unable to paste {Path.GetFileName(filePath)}: {ex.Message}";
+                    }
+                }
+            }
+
+            if (!pastedImage && Clipboard.ContainsImage())
+            {
+                var source = Clipboard.GetImage();
+                if (source is null) return;
+
+                using var stream = new MemoryStream();
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(source));
+                encoder.Save(stream);
+                stream.Position = 0;
+
+                var bitmap = SKBitmap.Decode(stream)
+                    ?? throw new InvalidOperationException("The clipboard image could not be decoded.");
+                AddPastedImageLayer("Pasted Image", bitmap);
+                pastedImage = true;
+            }
+
+            if (!pastedImage) return;
+            OperationError = null;
+            RefreshPreview();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+                                   IOException or UnauthorizedAccessException or OutOfMemoryException or
+                                   ExternalException)
+        {
+            OperationError = $"Unable to paste image: {ex.Message}";
+        }
+    }
+
+    private SKBitmap RenderLayerForClipboard(PhotoLayerViewModel layer)
+    {
+        var source = CreateLayerRenderBitmap(layer);
+        try
+        {
+            var adjustment = ShowOriginal
+                ? new ImageAdjustment()
+                : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
+            using var adjusted = _imageService.ApplyAdjustments(source, adjustment);
+            var rendered = new SKBitmap(Math.Max(1, layer.Width), Math.Max(1, layer.Height));
+            using (var canvas = new SKCanvas(rendered))
+            using (var paint = new SKPaint
+            {
+                Color = new SKColor(255, 255, 255, (byte)Math.Round(layer.Opacity * byte.MaxValue))
+            })
+            {
+                canvas.Clear(SKColors.Transparent);
+                canvas.DrawBitmap(adjusted, new SKRect(0, 0, rendered.Width, rendered.Height), paint);
+                canvas.Flush();
+            }
+            return rendered;
+        }
+        finally
+        {
+            if (!ReferenceEquals(source, layer.Bitmap))
+                source.Dispose();
+        }
+    }
+
+    private void AddPastedImageLayer(string name, SKBitmap bitmap)
+    {
+        if (_canvasBitmap is null)
+        {
+            bitmap.Dispose();
+            return;
+        }
+
+        var selected = SelectedLayer;
+        int x = selected is null ? (_canvasBitmap.Width - bitmap.Width) / 2 : selected.X + 16;
+        int y = selected is null ? (_canvasBitmap.Height - bitmap.Height) / 2 : selected.Y + 16;
+        var layer = CreateLayer(name, bitmap, x, y);
+        var history = CaptureLayerSnapshot(layer, isInLayerCollection: false,
+            layerIndex: 0, selectedLayer: SelectedLayer);
+        AttachLayer(layer);
+        AdditionalLayers.Insert(0, layer);
+        RecordLayerCollectionChange(history);
+        SelectedLayer = layer;
+    }
+
+    private static bool IsSupportedClipboardImage(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() is
+            ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp" or ".gif";
 
     [RelayCommand]
     private void RemoveLayer(PhotoLayerViewModel? layer)
