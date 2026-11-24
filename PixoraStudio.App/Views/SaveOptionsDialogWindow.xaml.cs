@@ -261,7 +261,9 @@ public partial class SaveOptionsDialogWindow : Window
     {
         if (!_canUsePixoraAi || PixoraAiUpscaleCheckBox.IsChecked != true)
         {
+            PixelArtUpscaleCheckBox.IsEnabled = _selectedFormat != SaveImageFormat.Icon;
             UpdateAiModelSelectorState();
+            UpdatePixelArtSelectorState();
             return;
         }
 
