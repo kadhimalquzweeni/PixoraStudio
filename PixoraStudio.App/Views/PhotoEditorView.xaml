@@ -29,6 +29,85 @@
                 </DrawingGroup>
             </DrawingBrush.Drawing>
         </DrawingBrush>
+        <DrawingBrush x:Key="CutoutBrushCheckerboard"
+                      TileMode="Tile"
+                      Viewport="0,0,16,16"
+                      ViewportUnits="Absolute"
+                      Viewbox="0,0,16,16"
+                      ViewboxUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#202226" Geometry="M0,0 H16 V16 H0 Z"/>
+                    <GeometryDrawing Brush="#303238">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="0,0,8,8"/>
+                                <RectangleGeometry Rect="8,8,8,8"/>
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+        <Style x:Key="CutoutSwitch" TargetType="CheckBox">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Width="36" Height="20">
+                            <Border x:Name="Track" Background="#3A3D42" CornerRadius="10"/>
+                            <Ellipse x:Name="Thumb" Width="14" Height="14" Fill="#C8CBD2"
+                                     HorizontalAlignment="Left" Margin="3,0,0,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="#00A0CA"/>
+                                <Setter TargetName="Thumb" Property="Fill" Value="White"/>
+                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Track" Property="Opacity" Value="0.5"/>
+                                <Setter TargetName="Thumb" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CutoutMagicSettings" TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CutoutTool}" Value="Magic">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CutoutBrushSettings" TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CutoutTool}" Value="Brush">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CutoutNonBrushSettings" TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CutoutTool}" Value="Select">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding CutoutTool}" Value="Magic">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding CutoutTool}" Value="Lasso">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="ToolButton" TargetType="Button">
             <Setter Property="Width" Value="48"/><Setter Property="Height" Value="48"/>
             <Setter Property="Margin" Value="2"/><Setter Property="Background" Value="Transparent"/>
@@ -466,27 +545,22 @@
                                                    Style="{StaticResource NoSelectedLayerHint}"
                                                    Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12"/>
                                         <StackPanel Style="{StaticResource SelectedLayerRequiredPanel}" IsEnabled="{Binding SelectedLayer.IsEditable}">
-                                            <Button Content="▣  AI Cutout" IsEnabled="False"
-                                                    ToolTip="AI cutout requires an AI service connection."
-                                                    Background="Transparent" BorderBrush="#AEB2BE"
-                                                    BorderThickness="1" Padding="12,9" Margin="2,8"/>
-
                                             <Border Background="#25272C" BorderBrush="#35383F" BorderThickness="1"
                                                     CornerRadius="8" Padding="10" Margin="0,2,0,10">
                                                 <StackPanel>
                                                     <TextBlock Text="Tool" FontWeight="SemiBold" Margin="2,0,2,6"/>
                                                     <UniformGrid Columns="4">
                                                         <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
-                                                                     Tag="Tool|Select" Content="▧" ToolTip="Shape selection"
+                                                                     Tag="Tool|Select" Content="▣" ToolTip="Shape selection"
                                                                      Checked="CutoutOption_Checked" IsChecked="True"/>
                                                         <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
-                                                                     Tag="Tool|Magic" Content="✣" ToolTip="Magic wand"
+                                                                     Tag="Tool|Magic" Content="✣" ToolTip="Magic cutout"
                                                                      Checked="CutoutOption_Checked"/>
                                                         <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
-                                                                     Tag="Tool|Brush" Content="✎" ToolTip="Brush selection"
+                                                                     Tag="Tool|Brush" Content="✎" ToolTip="Draw cutout"
                                                                      Checked="CutoutOption_Checked"/>
                                                         <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
-                                                                     Tag="Tool|Lasso" Content="◯" ToolTip="Lasso selection"
+                                                                     Tag="Tool|Lasso" Content="◯" ToolTip="Lasso cutout"
                                                                      Checked="CutoutOption_Checked"/>
                                                     </UniformGrid>
                                                     <TextBlock Text="Mode" FontWeight="SemiBold" Margin="2,8,2,4"/>
@@ -504,39 +578,75 @@
                                             <Border Background="#25272C" BorderBrush="#35383F" BorderThickness="1"
                                                     CornerRadius="8" Padding="10" Margin="0,0,0,10">
                                                 <StackPanel>
-                                                    <TextBlock Text="Shape" FontWeight="SemiBold" Margin="2,0,2,6"/>
-                                                    <UniformGrid Columns="3">
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
-                                                                     Tag="Shape|Rectangle" Content="□" ToolTip="Rectangle"
-                                                                     Checked="CutoutOption_Checked" IsChecked="True"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
-                                                                     Tag="Shape|Ellipse" Content="○" ToolTip="Ellipse"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
-                                                                     Tag="Shape|Triangle" Content="△" ToolTip="Triangle"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
-                                                                     Tag="Shape|Star" Content="☆" ToolTip="Star"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
-                                                                     Tag="Shape|Heart" Content="♡" ToolTip="Heart"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
-                                                                     Tag="Shape|Line" Content="╱" ToolTip="Line"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                    </UniformGrid>
-                                                    <TextBlock Text="Softness" FontWeight="SemiBold" Margin="2,10,2,4"/>
-                                                    <UniformGrid Columns="3">
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
-                                                                     Tag="Softness|None" Content="NONE"
-                                                                     Checked="CutoutOption_Checked" IsChecked="True"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
-                                                                     Tag="Softness|Light" Content="LIGHT"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
-                                                                     Tag="Softness|Medium" Content="MEDIUM"
-                                                                     Checked="CutoutOption_Checked"/>
-                                                    </UniformGrid>
+                                                    <StackPanel Style="{StaticResource CutoutMagicSettings}">
+                                                        <DockPanel Margin="2,0,2,5">
+                                                            <TextBlock Text="Tolerance" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding CutoutTolerance}" DockPanel.Dock="Right"/>
+                                                        </DockPanel>
+                                                        <Slider Minimum="0" Maximum="100" TickFrequency="1"
+                                                                IsMoveToPointEnabled="True"
+                                                                Value="{Binding CutoutTolerance, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Style="{StaticResource CutoutNonBrushSettings}">
+                                                        <TextBlock Text="Softness" FontWeight="SemiBold" Margin="2,8,2,4"/>
+                                                        <UniformGrid Columns="3">
+                                                            <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
+                                                                         Tag="Softness|None" Content="NONE"
+                                                                         Checked="CutoutOption_Checked" IsChecked="True"/>
+                                                            <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
+                                                                         Tag="Softness|Light" Content="LIGHT"
+                                                                         Checked="CutoutOption_Checked"/>
+                                                            <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
+                                                                         Tag="Softness|Medium" Content="MEDIUM"
+                                                                         Checked="CutoutOption_Checked"/>
+                                                        </UniformGrid>
+                                                    </StackPanel>
+
+                                                    <StackPanel Style="{StaticResource CutoutBrushSettings}">
+                                                        <TextBlock Text="Brush" FontWeight="SemiBold" Margin="2,0,2,6"/>
+                                                        <Border Height="88" Margin="2,0,2,8" CornerRadius="4"
+                                                                Background="{StaticResource CutoutBrushCheckerboard}"
+                                                                ClipToBounds="True">
+                                                            <Grid>
+                                                                <Ellipse Width="{Binding CutoutBrushSize}" Height="{Binding CutoutBrushSize}"
+                                                                         MaxWidth="72" MaxHeight="72"
+                                                                         Fill="#31E83F" HorizontalAlignment="Center"
+                                                                         VerticalAlignment="Center" Opacity="0.9">
+                                                                    <Ellipse.Effect>
+                                                                        <DropShadowEffect Color="#24FF3B" BlurRadius="16"
+                                                                                          ShadowDepth="0" Opacity="0.95"/>
+                                                                    </Ellipse.Effect>
+                                                                </Ellipse>
+                                                            </Grid>
+                                                        </Border>
+                                                        <DockPanel Margin="2,3,2,0">
+                                                            <TextBlock Text="Size" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding CutoutBrushSize, StringFormat={}{0:F0}px}"
+                                                                       DockPanel.Dock="Right"/>
+                                                        </DockPanel>
+                                                        <Slider Minimum="1" Maximum="100" TickFrequency="1"
+                                                                IsMoveToPointEnabled="True"
+                                                                Value="{Binding CutoutBrushSize, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <DockPanel Margin="2,8,2,0">
+                                                            <TextBlock Text="Softness" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding CutoutBrushSoftness, StringFormat={}{0:F0}%}"
+                                                                       DockPanel.Dock="Right"/>
+                                                        </DockPanel>
+                                                        <Slider Minimum="0" Maximum="100" TickFrequency="1"
+                                                                IsMoveToPointEnabled="True"
+                                                                Value="{Binding CutoutBrushSoftness, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Style="{StaticResource CutoutMagicSettings}">
+                                                        <DockPanel Margin="2,10,2,0">
+                                                            <TextBlock Text="Contiguous" FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center"/>
+                                                            <CheckBox Style="{StaticResource CutoutSwitch}"
+                                                                      IsChecked="{Binding CutoutContiguous}"
+                                                                      DockPanel.Dock="Right"/>
+                                                        </DockPanel>
+                                                    </StackPanel>
                                                 </StackPanel>
                                             </Border>
 
@@ -545,23 +655,24 @@
                                                 <StackPanel>
                                                     <DockPanel Margin="2,0,2,8">
                                                         <TextBlock Text="Hint removed" FontWeight="SemiBold"/>
-                                                        <CheckBox IsChecked="{Binding CutoutHintRemoved}"
+                                                        <CheckBox Style="{StaticResource CutoutSwitch}"
+                                                                  IsChecked="{Binding CutoutHintRemoved}"
                                                                   Checked="CutoutHintRemoved_Changed"
                                                                   Unchecked="CutoutHintRemoved_Changed"
-                                                                  HorizontalAlignment="Right" DockPanel.Dock="Right"/>
+                                                                  DockPanel.Dock="Right"/>
                                                     </DockPanel>
                                                     <Button Content="Invert cutout" Click="InvertCutout_Click"
                                                             IsEnabled="{Binding HasCutoutSelection}"
                                                             Background="Transparent" BorderBrush="#AEB2BE"
-                                                            BorderThickness="1" Padding="10,7"/>
+                                                            BorderThickness="1" Padding="10,7" Margin="0,4"/>
                                                     <Button Content="Reset cutout" Click="ResetCutout_Click"
                                                             IsEnabled="{Binding HasCutoutSelection}"
                                                             Background="Transparent" BorderBrush="#AEB2BE"
-                                                            BorderThickness="1" Padding="10,7"/>
+                                                            BorderThickness="1" Padding="10,7" Margin="0,4"/>
                                                     <Button Content="Apply cutout" Click="ApplyCutout_Click"
                                                             IsEnabled="{Binding HasCutoutSelection}"
                                                             Background="Transparent" BorderBrush="#AEB2BE"
-                                                            BorderThickness="1" Padding="10,7"/>
+                                                            BorderThickness="1" Padding="10,7" Margin="0,4"/>
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
