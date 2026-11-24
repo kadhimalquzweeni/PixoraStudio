@@ -28,6 +28,8 @@ public partial class PhotoEditorView : UserControl
     private Rect _layerBoundsAtDragStart;
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
+    private Point _layerListDragStart;
+    private PhotoLayerViewModel? _layerListDragSource;
     private bool _gpuRenderingDisabled = string.Equals(
         Environment.GetEnvironmentVariable("PIXORA_DISABLE_GPU_PREVIEW"), "1",
         StringComparison.Ordinal);
@@ -436,6 +438,53 @@ public partial class PhotoEditorView : UserControl
         e.Handled = true;
     }
 
+    private void LayerItem_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed ||
+            sender is not FrameworkElement { DataContext: PhotoLayerViewModel layer })
+            return;
+
+        var point = e.GetPosition(this);
+        if (_layerListDragSource is null)
+        {
+            _layerListDragSource = layer;
+            _layerListDragStart = point;
+            return;
+        }
+
+        if (!ReferenceEquals(_layerListDragSource, layer))
+            return;
+
+        if (Math.Abs(point.X - _layerListDragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(point.Y - _layerListDragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
+            return;
+
+        _layerListDragSource = null;
+        var data = new DataObject(typeof(PhotoLayerViewModel), layer);
+        DragDrop.DoDragDrop((DependencyObject)sender, data, DragDropEffects.Move);
+    }
+
+    private void LayerItem_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(typeof(PhotoLayerViewModel))
+            ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void LayerItem_Drop(object sender, DragEventArgs e)
+    {
+        if (ViewModel is not { } vm ||
+            sender is not FrameworkElement { DataContext: PhotoLayerViewModel target } ||
+            e.Data.GetData(typeof(PhotoLayerViewModel)) is not PhotoLayerViewModel source)
+            return;
+
+        int oldIndex = vm.AdditionalLayers.IndexOf(source);
+        int newIndex = vm.AdditionalLayers.IndexOf(target);
+        if (oldIndex >= 0 && newIndex >= 0)
+            vm.MoveLayer(oldIndex, newIndex);
+        e.Handled = true;
+    }
+
     private void LayerOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (ViewModel is not { IsImageLoaded: true } vm || CropOverlay.Visibility == Visibility.Visible) return;
@@ -467,6 +516,12 @@ public partial class PhotoEditorView : UserControl
         point = new Point(
             overlayPoint.X,
             overlayPoint.Y);
+        if (selected!.IsLocked)
+        {
+            DrawLayerSelection();
+            return;
+        }
+
         _layerBoundsAtDragStart = new Rect(selected!.X, selected.Y, selected.Width, selected.Height);
         _layerSelection = _layerBoundsAtDragStart;
         _layerDragStart = point;
