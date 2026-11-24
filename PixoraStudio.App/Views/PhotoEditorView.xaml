@@ -276,6 +276,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,10"/>
@@ -304,6 +305,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,10"/>
@@ -332,6 +334,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,10"/>
@@ -360,6 +363,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,10"/>
@@ -388,6 +392,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,10"/>
@@ -416,6 +421,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,10"/>
@@ -444,6 +450,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,10"/>
@@ -472,6 +479,7 @@
                                                 PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
                                                 PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
                                                 PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                GotKeyboardFocus="AdjustmentSlider_GotKeyboardFocus"
                                                 LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
                                                 LostMouseCapture="AdjustmentSlider_LostMouseCapture"
                                                 Margin="0,0,0,12"/>
