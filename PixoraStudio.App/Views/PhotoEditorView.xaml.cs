@@ -524,9 +524,6 @@ public partial class PhotoEditorView : UserControl
             case "Brush":
                 viewModel.CreateCutoutBrushSelection(_cutoutStrokePoints, brushRadius);
                 break;
-            case "Lasso":
-                viewModel.CreateCutoutLassoSelection(_cutoutStrokePoints);
-                break;
             default:
                 viewModel.CreateCutoutShapeSelection(bounds);
                 break;
