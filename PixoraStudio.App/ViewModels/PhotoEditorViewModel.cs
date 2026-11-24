@@ -142,7 +142,12 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         RefreshPreview();
     }
 
-    private ImageAdjustment GetCurrentAdjustment() => new()
+    private ImageAdjustment GetCurrentAdjustment()
+    {
+        if (SelectedLayer is { IsLocked: true } lockedLayer)
+            return lockedLayer.Adjustment;
+
+        return new ImageAdjustment
     {
         Brightness = Brightness,
         Contrast = Contrast,
@@ -153,7 +158,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         Temperature = Temperature,
         Tint = Tint,
         Filter = SelectedFilter
-    };
+        };
+    }
 
     private void SaveUndoState()
     {
@@ -834,7 +840,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ResetAdjustments()
     {
-        if (!IsImageLoaded || SelectedLayer is null) return;
+        if (!IsImageLoaded || SelectedLayer is null || SelectedLayer.IsLocked) return;
         var current = GetCurrentAdjustment();
         if (current.Brightness == 0f && current.Contrast == 1f &&
             current.Saturation == 1f && current.Exposure == 0f &&
