@@ -22,11 +22,13 @@ public partial class SaveOptionsDialogWindow : Window
     private readonly int _sourceHeight;
     private readonly double _aspectRatio;
     private readonly bool _hasTransparency;
+    private readonly bool _canUsePixoraAi;
     private bool _isUpdatingDimensions;
     private bool _isInitialized;
     private SaveImageFormat _selectedFormat = SaveImageFormat.Jpg;
 
     public SaveImageFormat SelectedFormat => _selectedFormat;
+    public bool UsePixoraAiUpscaling => _canUsePixoraAi && PixoraAiUpscaleCheckBox.IsChecked == true;
     public int OutputWidth => int.Parse(WidthTextBox.Text);
     public int OutputHeight => int.Parse(HeightTextBox.Text);
     public int Quality => (int)Math.Round(QualitySlider.Value);
@@ -44,10 +46,15 @@ public partial class SaveOptionsDialogWindow : Window
     ];
 
     public SaveOptionsDialogWindow(BitmapSource preview, int width, int height,
-        string initialFolder, string initialName, bool hasTransparency)
+        string initialFolder, string initialName, bool hasTransparency, bool canUsePixoraAi = false)
     {
         InitializeComponent();
         _hasTransparency = hasTransparency;
+        _canUsePixoraAi = canUsePixoraAi;
+        PixoraAiUpscaleCheckBox.IsEnabled = canUsePixoraAi;
+        PixoraAiUpscaleHint.Text = canUsePixoraAi
+            ? "Runs locally using your Pixora model. 4x results are limited to 32 megapixels."
+            : "Train a local Pixora model first to enable AI upscaling.";
         if (_hasTransparency)
             _selectedFormat = SaveImageFormat.Png;
         _sourceWidth = Math.Max(1, width);
@@ -104,6 +111,9 @@ public partial class SaveOptionsDialogWindow : Window
         SetCardState(IconCard, _selectedFormat == SaveImageFormat.Icon);
         JpgCard.IsEnabled = !_hasTransparency;
         BmpCard.IsEnabled = !_hasTransparency;
+        PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi && _selectedFormat != SaveImageFormat.Icon;
+        if (_selectedFormat == SaveImageFormat.Icon)
+            PixoraAiUpscaleCheckBox.IsChecked = false;
         JpgCard.Opacity = _hasTransparency ? 0.45 : 1;
         BmpCard.Opacity = _hasTransparency ? 0.45 : 1;
         TransparencyHint.Visibility = _hasTransparency ? Visibility.Visible : Visibility.Collapsed;
@@ -167,6 +177,7 @@ public partial class SaveOptionsDialogWindow : Window
         if (sender is not RadioButton { Tag: string preset } ||
             !int.TryParse(preset, out int multiplier))
         {
+            PixoraAiUpscaleCheckBox.IsChecked = false;
             UpdatePreviewDescription();
             return;
         }
@@ -174,9 +185,12 @@ public partial class SaveOptionsDialogWindow : Window
         if (!FitsOutputLimit(multiplier))
         {
             CustomScaleRadioButton.IsChecked = true;
+            PixoraAiUpscaleCheckBox.IsChecked = false;
             return;
         }
 
+        if (multiplier != 4)
+            PixoraAiUpscaleCheckBox.IsChecked = false;
         _isUpdatingDimensions = true;
         WidthTextBox.Text = (_sourceWidth * multiplier).ToString();
         HeightTextBox.Text = (_sourceHeight * multiplier).ToString();
@@ -188,12 +202,33 @@ public partial class SaveOptionsDialogWindow : Window
         _sourceWidth <= 16384 / multiplier &&
         _sourceHeight <= 16384 / multiplier;
 
+    private void PixoraAiUpscale_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_canUsePixoraAi || PixoraAiUpscaleCheckBox.IsChecked != true)
+            return;
+
+        if (!FitsOutputLimit(4))
+        {
+            PixoraAiUpscaleCheckBox.IsChecked = false;
+            ShowValidation("Pixora AI's 4x output would exceed the 16,384 pixel dimension limit.");
+            return;
+        }
+
+        FourXScaleRadioButton.IsChecked = true;
+        _isUpdatingDimensions = true;
+        WidthTextBox.Text = (_sourceWidth * 4).ToString();
+        HeightTextBox.Text = (_sourceHeight * 4).ToString();
+        _isUpdatingDimensions = false;
+        UpdatePreviewDescription();
+    }
+
     private void DimensionsTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (!_isInitialized || _isUpdatingDimensions)
             return;
 
         CustomScaleRadioButton.IsChecked = true;
+        PixoraAiUpscaleCheckBox.IsChecked = false;
         UpdatePreviewDescription();
     }
 

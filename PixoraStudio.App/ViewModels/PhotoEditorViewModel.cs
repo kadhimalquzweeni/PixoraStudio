@@ -19,6 +19,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 {
     private const int MaximumHistoryEntries = 50;
     private readonly IImageProcessingService _imageService;
+    private readonly IAiUpscalingService? _aiUpscalingService;
     private readonly Stack<EditorSnapshot> _undoStack = new();
     private readonly Stack<EditorSnapshot> _redoStack = new();
     private readonly HashSet<PhotoLayerViewModel> _detachedLayers = new();
@@ -91,7 +92,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool cutoutInverted;
     private byte[]? _cutoutSelectionMask;
 
-    public PhotoEditorViewModel(IImageProcessingService imageService) => _imageService = imageService;
+    public PhotoEditorViewModel(IImageProcessingService imageService, IAiUpscalingService? aiUpscalingService = null)
+    {
+        _imageService = imageService;
+        _aiUpscalingService = aiUpscalingService;
+    }
 
     public void CreateCanvas(int width, int height, SKColor backgroundColor)
     {
@@ -1702,7 +1707,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void SaveImage()
+    private async Task SaveImage()
     {
         if (_canvasBitmap is null) return;
         BuildCpuPreview();
@@ -1718,7 +1723,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             : Path.GetFileNameWithoutExtension(ImagePath);
         var dialog = new SaveOptionsDialogWindow(
             preview, processedBitmap.Width, processedBitmap.Height,
-            initialFolder, $"{baseName}-Edited", HasTransparency(processedBitmap));
+            initialFolder, $"{baseName}-Edited", HasTransparency(processedBitmap),
+            _aiUpscalingService?.IsModelAvailable == true);
         if (Application.Current?.MainWindow is Window owner)
             dialog.Owner = owner;
         if (dialog.ShowDialog() != true) return;
@@ -1744,6 +1750,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         }
 
         SKBitmap? resizedBitmap = null;
+        SKBitmap? aiUpscaledBitmap = null;
+        AiUpscaleProgressWindow? progressWindow = null;
         try
         {
             if (dialog.SelectedFormat == SaveImageFormat.Icon)
@@ -1755,8 +1763,27 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             else
             {
                 SKBitmap outputBitmap = processedBitmap;
-                if (dialog.OutputWidth != processedBitmap.Width ||
-                    dialog.OutputHeight != processedBitmap.Height)
+                if (dialog.UsePixoraAiUpscaling)
+                {
+                    if (_aiUpscalingService is null || !_aiUpscalingService.IsModelAvailable)
+                        throw new InvalidOperationException(
+                            "Train Pixora's local AI upscaler and restart the app before using this option.");
+
+                    progressWindow = new AiUpscaleProgressWindow();
+                    if (Application.Current?.MainWindow is Window progressOwner)
+                        progressWindow.Owner = progressOwner;
+                    progressWindow.Show();
+                    var progress = new Progress<AiUpscaleProgress>(update =>
+                    {
+                        if (progressWindow?.IsVisible == true)
+                            progressWindow.UpdateProgress(update);
+                    });
+                    aiUpscaledBitmap = await _aiUpscalingService.UpscaleFourTimesAsync(
+                        processedBitmap, progress);
+                    outputBitmap = aiUpscaledBitmap;
+                }
+                else if (dialog.OutputWidth != processedBitmap.Width ||
+                         dialog.OutputHeight != processedBitmap.Height)
                 {
                     resizedBitmap = _imageService.Resize(
                         processedBitmap, dialog.OutputWidth, dialog.OutputHeight);
@@ -1778,14 +1805,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
             OperationError = null;
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
-                                   IOException or UnauthorizedAccessException or OutOfMemoryException or
-                                   NotSupportedException)
+        catch (Exception ex)
         {
             OperationError = $"Unable to save image: {ex.Message}";
         }
         finally
         {
+            progressWindow?.Close();
+            aiUpscaledBitmap?.Dispose();
             resizedBitmap?.Dispose();
         }
     }

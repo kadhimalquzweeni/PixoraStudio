@@ -237,6 +237,18 @@
                                                      TextChanged="DimensionsTextBox_TextChanged"/>
                                         </StackPanel>
                                     </UniformGrid>
+                                    <CheckBox x:Name="PixoraAiUpscaleCheckBox"
+                                              Content="Use Pixora AI (4×)"
+                                              IsEnabled="False"
+                                              Foreground="#D4D4D4"
+                                              Margin="2,10,2,2"
+                                              Click="PixoraAiUpscale_Click"/>
+                                    <TextBlock x:Name="PixoraAiUpscaleHint"
+                                               Text="Train a local Pixora model first."
+                                               Foreground="#9C9C9C"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               Margin="3,0,3,0"/>
                                 </StackPanel>
 
                                 <StackPanel x:Name="IconSizesPanel" Visibility="Collapsed" Margin="0,10,0,0">
