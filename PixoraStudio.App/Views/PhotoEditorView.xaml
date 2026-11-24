@@ -186,10 +186,12 @@
             <Border Grid.Column="1" x:Name="ToolSettingsBorder" Background="#24262B" BorderBrush="#35383F" BorderThickness="0,0,1,0" Visibility="Collapsed">
                 <Grid x:Name="ToolSettingsPanel" Margin="14">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" Margin="0,0,0,14">
-                        <TextBlock Text="TOOLS" FontSize="13" FontWeight="Bold" Foreground="#8E949F" VerticalAlignment="Center"/>
-                        <Button Content="×" Width="28" Height="26" Padding="0" DockPanel.Dock="Right" Background="Transparent" BorderThickness="0" Foreground="#AEB2BE" Click="CloseToolSettings_Click"/>
-                    </DockPanel>
+                    <Grid Grid.Row="0" Margin="0,0,0,14">
+                        <Button Content="×" Width="28" Height="26" Padding="0"
+                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                Background="Transparent" BorderThickness="0" Foreground="#AEB2BE"
+                                ToolTip="Close tools panel" Click="CloseToolSettings_Click"/>
+                    </Grid>
                     <Grid Grid.Row="1">
                         <TabControl x:Name="ToolSettingsTabs" SelectedIndex="0" Background="Transparent" BorderThickness="0">
 
