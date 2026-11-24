@@ -321,7 +321,12 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         while (stack.Count > MaximumHistoryEntries)
         {
             var retained = stack.Reverse().Skip(Math.Max(0, stack.Count - MaximumHistoryEntries)).ToArray();
-            ClearStack(stack);
+            var retainedSet = retained.ToHashSet();
+            while (stack.TryPop(out var entry))
+            {
+                if (!retainedSet.Contains(entry))
+                    entry.Dispose();
+            }
             foreach (var entry in retained) stack.Push(entry);
         }
         DisposeUnreferencedDetachedLayers();
@@ -342,10 +347,16 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 continue;
             }
 
-            bool isReferenced = _undoStack.Any(snapshot => ReferenceEquals(snapshot.Layer, layer)) ||
-                                _redoStack.Any(snapshot => ReferenceEquals(snapshot.Layer, layer)) ||
+            bool isReferenced = _undoStack.Any(snapshot =>
+                                    ReferenceEquals(snapshot.Layer, layer) ||
+                                    ReferenceEquals(snapshot.SelectedLayerAtCapture, layer)) ||
+                                _redoStack.Any(snapshot =>
+                                    ReferenceEquals(snapshot.Layer, layer) ||
+                                    ReferenceEquals(snapshot.SelectedLayerAtCapture, layer)) ||
                                 ReferenceEquals(_pendingLayerGeometrySnapshot?.Layer, layer) ||
-                                ReferenceEquals(_pendingAdjustmentSnapshot?.Layer, layer);
+                                ReferenceEquals(_pendingLayerGeometrySnapshot?.SelectedLayerAtCapture, layer) ||
+                                ReferenceEquals(_pendingAdjustmentSnapshot?.Layer, layer) ||
+                                ReferenceEquals(_pendingAdjustmentSnapshot?.SelectedLayerAtCapture, layer);
             if (isReferenced) continue;
 
             _detachedLayers.Remove(layer);
@@ -688,6 +699,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private void AddLayer()
     {
         if (_canvasBitmap is null) return;
+        CommitAdjustmentChange();
+        CommitLayerGeometryChange();
         var type = AddLayerDialogWindow.Show(System.Windows.Application.Current?.MainWindow);
         if (type is null) return;
         if (type == PhotoLayerContentType.Image) { AddImageLayer(); return; }
@@ -704,7 +717,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             layer.TextContent = "Your text"; layer.FontSize = 64;
             layer.FillColor = "#FFFFFFFF"; layer.StrokeColor = "#FF202020";
             layer.StrokeWidth = type == PhotoLayerContentType.Frame ? 8 : 0;
-            var history = CaptureLayerSnapshot(layer, isInLayerCollection: false, layerIndex: 0, SelectedLayer);
+            var history = CaptureLayerSnapshot(layer, isInLayerCollection: false, layerIndex: 0, selectedLayer: SelectedLayer);
             AttachLayer(layer);
             AdditionalLayers.Insert(0, layer);
             RecordLayerCollectionChange(history);
@@ -720,6 +733,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private void AddImageLayer()
     {
         if (_canvasBitmap is null) return;
+        CommitAdjustmentChange();
+        CommitLayerGeometryChange();
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Add image layer",
@@ -759,7 +774,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
         int layerIndex = AdditionalLayers.IndexOf(layer);
         bool removingSelected = ReferenceEquals(SelectedLayer, layer);
-        var history = CaptureLayerSnapshot(layer, isInLayerCollection: true, layerIndex, SelectedLayer);
+        var history = CaptureLayerSnapshot(layer, isInLayerCollection: true, layerIndex, selectedLayer: SelectedLayer);
 
         if (!AdditionalLayers.Remove(layer))
         {
@@ -782,6 +797,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         if (layer is null || !AdditionalLayers.Contains(layer) || _canvasBitmap is null)
             return;
 
+        CommitAdjustmentChange();
+        CommitLayerGeometryChange();
         try
         {
             var duplicate = CreateLayer($"{layer.Name} Copy", _imageService.CloneImage(layer.Bitmap),
@@ -806,7 +823,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             duplicate.StrokeColor = layer.StrokeColor; duplicate.StrokeWidth = layer.StrokeWidth;
             duplicate.ShapeType = layer.ShapeType;
             int insertIndex = AdditionalLayers.IndexOf(layer);
-            var history = CaptureLayerSnapshot(duplicate, isInLayerCollection: false, insertIndex, SelectedLayer);
+            var history = CaptureLayerSnapshot(duplicate, isInLayerCollection: false, layerIndex: insertIndex, selectedLayer: SelectedLayer);
             AttachLayer(duplicate);
             AdditionalLayers.Insert(insertIndex, duplicate);
             RecordLayerCollectionChange(history);
@@ -1104,6 +1121,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         SetDefaultAdjustments();
         if (SelectedLayer is not null) SelectedLayer.Adjustment = GetCurrentAdjustment();
         ClearStack(_redoStack);
+        DisposeUnreferencedDetachedLayers();
         UpdateHistoryState();
         RefreshPreview();
     }
