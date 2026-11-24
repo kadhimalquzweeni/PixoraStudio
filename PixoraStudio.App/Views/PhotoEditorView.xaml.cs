@@ -477,6 +477,50 @@ public partial class PhotoEditorView : UserControl
         e.Handled = true;
     }
 
+    private void LayerProperties_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: PhotoLayerViewModel layer } ||
+            ViewModel is not { } vm)
+            return;
+
+        var shouldOpen = !layer.IsPropertiesOpen;
+        foreach (var item in vm.AdditionalLayers)
+            item.IsPropertiesOpen = false;
+
+        vm.SelectLayer(layer);
+        layer.IsPropertiesOpen = shouldOpen;
+        e.Handled = true;
+    }
+
+    private void CloseLayerProperties_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PhotoLayerViewModel layer })
+            layer.IsPropertiesOpen = false;
+        e.Handled = true;
+    }
+
+    private void DuplicateLayerFromPopup_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PhotoLayerViewModel layer } &&
+            ViewModel is { } vm)
+        {
+            layer.IsPropertiesOpen = false;
+            vm.DuplicateLayerCommand.Execute(layer);
+        }
+        e.Handled = true;
+    }
+
+    private void RemoveLayerFromPopup_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PhotoLayerViewModel layer } &&
+            ViewModel is { } vm)
+        {
+            layer.IsPropertiesOpen = false;
+            vm.RemoveLayerCommand.Execute(layer);
+        }
+        e.Handled = true;
+    }
+
     private void LayerItem_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (e.OriginalSource is Slider or TextBox or System.Windows.Controls.Primitives.ButtonBase ||
