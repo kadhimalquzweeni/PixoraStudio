@@ -214,7 +214,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     private EditorSnapshot CaptureLayerSnapshot(PhotoLayerViewModel layer, ImageAdjustment adjustment,
         bool isInLayerCollection, int layerIndex, PhotoLayerViewModel? selectedLayer) =>
         new(layer, _imageService.CloneImage(layer.Bitmap), adjustment,
-            layer.X, layer.Y, layer.Width, layer.Height,
+            layer.Name, layer.Opacity, layer.X, layer.Y, layer.Width, layer.Height,
             isInLayerCollection, layerIndex, selectedLayer);
 
     public void BeginAdjustmentChange()
@@ -299,7 +299,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         _pendingLayerGeometrySnapshot = null;
         var layer = snapshot.Layer;
         bool changed = layer.X != snapshot.X || layer.Y != snapshot.Y ||
-                       layer.Width != snapshot.Width || layer.Height != snapshot.Height;
+                       layer.Width != snapshot.Width || layer.Height != snapshot.Height ||
+                       layer.Name != snapshot.Name || layer.Opacity != snapshot.Opacity;
         if (!changed)
         {
             snapshot.Dispose();
@@ -424,6 +425,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
             layer.ReplaceBitmap(_imageService.CloneImage(snapshot.Bitmap), ignoreLock: true);
             layer.SetBounds(snapshot.X, snapshot.Y, snapshot.Width, snapshot.Height, ignoreLock: true);
+            layer.Name = snapshot.Name;
+            layer.Opacity = snapshot.Opacity;
             layer.Adjustment = snapshot.Adjustment;
 
             if (ReferenceEquals(SelectedLayer, layer))
@@ -1217,6 +1220,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     partial void OnSelectedLayerChanged(PhotoLayerViewModel? value)
     {
         CommitAdjustmentChange();
+        CommitLayerGeometryChange();
         if (_adjustmentLayer is not null)
             _adjustmentLayer.Adjustment = GetAdjustmentValues();
         _adjustmentLayer = value;
@@ -1457,10 +1461,12 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     }
 
     private sealed class EditorSnapshot(PhotoLayerViewModel layer, SKBitmap bitmap,
-        ImageAdjustment adjustment, int x, int y, int width, int height,
+        ImageAdjustment adjustment, string name, float opacity, int x, int y, int width, int height,
         bool isInLayerCollection, int layerIndex, PhotoLayerViewModel? selectedLayerAtCapture) : IDisposable
     {
         public PhotoLayerViewModel Layer { get; } = layer;
+        public string Name { get; } = name;
+        public float Opacity { get; } = opacity;
         public int X { get; } = x;
         public int Y { get; } = y;
         public int Width { get; } = width;
