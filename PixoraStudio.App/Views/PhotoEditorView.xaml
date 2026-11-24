@@ -3,7 +3,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:PixoraStudio.App.Controls"
     DataContextChanged="PhotoEditorView_DataContextChanged"
-    Loaded="PhotoEditorView_Loaded">
+    Loaded="PhotoEditorView_Loaded"
+    PreviewMouseDown="PhotoEditorView_PreviewMouseDown">
     <UserControl.Resources>
         <DrawingBrush x:Key="TransparencyCheckerboard"
                       TileMode="Tile"
@@ -271,7 +272,30 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
                                         <TextBlock Text="Text" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                        <TextBlock Text="Select a text layer to edit its typography." Foreground="#AEB2BE"
+                                                   TextWrapping="Wrap" Margin="2,4,2,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedLayer.IsTextLayer}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <StackPanel IsEnabled="{Binding SelectedLayer.IsEditable}">
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedLayer.IsTextLayer}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
                                             <TextBlock Text="Text content" FontSize="10" Foreground="#AEB2BE"/>
                                             <TextBox Text="{Binding SelectedLayer.TextContent, UpdateSourceTrigger=PropertyChanged}"
                                                      AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" Margin="0,2,0,10"/>
@@ -280,12 +304,40 @@
                                                 <ComboBoxItem Content="Left"/><ComboBoxItem Content="Center"/><ComboBoxItem Content="Right"/>
                                             </ComboBox>
                                             <TextBlock Text="Font family" FontSize="10" Foreground="#AEB2BE"/>
-                                            <TextBox Text="{Binding SelectedLayer.FontFamily, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,10"/>
+                                            <ComboBox ItemsSource="{Binding FontFamilies}" IsEditable="True" IsTextSearchEnabled="True"
+                                                      StaysOpenOnEdit="True"
+                                                      Text="{Binding SelectedLayer.FontFamily, UpdateSourceTrigger=LostFocus}"
+                                                      Margin="0,2,0,10"/>
                                             <DockPanel>
                                                 <TextBlock Text="Font size" Foreground="#AEB2BE" FontSize="10"/>
-                                                <TextBlock Text="{Binding SelectedLayer.FontSize, StringFormat={}{0:0}}" Foreground="#AEB2BE" FontSize="10" DockPanel.Dock="Right"/>
+                                                <TextBlock Text="{Binding SelectedLayer.FontSize, StringFormat={}{0:0}}"
+                                                           Foreground="#AEB2BE" FontSize="10" DockPanel.Dock="Right"/>
                                             </DockPanel>
-                                            <Slider Minimum="1" Maximum="256" Value="{Binding SelectedLayer.FontSize}" Margin="0,2,0,5"/>
+                                            <Slider Minimum="1" Maximum="256" Value="{Binding SelectedLayer.FontSize}" Margin="0,2,0,8"/>
+                                            <TextBlock Text="Text fill colour" FontSize="10" Foreground="#AEB2BE"/>
+                                            <Button Click="PickFillColor_Click" HorizontalContentAlignment="Stretch" Margin="2,2,2,10">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Width="22" Height="22" Background="{Binding SelectedLayer.FillColor}"
+                                                            BorderBrush="#737783" BorderThickness="1" CornerRadius="3"/>
+                                                    <TextBlock Text="{Binding SelectedLayer.FillColor}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Choose" Foreground="#8BC5FF" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock Text="Text stroke colour" FontSize="10" Foreground="#AEB2BE"/>
+                                            <Button Click="PickStrokeColor_Click" HorizontalContentAlignment="Stretch" Margin="2,2,2,10">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Width="22" Height="22" Background="{Binding SelectedLayer.StrokeColor}"
+                                                            BorderBrush="#737783" BorderThickness="1" CornerRadius="3"/>
+                                                    <TextBlock Text="{Binding SelectedLayer.StrokeColor}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Choose" Foreground="#8BC5FF" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <DockPanel>
+                                                <TextBlock Text="Stroke width" Foreground="#AEB2BE" FontSize="10"/>
+                                                <TextBlock Text="{Binding SelectedLayer.StrokeWidth, StringFormat={}{0:0}}"
+                                                           Foreground="#AEB2BE" FontSize="10" DockPanel.Dock="Right"/>
+                                            </DockPanel>
+                                            <Slider Minimum="0" Maximum="64" Value="{Binding SelectedLayer.StrokeWidth}" Margin="0,2,0,5"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -294,18 +346,56 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
                                         <TextBlock Text="Shapes" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                        <TextBlock Text="Select a shape layer to edit its appearance." Foreground="#AEB2BE"
+                                                   TextWrapping="Wrap" Margin="2,4,2,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedLayer.IsShapeLayer}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <StackPanel IsEnabled="{Binding SelectedLayer.IsEditable}">
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedLayer.IsShapeLayer}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
                                             <TextBlock Text="Shape" FontSize="10" Foreground="#AEB2BE"/>
                                             <ComboBox SelectedValue="{Binding SelectedLayer.ShapeType}" SelectedValuePath="Content" Margin="0,2,0,10">
                                                 <ComboBoxItem Content="Rectangle"/><ComboBoxItem Content="Ellipse"/><ComboBoxItem Content="Line"/><ComboBoxItem Content="Arrow"/>
                                             </ComboBox>
-                                            <TextBlock Text="Fill colour (hex)" FontSize="10" Foreground="#AEB2BE"/>
-                                            <TextBox Text="{Binding SelectedLayer.FillColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,10"/>
-                                            <TextBlock Text="Stroke colour (hex)" FontSize="10" Foreground="#AEB2BE"/>
-                                            <TextBox Text="{Binding SelectedLayer.StrokeColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,10"/>
+                                            <TextBlock Text="Fill colour" FontSize="10" Foreground="#AEB2BE"/>
+                                            <Button Click="PickFillColor_Click" HorizontalContentAlignment="Stretch" Margin="2,2,2,10">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Width="22" Height="22" Background="{Binding SelectedLayer.FillColor}"
+                                                            BorderBrush="#737783" BorderThickness="1" CornerRadius="3"/>
+                                                    <TextBlock Text="{Binding SelectedLayer.FillColor}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Choose" Foreground="#8BC5FF" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock Text="Stroke colour" FontSize="10" Foreground="#AEB2BE"/>
+                                            <Button Click="PickStrokeColor_Click" HorizontalContentAlignment="Stretch" Margin="2,2,2,10">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Width="22" Height="22" Background="{Binding SelectedLayer.StrokeColor}"
+                                                            BorderBrush="#737783" BorderThickness="1" CornerRadius="3"/>
+                                                    <TextBlock Text="{Binding SelectedLayer.StrokeColor}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Choose" Foreground="#8BC5FF" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
                                             <DockPanel>
                                                 <TextBlock Text="Stroke width" Foreground="#AEB2BE" FontSize="10"/>
-                                                <TextBlock Text="{Binding SelectedLayer.StrokeWidth, StringFormat={}{0:0}}" Foreground="#AEB2BE" FontSize="10" DockPanel.Dock="Right"/>
+                                                <TextBlock Text="{Binding SelectedLayer.StrokeWidth, StringFormat={}{0:0}}"
+                                                           Foreground="#AEB2BE" FontSize="10" DockPanel.Dock="Right"/>
                                             </DockPanel>
                                             <Slider Minimum="0" Maximum="64" Value="{Binding SelectedLayer.StrokeWidth}" Margin="0,2,0,5"/>
                                         </StackPanel>
@@ -371,13 +461,42 @@
                                         </Border.Style>
                                         <Grid>
                                             <Border Background="{StaticResource TransparencyCheckerboard}" CornerRadius="4">
-                                                <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="2"/>
+                                                <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="2" Opacity="{Binding Opacity}"/>
                                             </Border>
                                             <Border Background="#D917191E" VerticalAlignment="Bottom" Padding="3,2" IsHitTestVisible="False">
-                                                <TextBlock Text="{Binding Name}" Foreground="#F0F1F4" FontSize="9"
+                                                <TextBlock Text="{Binding Name}" Foreground="#F0F1F4" FontSize="10"
                                                            TextAlignment="Center" TextTrimming="CharacterEllipsis"
                                                            TextWrapping="Wrap" MaxHeight="24"/>
                                             </Border>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left"
+                                                        Margin="3" IsHitTestVisible="False">
+                                                <Border Background="#D911141A" CornerRadius="3" Padding="3,1" Margin="0,0,3,0">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsLocked}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="LOCK" Foreground="#FFD9E0EA" FontSize="7" FontWeight="Bold"/>
+                                                </Border>
+                                                <Border Background="#D911141A" CornerRadius="3" Padding="3,1">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsVisible}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="HIDDEN" Foreground="#FFFFD28A" FontSize="7" FontWeight="Bold"/>
+                                                </Border>
+                                            </StackPanel>
                                             <Button x:Name="LayerOptionsButton" Content="…" Width="22" Height="20" Padding="0"
                                                     Margin="0,3,3,0" HorizontalAlignment="Right" VerticalAlignment="Top"
                                                     Background="#CC17191E" Foreground="White" BorderBrush="#555963"
