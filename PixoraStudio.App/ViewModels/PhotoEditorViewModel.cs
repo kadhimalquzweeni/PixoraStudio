@@ -82,7 +82,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string cutoutMode = "Keep";
     [ObservableProperty] private string cutoutShape = "Rectangle";
     [ObservableProperty] private string cutoutSoftness = "None";
-    [ObservableProperty] private bool cutoutHintRemoved;
+    [ObservableProperty] private int cutoutTolerance = 32;
+    [ObservableProperty] private bool cutoutContiguous = true;
+    [ObservableProperty] private double cutoutBrushSize = 50d;
+    [ObservableProperty] private double cutoutBrushSoftness = 50d;
+    [ObservableProperty] private bool cutoutHintRemoved = true;
     [ObservableProperty] private bool hasCutoutSelection;
     [ObservableProperty] private bool cutoutInverted;
     private byte[]? _cutoutSelectionMask;
@@ -631,7 +635,30 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         int seedX = Math.Clamp((int)Math.Floor(point.X * scaleX), 0, bitmap.Width - 1);
         int seedY = Math.Clamp((int)Math.Floor(point.Y * scaleY), 0, bitmap.Height - 1);
         var seed = bitmap.GetPixel(seedX, seedY);
+        int tolerance = Math.Clamp(CutoutTolerance, 0, 100) * 3;
         var mask = new byte[checked(bitmap.Width * bitmap.Height)];
+
+        bool MatchesSeed(int x, int y)
+        {
+            var color = bitmap.GetPixel(x, y);
+            return Math.Abs(color.Red - seed.Red) +
+                   Math.Abs(color.Green - seed.Green) +
+                   Math.Abs(color.Blue - seed.Blue) <= tolerance;
+        }
+
+        if (!CutoutContiguous)
+        {
+            for (int y = 0; y < bitmap.Height; y++)
+            for (int x = 0; x < bitmap.Width; x++)
+            {
+                if (MatchesSeed(x, y))
+                    mask[y * bitmap.Width + x] = byte.MaxValue;
+            }
+
+            SetCutoutSelectionMask(mask);
+            return;
+        }
+
         var visited = new bool[mask.Length];
         var pending = new Stack<int>();
         int seedIndex = seedY * bitmap.Width + seedX;
@@ -642,10 +669,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             int index = pending.Pop();
             int x = index % bitmap.Width;
             int y = index / bitmap.Width;
-            var color = bitmap.GetPixel(x, y);
-            if (Math.Abs(color.Red - seed.Red) +
-                Math.Abs(color.Green - seed.Green) +
-                Math.Abs(color.Blue - seed.Blue) > 84)
+            if (!MatchesSeed(x, y))
                 continue;
 
             mask[index] = byte.MaxValue;
@@ -750,12 +774,17 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             return;
 
         var bitmap = layer.Bitmap;
-        var mask = CutoutSoftness switch
-        {
-            "Light" => BlurCutoutMask(selectionMask, bitmap.Width, bitmap.Height, 2),
-            "Medium" => BlurCutoutMask(selectionMask, bitmap.Width, bitmap.Height, 6),
-            _ => selectionMask
-        };
+        int featherRadius = CutoutTool == "Brush"
+            ? Math.Clamp((int)Math.Round(CutoutBrushSoftness / 100d * 12d), 0, 12)
+            : CutoutSoftness switch
+            {
+                "Light" => 2,
+                "Medium" => 6,
+                _ => 0
+            };
+        var mask = featherRadius > 0
+            ? BlurCutoutMask(selectionMask, bitmap.Width, bitmap.Height, featherRadius)
+            : selectionMask;
         var result = _imageService.CloneImage(bitmap);
         for (int y = 0; y < bitmap.Height; y++)
         for (int x = 0; x < bitmap.Width; x++)
