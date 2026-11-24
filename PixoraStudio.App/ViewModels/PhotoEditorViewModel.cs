@@ -1125,7 +1125,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         if (_canvasBitmap is null) return;
         BuildCpuPreview();
-        if (_processedBitmap is null || PreviewImage is null) return;
+        SKBitmap? processedBitmap = processedBitmap;
+        BitmapSource? preview = PreviewImage;
+        if (processedBitmap is null || preview is null) return;
 
         string initialFolder = !string.IsNullOrWhiteSpace(ImagePath) && File.Exists(ImagePath)
             ? Path.GetDirectoryName(ImagePath) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
@@ -1134,7 +1136,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             ? "Pixora"
             : Path.GetFileNameWithoutExtension(ImagePath);
         var dialog = new SaveOptionsDialogWindow(
-            PreviewImage, _processedBitmap.Width, _processedBitmap.Height,
+            preview, processedBitmap.Width, processedBitmap.Height,
             initialFolder, $"{baseName}-Edited");
         if (Application.Current?.MainWindow is Window owner)
             dialog.Owner = owner;
@@ -1150,10 +1152,15 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             _ => ".jpg"
         };
         string outputPath = Path.Combine(dialog.OutputFolder, dialog.OutputFileName + extension);
-        if (File.Exists(outputPath) &&
-            MessageBox.Show(dialog, $"Replace the existing file?\n{outputPath}", "Confirm save",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
-            return;
+        if (File.Exists(outputPath))
+        {
+            MessageBoxResult answer = Application.Current?.MainWindow is Window mainWindow
+                ? MessageBox.Show(mainWindow, $"Replace the existing file?\n{outputPath}", "Confirm save",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                : MessageBox.Show($"Replace the existing file?\n{outputPath}", "Confirm save",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.Yes) return;
+        }
 
         SKBitmap? resizedBitmap = null;
         try
@@ -1161,17 +1168,17 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             if (dialog.SelectedFormat == SaveImageFormat.Icon)
             {
                 byte[] iconData = _imageService.EncodeIcon(
-                    _processedBitmap, dialog.SelectedIconSizes.Where(size => size > 0).ToArray());
+                    processedBitmap, dialog.SelectedIconSizes.Where(size => size > 0).ToArray());
                 File.WriteAllBytes(outputPath, iconData);
             }
             else
             {
-                SKBitmap outputBitmap = _processedBitmap;
-                if (dialog.OutputWidth != _processedBitmap.Width ||
-                    dialog.OutputHeight != _processedBitmap.Height)
+                SKBitmap outputBitmap = processedBitmap;
+                if (dialog.OutputWidth != processedBitmap.Width ||
+                    dialog.OutputHeight != processedBitmap.Height)
                 {
                     resizedBitmap = _imageService.Resize(
-                        _processedBitmap, dialog.OutputWidth, dialog.OutputHeight);
+                        processedBitmap, dialog.OutputWidth, dialog.OutputHeight);
                     outputBitmap = resizedBitmap;
                 }
 
