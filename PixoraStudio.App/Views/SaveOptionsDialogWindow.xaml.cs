@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace PixoraStudio.App.Views;
@@ -97,6 +98,9 @@ public partial class SaveOptionsDialogWindow : Window
         SetCardState(WebpCard, _selectedFormat == SaveImageFormat.WebP);
         SetCardState(BmpCard, _selectedFormat == SaveImageFormat.Bmp);
         SetCardState(IconCard, _selectedFormat == SaveImageFormat.Icon);
+        PreviewBackground.Background = _selectedFormat == SaveImageFormat.Jpg
+            ? Brushes.White
+            : new SolidColorBrush(Color.FromRgb(8, 8, 8));
 
         bool usesQuality = _selectedFormat is SaveImageFormat.Jpg or SaveImageFormat.WebP;
         QualityPanel.Visibility = usesQuality ? Visibility.Visible : Visibility.Collapsed;
