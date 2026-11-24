@@ -224,7 +224,6 @@ public partial class SaveOptionsDialogWindow : Window
 
         if (multiplier != 4)
             PixoraAiUpscaleCheckBox.IsChecked = false;
-        UpdateAiModelSelectorState();
         UpdatePixelArtSelectorState();
         _isUpdatingDimensions = true;
         WidthTextBox.Text = (_sourceWidth * multiplier).ToString();
@@ -242,7 +241,6 @@ public partial class SaveOptionsDialogWindow : Window
         if (!_canUsePixoraAi || PixoraAiUpscaleCheckBox.IsChecked != true)
         {
             PixelArtUpscaleCheckBox.IsEnabled = _selectedFormat != SaveImageFormat.Icon;
-            UpdateAiModelSelectorState();
             UpdatePixelArtSelectorState();
             return;
         }
@@ -250,7 +248,6 @@ public partial class SaveOptionsDialogWindow : Window
         if (!FitsOutputLimit(4))
         {
             PixoraAiUpscaleCheckBox.IsChecked = false;
-            UpdateAiModelSelectorState();
             ShowValidation("Pixora AI's 4x output would exceed the 16,384 pixel dimension limit.");
             return;
         }
@@ -263,7 +260,6 @@ public partial class SaveOptionsDialogWindow : Window
         WidthTextBox.Text = (_sourceWidth * 4).ToString();
         HeightTextBox.Text = (_sourceHeight * 4).ToString();
         _isUpdatingDimensions = false;
-        UpdateAiModelSelectorState();
         UpdatePreviewDescription();
     }
 
@@ -279,7 +275,6 @@ public partial class SaveOptionsDialogWindow : Window
             PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi && _selectedFormat != SaveImageFormat.Icon;
         }
 
-        UpdateAiModelSelectorState();
         UpdatePixelArtSelectorState();
     }
 
@@ -296,7 +291,6 @@ public partial class SaveOptionsDialogWindow : Window
 
         CustomScaleRadioButton.IsChecked = true;
         PixoraAiUpscaleCheckBox.IsChecked = false;
-        UpdateAiModelSelectorState();
         UpdatePixelArtSelectorState();
         UpdatePreviewDescription();
     }
