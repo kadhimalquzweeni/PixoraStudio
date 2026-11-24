@@ -219,7 +219,7 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
                                         <TextBlock Text="Arrange" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                                        <TextBlock Text="Select a layer to edit its properties."
+                                        <TextBlock Text="Select a layer to access its arrange and crop controls."
                                                    Style="{StaticResource NoSelectedLayerHint}"
                                                    Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12"/>
                                         <StackPanel Style="{StaticResource SelectedLayerRequiredPanel}">
