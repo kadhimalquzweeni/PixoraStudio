@@ -1125,7 +1125,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     {
         if (_canvasBitmap is null) return;
         BuildCpuPreview();
-        SKBitmap? processedBitmap = processedBitmap;
+        SKBitmap? processedBitmap = _processedBitmap;
         BitmapSource? preview = PreviewImage;
         if (processedBitmap is null || preview is null) return;
 
