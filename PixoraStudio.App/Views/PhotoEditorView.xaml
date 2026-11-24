@@ -116,8 +116,8 @@
                         </Button>
                         <Separator Width="34" Margin="4,8"/>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Arrange" Tag="0" Click="Tool_Click"><controls:SvgIcon IconName="mouse-pointer-2" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Crop" Tag="2" Click="Tool_Click"><controls:SvgIcon IconName="crop" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Resize" Tag="3" Click="Tool_Click"><controls:SvgIcon IconName="maximize" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Adjustments" Tag="4" Click="Tool_Click"><controls:SvgIcon IconName="sliders-horizontal" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Filters" Tag="5" Click="Tool_Click"><controls:SvgIcon IconName="contrast" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
@@ -219,7 +219,7 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
                                         <TextBlock Text="Arrange" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                                        <TextBlock Text="Select a layer to access its arrange and crop controls."
+                                        <TextBlock Text="Select a layer to edit its properties."
                                                    Style="{StaticResource NoSelectedLayerHint}"
                                                    Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12"/>
                                         <StackPanel Style="{StaticResource SelectedLayerRequiredPanel}">
@@ -312,52 +312,6 @@
                                                         CommandParameter="{Binding SelectedLayer}"/>
                                             </UniformGrid>
 
-                                            <Expander Header="Crop" Margin="0,12,0,0">
-                                                <StackPanel Margin="2,8,2,2" IsEnabled="{Binding SelectedLayer.IsEditable}">
-                                                    <TextBlock Text="Aspect ratio" Margin="2,0,2,4"/>
-                                                    <ComboBox x:Name="ArrangeCropAspectRatioCombo" SelectedIndex="0"
-                                                              SelectionChanged="CropAspectRatio_SelectionChanged" Margin="2,0,2,8">
-                                                        <ComboBoxItem Content="Free" Tag="free"/>
-                                                        <ComboBoxItem Content="Original" Tag="original"/>
-                                                        <ComboBoxItem Content="Square (1:1)" Tag="1"/>
-                                                        <ComboBoxItem Content="4:3" Tag="1.3333333"/>
-                                                        <ComboBoxItem Content="3:2" Tag="1.5"/>
-                                                        <ComboBoxItem Content="16:9" Tag="1.7777778"/>
-                                                        <ComboBoxItem Content="9:16" Tag="0.5625"/>
-                                                    </ComboBox>
-                                                    <Button x:Name="ArrangeVisualCropToggleButton" Tag="Arrange"
-                                                            Content="Start visual crop" Click="StartCrop_Click"
-                                                            Background="#087FC4"/>
-                                                    <StackPanel x:Name="ArrangeCropActionPanel" Visibility="Collapsed">
-                                                        <TextBlock Text="Drag the crop box to position it, or drag its edges to resize."
-                                                                   Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,8"/>
-                                                        <Button Content="Apply visual crop" Click="ApplyVisualCrop_Click"
-                                                                Background="#087FC4"/>
-                                                    </StackPanel>
-                                                    <TextBlock Text="Position and size (pixels)" FontWeight="SemiBold"
-                                                               Margin="0,12,0,6"/>
-                                                    <UniformGrid Columns="2">
-                                                        <StackPanel Margin="2">
-                                                            <TextBlock Text="X"/>
-                                                            <TextBox Text="{Binding CropX, UpdateSourceTrigger=PropertyChanged}"/>
-                                                        </StackPanel>
-                                                        <StackPanel Margin="2">
-                                                            <TextBlock Text="Y"/>
-                                                            <TextBox Text="{Binding CropY, UpdateSourceTrigger=PropertyChanged}"/>
-                                                        </StackPanel>
-                                                        <StackPanel Margin="2">
-                                                            <TextBlock Text="Width"/>
-                                                            <TextBox Text="{Binding CropWidth, UpdateSourceTrigger=PropertyChanged}"/>
-                                                        </StackPanel>
-                                                        <StackPanel Margin="2">
-                                                            <TextBlock Text="Height"/>
-                                                            <TextBox Text="{Binding CropHeight, UpdateSourceTrigger=PropertyChanged}"/>
-                                                        </StackPanel>
-                                                    </UniformGrid>
-                                                    <Button Content="Apply crop" Command="{Binding CropCommand}"
-                                                            Background="#087FC4" Margin="2,10"/>
-                                                </StackPanel>
-                                            </Expander>
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
