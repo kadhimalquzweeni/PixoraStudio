@@ -248,19 +248,239 @@
                                 <Button Content="Apply resize" Command="{Binding ResizeCommand}" Background="#087FC4" Margin="2,10"/>
                             </StackPanel></TabItem>
                             <TabItem Header="Adjustments">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
-                                    <TextBlock Text="Adjustments" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                                    <DockPanel><TextBlock Text="Brightness"/><TextBlock Text="{Binding Brightness, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Brightness}" Margin="0,8,0,14"/>
-                                    <DockPanel><TextBlock Text="Contrast"/><TextBlock Text="{Binding Contrast, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="0" Maximum="3" Value="{Binding Contrast}" Margin="0,8,0,14"/>
-                                    <DockPanel><TextBlock Text="Saturation"/><TextBlock Text="{Binding Saturation, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="0" Maximum="3" Value="{Binding Saturation}" Margin="0,8,0,14"/>
-                                    <DockPanel><TextBlock Text="Exposure"/><TextBlock Text="{Binding Exposure, StringFormat={}{0:F2} EV}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-3" Maximum="3" Value="{Binding Exposure}" Margin="0,8,0,14"/>
-                                    <DockPanel><TextBlock Text="Highlights"/><TextBlock Text="{Binding Highlights, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Highlights}" Margin="0,8,0,14"/>
-                                    <DockPanel><TextBlock Text="Shadows"/><TextBlock Text="{Binding Shadows, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Shadows}" Margin="0,8,0,14"/>
-                                    <DockPanel><TextBlock Text="Temperature"/><TextBlock Text="{Binding Temperature, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Temperature}" Margin="0,8,0,14"/>
-                                    <DockPanel><TextBlock Text="Tint"/><TextBlock Text="{Binding Tint, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Tint}" Margin="0,8,0,14"/>
-                                    <Button Content="Save adjustment to history" Command="{Binding CommitAdjustmentsCommand}" Margin="0,4,0,10"/>
-                                    <Button Content="Reset adjustments" Command="{Binding ResetAdjustmentsCommand}"/>
-                                </StackPanel></ScrollViewer>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Adjustments" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Brightness" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Brightness, StringFormat={}{0:F0}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="%" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="-100" Maximum="100" Value="{Binding Brightness}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,10"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Contrast" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Contrast, StringFormat={}{0:F2}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="×" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="0" Maximum="3" Value="{Binding Contrast}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,10"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Saturation" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Saturation, StringFormat={}{0:F2}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="×" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="0" Maximum="3" Value="{Binding Saturation}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,10"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Exposure" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Exposure, StringFormat={}{0:F2}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="EV" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="-3" Maximum="3" Value="{Binding Exposure}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,10"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Highlights" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Highlights, StringFormat={}{0:F0}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="%" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="-100" Maximum="100" Value="{Binding Highlights}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,10"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Shadows" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Shadows, StringFormat={}{0:F0}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="%" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="-100" Maximum="100" Value="{Binding Shadows}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,10"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Temperature" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Temperature, StringFormat={}{0:F0}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="%" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="-100" Maximum="100" Value="{Binding Temperature}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,10"/>
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Tint" VerticalAlignment="Center" FontSize="12"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Tint, StringFormat={}{0:F0}, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right" VerticalContentAlignment="Center"
+                                                     Background="#30343B" Foreground="#F0F1F4" CaretBrush="White"
+                                                     BorderBrush="#454954" Padding="5,3" Margin="4,0,0,0"
+                                                     GotKeyboardFocus="AdjustmentValueBox_GotKeyboardFocus"
+                                                     LostKeyboardFocus="AdjustmentValueBox_LostKeyboardFocus"
+                                                     PreviewMouseLeftButtonDown="AdjustmentValueBox_PreviewMouseLeftButtonDown"
+                                                     PreviewKeyDown="AdjustmentValueBox_PreviewKeyDown"/>
+                                            <TextBlock Grid.Column="2" Text="%" Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="#AEB2BE" FontSize="11"/>
+                                        </Grid>
+                                        <Slider Minimum="-100" Maximum="100" Value="{Binding Tint}"
+                                                IsMoveToPointEnabled="True"
+                                                PreviewMouseLeftButtonDown="AdjustmentSlider_PreviewMouseLeftButtonDown"
+                                                PreviewMouseLeftButtonUp="AdjustmentSlider_PreviewMouseLeftButtonUp"
+                                                PreviewKeyDown="AdjustmentSlider_PreviewKeyDown"
+                                                PreviewKeyUp="AdjustmentSlider_PreviewKeyUp"
+                                                LostKeyboardFocus="AdjustmentSlider_LostKeyboardFocus"
+                                                LostMouseCapture="AdjustmentSlider_LostMouseCapture"
+                                                Margin="0,0,0,12"/>
+                                        <TextBlock Text="Changes are saved to history automatically."
+                                                   Foreground="#AEB2BE" FontSize="10" TextWrapping="Wrap"
+                                                   Margin="2,0,2,8"/>
+                                        <Button Content="Reset adjustments" Command="{Binding ResetAdjustmentsCommand}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
                             </TabItem>
                             <TabItem Header="Filters"><StackPanel>
                                 <TextBlock Text="Filters" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
