@@ -87,10 +87,6 @@
                     <CheckBox Content="Snap" IsChecked="{Binding IsSnappingEnabled}" Foreground="White" VerticalAlignment="Center" Margin="8,2" ToolTip="Snap layers to the canvas and other layers"/>
                     <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button Content="Export icon" Command="{Binding ExportIconCommand}" IsEnabled="{Binding IsImageLoaded}"/>
-                    <Button Content="Save image" Command="{Binding SaveImageCommand}" IsEnabled="{Binding IsImageLoaded}" Background="#087FC4" Foreground="White" Padding="16,6"/>
-                </StackPanel>
             </DockPanel>
         </Border>
 
@@ -119,8 +115,6 @@
                         <Button Style="{StaticResource ToolButton}" ToolTip="Retouch" Tag="7" Click="Tool_Click"><controls:SvgIcon IconName="eraser" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Text" Tag="8" Click="Tool_Click"><controls:SvgIcon IconName="type" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Shapes" Tag="9" Click="Tool_Click"><controls:SvgIcon IconName="shapes" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Separator Margin="4,8"/>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Export icon" Tag="10" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -732,22 +726,6 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
-                            </TabItem>
-                            <TabItem Header="Icon">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
-                                    <TextBlock Text="Create Windows icon (.ico)" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Export the edited image as a multi-size icon. Transparent padding preserves the image proportions." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,10"/>
-                                    <UniformGrid Columns="2">
-                                        <CheckBox Content="16 px" IsChecked="{Binding IconSize16}" Foreground="#D4D6DE" Margin="2"/>
-                                        <CheckBox Content="24 px" IsChecked="{Binding IconSize24}" Foreground="#D4D6DE" Margin="2"/>
-                                        <CheckBox Content="32 px" IsChecked="{Binding IconSize32}" Foreground="#D4D6DE" Margin="2"/>
-                                        <CheckBox Content="48 px" IsChecked="{Binding IconSize48}" Foreground="#D4D6DE" Margin="2"/>
-                                        <CheckBox Content="64 px" IsChecked="{Binding IconSize64}" Foreground="#D4D6DE" Margin="2"/>
-                                        <CheckBox Content="128 px" IsChecked="{Binding IconSize128}" Foreground="#D4D6DE" Margin="2"/>
-                                        <CheckBox Content="256 px" IsChecked="{Binding IconSize256}" Foreground="#D4D6DE" Margin="2"/>
-                                    </UniformGrid>
-                                    <Button Content="Export selected sizes" Command="{Binding ExportIconCommand}" Background="#087FC4" Margin="2,10"/>
-                                </StackPanel></ScrollViewer>
                             </TabItem>
                         </TabControl>
                         <TextBlock Text="{Binding OperationError}" Foreground="#FF8585" TextWrapping="Wrap" VerticalAlignment="Bottom" Margin="0,8,0,0"/>
