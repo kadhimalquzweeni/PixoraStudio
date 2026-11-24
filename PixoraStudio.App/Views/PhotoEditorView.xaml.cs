@@ -17,6 +17,11 @@ namespace PixoraStudio.App.Views;
 public partial class PhotoEditorView : UserControl
 {
     private Rect _cropSelection;
+    private bool _isCutoutSelecting;
+    private Point _cutoutDragStart;
+    private Point _cutoutDragCurrent;
+    private Rect _cutoutSelectionBounds;
+    private readonly List<Point> _cutoutStrokePoints = [];
     private Point _dragStart;
     private Rect _selectionAtDragStart;
     private DragMode _dragMode;
@@ -32,7 +37,9 @@ public partial class PhotoEditorView : UserControl
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
     private const int CropToolIndex = 2;
-    private const int DrawToolIndex = 10;
+    private const int CutoutToolIndex = 3;
+    private const int ResizeToolIndex = 4;
+    private const int DrawToolIndex = 11;
     private bool _isDrawingStroke;
     private readonly List<SKPoint> _drawStrokePoints = [];
     private Polyline? _drawStrokePreview;
@@ -172,19 +179,25 @@ public partial class PhotoEditorView : UserControl
             {
                 UpdateLayerOverlayWorkspace();
                 DrawLayerSelection();
+                _cutoutSelectionBounds = Rect.Empty;
+                _cutoutStrokePoints.Clear();
+                ViewModel?.ResetCutoutSelection();
 
-                if (ToolSettingsBorder?.Visibility != Visibility.Visible ||
-                    ToolSettingsTabs?.SelectedIndex != CropToolIndex)
+                if (ToolSettingsBorder?.Visibility != Visibility.Visible)
                     return;
 
-                if (ViewModel?.SelectedLayer is { IsLocked: false })
+                if (ToolSettingsTabs?.SelectedIndex == CropToolIndex)
                 {
-                    if (CropOverlay.Visibility != Visibility.Visible)
+                    if (ViewModel?.SelectedLayer is { IsLocked: false })
                         BeginCropMode();
+                    else
+                        EndCropMode();
                 }
-                else if (CropOverlay.Visibility == Visibility.Visible)
+                else if (ToolSettingsTabs?.SelectedIndex == CutoutToolIndex)
                 {
-                    EndCropMode();
+                    EndCutoutMode();
+                    if (ViewModel?.SelectedLayer is { IsLocked: false })
+                        BeginCutoutMode();
                 }
             });
 
@@ -301,6 +314,8 @@ public partial class PhotoEditorView : UserControl
 
         if (selectedTool != CropToolIndex)
             EndCropMode();
+        if (selectedTool != CutoutToolIndex)
+            EndCutoutMode();
 
         ToolSettingsTabs.SelectedIndex = selectedTool;
         LayerOverlay.Cursor = selectedTool == DrawToolIndex ? Cursors.Pen : Cursors.Arrow;
@@ -308,17 +323,21 @@ public partial class PhotoEditorView : UserControl
         ToolSettingsBorder.Visibility = Visibility.Visible;
         if (selectedTool == CropToolIndex)
             BeginCropMode();
+        else if (selectedTool == CutoutToolIndex)
+            BeginCutoutMode();
     }
 
     private void OpenImageSize_Click(object sender, RoutedEventArgs e)
     {
         EndCropMode();
-        ToolSettingsTabs.SelectedIndex = 3;
+        EndCutoutMode();
+        ToolSettingsTabs.SelectedIndex = ResizeToolIndex;
     }
 
     private void ResizeCanvasFromCrop_Click(object sender, RoutedEventArgs e)
     {
         EndCropMode();
+        EndCutoutMode();
         ViewModel?.ResizeCanvasCommand.Execute(null);
     }
 
@@ -329,12 +348,14 @@ public partial class PhotoEditorView : UserControl
 
         viewModel.LockAspectRatio = true;
         EndCropMode();
-        ToolSettingsTabs.SelectedIndex = 3;
+        EndCutoutMode();
+        ToolSettingsTabs.SelectedIndex = ResizeToolIndex;
     }
 
     private void CloseToolSettings_Click(object sender, RoutedEventArgs e)
     {
         EndCropMode();
+        EndCutoutMode();
         ToolSettingsBorder.Visibility = Visibility.Collapsed;
         ToolSettingsColumn.Width = new GridLength(0);
     }
@@ -343,6 +364,279 @@ public partial class PhotoEditorView : UserControl
     {
         if (Window.GetWindow(this)?.DataContext is MainViewModel mainViewModel)
             mainViewModel.NavigateHomeCommand.Execute(null);
+    }
+
+    private void BeginCutoutMode()
+    {
+        if (CutoutOverlay is null ||
+            ViewModel is not { IsImageLoaded: true, SelectedLayer: { IsLocked: false } })
+            return;
+
+        EndCropMode();
+        CutoutOverlay.Visibility = Visibility.Visible;
+        DrawCutoutSelection();
+    }
+
+    private void EndCutoutMode()
+    {
+        if (CutoutOverlay is null)
+            return;
+
+        CutoutOverlay.Visibility = Visibility.Collapsed;
+        CutoutOverlay.Children.Clear();
+        _isCutoutSelecting = false;
+        CutoutOverlay.ReleaseMouseCapture();
+    }
+
+    private void CutoutOption_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } viewModel ||
+            sender is not RadioButton { Tag: string tag })
+            return;
+
+        var option = tag.Split('|', 2);
+        if (option.Length != 2)
+            return;
+
+        switch (option[0])
+        {
+            case "Tool": viewModel.CutoutTool = option[1]; break;
+            case "Mode": viewModel.CutoutMode = option[1]; break;
+            case "Shape": viewModel.CutoutShape = option[1]; break;
+            case "Softness": viewModel.CutoutSoftness = option[1]; break;
+        }
+        DrawCutoutSelection();
+    }
+
+    private void CutoutHintRemoved_Changed(object sender, RoutedEventArgs e) =>
+        DrawCutoutSelection();
+
+    private void InvertCutout_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel?.InvertCutoutSelection();
+        DrawCutoutSelection();
+    }
+
+    private void ResetCutout_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel?.ResetCutoutSelection();
+        _cutoutSelectionBounds = Rect.Empty;
+        _cutoutStrokePoints.Clear();
+        DrawCutoutSelection();
+    }
+
+    private void ApplyCutout_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel?.ApplyCutout();
+        _cutoutSelectionBounds = Rect.Empty;
+        _cutoutStrokePoints.Clear();
+        DrawCutoutSelection();
+    }
+
+    private void CloseCutout_Click(object sender, RoutedEventArgs e)
+    {
+        EndCutoutMode();
+        CloseToolSettings_Click(sender, e);
+    }
+
+    private void CutoutOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ViewModel is not { IsImageLoaded: true, SelectedLayer: { IsLocked: false } layer } viewModel)
+            return;
+
+        var point = e.GetPosition(CutoutOverlay);
+        var layerBounds = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
+        if (!layerBounds.Contains(point))
+        {
+            EndCutoutMode();
+            e.Handled = true;
+            return;
+        }
+
+        _cutoutDragStart = point;
+        _cutoutDragCurrent = point;
+        _cutoutStrokePoints.Clear();
+        _cutoutStrokePoints.Add(new Point(point.X - layer.X, point.Y - layer.Y));
+
+        if (viewModel.CutoutTool == "Magic")
+        {
+            viewModel.CreateCutoutMagicSelection(_cutoutStrokePoints[0]);
+            _cutoutSelectionBounds = layerBounds;
+            DrawCutoutSelection();
+            e.Handled = true;
+            return;
+        }
+
+        _isCutoutSelecting = true;
+        CutoutOverlay.CaptureMouse();
+        DrawCutoutSelection();
+        e.Handled = true;
+    }
+
+    private void CutoutOverlay_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isCutoutSelecting || ViewModel?.SelectedLayer is not { } layer)
+            return;
+
+        _cutoutDragCurrent = e.GetPosition(CutoutOverlay);
+        if (ViewModel.CutoutTool is "Brush" or "Lasso")
+        {
+            var localPoint = new Point(_cutoutDragCurrent.X - layer.X, _cutoutDragCurrent.Y - layer.Y);
+            var previous = _cutoutStrokePoints[^1];
+            if (Math.Abs(localPoint.X - previous.X) >= 1d || Math.Abs(localPoint.Y - previous.Y) >= 1d)
+                _cutoutStrokePoints.Add(localPoint);
+        }
+
+        DrawCutoutSelection();
+        e.Handled = true;
+    }
+
+    private void CutoutOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isCutoutSelecting || ViewModel is not { SelectedLayer: { } layer } viewModel)
+            return;
+
+        _cutoutDragCurrent = e.GetPosition(CutoutOverlay);
+        _isCutoutSelecting = false;
+        CutoutOverlay.ReleaseMouseCapture();
+
+        var bounds = new Rect(
+            Math.Min(_cutoutDragStart.X, _cutoutDragCurrent.X) - layer.X,
+            Math.Min(_cutoutDragStart.Y, _cutoutDragCurrent.Y) - layer.Y,
+            Math.Abs(_cutoutDragCurrent.X - _cutoutDragStart.X),
+            Math.Abs(_cutoutDragCurrent.Y - _cutoutDragStart.Y));
+        if (bounds.Width < 2 || bounds.Height < 2)
+        {
+            _cutoutSelectionBounds = Rect.Empty;
+            DrawCutoutSelection();
+            e.Handled = true;
+            return;
+        }
+
+        _cutoutSelectionBounds = bounds;
+        switch (viewModel.CutoutTool)
+        {
+            case "Brush":
+                viewModel.CreateCutoutBrushSelection(_cutoutStrokePoints, 16d);
+                break;
+            case "Lasso":
+                viewModel.CreateCutoutLassoSelection(_cutoutStrokePoints);
+                break;
+            default:
+                viewModel.CreateCutoutShapeSelection(bounds);
+                break;
+        }
+
+        DrawCutoutSelection();
+        e.Handled = true;
+    }
+
+    private void DrawCutoutSelection()
+    {
+        if (CutoutOverlay is null)
+            return;
+
+        CutoutOverlay.Children.Clear();
+        var viewModel = ViewModel;
+        if (viewModel?.SelectedLayer is not { } layer ||
+            (!_isCutoutSelecting && !viewModel.HasCutoutSelection))
+            return;
+
+        Rect bounds;
+        if (_isCutoutSelecting)
+        {
+            if (viewModel.CutoutTool is "Brush" or "Lasso")
+            {
+                var points = new PointCollection(_cutoutStrokePoints.Select(point =>
+                    new Point(point.X + layer.X, point.Y + layer.Y)));
+                if (points.Count > 1)
+                {
+                    System.Windows.Shapes.Shape stroke = viewModel.CutoutTool == "Lasso"
+                        ? new Polygon { Points = points, Fill = Brushes.Transparent }
+                        : new Polyline { Points = points };
+                    stroke.Stroke = viewModel.CutoutMode == "Remove" ? Brushes.OrangeRed : Brushes.DeepSkyBlue;
+                    stroke.StrokeThickness = viewModel.CutoutTool == "Brush" ? 32 : 2;
+                    stroke.StrokeDashArray = viewModel.CutoutTool == "Lasso" ? [4, 2] : null;
+                    stroke.IsHitTestVisible = false;
+                    CutoutOverlay.Children.Add(stroke);
+                }
+                return;
+            }
+
+            bounds = new Rect(
+                Math.Min(_cutoutDragStart.X, _cutoutDragCurrent.X),
+                Math.Min(_cutoutDragStart.Y, _cutoutDragCurrent.Y),
+                Math.Max(2, Math.Abs(_cutoutDragCurrent.X - _cutoutDragStart.X)),
+                Math.Max(2, Math.Abs(_cutoutDragCurrent.Y - _cutoutDragStart.Y)));
+        }
+        else
+        {
+            if (_cutoutSelectionBounds.IsEmpty)
+                return;
+            bounds = new Rect(layer.X + _cutoutSelectionBounds.X, layer.Y + _cutoutSelectionBounds.Y,
+                _cutoutSelectionBounds.Width, _cutoutSelectionBounds.Height);
+        }
+
+        System.Windows.Shapes.Shape shape = viewModel.CutoutShape switch
+        {
+            "Ellipse" => new Ellipse(),
+            "Line" => new Line
+            {
+                X1 = bounds.Left, Y1 = bounds.Top,
+                X2 = bounds.Right, Y2 = bounds.Bottom
+            },
+            "Triangle" => CreateCutoutPolygon(bounds, 3, false),
+            "Star" => CreateCutoutPolygon(bounds, 5, true),
+            "Heart" => CreateCutoutHeart(bounds),
+            _ => new Rectangle()
+        };
+
+        if (shape is not Line)
+        {
+            shape.Width = bounds.Width;
+            shape.Height = bounds.Height;
+            Canvas.SetLeft(shape, bounds.Left);
+            Canvas.SetTop(shape, bounds.Top);
+        }
+        shape.Stroke = viewModel.CutoutMode == "Remove" ? Brushes.OrangeRed : Brushes.DeepSkyBlue;
+        shape.StrokeThickness = 2;
+        shape.StrokeDashArray = [4, 2];
+        shape.Fill = viewModel.CutoutHintRemoved
+            ? new SolidColorBrush(Color.FromArgb(70, 255, 70, 55))
+            : Brushes.Transparent;
+        shape.IsHitTestVisible = false;
+        CutoutOverlay.Children.Add(shape);
+    }
+
+    private static Polygon CreateCutoutPolygon(Rect bounds, int sides, bool star)
+    {
+        var points = new PointCollection();
+        int count = star ? sides * 2 : sides;
+        for (int i = 0; i < count; i++)
+        {
+            double angle = -Math.PI / 2 + i * Math.PI * 2 / count;
+            double radius = star && i % 2 == 1 ? 0.45 : 0.95;
+            points.Add(new Point(
+                bounds.Width / 2 + Math.Cos(angle) * bounds.Width / 2 * radius,
+                bounds.Height / 2 + Math.Sin(angle) * bounds.Height / 2 * radius));
+        }
+        return new Polygon { Points = points };
+    }
+
+    private static System.Windows.Shapes.Path CreateCutoutHeart(Rect bounds)
+    {
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            context.BeginFigure(new Point(bounds.Width / 2, bounds.Height), true, true);
+            context.BezierTo(new Point(bounds.Width * -0.15, bounds.Height * 0.5),
+                new Point(bounds.Width * 0.2, bounds.Height * -0.1),
+                new Point(bounds.Width / 2, bounds.Height * 0.28), true, false);
+            context.BezierTo(new Point(bounds.Width * 0.8, bounds.Height * -0.1),
+                new Point(bounds.Width * 1.15, bounds.Height * 0.5),
+                new Point(bounds.Width / 2, bounds.Height), true, false);
+        }
+        return new System.Windows.Shapes.Path { Data = geometry };
     }
 
     private void BeginCropMode()
@@ -604,6 +898,10 @@ public partial class PhotoEditorView : UserControl
             !IsVisualDescendantOrSelf(source, CropOverlay) &&
             !IsVisualDescendantOrSelf(source, ToolSettingsBorder))
             EndCropMode();
+        if (CutoutOverlay?.Visibility == Visibility.Visible &&
+            !IsVisualDescendantOrSelf(source, CutoutOverlay) &&
+            !IsVisualDescendantOrSelf(source, ToolSettingsBorder))
+            EndCutoutMode();
 
         if (IsLayerOptionsButton(source) ||
             IsLayerPropertiesPopupSource(source) ||
@@ -923,6 +1221,18 @@ public partial class PhotoEditorView : UserControl
             {
                 vm.SelectLayer(cropTarget);
                 BeginCropMode();
+            }
+
+            e.Handled = true;
+            return;
+        }
+        if (ToolSettingsTabs.SelectedIndex == CutoutToolIndex)
+        {
+            var cutoutTarget = vm.HitTestLayer(point.X, point.Y);
+            if (cutoutTarget is not null)
+            {
+                vm.SelectLayer(cutoutTarget);
+                BeginCutoutMode();
             }
 
             e.Handled = true;
