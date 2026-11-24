@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using PixoraStudio.Core.Imaging;
 using PixoraStudio.Core.Geometry;
 using PixoraStudio.App.Views;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace PixoraStudio.App.ViewModels;
@@ -30,6 +31,11 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? imagePath;
     [ObservableProperty] private PhotoLayerViewModel? selectedLayer;
     public ObservableCollection<PhotoLayerViewModel> AdditionalLayers { get; } = [];
+    public IReadOnlyList<string> FontFamilies { get; } = Fonts.SystemFontFamilies
+        .Select(font => font.Source)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(font => font, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
     [ObservableProperty] private BitmapSource? previewImage;
     [ObservableProperty] private bool isGpuPreviewAvailable;
     public event EventHandler? PreviewInvalidated;
