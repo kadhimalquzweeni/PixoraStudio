@@ -961,6 +961,11 @@ public partial class PhotoEditorView : UserControl
         ViewModel?.CommitAdjustmentChange();
     }
 
+    private void AdjustmentSlider_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        ViewModel?.BeginAdjustmentChange();
+    }
+
     private void AdjustmentSlider_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
         ViewModel?.CommitAdjustmentChange();
