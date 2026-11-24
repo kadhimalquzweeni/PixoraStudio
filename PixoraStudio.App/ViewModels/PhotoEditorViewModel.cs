@@ -59,6 +59,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private float tint;
     [ObservableProperty] private ImageFilter selectedFilter = ImageFilter.None;
     [ObservableProperty] private bool isSnappingEnabled = true;
+    [ObservableProperty] private bool showOriginal;
     [ObservableProperty] private double zoom = 1.0;
     [ObservableProperty] private bool isImageLoaded;
     [ObservableProperty] private bool canUndo;
@@ -485,9 +486,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             foreach (var layer in AdditionalLayers.Reverse())
             {
                 var source = CreateLayerRenderBitmap(layer);
-                var adjustment = ReferenceEquals(layer, SelectedLayer)
-                    ? GetCurrentAdjustment()
-                    : layer.Adjustment;
+                var adjustment = ShowOriginal ? new ImageAdjustment()
+                    : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
                 var rendered = _imageService.ApplyAdjustments(source, adjustment);
                 if (!ReferenceEquals(source, layer.Bitmap)) source.Dispose();
                 renderedLayers.Add(rendered);
@@ -522,9 +522,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
             {
                 var source = CreateLayerRenderBitmap(layer);
                 if (!ReferenceEquals(source, layer.Bitmap)) generated.Add(source);
-                var adjustment = ReferenceEquals(layer, SelectedLayer)
-                    ? GetCurrentAdjustment()
-                    : layer.Adjustment;
+                var adjustment = ShowOriginal ? new ImageAdjustment()
+                    : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
                 layers.Add(new GpuImageLayer(source, layer.X, layer.Y, layer.Width, layer.Height,
                     layer.IsVisible, adjustment, layer.Opacity));
             }
@@ -616,6 +615,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     partial void OnTemperatureChanged(float value) => OnAdjustmentValueChanged();
     partial void OnTintChanged(float value) => OnAdjustmentValueChanged();
     partial void OnSelectedFilterChanged(ImageFilter value) => OnAdjustmentValueChanged();
+    partial void OnShowOriginalChanged(bool value) { if (IsImageLoaded) RefreshPreview(); }
 
     partial void OnResizeWidthChanged(int value)
     {
@@ -941,9 +941,9 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         var source = CreateLayerRenderBitmap(layer);
         try
         {
-            var adjustment = ReferenceEquals(layer, SelectedLayer)
-                ? GetCurrentAdjustment()
-                : layer.Adjustment;
+            var adjustment = ShowOriginal
+                ? new ImageAdjustment()
+                : ReferenceEquals(layer, SelectedLayer) ? GetCurrentAdjustment() : layer.Adjustment;
             using var adjusted = _imageService.ApplyAdjustments(source, adjustment);
             var rendered = new SKBitmap(Math.Max(1, layer.Width), Math.Max(1, layer.Height));
             using (var canvas = new SKCanvas(rendered))
@@ -1149,14 +1149,14 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 if (ReferenceEquals(layer, selected) || !layer.IsVisible)
                     continue;
 
-                var adjustment = layer.Adjustment;
+                var adjustment = ShowOriginal ? new ImageAdjustment() : layer.Adjustment;
                 var rendered = _imageService.ApplyAdjustments(layer.Bitmap, adjustment);
                 renderedLayers.Add(rendered);
                 entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, true, layer.Opacity));
             }
 
             using var baseComposite = ImageLayerCompositor.CompositeWithOpacity(_canvasBitmap, entries);
-            var selectedAdjustment = GetCurrentAdjustment();
+            var selectedAdjustment = ShowOriginal ? new ImageAdjustment() : GetCurrentAdjustment();
             using var selectedBitmap = _imageService.ApplyAdjustments(selected.Bitmap, selectedAdjustment);
 
             PreviewImage = ConvertToBitmapSource(baseComposite);
