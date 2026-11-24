@@ -28,6 +28,39 @@
             <Setter Property="Padding" Value="12,7"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
+        <Style x:Key="ScalePresetOption" TargetType="RadioButton">
+            <Setter Property="Background" Value="#383838"/>
+            <Setter Property="Foreground" Value="#D4D4D4"/>
+            <Setter Property="BorderBrush" Value="#484848"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="7,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#079BD8"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#079BD8"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#64C7EC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Background="#252525" BorderBrush="#3A3A3A" BorderThickness="1" CornerRadius="8">
@@ -161,22 +194,40 @@
                                 </StackPanel>
 
                                 <StackPanel x:Name="DimensionsPanel" Margin="0,10,0,0">
-                                    <DockPanel Margin="0,0,0,8">
+                                    <DockPanel Margin="0,0,0,5">
                                         <TextBlock Text="Output size" FontWeight="SemiBold"/>
                                         <CheckBox x:Name="LockAspectRatioCheckBox" Content="Lock proportions"
                                                   IsChecked="True" Foreground="#D4D4D4"
                                                   HorizontalAlignment="Right"/>
                                     </DockPanel>
+                                    <UniformGrid Columns="4" Margin="0,0,0,6">
+                                        <RadioButton x:Name="OneXScaleRadioButton"
+                                                     Style="{StaticResource ScalePresetOption}"
+                                                     GroupName="OutputScalePreset" Content="1×" Tag="1"
+                                                     IsChecked="True" Click="ScalePreset_Click"/>
+                                        <RadioButton Style="{StaticResource ScalePresetOption}"
+                                                     GroupName="OutputScalePreset" Content="2×" Tag="2"
+                                                     Click="ScalePreset_Click"/>
+                                        <RadioButton Style="{StaticResource ScalePresetOption}"
+                                                     GroupName="OutputScalePreset" Content="4×" Tag="4"
+                                                     Click="ScalePreset_Click"/>
+                                        <RadioButton x:Name="CustomScaleRadioButton"
+                                                     Style="{StaticResource ScalePresetOption}"
+                                                     GroupName="OutputScalePreset" Content="Custom" Tag="Custom"
+                                                     Click="ScalePreset_Click"/>
+                                    </UniformGrid>
                                     <UniformGrid Columns="2">
                                         <StackPanel Margin="0,0,8,0">
                                             <TextBlock Text="Width (px)" Foreground="#C9C9C9"/>
                                             <TextBox x:Name="WidthTextBox" Text="1"
-                                                     LostFocus="WidthTextBox_LostFocus"/>
+                                                     LostFocus="WidthTextBox_LostFocus"
+                                                     TextChanged="DimensionsTextBox_TextChanged"/>
                                         </StackPanel>
                                         <StackPanel Margin="8,0,0,0">
                                             <TextBlock Text="Height (px)" Foreground="#C9C9C9"/>
                                             <TextBox x:Name="HeightTextBox" Text="1"
-                                                     LostFocus="HeightTextBox_LostFocus"/>
+                                                     LostFocus="HeightTextBox_LostFocus"
+                                                     TextChanged="DimensionsTextBox_TextChanged"/>
                                         </StackPanel>
                                     </UniformGrid>
                                 </StackPanel>
