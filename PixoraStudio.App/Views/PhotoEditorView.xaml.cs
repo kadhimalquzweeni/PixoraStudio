@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Threading;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
@@ -132,6 +133,12 @@ public partial class PhotoEditorView : UserControl
 
     private void PhotoEditorView_Loaded(object sender, RoutedEventArgs e)
     {
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            if (IsLoaded)
+                Keyboard.Focus(this);
+        }));
+
         UpdateLayerOverlayWorkspace();
         DrawLayerSelection();
         if (_gpuRenderingDisabled)
