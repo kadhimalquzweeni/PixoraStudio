@@ -941,6 +941,72 @@ public partial class PhotoEditorView : UserControl
         }
     }
 
+    private void AdjustmentSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        ViewModel?.BeginAdjustmentChange();
+    }
+
+    private void AdjustmentSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        ScheduleAdjustmentCommit();
+    }
+
+    private void AdjustmentSlider_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        ViewModel?.BeginAdjustmentChange();
+    }
+
+    private void AdjustmentSlider_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        ViewModel?.CommitAdjustmentChange();
+    }
+
+    private void AdjustmentSlider_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        ViewModel?.CommitAdjustmentChange();
+    }
+
+    private void AdjustmentSlider_LostMouseCapture(object sender, MouseEventArgs e)
+    {
+        ScheduleAdjustmentCommit();
+    }
+
+    private void ScheduleAdjustmentCommit()
+    {
+        Dispatcher.BeginInvoke(new Action(() => ViewModel?.CommitAdjustmentChange()),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private void AdjustmentValueBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        ViewModel?.BeginAdjustmentChange();
+    }
+
+    private void AdjustmentValueBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        ViewModel?.BeginAdjustmentChange();
+    }
+
+    private void AdjustmentValueBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        ViewModel?.BeginAdjustmentChange();
+        if (e.Key != Key.Enter) return;
+
+        if (sender is TextBox textBox)
+            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+
+        ViewModel?.CommitAdjustmentChange();
+        e.Handled = true;
+    }
+
+    private void AdjustmentValueBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is TextBox textBox)
+            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+
+        ViewModel?.CommitAdjustmentChange();
+    }
+
     private void Grayscale_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel is not null) ViewModel.SelectedFilter = ImageFilter.Grayscale;
