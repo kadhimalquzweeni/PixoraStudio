@@ -21,6 +21,7 @@ public partial class SaveOptionsDialogWindow : Window
     private readonly int _sourceHeight;
     private readonly double _aspectRatio;
     private bool _isUpdatingDimensions;
+    private bool _isInitialized;
     private SaveImageFormat _selectedFormat = SaveImageFormat.Jpg;
 
     public SaveImageFormat SelectedFormat => _selectedFormat;
@@ -67,6 +68,7 @@ public partial class SaveOptionsDialogWindow : Window
         else
             CustomScaleRadioButton.IsChecked = true;
         UpdateFormatSelection();
+        _isInitialized = true;
         UpdatePreviewDescription();
     }
 
@@ -175,7 +177,7 @@ public partial class SaveOptionsDialogWindow : Window
 
     private void DimensionsTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        if (_isUpdatingDimensions)
+        if (!_isInitialized || _isUpdatingDimensions)
             return;
 
         CustomScaleRadioButton.IsChecked = true;
