@@ -267,7 +267,29 @@
                             </StackPanel></TabItem>
                             <TabItem Header="Effects"><StackPanel><TextBlock Text="Effects" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Creative effects will appear here." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
                             <TabItem Header="Retouch"><StackPanel><TextBlock Text="Retouch" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Retouching tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
-                            <TabItem Header="Text"><StackPanel><TextBlock Text="Text" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Text layers and typography controls are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Text">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Text" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                        <StackPanel IsEnabled="{Binding SelectedLayer.IsEditable}">
+                                            <TextBlock Text="Text content" FontSize="10" Foreground="#AEB2BE"/>
+                                            <TextBox Text="{Binding SelectedLayer.TextContent, UpdateSourceTrigger=PropertyChanged}"
+                                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" Margin="0,2,0,10"/>
+                                            <TextBlock Text="Text alignment" FontSize="10" Foreground="#AEB2BE"/>
+                                            <ComboBox SelectedValue="{Binding SelectedLayer.TextAlignment}" SelectedValuePath="Content" Margin="0,2,0,10">
+                                                <ComboBoxItem Content="Left"/><ComboBoxItem Content="Center"/><ComboBoxItem Content="Right"/>
+                                            </ComboBox>
+                                            <TextBlock Text="Font family" FontSize="10" Foreground="#AEB2BE"/>
+                                            <TextBox Text="{Binding SelectedLayer.FontFamily, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,10"/>
+                                            <DockPanel>
+                                                <TextBlock Text="Font size" Foreground="#AEB2BE" FontSize="10"/>
+                                                <TextBlock Text="{Binding SelectedLayer.FontSize, StringFormat={}{0:0}}" Foreground="#AEB2BE" FontSize="10" DockPanel.Dock="Right"/>
+                                            </DockPanel>
+                                            <Slider Minimum="1" Maximum="256" Value="{Binding SelectedLayer.FontSize}" Margin="0,2,0,5"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
                             <TabItem Header="Shapes"><StackPanel><TextBlock Text="Shapes" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Shape tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
                             <TabItem Header="Icon">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
@@ -368,17 +390,6 @@
                               Foreground="#D4D6DE" Margin="0,8,0,0">
                         <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="4" IsEnabled="{Binding SelectedLayer.IsEditable}">
-                                <TextBlock Text="Text content" FontSize="10" Foreground="#AEB4BF"/>
-                                <TextBox Text="{Binding SelectedLayer.TextContent, UpdateSourceTrigger=PropertyChanged}"
-                                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="42" Margin="0,2,0,6"/>
-                                <TextBlock Text="Text alignment" FontSize="10" Foreground="#AEB4BF"/>
-                                <ComboBox SelectedValue="{Binding SelectedLayer.TextAlignment}" SelectedValuePath="Content" Margin="0,2,0,6">
-                                    <ComboBoxItem Content="Left"/><ComboBoxItem Content="Center"/><ComboBoxItem Content="Right"/>
-                                </ComboBox>
-                                <TextBlock Text="Font family" FontSize="10" Foreground="#AEB4BF"/>
-                                <TextBox Text="{Binding SelectedLayer.FontFamily, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,6"/>
-                                <DockPanel><TextBlock Text="Font size" Foreground="#AEB4BF" FontSize="10"/><TextBlock Text="{Binding SelectedLayer.FontSize, StringFormat={}{0:0}}" Foreground="#AEB4BF" FontSize="10" DockPanel.Dock="Right"/></DockPanel>
-                                <Slider Minimum="1" Maximum="256" Value="{Binding SelectedLayer.FontSize}" Margin="0,0,0,5"/>
                                 <TextBlock Text="Shape" FontSize="10" Foreground="#AEB4BF"/>
                                 <ComboBox SelectedValue="{Binding SelectedLayer.ShapeType}" SelectedValuePath="Content" Margin="0,2,0,6">
                                     <ComboBoxItem Content="Rectangle"/><ComboBoxItem Content="Ellipse"/><ComboBoxItem Content="Line"/><ComboBoxItem Content="Arrow"/>
