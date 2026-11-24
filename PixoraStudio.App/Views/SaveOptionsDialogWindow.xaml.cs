@@ -276,6 +276,7 @@ public partial class SaveOptionsDialogWindow : Window
         }
 
         PixelArtUpscaleCheckBox.IsChecked = false;
+        PixelArtUpscaleCheckBox.IsEnabled = false;
         UpdatePixelArtSelectorState();
         FourXScaleRadioButton.IsChecked = true;
         _isUpdatingDimensions = true;
