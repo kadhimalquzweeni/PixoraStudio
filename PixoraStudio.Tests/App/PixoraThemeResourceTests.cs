@@ -25,6 +25,16 @@ public sealed class PixoraThemeResourceTests
         Assert.Contains("{x:Type Slider}", styles);
         Assert.Contains("{x:Type Label}", styles);
         Assert.Contains("{x:Type TextBlock}", styles);
+        var comboBoxTemplate = document.Descendants(presentation + "Style")
+            .First(style => (string?)style.Attribute("TargetType") == "{x:Type ComboBox}")
+            .Descendants(presentation + "ControlTemplate")
+            .FirstOrDefault();
+
+        Assert.NotNull(comboBoxTemplate);
+        Assert.NotNull(comboBoxTemplate!.Descendants(presentation + "Popup").FirstOrDefault());
+        Assert.Contains(comboBoxTemplate.Descendants(presentation + "Border"),
+            border => (string?)border.Attribute("Background") == "#25282F");
+
         Assert.NotNull(document.Descendants(presentation + "Style")
             .FirstOrDefault(style => (string?)style.Attribute("TargetType") == "{x:Type Slider}")
             ?.Descendants(presentation + "ControlTemplate").FirstOrDefault());
