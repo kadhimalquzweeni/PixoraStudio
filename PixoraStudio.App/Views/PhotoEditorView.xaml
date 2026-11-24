@@ -410,12 +410,16 @@
                                                                      Margin="0,3,0,12"/>
                                                             <DockPanel>
                                                                 <TextBlock Text="Opacity" FontSize="11" Foreground="#AEB4BF"/>
-                                                                <TextBlock Text="{Binding Opacity, StringFormat={}{0:P0}}"
-                                                                           FontSize="11" Foreground="#D4D6DE"
-                                                                           DockPanel.Dock="Right"/>
+                                                                <TextBox Text="{Binding OpacityPercent, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0}}"
+                                                                         Width="42" HorizontalContentAlignment="Right"
+                                                                         DockPanel.Dock="Right" Margin="0,0,4,0"/>
+                                                                <TextBlock Text="%" FontSize="11" Foreground="#D4D6DE"
+                                                                           VerticalAlignment="Center" DockPanel.Dock="Right"/>
                                                             </DockPanel>
-                                                            <Slider Minimum="0" Maximum="1"
-                                                                    Value="{Binding Opacity, UpdateSourceTrigger=PropertyChanged}"
+                                                            <Slider Minimum="0" Maximum="100"
+                                                                    Value="{Binding OpacityPercent, UpdateSourceTrigger=PropertyChanged}"
+                                                                    IsMoveToPointEnabled="True" IsSnapToTickEnabled="False"
+                                                                    Focusable="True" IsHitTestVisible="True"
                                                                     Margin="0,2,0,12"/>
                                                             <UniformGrid Columns="2" Margin="0,0,0,12">
                                                                 <ToggleButton Content="Locked" IsChecked="{Binding IsLocked}"
