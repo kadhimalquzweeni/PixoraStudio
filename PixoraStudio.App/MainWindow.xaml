@@ -8,6 +8,7 @@
     Height="750"
     MinWidth="900"
     MinHeight="600"
+    WindowState="Maximized"
     WindowStartupLocation="CenterScreen"
     Background="#17191E">
 
@@ -128,7 +129,18 @@
                     FontWeight="SemiBold"
                     VerticalAlignment="Center"
                     HorizontalAlignment="Right"
-                    Cursor="Hand"/>
+                    Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentPage}" Value="Home">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
 
                 </Grid>
 

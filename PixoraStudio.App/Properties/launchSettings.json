@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PixoraStudio": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "PIXORA_H264_THUMBNAIL_WORKERS": "4"
+      }
+    }
+  }
+}

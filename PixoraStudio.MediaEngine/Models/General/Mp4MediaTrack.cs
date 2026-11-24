@@ -61,4 +61,26 @@ public sealed class Mp4MediaTrack
             mediaDataRegions,
             cancellationToken);
     }
+
+    /// <summary>
+    /// Reads a one-based sample range in decode order.
+    /// </summary>
+    public IEnumerable<Mp4EncodedSample> ReadSamples(
+        Stream stream,
+        uint startSampleNumber,
+        uint sampleCount,
+        IReadOnlyList<Mp4MediaData> mediaDataRegions,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(mediaDataRegions);
+
+        return new Mp4TrackSampleEnumerator().Enumerate(
+            stream,
+            SampleLocations,
+            startSampleNumber,
+            sampleCount,
+            mediaDataRegions,
+            cancellationToken);
+    }
 }

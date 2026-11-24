@@ -1,193 +1,426 @@
 <UserControl x:Class="PixoraStudio.App.Views.PhotoEditorView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixoraStudio.App.Controls"
+    DataContextChanged="PhotoEditorView_DataContextChanged"
+    Loaded="PhotoEditorView_Loaded">
+    <UserControl.Resources>
+        <DrawingBrush x:Key="TransparencyCheckerboard"
+                      TileMode="Tile"
+                      Viewport="0,0,24,24"
+                      ViewportUnits="Absolute"
+                      Viewbox="0,0,24,24"
+                      ViewboxUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#F0F0F0" Geometry="M0,0 H24 V24 H0 Z"/>
+                    <GeometryDrawing Brush="#D8D8D8">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="0,0,12,12"/>
+                                <RectangleGeometry Rect="12,12,12,12"/>
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+        <Style x:Key="ToolButton" TargetType="Button">
+            <Setter Property="Width" Value="48"/><Setter Property="Height" Value="48"/>
+            <Setter Property="Margin" Value="2"/><Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#D5D7DC"/><Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="19"/><Setter Property="Cursor" Value="Hand"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ContentPresenter ContentSource="SelectedContent" Margin="0"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#D4D6DE"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="8,6"/><Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="#343740"/><Setter Property="Foreground" Value="#F0F1F4"/>
+            <Setter Property="BorderBrush" Value="#454954"/>
+        </Style>
+    </UserControl.Resources>
 
     <Grid Background="#17191E">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="55"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="40"/>
-        </Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="46"/><RowDefinition Height="*"/><RowDefinition Height="46"/></Grid.RowDefinitions>
 
-        <!-- Toolbar -->
-        <Border Background="#22252D" Padding="10">
-            <DockPanel>
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Undo"
-                            Command="{Binding UndoCommand}"
-                            IsEnabled="{Binding CanUndo}"
-                            Margin="0,0,5,0"/>
-
-                    <Button Content="Redo"
-                            Command="{Binding RedoCommand}"
-                            IsEnabled="{Binding CanRedo}"
-                            Margin="0,0,15,0"/>
-
-                    <Button Content="Reset"
-                            Command="{Binding ResetAdjustmentsCommand}"
-                            Margin="0,0,5,0"/>
-
-                    <ToggleButton Content="Original"
-                            IsChecked="{Binding ShowOriginal}"
-                            Foreground="White"
-                            Background="#343740"
-                            Padding="10,5"
-                            Margin="0,0,5,0"/>
-
-                    <Button Content="−"
-                            Command="{Binding ZoomOutCommand}"
-                            Margin="0,0,5,0"/>
-
-                    <Button Content="Fit"
-                            Command="{Binding FitToScreenCommand}"
-                            Margin="0,0,5,0"/>
-
-                    <Button Content="+"
-                            Command="{Binding ZoomInCommand}"/>
+        <Border Background="#22252D" Padding="12,6">
+            <DockPanel LastChildFill="True">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <TextBlock Text="PIXORA" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <Button Content="New Canvas" Command="{Binding NewCanvasCommand}"
+                            Background="#087FC4" Foreground="White" Padding="12,6"
+                            ToolTip="Create a blank canvas"/>
+                    <Button Content="Canvas Size" Command="{Binding ResizeCanvasCommand}"
+                            IsEnabled="{Binding IsImageLoaded}" ToolTip="Change the document canvas dimensions"/>
+                    <Button Content="Open image" Command="{Binding OpenImageCommand}"
+                            ToolTip="Open an image as a new document"/>
+                    <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
+                    <Button Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
+                    <CheckBox Content="Snap" IsChecked="{Binding IsSnappingEnabled}" Foreground="White" VerticalAlignment="Center" Margin="8,2" ToolTip="Snap layers to the canvas and other layers"/>
+                    <ToggleButton Content="Preview original" IsChecked="{Binding ShowOriginal}" Foreground="White" Background="#343740" Padding="9,5" Margin="8,2"/>
                 </StackPanel>
-
-                <Button Content="Export Image"
-                        Command="{Binding SaveImageCommand}"
-                        Background="#3478D4"
-                        Foreground="White"
-                        Padding="15,5"
-                        BorderThickness="0"
-                        HorizontalAlignment="Right"/>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button Content="Export icon" Command="{Binding ExportIconCommand}" IsEnabled="{Binding IsImageLoaded}"/>
+                    <Button Content="Save image" Command="{Binding SaveImageCommand}" IsEnabled="{Binding IsImageLoaded}" Background="#087FC4" Foreground="White" Padding="16,6"/>
+                </StackPanel>
             </DockPanel>
         </Border>
 
-        <!-- Main editor -->
-        <Grid Grid.Row="1" Margin="15">
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="56"/>
+                <ColumnDefinition x:Name="ToolSettingsColumn" Width="0"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="176"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Image canvas -->
-            <Border Background="#202127"
-                    CornerRadius="10"
-                    Margin="0,0,15,0"
-                    ClipToBounds="True">
-
-                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Auto">
-
-                    <Grid MinWidth="300" MinHeight="300">
-
-                        <Image Source="{Binding PreviewImage}"
-                               Stretch="Uniform"
-                               Width="{Binding PreviewImage.Width}"
-                               Height="{Binding PreviewImage.Height}"
-                               RenderTransformOrigin="0.5,0.5"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center">
-
-                            <Image.RenderTransform>
-                                <ScaleTransform ScaleX="{Binding Zoom}"
-                                               ScaleY="{Binding Zoom}"/>
-                            </Image.RenderTransform>
-
-                        </Image>
-
-                    </Grid>
-
+            <Border Grid.Column="0" Background="#25272C">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel HorizontalAlignment="Center" Margin="2,8">
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Back to Home" Click="CloseEditor_Click">
+                            <controls:SvgIcon IconName="house" Width="23" Height="23" Stroke="#C5C5C5"/>
+                        </Button>
+                        <Separator Width="34" Margin="4,8"/>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Select" Tag="0" Click="Tool_Click"><controls:SvgIcon IconName="mouse-pointer-2" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Crop" Tag="2" Click="Tool_Click"><controls:SvgIcon IconName="crop" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Resize" Tag="3" Click="Tool_Click"><controls:SvgIcon IconName="maximize" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Adjustments" Tag="4" Click="Tool_Click"><controls:SvgIcon IconName="sliders-horizontal" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Filters" Tag="5" Click="Tool_Click"><controls:SvgIcon IconName="contrast" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Effects" Tag="6" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Retouch" Tag="7" Click="Tool_Click"><controls:SvgIcon IconName="eraser" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Text" Tag="8" Click="Tool_Click"><controls:SvgIcon IconName="type" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Shapes" Tag="9" Click="Tool_Click"><controls:SvgIcon IconName="shapes" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Separator Margin="4,8"/>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Export icon" Tag="10" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                    </StackPanel>
                 </ScrollViewer>
             </Border>
 
-            <!-- Adjustment panel -->
-            <Border Grid.Column="1"
-                    Background="#22252D"
-                    CornerRadius="10"
-                    Padding="18">
+            <Border Grid.Column="2" Background="#171819" ClipToBounds="True">
+                <Grid>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <Grid MinWidth="300" MinHeight="300">
+                            <Grid x:Name="DocumentCanvas" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                  Margin="4096" ClipToBounds="False"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Background="{StaticResource TransparencyCheckerboard}">
+                                <Grid.RenderTransform><ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/></Grid.RenderTransform>
+                                <Border x:Name="GpuPreviewHost">
+                                    <controls:SafeGpuPreviewElement x:Name="GpuPreview"
+                                                                    Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                                                    Focusable="False" IsHitTestVisible="False"
+                                                                    PaintSurface="GpuPreview_PaintSurface"
+                                                                    RenderFailed="GpuPreview_RenderFailed"/>
+                                </Border>
+                                <Image x:Name="CpuPreviewImage" Source="{Binding PreviewImage}"
+                                       Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
+                                <Canvas Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                        IsHitTestVisible="False">
+                                    <Image Source="{Binding LayerDragPreviewImage}"
+                                           Opacity="{Binding SelectedLayer.Opacity}"
+                                           Width="{Binding LayerDragPreviewWidth}"
+                                           Height="{Binding LayerDragPreviewHeight}"
+                                           Canvas.Left="{Binding LayerDragPreviewX}"
+                                           Canvas.Top="{Binding LayerDragPreviewY}"
+                                           Stretch="Fill"/>
+                                </Canvas>
+                                <Canvas x:Name="SnapGuideOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                    IsHitTestVisible="False"/>
+                                <Canvas x:Name="CropOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                    Background="Transparent" Visibility="Collapsed"
+                                    MouseLeftButtonDown="CropOverlay_MouseLeftButtonDown" MouseMove="CropOverlay_MouseMove"
+                                    MouseLeftButtonUp="CropOverlay_MouseLeftButtonUp"/>
+                                <Canvas x:Name="LayerOverlay"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Background="Transparent" ClipToBounds="False"
+                                    MouseLeftButtonDown="LayerOverlay_MouseLeftButtonDown" MouseMove="LayerOverlay_MouseMove"
+                                    MouseLeftButtonUp="LayerOverlay_MouseLeftButtonUp"/>
+                                <Border BorderBrush="#8BC5FF" BorderThickness="1"
+                                        IsHitTestVisible="False"/>
+                            </Grid>
+                        </Grid>
+                    </ScrollViewer>
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Border Background="#17191E" Panel.ZIndex="10">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsImageLoaded}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440">
+                            <TextBlock Text="Start with a canvas" FontSize="26" FontWeight="SemiBold"
+                                       Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Create a blank document, or open an image to begin editing."
+                                       Foreground="#A0A3AD" TextWrapping="Wrap" TextAlignment="Center"
+                                       Margin="0,10,0,22"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="＋  New Canvas" Command="{Binding NewCanvasCommand}"
+                                        Background="#087FC4" Foreground="White" Padding="18,10"/>
+                                <Button Content="Open image" Command="{Binding OpenImageCommand}"
+                                        Padding="18,10" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
 
-                    <StackPanel>
+            <Border Grid.Column="1" x:Name="ToolSettingsBorder" Background="#24262B" BorderBrush="#35383F" BorderThickness="0,0,1,0" Visibility="Collapsed">
+                <Grid x:Name="ToolSettingsPanel" Margin="14">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,14">
+                        <TextBlock Text="TOOLS" FontSize="13" FontWeight="Bold" Foreground="#8E949F" VerticalAlignment="Center"/>
+                        <Button Content="×" Width="28" Height="26" Padding="0" DockPanel.Dock="Right" Background="Transparent" BorderThickness="0" Foreground="#AEB2BE" Click="CloseToolSettings_Click"/>
+                    </DockPanel>
+                    <Grid Grid.Row="1">
+                        <TabControl x:Name="ToolSettingsTabs" SelectedIndex="0" Background="Transparent" BorderThickness="0">
 
-                        <TextBlock Text="Adjustments"
-                                   Foreground="White"
-                                   FontSize="20"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,20"/>
-
-                        <!-- Brightness -->
-                        <DockPanel>
-                            <TextBlock Text="Brightness"
-                                       Foreground="#D4D6DE"/>
-                            <TextBlock Text="{Binding Brightness,
-                                StringFormat={}{0:F0}}"
-                                       Foreground="#8BC5FF"
-                                       DockPanel.Dock="Right"/>
-                        </DockPanel>
-
-                        <Slider Minimum="-100"
-                                Maximum="100"
-                                Value="{Binding Brightness}"
-                                Margin="0,8,0,20"/>
-
-                        <!-- Contrast -->
-                        <DockPanel>
-                            <TextBlock Text="Contrast"
-                                       Foreground="#D4D6DE"/>
-                            <TextBlock Text="{Binding Contrast,
-                                StringFormat={}{0:F2}}"
-                                       Foreground="#8BC5FF"
-                                       DockPanel.Dock="Right"/>
-                        </DockPanel>
-
-                        <Slider Minimum="0"
-                                Maximum="3"
-                                Value="{Binding Contrast}"
-                                Margin="0,8,0,20"/>
-
-                        <!-- Saturation -->
-                        <DockPanel>
-                            <TextBlock Text="Saturation"
-                                       Foreground="#D4D6DE"/>
-                            <TextBlock Text="{Binding Saturation,
-                                StringFormat={}{0:F2}}"
-                                       Foreground="#8BC5FF"
-                                       DockPanel.Dock="Right"/>
-                        </DockPanel>
-
-                        <Slider Minimum="0"
-                                Maximum="3"
-                                Value="{Binding Saturation}"
-                                Margin="0,8,0,25"/>
-
-                        <!-- Filters -->
-                        <TextBlock Text="Filters"
-                                   Foreground="White"
-                                   FontSize="16"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,12"/>
-
-                        <Button Content="Original"
-                                Command="{Binding ResetAdjustmentsCommand}"
-                                Margin="0,0,0,6"/>
-
-                        <Button Content="Grayscale"
-                                Click="Grayscale_Click"
-                                Margin="0,0,0,6"/>
-
-                        <Button Content="Sepia"
-                                Click="Sepia_Click"
-                                Margin="0,0,0,6"/>
-
-                    </StackPanel>
-
-                </ScrollViewer>
+                            <TabItem Header="Select"><StackPanel><TextBlock Text="Select" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Choose an editing tool from the toolbar." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Transform">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Transform" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <UniformGrid Columns="2">
+                                        <Button Content="↶ Rotate left" Command="{Binding RotateCounterClockwiseCommand}"/>
+                                        <Button Content="↷ Rotate right" Command="{Binding RotateClockwiseCommand}"/>
+                                        <Button Content="Rotate 180°" Command="{Binding Rotate180Command}"/>
+                                        <Button Content="Flip horizontal" Command="{Binding FlipHorizontalCommand}"/>
+                                        <Button Content="Flip vertical" Command="{Binding FlipVerticalCommand}"/>
+                                    </UniformGrid>
+                                    <Separator Margin="0,12"/>
+                                    <TextBlock Text="Straighten" FontWeight="SemiBold"/>
+                                    <DockPanel Margin="0,8"><TextBlock Text="Angle"/><TextBlock Text="{Binding RotationAngle, StringFormat={}{0:F1}°}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel>
+                                    <Slider Minimum="-45" Maximum="45" Value="{Binding RotationAngle}" Margin="0,4,0,10"/>
+                                    <UniformGrid Columns="2"><Button Content="Reset" Command="{Binding ResetRotationCommand}"/><Button Content="Apply" Command="{Binding ApplyRotationCommand}" Background="#087FC4"/></UniformGrid>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Crop">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Crop" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <Button Content="Start visual crop" Click="StartCrop_Click" Background="#087FC4"/>
+                                    <StackPanel x:Name="CropActionPanel" Visibility="Collapsed">
+                                        <TextBlock Text="Drag inside the box to move it. Drag an edge or corner to resize." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,8"/>
+                                        <TextBlock Text="Aspect ratio" Margin="2,4"/>
+                                        <ComboBox x:Name="CropAspectRatioCombo" SelectedIndex="0" SelectionChanged="CropAspectRatio_SelectionChanged" Margin="2,0,2,8">
+                                            <ComboBoxItem Content="Free" Tag="free"/><ComboBoxItem Content="Original" Tag="original"/>
+                                            <ComboBoxItem Content="Square (1:1)" Tag="1"/><ComboBoxItem Content="4:3" Tag="1.3333333"/>
+                                            <ComboBoxItem Content="3:2" Tag="1.5"/><ComboBoxItem Content="16:9" Tag="1.7777778"/>
+                                            <ComboBoxItem Content="9:16" Tag="0.5625"/>
+                                        </ComboBox>
+                                        <UniformGrid Columns="2"><Button Content="Apply crop" Click="ApplyVisualCrop_Click" Background="#087FC4"/><Button Content="Cancel" Click="CancelVisualCrop_Click"/></UniformGrid>
+                                    </StackPanel>
+                                    <TextBlock Text="Position and size (pixels)" FontWeight="SemiBold" Margin="0,14,0,6"/>
+                                    <UniformGrid Columns="2">
+                                        <StackPanel Margin="2"><TextBlock Text="X"/><TextBox Text="{Binding CropX, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                        <StackPanel Margin="2"><TextBlock Text="Y"/><TextBox Text="{Binding CropY, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                        <StackPanel Margin="2"><TextBlock Text="Width"/><TextBox Text="{Binding CropWidth, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                        <StackPanel Margin="2"><TextBlock Text="Height"/><TextBox Text="{Binding CropHeight, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                    </UniformGrid>
+                                    <Button Content="Apply crop" Command="{Binding CropCommand}" Background="#087FC4" Margin="2,10"/>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Resize"><StackPanel>
+                                <TextBlock Text="Resize" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                <CheckBox Content="Lock aspect ratio" IsChecked="{Binding LockAspectRatio}" Foreground="#D4D6DE" Margin="2,0,0,8"/>
+                                <UniformGrid Columns="2">
+                                    <StackPanel Margin="2"><TextBlock Text="Width"/><TextBox Text="{Binding ResizeWidth, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                    <StackPanel Margin="2"><TextBlock Text="Height"/><TextBox Text="{Binding ResizeHeight, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                                </UniformGrid>
+                                <Button Content="Apply resize" Command="{Binding ResizeCommand}" Background="#087FC4" Margin="2,10"/>
+                            </StackPanel></TabItem>
+                            <TabItem Header="Adjustments">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Adjustments" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                    <DockPanel><TextBlock Text="Brightness"/><TextBlock Text="{Binding Brightness, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Brightness}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Contrast"/><TextBlock Text="{Binding Contrast, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="0" Maximum="3" Value="{Binding Contrast}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Saturation"/><TextBlock Text="{Binding Saturation, StringFormat={}{0:F2}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="0" Maximum="3" Value="{Binding Saturation}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Exposure"/><TextBlock Text="{Binding Exposure, StringFormat={}{0:F2} EV}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-3" Maximum="3" Value="{Binding Exposure}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Highlights"/><TextBlock Text="{Binding Highlights, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Highlights}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Shadows"/><TextBlock Text="{Binding Shadows, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Shadows}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Temperature"/><TextBlock Text="{Binding Temperature, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Temperature}" Margin="0,8,0,14"/>
+                                    <DockPanel><TextBlock Text="Tint"/><TextBlock Text="{Binding Tint, StringFormat={}{0:F0}}" Foreground="#8BC5FF" DockPanel.Dock="Right"/></DockPanel><Slider Minimum="-100" Maximum="100" Value="{Binding Tint}" Margin="0,8,0,14"/>
+                                    <Button Content="Save adjustment to history" Command="{Binding CommitAdjustmentsCommand}" Margin="0,4,0,10"/>
+                                    <Button Content="Reset adjustments" Command="{Binding ResetAdjustmentsCommand}"/>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Filters"><StackPanel>
+                                <TextBlock Text="Filters" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                <Button Content="Original" Command="{Binding ResetAdjustmentsCommand}"/>
+                                <Button Content="Grayscale" Click="Grayscale_Click"/>
+                                <Button Content="Sepia" Click="Sepia_Click"/>
+                            </StackPanel></TabItem>
+                            <TabItem Header="Effects"><StackPanel><TextBlock Text="Effects" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Creative effects will appear here." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Retouch"><StackPanel><TextBlock Text="Retouch" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Retouching tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Text"><StackPanel><TextBlock Text="Text" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Text layers and typography controls are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Shapes"><StackPanel><TextBlock Text="Shapes" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Shape tools are planned for a future update." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="0,8"/></StackPanel></TabItem>
+                            <TabItem Header="Icon">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                                    <TextBlock Text="Create Windows icon (.ico)" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Export the edited image as a multi-size icon. Transparent padding preserves the image proportions." Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,0,2,10"/>
+                                    <UniformGrid Columns="2">
+                                        <CheckBox Content="16 px" IsChecked="{Binding IconSize16}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="24 px" IsChecked="{Binding IconSize24}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="32 px" IsChecked="{Binding IconSize32}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="48 px" IsChecked="{Binding IconSize48}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="64 px" IsChecked="{Binding IconSize64}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="128 px" IsChecked="{Binding IconSize128}" Foreground="#D4D6DE" Margin="2"/>
+                                        <CheckBox Content="256 px" IsChecked="{Binding IconSize256}" Foreground="#D4D6DE" Margin="2"/>
+                                    </UniformGrid>
+                                    <Button Content="Export selected sizes" Command="{Binding ExportIconCommand}" Background="#087FC4" Margin="2,10"/>
+                                </StackPanel></ScrollViewer>
+                            </TabItem>
+                        </TabControl>
+                        <TextBlock Text="{Binding OperationError}" Foreground="#FF8585" TextWrapping="Wrap" VerticalAlignment="Bottom" Margin="0,8,0,0"/>
+                    </Grid>
+                </Grid>
+            </Border>
+            <Border Grid.Column="3" Background="#252629" BorderBrush="#35383F" BorderThickness="1,0,0,0">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Layers" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="＋" DockPanel.Dock="Right" Command="{Binding AddLayerCommand}" IsEnabled="{Binding IsImageLoaded}"
+                                Background="#087FC4" Foreground="White" FontSize="20" Width="34" Height="30"
+                                Padding="0" Margin="12,0,0,0" ToolTip="Add a layer"/>
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding AdditionalLayers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#30343B" BorderThickness="1" CornerRadius="5" Padding="7" Margin="0,0,0,7"
+                                            MouseLeftButtonDown="LayerItem_MouseLeftButtonDown"
+                                            PreviewMouseMove="LayerItem_PreviewMouseMove"
+                                            DragOver="LayerItem_DragOver" Drop="LayerItem_Drop"
+                                            AllowDrop="True" Cursor="Hand">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="#454954"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="#168DD0"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Background="#25282E" CornerRadius="3" Width="44" Height="44">
+                                                <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="2"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="8,0,4,0" VerticalAlignment="Center">
+                                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" FontSize="10" Padding="2"
+                                                         Background="#25282E" Foreground="#E5E7EB" BorderThickness="0"
+                                                         ToolTip="Rename layer"/>
+                                                <WrapPanel Margin="0,3,0,0">
+                                                    <CheckBox Content="Visible" IsChecked="{Binding IsVisible}"
+                                                              Foreground="#AEB4BF" FontSize="9" Margin="0,0,8,0"/>
+                                                    <CheckBox Content="Locked" IsChecked="{Binding IsLocked}"
+                                                              Foreground="#AEB4BF" FontSize="9"/>
+                                                </WrapPanel>
+                                                <DockPanel Margin="0,4,0,0">
+                                                    <TextBlock Text="Opacity" Foreground="#AEB4BF" FontSize="9" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Opacity, StringFormat={}{0:P0}}" Foreground="#AEB4BF"
+                                                               FontSize="9" HorizontalAlignment="Right"/>
+                                                </DockPanel>
+                                                <Slider Minimum="0" Maximum="1" Value="{Binding Opacity, UpdateSourceTrigger=PropertyChanged}"
+                                                        Height="14" Margin="0,0,2,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <Button Content="⧉" Width="25" Height="25" Padding="0" ToolTip="Duplicate layer"
+                                                        Command="{Binding DataContext.DuplicateLayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="×" Width="25" Height="25" Padding="0" Margin="0,4,0,0"
+                                                    ToolTip="Remove layer"
+                                                    Command="{Binding DataContext.RemoveLayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <Expander Grid.Row="2" Header="Selected layer properties" IsExpanded="True"
+                              Foreground="#D4D6DE" Margin="0,8,0,0">
+                        <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="4" IsEnabled="{Binding SelectedLayer.IsEditable}">
+                                <TextBlock Text="Text content" FontSize="10" Foreground="#AEB4BF"/>
+                                <TextBox Text="{Binding SelectedLayer.TextContent, UpdateSourceTrigger=PropertyChanged}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="42" Margin="0,2,0,6"/>
+                                <TextBlock Text="Text alignment" FontSize="10" Foreground="#AEB4BF"/>
+                                <ComboBox SelectedValue="{Binding SelectedLayer.TextAlignment}" SelectedValuePath="Content" Margin="0,2,0,6">
+                                    <ComboBoxItem Content="Left"/><ComboBoxItem Content="Center"/><ComboBoxItem Content="Right"/>
+                                </ComboBox>
+                                <TextBlock Text="Font family" FontSize="10" Foreground="#AEB4BF"/>
+                                <TextBox Text="{Binding SelectedLayer.FontFamily, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,6"/>
+                                <DockPanel><TextBlock Text="Font size" Foreground="#AEB4BF" FontSize="10"/><TextBlock Text="{Binding SelectedLayer.FontSize, StringFormat={}{0:0}}" Foreground="#AEB4BF" FontSize="10" DockPanel.Dock="Right"/></DockPanel>
+                                <Slider Minimum="1" Maximum="256" Value="{Binding SelectedLayer.FontSize}" Margin="0,0,0,5"/>
+                                <TextBlock Text="Shape" FontSize="10" Foreground="#AEB4BF"/>
+                                <ComboBox SelectedValue="{Binding SelectedLayer.ShapeType}" SelectedValuePath="Content" Margin="0,2,0,6">
+                                    <ComboBoxItem Content="Rectangle"/><ComboBoxItem Content="Ellipse"/><ComboBoxItem Content="Line"/><ComboBoxItem Content="Arrow"/>
+                                </ComboBox>
+                                <TextBlock Text="Fill colour (hex)" FontSize="10" Foreground="#AEB4BF"/>
+                                <TextBox Text="{Binding SelectedLayer.FillColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,6"/>
+                                <TextBlock Text="Stroke colour (hex)" FontSize="10" Foreground="#AEB4BF"/>
+                                <TextBox Text="{Binding SelectedLayer.StrokeColor, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,6"/>
+                                <DockPanel><TextBlock Text="Stroke width" Foreground="#AEB4BF" FontSize="10"/><TextBlock Text="{Binding SelectedLayer.StrokeWidth, StringFormat={}{0:0}}" Foreground="#AEB4BF" FontSize="10" DockPanel.Dock="Right"/></DockPanel>
+                                <Slider Minimum="0" Maximum="64" Value="{Binding SelectedLayer.StrokeWidth}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Expander>
+                                    </Grid>
             </Border>
         </Grid>
 
-        <!-- Status bar -->
-        <Border Grid.Row="2" Background="#22252D">
-            <TextBlock Text="{Binding ImagePath}"
-                       Foreground="#8A8D97"
-                       FontSize="11"
-                       VerticalAlignment="Center"
-                       Margin="15,0"/>
+        <Border Grid.Row="2" Background="#202124" Padding="12,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="−" Command="{Binding ZoomOutCommand}" Width="30" Padding="0"/>
+                    <TextBlock Text="{Binding Zoom, StringFormat={}{0:P0}}" Foreground="#8BC5FF" VerticalAlignment="Center" Margin="8,0"/>
+                    <Button Content="＋" Command="{Binding ZoomInCommand}" Width="30" Padding="0"/>
+                    <Button Content="Fit" Command="{Binding FitToScreenCommand}" Margin="8,2"/>
+                    <TextBlock Text="{Binding ImageWidth, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    <TextBlock Text=" × " Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ImageHeight, StringFormat={}{0} px}" Foreground="#8A8D97" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button Content="UNDO  ↶" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" Background="Transparent" BorderThickness="0" Foreground="#B8BBC5" Padding="12,6"/>
+                    <Button Content="REDO  ↷" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" Background="Transparent" BorderThickness="0" Foreground="#B8BBC5" Padding="12,6"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Close" Click="CloseEditor_Click" Background="Transparent" BorderBrush="#555963" Padding="20,5" Margin="4"/>
+                    <Button Content="Save" Command="{Binding SaveImageCommand}" Background="#079BD8" Foreground="White" BorderThickness="0" Padding="22,5" Margin="4"/>
+                </StackPanel>
+            </Grid>
         </Border>
-
     </Grid>
 </UserControl>

@@ -1,0 +1,267 @@
+using PixoraStudio.MediaEngine.Decoders.Video.H264;
+using PixoraStudio.MediaEngine.Models.Video;
+
+namespace PixoraStudio.Tests.MediaEngine;
+
+public sealed class H264IntraMacroblockReconstructorTests
+{
+    [Theory]
+    [InlineData(1, 256)]
+    [InlineData(2, 512)]
+    public void ReconstructIntra16x16_ShouldWriteLumaAndBothChromaPlanes(
+        uint format, int chromaCount)
+    {
+        var sps = CreateSps(format);
+        var pps = CreatePps();
+        var surface = new H264DecodedPictureSurface(sps);
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+        reconstructor.SetDeblockingSliceParameters(new H264DeblockingSliceParameters(2, -2, 3));
+        var header = CreateHeader(0, 2);
+        var syntax = CreateSyntax(0, format);
+        var residual = CreateResidualMacroblock(0, format);
+
+        reconstructor.ReconstructIntra16x16(
+            0, 0, 0, header, syntax, residual, 24, sps, pps);
+
+        Assert.True(surface.IsMacroblockDecoded(0, 0));
+        H264DeblockingMacroblockMetadata deblocking =
+            surface.GetDeblockingMetadata(0, 0)!;
+        Assert.Equal(24, deblocking.QpY);
+        Assert.Equal(2, deblocking.DisableDeblockingFilterIdc);
+        Assert.Equal(-2, deblocking.AlphaOffsetDiv2);
+        Assert.Equal(3, deblocking.BetaOffsetDiv2);
+        Assert.Equal(16, deblocking.LumaBlocks.Count);
+        Assert.Equal(format == 1 ? 4 : 8, deblocking.ChromaCbBlocks.Count);
+        Assert.All(deblocking.LumaBlocks, block => Assert.True(block.IsIntra));
+
+        // The SPS describes a 2x2 macroblock picture. This call reconstructs
+        // only macroblock (0, 0), so assert its 16x16 luma and format-specific
+        // 8x8/8x16 chroma regions rather than untouched neighbouring regions.
+        byte[] luma = surface.CopyLumaPlane();
+        for (int row = 0; row < 16; row++)
+        {
+            Assert.All(luma.Skip(row * surface.Width).Take(16),
+                value => Assert.Equal((byte)128, value));
+        }
+
+        byte[] cb = surface.CopyCbPlane();
+        byte[] cr = surface.CopyCrPlane();
+        Assert.Equal(chromaCount, cb.Length);
+        int chromaBlockHeight = format == 1 ? 8 : 16;
+        for (int row = 0; row < chromaBlockHeight; row++)
+        {
+            Assert.All(cb.Skip(row * surface.ChromaWidth).Take(8),
+                value => Assert.Equal((byte)128, value));
+            Assert.All(cr.Skip(row * surface.ChromaWidth).Take(8),
+                value => Assert.Equal((byte)128, value));
+        }
+    }
+
+    [Fact]
+    public void ReconstructIntra16x16_ShouldUsePreviouslyReconstructedTopAndLeftReferences()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+
+        // Decode top-left first, then the macroblock above and to the left of
+        // the target so its external top and left references are available.
+        reconstructor.ReconstructIntra16x16(0, 0, 0, CreateHeader(0, 2),
+            CreateSyntax(0, 1), CreateResidualMacroblock(0, 1), 24, sps, CreatePps());
+        reconstructor.ReconstructIntra16x16(1, 0, 0, CreateHeader(1, 2),
+            CreateSyntax(0, 1), CreateResidualMacroblock(1, 1), 24, sps, CreatePps());
+        reconstructor.ReconstructIntra16x16(0, 1, 0, CreateHeader(2, 2),
+            CreateSyntax(0, 1), CreateResidualMacroblock(2, 1), 24, sps, CreatePps());
+
+        reconstructor.ReconstructIntra16x16(1, 1, 0, CreateHeader(3, 2),
+            CreateSyntax(0, 1), CreateResidualMacroblock(3, 1), 24, sps, CreatePps());
+
+        Assert.True(surface.IsMacroblockDecoded(1, 1));
+        Assert.Equal((byte)128, surface.GetLumaSample(16, 16));
+    }
+
+    [Fact]
+    public void ReconstructIntra16x16_ShouldGatherTopReferencesAndApplyVerticalLumaAndChromaModes()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        int chromaCount = 64;
+        surface.WriteIntraMacroblock(0, 0, 0,
+            Enumerable.Repeat((byte)80, 256).ToArray(),
+            Enumerable.Repeat((byte)90, chromaCount).ToArray(),
+            Enumerable.Repeat((byte)100, chromaCount).ToArray());
+        surface.WriteIntraMacroblock(1, 0, 0,
+            Enumerable.Repeat((byte)41, 256).ToArray(),
+            Enumerable.Repeat((byte)51, chromaCount).ToArray(),
+            Enumerable.Repeat((byte)61, chromaCount).ToArray());
+        surface.WriteIntraMacroblock(0, 1, 0,
+            Enumerable.Repeat((byte)71, 256).ToArray(),
+            Enumerable.Repeat((byte)81, chromaCount).ToArray(),
+            Enumerable.Repeat((byte)91, chromaCount).ToArray());
+
+        new H264IntraMacroblockReconstructor(surface).ReconstructIntra16x16(
+            1, 1, 0, CreateHeader(3, 0), CreateSyntax(2, 1),
+            CreateResidualMacroblock(3, 1), 24, sps, CreatePps());
+
+        Assert.All(surface.CopyLumaPlane().Skip(16 * 32 + 16).Take(16),
+            value => Assert.Equal((byte)41, value));
+        Assert.Equal((byte)41, surface.GetLumaSample(16, 16));
+        Assert.Equal((byte)51, surface.GetChromaSample(1, 8, 8));
+        Assert.Equal((byte)61, surface.GetChromaSample(2, 8, 8));
+    }
+
+    [Fact]
+    public void ReconstructIntra16x16_ShouldRejectPlanePredictionWhenTopLeftIsUnavailable()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        const int chromaSamples = 64;
+
+        // Top and left are available in this slice, but the diagonal neighbour
+        // belongs to another slice. Plane prediction requires all three edges.
+        surface.WriteIntraMacroblock(0, 0, 1,
+            Enumerable.Repeat((byte)120, 256).ToArray(),
+            Enumerable.Repeat((byte)120, chromaSamples).ToArray(),
+            Enumerable.Repeat((byte)120, chromaSamples).ToArray());
+        surface.WriteIntraMacroblock(1, 0, 0,
+            Enumerable.Repeat((byte)80, 256).ToArray(),
+            Enumerable.Repeat((byte)80, chromaSamples).ToArray(),
+            Enumerable.Repeat((byte)80, chromaSamples).ToArray());
+        surface.WriteIntraMacroblock(0, 1, 0,
+            Enumerable.Repeat((byte)40, 256).ToArray(),
+            Enumerable.Repeat((byte)40, chromaSamples).ToArray(),
+            Enumerable.Repeat((byte)40, chromaSamples).ToArray());
+
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+        FormatException exception = Assert.Throws<FormatException>(() =>
+            reconstructor.ReconstructIntra16x16(
+                1, 1, 0, CreateHeader(3, 3), CreateSyntax(0, 1),
+                CreateResidualMacroblock(3, 1), 24, sps, CreatePps()));
+
+        Assert.Contains("top-left: False", exception.Message);
+        Assert.False(surface.IsMacroblockDecoded(1, 1));
+    }
+
+    [Fact]
+    public void ReconstructIntra16x16_ShouldRejectMissingPlanePredictionReferences()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+
+        Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 3), CreateSyntax(0, 1),
+            CreateResidualMacroblock(0, 1), 24, sps, CreatePps()));
+        Assert.False(surface.IsMacroblockDecoded(0, 0));
+    }
+
+    [Fact]
+    public void ReconstructIntra16x16_ShouldRejectI4x4AndPcmButAllowCabac()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+        var residual = CreateResidualMacroblock(0, 1);
+
+        Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 0) with { IsIntra16x16 = false },
+            CreateSyntax(0, 1), residual, 24, sps, CreatePps()));
+        Assert.Throws<NotSupportedException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 2) with { IsPcm = true },
+            CreateSyntax(0, 1), residual, 24, sps, CreatePps()));
+        var cabacSurface = new H264DecodedPictureSurface(sps);
+        var cabacReconstructor = new H264IntraMacroblockReconstructor(cabacSurface);
+        cabacReconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1), residual, 24,
+            sps, CreatePps() with { EntropyCodingModeFlag = true });
+        Assert.True(cabacSurface.IsMacroblockDecoded(0, 0));
+    }
+
+    [Fact]
+    public void ReconstructIntra16x16_ShouldRejectAddressAndResidualShapeMismatch()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+
+        Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(1, 2), CreateSyntax(0, 1),
+            CreateResidualMacroblock(0, 1), 24, sps, CreatePps()));
+        Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1),
+            CreateResidualMacroblock(0, 1) with { Blocks = [] },
+            24, sps, CreatePps()));
+    }
+
+    [Fact]
+    public void ReconstructIntra16x16_ShouldRejectInconsistentChromaSyntaxAndDuplicateComponents()
+    {
+        var sps = CreateSps(1);
+        var surface = new H264DecodedPictureSurface(sps);
+        var reconstructor = new H264IntraMacroblockReconstructor(surface);
+        var residual = CreateResidualMacroblock(0, 1);
+
+        Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 2),
+            residual, 24, sps, CreatePps()));
+
+        H264IntraLumaResidualMacroblock duplicateCr = residual with
+        {
+            ChromaComponents =
+            [
+                residual.ChromaComponents[0],
+                residual.ChromaComponents[0]
+            ]
+        };
+        Assert.Throws<FormatException>(() => reconstructor.ReconstructIntra16x16(
+            0, 0, 0, CreateHeader(0, 2), CreateSyntax(0, 1),
+            duplicateCr, 24, sps, CreatePps()));
+        Assert.False(surface.IsMacroblockDecoded(0, 0));
+    }
+
+    private static H264SequenceParameterSet CreateSps(uint format) =>
+        new(0, 66, 30, format, false, 0, 0, 0, 0, 0, 1,
+            1, 1, true, true, 32, 32, false);
+
+    private static H264PictureParameterSetHeader CreatePps() =>
+        new(0, 0, false, false, 0);
+
+    private static H264MacroblockHeader CreateHeader(uint address, uint mode) =>
+        new(address, 0, false, 0, true, true, mode, 0, 0, false);
+
+    private static H264IntraMacroblockSyntax CreateSyntax(uint chromaMode, uint chromaFormat) =>
+        new(null, null, chromaMode,
+            new H264CodedBlockPattern(0, 0, 0, chromaFormat), 0);
+
+    private static H264IntraLumaResidualMacroblock CreateResidualMacroblock(
+        uint address, uint format)
+    {
+        H264CavlcResidualBlock dc = CreateResidual(16);
+        H264IntraLumaResidualBlock[] luma = Enumerable.Range(0, 16)
+            .Select(index => new H264IntraLumaResidualBlock(
+                new[] { 0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 0, 1, 2, 3, 2, 3 }[index],
+                new[] { 0, 0, 1, 1, 0, 0, 1, 1, 2, 2, 3, 3, 2, 2, 3, 3 }[index],
+                false, CreateResidual(15)))
+            .ToArray();
+        int blocks = format == 1 ? 4 : 8;
+        H264IntraChromaResidualComponent[] chroma =
+        [
+            CreateChroma(1, blocks, format),
+            CreateChroma(2, blocks, format)
+        ];
+        return new H264IntraLumaResidualMacroblock(address, dc, luma)
+        {
+            ChromaComponents = chroma
+        };
+    }
+
+    private static H264IntraChromaResidualComponent CreateChroma(
+        byte component, int count, uint format) =>
+        new(component, CreateResidual(format == 1 ? 4 : 8),
+            Enumerable.Range(0, count).Select(index =>
+                new H264IntraChromaResidualBlock(index % 2, index / 2,
+                    false, CreateResidual(15))).ToArray());
+
+    private static H264CavlcResidualBlock CreateResidual(int count) =>
+        new(count, 0, 0, 0, new int[count]);
+}

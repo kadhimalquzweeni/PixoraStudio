@@ -1,0 +1,57 @@
+name: .NET 10 build and test
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        run: dotnet restore PixoraStudio.slnx
+
+      - name: Build solution
+        run: dotnet build PixoraStudio.slnx --configuration Release --no-restore
+
+      - name: Run automated tests
+        run: dotnet test PixoraStudio.Tests/PixoraStudio.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=pixorastudio-tests.trx"
+
+      - name: Restore benchmark project
+        run: dotnet restore PixoraStudio.Benchmarks/PixoraStudio.Benchmarks.csproj
+
+      - name: Build benchmark project
+        run: dotnet build PixoraStudio.Benchmarks/PixoraStudio.Benchmarks.csproj --configuration Release --no-restore
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixorastudio-test-results
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/*.yuv
+            **/TestResults/*.txt
+          if-no-files-found: warn

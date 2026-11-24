@@ -5,11 +5,17 @@
           ShutdownMode="OnMainWindowClose">
 
     <Application.Resources>
-        <converters:NullToVisibilityConverter
-            x:Key="NullToVisibilityConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Assets/Icons/Icons.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <BooleanToVisibilityConverter
-            x:Key="BooleanToVisibilityConverter"/>
+            <converters:NullToVisibilityConverter
+                x:Key="NullToVisibilityConverter"/>
+
+            <BooleanToVisibilityConverter
+                x:Key="BooleanToVisibilityConverter"/>
+        </ResourceDictionary>
     </Application.Resources>
 
 </Application>

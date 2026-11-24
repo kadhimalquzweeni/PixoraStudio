@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using PixoraStudio.Core.Interfaces;
@@ -6,8 +6,6 @@ using PixoraStudio.Core.Models;
 using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
-using PixoraStudio.Infrastructure.Services;
-using System.Threading;
 using System.Collections.ObjectModel;
 
 namespace PixoraStudio.App.ViewModels;
@@ -15,18 +13,19 @@ namespace PixoraStudio.App.ViewModels;
 public partial class VideoEditorViewModel : ObservableObject
 {
     private readonly IVideoProcessingService _videoService;
+    private readonly IVideoExportService _videoExportService;
+    private CancellationTokenSource? _exportCancellation;
+    private CancellationTokenSource? _thumbnailCancellation;
 
     private VideoInfo? _videoInfo;
-    private readonly FFmpegService _ffmpegService;
-    private CancellationTokenSource? _exportCancellationTokenSource;
     public ObservableCollection<BitmapImage> VideoFrames { get; } = new();
 
     public VideoEditorViewModel(
         IVideoProcessingService videoService,
-        FFmpegService ffmpegService)
+        IVideoExportService videoExportService)
     {
         _videoService = videoService;
-        _ffmpegService = ffmpegService;
+        _videoExportService = videoExportService;
     }
 
     [ObservableProperty]
@@ -56,14 +55,53 @@ public partial class VideoEditorViewModel : ObservableObject
     [ObservableProperty]
     private string errorMessage = string.Empty;
 
+    [ObservableProperty]
+    private bool isExporting;
+
+    [ObservableProperty]
+    private double exportProgress;
+
+    [ObservableProperty]
+    private string exportStatusMessage = string.Empty;
+
+    // Export readiness depends on loaded MP4 metadata and a valid trim range.
+    // Thumbnail generation is independent UI work and must not block exporting.
+    private bool CanExportTrimmedVideo() =>
+        VideoExportEligibility.CanExport(
+            VideoPath,
+            IsExporting,
+            TrimStart,
+            TrimEnd);
+
+    private bool CanCancelExport() => IsExporting;
+
+    partial void OnVideoPathChanged(string? value)
+    {
+        ExportStatusMessage = !string.IsNullOrWhiteSpace(value) &&
+            !string.Equals(Path.GetExtension(value), ".mp4", StringComparison.OrdinalIgnoreCase)
+                ? "Managed trim export currently supports MP4 source files only."
+                : string.Empty;
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsLoadingChanged(bool value)
+    {
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsExportingChanged(bool value)
+    {
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
+        CancelExportCommand.NotifyCanExecuteChanged();
+    }
+
     [RelayCommand]
     private async Task OpenVideoAsync()
     {
         var dialog = new OpenFileDialog
         {
             Title = "Open Video",
-            Filter = "Video Files|*.mp4;*.mov;*.avi;*.mkv;*.wmv;*.webm|" +
-                     "All Files|*.*"
+            Filter = "MP4 Video Files|*.mp4|All Files|*.*"
         };
 
         if (dialog.ShowDialog() == true)
@@ -81,6 +119,12 @@ public partial class VideoEditorViewModel : ObservableObject
             return;
         }
 
+        _thumbnailCancellation?.Cancel();
+        _thumbnailCancellation?.Dispose();
+        CancellationTokenSource thumbnailCancellation = new();
+        _thumbnailCancellation = thumbnailCancellation;
+        CancellationToken thumbnailToken = thumbnailCancellation.Token;
+
         try
         {
             IsLoading = true;
@@ -90,32 +134,47 @@ public partial class VideoEditorViewModel : ObservableObject
             VideoPath = filePath;
             VideoName = Path.GetFileName(filePath);
 
+            // Start LibVLC immediately rather than making video startup wait
+            // for managed MP4 metadata parsing. The timeline can render its
+            // duration as soon as metadata arrives; Timer_Tick already tracks
+            // the player clock while TotalMilliseconds is temporarily zero.
+            TotalMilliseconds = 0;
+            PlaybackPosition = 0;
+            CurrentTime = "00:00";
+            TrimStart = 0;
+            TrimEnd = 0;
+            VideoDuration = "00:00";
+            VideoResolution = "-";
+            VideoFrameRate = "-";
+            VideoFrames.Clear();
+
+            StatusMessage = "Opening video...";
             VideoLoaded?.Invoke(filePath);
 
             _videoInfo = await _videoService.GetVideoInfoAsync(filePath);
+            thumbnailToken.ThrowIfCancellationRequested();
 
-            VideoDuration = FormatDuration(_videoInfo.Duration);
-
-            TotalMilliseconds = _videoInfo.Duration.TotalMilliseconds;
-            PlaybackPosition = 0;
-            CurrentTime = "00:00";
-
+            TotalMilliseconds = Math.Max(0, _videoInfo.Duration.TotalMilliseconds);
+            // Do not reset PlaybackPosition or CurrentTime here: playback may
+            // already have advanced while the MP4 metadata was being read.
             TrimStart = 0;
             TrimEnd = TotalMilliseconds;
 
-            VideoResolution =
-                $"{_videoInfo.Width} × {_videoInfo.Height}";
-
-            VideoFrameRate =
-                $"{_videoInfo.FramesPerSecond:F2} FPS";
+            VideoDuration = FormatDuration(_videoInfo.Duration);
+            VideoResolution = $"{_videoInfo.Width} × {_videoInfo.Height}";
+            VideoFrameRate = $"{_videoInfo.FramesPerSecond:F2} FPS";
 
             StatusMessage = "Generating video thumbnails...";
 
-            await GenerateVideoFramesAsync(filePath);
+            await GenerateVideoFramesAsync(filePath, thumbnailToken);
 
             StatusMessage = VideoFrames.Count > 0
                 ? "Video loaded successfully"
                 : "Video loaded, but thumbnails could not be generated.";
+        }
+        catch (OperationCanceledException) when (thumbnailToken.IsCancellationRequested)
+        {
+            // A newer video was opened or the current video was closed.
         }
         catch (Exception ex)
         {
@@ -124,7 +183,12 @@ public partial class VideoEditorViewModel : ObservableObject
         }
         finally
         {
-            IsLoading = false;
+            if (ReferenceEquals(_thumbnailCancellation, thumbnailCancellation))
+            {
+                _thumbnailCancellation = null;
+                thumbnailCancellation.Dispose();
+                IsLoading = false;
+            }
         }
     }
 
@@ -139,7 +203,9 @@ public partial class VideoEditorViewModel : ObservableObject
     [RelayCommand]
     private void CloseVideo()
     {
-        _exportCancellationTokenSource?.Cancel();
+        _exportCancellation?.Cancel();
+        _thumbnailCancellation?.Cancel();
+        VideoClosed?.Invoke();
         VideoPath = null;
         VideoName = "No video loaded";
         VideoDuration = "00:00";
@@ -154,9 +220,11 @@ public partial class VideoEditorViewModel : ObservableObject
 
 
     public event Action<string>? VideoLoaded;
+    public event Action? VideoClosed;
 
     [ObservableProperty]
     private bool isPlaying;
+
 
     [ObservableProperty]
     private double playbackPosition;
@@ -170,15 +238,40 @@ public partial class VideoEditorViewModel : ObservableObject
     [ObservableProperty]
     private double volume = 100;
 
+    [ObservableProperty]
+    private bool isMuted;
+
+    public string VolumeIconKey =>
+        VolumeIconSelector.GetResourceKey(Volume, IsMuted);
+
     public event Action? PlayPauseRequested;
     public event Action<double>? SeekRequested;
     public event Action<double>? VolumeChanged;
+    public event Action<bool>? MuteChanged;
+
+    partial void OnIsMutedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(VolumeIconKey));
+        MuteChanged?.Invoke(value);
+    }
+
+    partial void OnVolumeChanged(double value)
+    {
+        OnPropertyChanged(nameof(VolumeIconKey));
+    }
+
+    [RelayCommand]
+    private void ToggleMute()
+    {
+        IsMuted = !IsMuted;
+    }
 
     [RelayCommand]
     private void PlayPause()
     {
         PlayPauseRequested?.Invoke();
     }
+
 
     [RelayCommand]
     private void Seek(double position)
@@ -222,6 +315,7 @@ public partial class VideoEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(TrimStartTime));
         OnPropertyChanged(nameof(TrimEndTime));
         OnPropertyChanged(nameof(TrimDurationTime));
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnTrimEndChanged(double value)
@@ -235,6 +329,7 @@ public partial class VideoEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(TrimStartTime));
         OnPropertyChanged(nameof(TrimEndTime));
         OnPropertyChanged(nameof(TrimDurationTime));
+        ExportTrimmedVideoCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -244,176 +339,195 @@ public partial class VideoEditorViewModel : ObservableObject
         TrimEnd = TotalMilliseconds;
     }
 
-    [ObservableProperty]
-    private bool isExporting;
 
-    [ObservableProperty]
-    private double exportProgress;
-
-    [ObservableProperty]
-    private string exportStatus = string.Empty;
-
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanExportTrimmedVideo))]
     private async Task ExportTrimmedVideoAsync()
     {
-        if (string.IsNullOrWhiteSpace(VideoPath) ||
-            !File.Exists(VideoPath))
-        {
-            ErrorMessage = "Please open a video before exporting.";
+        if (string.IsNullOrWhiteSpace(VideoPath))
             return;
-        }
-
-        if (TrimEnd <= TrimStart)
-        {
-            ErrorMessage = "The trim end must be after the trim start.";
-            return;
-        }
 
         var dialog = new SaveFileDialog
         {
             Title = "Export Trimmed Video",
-            Filter = "MP4 Video|*.mp4",
-            FileName = $"{Path.GetFileNameWithoutExtension(VideoPath)}_trimmed.mp4",
+            Filter = "MP4 Video Files|*.mp4",
             DefaultExt = ".mp4",
-            AddExtension = true
+            AddExtension = true,
+            FileName = $"{Path.GetFileNameWithoutExtension(VideoPath)}_trimmed.mp4",
+            InitialDirectory = Path.GetDirectoryName(VideoPath)
         };
 
         if (dialog.ShowDialog() != true)
             return;
 
-        _exportCancellationTokenSource = new CancellationTokenSource();
+        _exportCancellation?.Cancel();
+        _exportCancellation?.Dispose();
+        _exportCancellation = new CancellationTokenSource();
+
+        IsExporting = true;
+        ExportProgress = 0;
+        ExportStatusMessage = "Preparing managed MP4 export...";
+        ErrorMessage = string.Empty;
 
         try
         {
-            IsExporting = true;
-            ExportProgress = 0;
-            ErrorMessage = string.Empty;
-            ExportStatus = "Preparing video export...";
+            IProgress<double> progress = new Progress<double>(value =>
+                ExportProgress = Math.Max(
+                    ExportProgress,
+                    Math.Clamp(value * 100, 0, 100)));
 
-            StatusMessage = "Exporting trimmed video...";
-
-            var progress = new Progress<double>(value =>
-            {
-                ExportProgress = value;
-                ExportStatus = $"Exporting video... {value:F1}%";
-            });
-
-            await _ffmpegService.ExportTrimmedVideoAsync(
+            VideoExportResult result = await _videoExportService.ExportTrimmedVideoAsync(
                 VideoPath,
                 dialog.FileName,
-                TimeSpan.FromMilliseconds(TrimStart),
-                TimeSpan.FromMilliseconds(TrimEnd),
+                TrimStart / 1000.0,
+                TrimEnd / 1000.0,
                 progress,
-                _exportCancellationTokenSource.Token);
+                _exportCancellation.Token);
 
             ExportProgress = 100;
-            ExportStatus = "Export completed successfully!";
-            StatusMessage = "Trimmed video exported successfully.";
+
+            ExportStatusMessage =
+                $"Export complete. Frame range: {FormatDuration(TimeSpan.FromSeconds(result.EffectiveStartSeconds))}–{FormatDuration(TimeSpan.FromSeconds(result.EffectiveEndSeconds))}.";
+
+            StatusMessage = $"Saved trimmed video: {Path.GetFileName(result.OutputPath)}";
         }
         catch (OperationCanceledException)
         {
-            ExportStatus = "Export cancelled.";
-            StatusMessage = "Video export was cancelled.";
-            ErrorMessage = string.Empty;
+            ExportStatusMessage = "Export cancelled.";
         }
         catch (Exception ex)
         {
-            ExportStatus = "Export failed.";
-            ErrorMessage = ex.Message;
-            StatusMessage = "Unable to export trimmed video.";
+            ErrorMessage = $"Export failed: {ex.Message}";
+            ExportStatusMessage = "Export failed.";
         }
         finally
         {
+            _exportCancellation?.Dispose();
+            _exportCancellation = null;
             IsExporting = false;
-
-            _exportCancellationTokenSource?.Dispose();
-            _exportCancellationTokenSource = null;
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCancelExport))]
     private void CancelExport()
     {
-        _exportCancellationTokenSource?.Cancel();
+        _exportCancellation?.Cancel();
     }
 
-    private async Task GenerateVideoFramesAsync(string filePath)
+    private async Task GenerateVideoFramesAsync(
+        string filePath,
+        CancellationToken cancellationToken)
     {
         VideoFrames.Clear();
 
         if (_videoInfo == null || _videoInfo.Duration <= TimeSpan.Zero)
             return;
 
-        const int frameCount = 20;
-
-        for (int i = 0; i < frameCount; i++)
-        {
-            double fraction = (double)i / frameCount;
-
-            TimeSpan position = TimeSpan.FromMilliseconds(
-                _videoInfo.Duration.TotalMilliseconds * fraction);
-
-            string thumbnailPath = Path.Combine(
+        IReadOnlyList<TimeSpan> positions =
+            VideoThumbnailPlan.CreatePositions(_videoInfo.Duration);
+        string[] outputPaths = positions
+            .Select(_ => Path.Combine(
                 Path.GetTempPath(),
-                $"Pixora_Frame_{Guid.NewGuid()}.png");
+                $"Pixora_Frame_{Guid.NewGuid()}.png"))
+            .ToArray();
 
-            try
+        // Decode workers report from background threads. Load each PNG fully
+        // on that thread, then enqueue only the collection update on the UI
+        // dispatcher. Dispatcher.Invoke would block decoder workers and make
+        // thumbnail completion effectively serial.
+        IProgress<VideoThumbnailResult> progress =
+            new SynchronousProgress<VideoThumbnailResult>(result =>
             {
-                string generatedPath =
-                    await _videoService.GenerateThumbnailAsync(
-                        filePath,
-                        position,
-                        thumbnailPath);
-
-                if (string.IsNullOrWhiteSpace(generatedPath) ||
-                    !File.Exists(generatedPath))
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    continue;
+                    TryDeleteThumbnail(result.OutputPath);
+                    return;
                 }
 
-                BitmapImage frame;
-
-                // Read the image into memory and close the file.
-                using (FileStream stream = new FileStream(
-                    generatedPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.ReadWrite))
+                try
                 {
-                    frame = new BitmapImage();
-
-                    frame.BeginInit();
-                    frame.CacheOption = BitmapCacheOption.OnLoad;
-                    frame.DecodePixelWidth = 240;
-                    frame.StreamSource = stream;
-                    frame.EndInit();
-
-                    frame.Freeze();
-                }
-
-                VideoFrames.Add(frame);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"Thumbnail {i} failed: {ex.Message}");
-            }
-            finally
-            {
-                // Give the process a moment to release any remaining file handle.
-                if (File.Exists(thumbnailPath))
-                {
-                    try
+                    BitmapImage image;
+                    using (FileStream stream = new(
+                        result.OutputPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read))
                     {
-                        File.Delete(thumbnailPath);
+                        image = new BitmapImage();
+                        image.BeginInit();
+                        image.CacheOption = BitmapCacheOption.OnLoad;
+                        image.DecodePixelWidth = 240;
+                        image.StreamSource = stream;
+                        image.EndInit();
+                        image.Freeze();
                     }
-                    catch (IOException ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"Could not delete thumbnail: {ex.Message}");
-                    }
+
+                    // The image is now detached from the file, so the worker
+                    // can delete its temporary PNG without waiting for WPF.
+                    TryDeleteThumbnail(result.OutputPath);
+
+                    Application.Current.Dispatcher.BeginInvoke(
+                        new Action(() =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                return;
+
+                            // Parallel workers finish out of order. Insert by
+                            // requested index so the filmstrip remains sorted.
+                            int insertionIndex = Math.Min(
+                                result.Index, VideoFrames.Count);
+                            VideoFrames.Insert(insertionIndex, image);
+                        }));
                 }
-            }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Thumbnail {result.Index} could not be loaded: {ex}");
+                    TryDeleteThumbnail(result.OutputPath);
+                }
+            });
+
+        try
+        {
+            await _videoService.GenerateThumbnailsAsync(
+                filePath,
+                positions,
+                outputPaths,
+                progress,
+                cancellationToken,
+                // Filmstrip tiles don't need frame-exact positions. Decoding only
+                // the nearest keyframe (a fast keyframe seek) costs one
+                // picture per tile instead of a whole GOP. Use
+                // VideoThumbnailMode.Exact to decode the exact frame instead.
+                VideoThumbnailMode.NearestKeyframe);
+        }
+        finally
+        {
+            foreach (string outputPath in outputPaths)
+                TryDeleteThumbnail(outputPath);
+        }
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
+    }
+
+    private static void TryDeleteThumbnail(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (IOException ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Could not delete thumbnail: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Could not delete thumbnail: {ex.Message}");
         }
     }
 }

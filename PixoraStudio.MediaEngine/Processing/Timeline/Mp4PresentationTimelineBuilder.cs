@@ -81,6 +81,18 @@ public sealed class Mp4PresentationTimelineBuilder
         foreach (Mp4EditListEntry edit
                  in track.EditList!.Entries)
         {
+            if (edit.MediaTime < -1)
+            {
+                throw new Mp4ParsingException(
+                    $"Track {track.TrackId} contains an invalid negative edit media time.");
+            }
+
+            if (!edit.UsesNormalPlaybackRate)
+            {
+                throw new Mp4ParsingException(
+                    $"Track {track.TrackId} uses an unsupported edit playback rate.");
+            }
+
             double segmentDurationSeconds =
                 (double)edit.SegmentDuration /
                 movieHeader.Timescale;

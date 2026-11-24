@@ -1,8 +1,11 @@
 ﻿
 using PixoraStudio.App.ViewModels;
+using PixoraStudio.Core.Models;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace PixoraStudio.App.Windows;
 
@@ -13,23 +16,6 @@ public partial class VideoOverlayWindow : Window
     public VideoOverlayWindow()
     {
         InitializeComponent();
-
-        MouseEnter += Overlay_MouseEnter;
-        MouseLeave += Overlay_MouseLeave;
-    }
-
-    private void Overlay_MouseEnter(
-        object sender,
-        MouseEventArgs e)
-    {
-        ShowControls();
-    }
-
-    private void Overlay_MouseLeave(
-        object sender,
-        MouseEventArgs e)
-    {
-        HideControls();
     }
 
     public void ShowControls()
@@ -57,10 +43,35 @@ public partial class VideoOverlayWindow : Window
             ? "Exit Fullscreen"
             : "Enter Fullscreen";
 
+        FullscreenButton.Content = CreateIcon(
+            (Geometry)FindResource(
+                isFullScreen
+                    ? "MinimizeIconGeometry"
+                    : "MaximizeIconGeometry"),
+            20);
+
         FullscreenControls.Visibility =
             isFullScreen && IsMouseOver
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+    }
+
+    private Path CreateIcon(Geometry geometry, double size)
+    {
+        return new Path
+        {
+            Data = geometry,
+            Width = size,
+            Height = size,
+            Stretch = Stretch.Uniform,
+            Stroke = Brushes.White,
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+            Fill = Brushes.Transparent,
+            IsHitTestVisible = false
+        };
     }
 
     private void FullscreenButton_Click(
@@ -70,24 +81,67 @@ public partial class VideoOverlayWindow : Window
         FullscreenRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    // Seek through the video when the user drags the slider.
+    // WPF moves the thumb to the clicked point because IsMoveToPointEnabled
+    // is enabled in XAML. Apply the final value on mouse-up so a track click
+    // seeks even when WPF never captures the mouse for that click.
+    private void PlaybackSlider_PreviewMouseLeftButtonUp(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (!IsLoaded ||
+            DataContext is not VideoEditorViewModel vm ||
+            vm.TotalMilliseconds <= 0)
+        {
+            return;
+        }
+
+        // Commit exactly one seek after the pointer interaction has finished.
+        // Seeking during ValueChanged repeatedly pauses/restarts the decoder
+        // and can leave playback in an inconsistent state.
+        double position = VideoTimelineMath.ClampPosition(
+            PlaybackSlider.Value,
+            vm.TotalMilliseconds);
+
+        vm.SeekCommand.Execute(position);
+    }
+
+    // ValueChanged runs after the slider has applied the latest thumb position.
+    // Mouse capture gates this to an active drag; it never seeks the player.
     private void PlaybackSlider_ValueChanged(
         object sender,
         RoutedPropertyChangedEventArgs<double> e)
     {
         if (!IsLoaded ||
-            !PlaybackSlider.IsMouseCaptureWithin)
+            !PlaybackSlider.IsMouseCaptureWithin ||
+            e.NewValue == e.OldValue ||
+            DataContext is not VideoEditorViewModel vm ||
+            vm.TotalMilliseconds <= 0)
+            return;
+
+        PlaybackPreviewRequested?.Invoke(e.NewValue);
+    }
+
+    // Apply the final value after a track click. This does not depend on
+    // Slider mouse capture, which WPF does not guarantee for track clicks.
+    private void FullscreenVolumeSlider_PreviewMouseLeftButtonUp(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (!IsLoaded ||
+            DataContext is not VideoEditorViewModel vm)
         {
             return;
         }
 
-        if (DataContext is VideoEditorViewModel vm)
-        {
-            vm.SeekCommand.Execute(e.NewValue);
-        }
+        double volume = VideoTimelineMath.ClampSliderValue(
+            VolumeSlider.Value,
+            VolumeSlider.Minimum,
+            VolumeSlider.Maximum);
+
+        vm.ChangeVolumeCommand.Execute(volume);
     }
 
-    // Change video volume.
+    // Keep volume changes responsive while the user drags the thumb.
     private void FullscreenVolumeSlider_ValueChanged(
         object sender,
         RoutedPropertyChangedEventArgs<double> e)
@@ -99,9 +153,7 @@ public partial class VideoOverlayWindow : Window
         }
 
         if (DataContext is VideoEditorViewModel vm)
-        {
             vm.ChangeVolumeCommand.Execute(e.NewValue);
-        }
     }
 
     // Set trim start to the current playback position.
@@ -137,4 +189,5 @@ public partial class VideoOverlayWindow : Window
     }
 
     public event EventHandler? FullscreenRequested;
+    public event Action<double>? PlaybackPreviewRequested;
 }

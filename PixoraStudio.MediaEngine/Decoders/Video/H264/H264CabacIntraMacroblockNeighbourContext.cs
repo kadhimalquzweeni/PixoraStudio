@@ -1,0 +1,292 @@
+namespace PixoraStudio.MediaEngine.Decoders.Video.H264;
+
+/// <summary>
+/// Picture-relative neighbour state used to derive CABAC I-slice macroblock
+/// header context increments. Only frame-coded, single-slice-group pictures
+/// are represented by this tracker.
+/// </summary>
+public sealed class H264CabacIntraMacroblockNeighbourContext
+{
+    private readonly Dictionary<(int X, int Y), MacroblockState> _macroblocks = [];
+    private readonly Dictionary<uint, MacroblockState> _macroblocksByAddress = [];
+
+    public void Reset()
+    {
+        _macroblocks.Clear();
+        _macroblocksByAddress.Clear();
+    }
+
+    public void RecordMacroblock(
+        uint address,
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        bool isIntraNxN,
+        bool isIntra16x16,
+        bool isPcm,
+        uint codedBlockPatternLuma,
+        uint codedBlockPatternChroma,
+        uint? intraChromaPredictionMode,
+        int? macroblockQpDelta,
+        bool transformSize8x8Flag = false)
+    {
+        if (macroblockX < 0)
+            throw new ArgumentOutOfRangeException(nameof(macroblockX));
+        if (macroblockY < 0)
+            throw new ArgumentOutOfRangeException(nameof(macroblockY));
+        if (sliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(sliceId));
+        if (codedBlockPatternLuma > 15)
+            throw new ArgumentOutOfRangeException(nameof(codedBlockPatternLuma));
+        if (codedBlockPatternChroma > 2)
+            throw new ArgumentOutOfRangeException(nameof(codedBlockPatternChroma));
+        if (intraChromaPredictionMode is > 3)
+            throw new ArgumentOutOfRangeException(nameof(intraChromaPredictionMode));
+        if (macroblockQpDelta is < -26 or > 25)
+            throw new ArgumentOutOfRangeException(nameof(macroblockQpDelta));
+        if (isPcm && (macroblockQpDelta.HasValue || intraChromaPredictionMode.HasValue ||
+                      transformSize8x8Flag))
+            throw new ArgumentException("I_PCM macroblocks do not carry intra prediction, transform-size or QP-delta syntax.");
+        if (isIntra16x16 && transformSize8x8Flag)
+            throw new ArgumentException("I_16x16 macroblocks cannot use the 8x8 transform.");
+
+        MacroblockState state = new(
+            address, sliceId, isIntraNxN, isIntra16x16, isPcm,
+            codedBlockPatternLuma, codedBlockPatternChroma,
+            intraChromaPredictionMode, macroblockQpDelta, transformSize8x8Flag);
+        _macroblocks[(macroblockX, macroblockY)] = state;
+        _macroblocksByAddress[address] = state;
+    }
+
+    /// <summary>
+    /// For I-slice mb_type (ctxIdxOffset 3), a neighbour contributes one
+    /// unless it is I_NxN. Unavailable neighbours contribute zero.
+    /// </summary>
+    public int GetMacroblockTypeContextIncrement(
+        int macroblockX, int macroblockY, int sliceId)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        int left = GetSpatialNeighbour(macroblockX - 1, macroblockY, sliceId,
+            state => state.IsIntraNxN ? 0 : 1);
+        int top = GetSpatialNeighbour(macroblockX, macroblockY - 1, sliceId,
+            state => state.IsIntraNxN ? 0 : 1);
+        return left + top;
+    }
+
+    /// <summary>
+    /// Returns the transform_size_8x8_flag context increment from available
+    /// left and top macroblocks that also use the 8x8 transform.
+    /// </summary>
+    public int GetTransformSize8x8ContextIncrement(
+        int macroblockX, int macroblockY, int sliceId)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        int left = GetSpatialNeighbour(macroblockX - 1, macroblockY, sliceId,
+            state => state.TransformSize8x8Flag ? 1 : 0);
+        int top = GetSpatialNeighbour(macroblockX, macroblockY - 1, sliceId,
+            state => state.TransformSize8x8Flag ? 1 : 0);
+        return left + top;
+    }
+
+    /// <summary>
+    /// Derives intra_chroma_pred_mode ctxIdxInc: available non-PCM intra
+    /// neighbours with a non-zero chroma prediction mode contribute one.
+    /// </summary>
+    public int GetChromaPredictionModeContextIncrement(
+        int macroblockX, int macroblockY, int sliceId)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        int left = GetSpatialNeighbour(macroblockX - 1, macroblockY, sliceId,
+            state => !state.IsPcm && state.IntraChromaPredictionMode is > 0 ? 1 : 0);
+        int top = GetSpatialNeighbour(macroblockX, macroblockY - 1, sliceId,
+            state => !state.IsPcm && state.IntraChromaPredictionMode is > 0 ? 1 : 0);
+        return left + top;
+    }
+
+    /// <summary>
+    /// Derives mb_qp_delta ctxIdxInc from the preceding macroblock in
+    /// decoding order. The first macroblock in a slice has no predecessor.
+    /// </summary>
+    public int GetQpDeltaContextIncrement(uint? previousMacroblockAddress, int sliceId)
+    {
+        if (sliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(sliceId));
+        if (previousMacroblockAddress is not uint address ||
+            !_macroblocksByAddress.TryGetValue(address, out MacroblockState previous) ||
+            previous.SliceId != sliceId || previous.IsPcm)
+            return 0;
+
+        if (!previous.IsIntra16x16 &&
+            previous.CodedBlockPatternLuma == 0 &&
+            previous.CodedBlockPatternChroma == 0)
+            return 0;
+
+        return previous.MacroblockQpDelta is int delta && delta != 0 ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Returns four luma coded_block_pattern context increments in raster
+    /// order for the four 8x8 luma regions of the current macroblock.
+    /// </summary>
+    public int[] GetLumaCodedBlockPatternContextIncrements(
+        int macroblockX, int macroblockY, int sliceId,
+        uint previouslyDecodedCodedBlockPattern = 0)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        if (previouslyDecodedCodedBlockPattern > 15)
+            throw new ArgumentOutOfRangeException(nameof(previouslyDecodedCodedBlockPattern));
+        int[] increments = new int[4];
+        for (int blockIndex = 0; blockIndex < 4; blockIndex++)
+        {
+            int blockX = macroblockX * 2 + (blockIndex & 1);
+            int blockY = macroblockY * 2 + (blockIndex >> 1);
+            int left = GetLumaCbpNeighbourCondition(
+                blockX - 1, blockY, macroblockX, macroblockY,
+                previouslyDecodedCodedBlockPattern, 4, sliceId);
+            int top = GetLumaCbpNeighbourCondition(
+                blockX, blockY - 1, macroblockX, macroblockY,
+                previouslyDecodedCodedBlockPattern, 4, sliceId);
+            increments[blockIndex] = left + (2 * top);
+        }
+        return increments;
+    }
+
+    /// <summary>
+    /// Derives one luma CBP context increment using the bins already decoded
+    /// for the current macroblock. This is the incremental form required by
+    /// CABAC because right/bottom CBP bins depend on earlier bins in this MB.
+    /// </summary>
+    public int GetLumaCodedBlockPatternContextIncrement(
+        int macroblockX,
+        int macroblockY,
+        int sliceId,
+        int binIndex,
+        uint previouslyDecodedCodedBlockPattern)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        if (binIndex is < 0 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(binIndex));
+        if (previouslyDecodedCodedBlockPattern > 15)
+            throw new ArgumentOutOfRangeException(nameof(previouslyDecodedCodedBlockPattern));
+
+        int blockX = macroblockX * 2 + (binIndex & 1);
+        int blockY = macroblockY * 2 + (binIndex >> 1);
+        int left = GetLumaCbpNeighbourCondition(
+            blockX - 1, blockY, macroblockX, macroblockY,
+            previouslyDecodedCodedBlockPattern, binIndex, sliceId);
+        int top = GetLumaCbpNeighbourCondition(
+            blockX, blockY - 1, macroblockX, macroblockY,
+            previouslyDecodedCodedBlockPattern, binIndex, sliceId);
+        return left + (2 * top);
+    }
+
+    /// <summary>
+    /// Returns context increments for the first and second chroma CBP bins.
+    /// The second increment excludes the normative +4 bin-index offset,
+    /// which the syntax reader adds through its ctxIdxOffset of 81.
+    /// </summary>
+    public int[] GetChromaCodedBlockPatternContextIncrements(
+        int macroblockX, int macroblockY, int sliceId)
+    {
+        ValidatePosition(macroblockX, macroblockY, sliceId);
+        int leftFirst = GetChromaCbpNeighbourCondition(
+            macroblockX - 1, macroblockY, sliceId, secondBin: false);
+        int topFirst = GetChromaCbpNeighbourCondition(
+            macroblockX, macroblockY - 1, sliceId, secondBin: false);
+        int leftSecond = GetChromaCbpNeighbourCondition(
+            macroblockX - 1, macroblockY, sliceId, secondBin: true);
+        int topSecond = GetChromaCbpNeighbourCondition(
+            macroblockX, macroblockY - 1, sliceId, secondBin: true);
+
+        return
+        [
+            leftFirst + (2 * topFirst),
+            leftSecond + (2 * topSecond)
+        ];
+    }
+
+    private int GetLumaCbpNeighbourCondition(
+        int blockX,
+        int blockY,
+        int currentMacroblockX,
+        int currentMacroblockY,
+        uint previouslyDecodedCodedBlockPattern,
+        int currentBinIndex,
+        int sliceId)
+    {
+        if (blockX < 0 || blockY < 0)
+            return 0;
+
+        int macroblockX = blockX / 2;
+        int macroblockY = blockY / 2;
+        if (macroblockX == currentMacroblockX &&
+            macroblockY == currentMacroblockY)
+        {
+            int currentBlockIndex = ((blockY & 1) * 2) + (blockX & 1);
+            if (currentBlockIndex >= currentBinIndex)
+                return 0;
+            return (previouslyDecodedCodedBlockPattern & (1u << currentBlockIndex)) == 0 ? 1 : 0;
+        }
+        if (!TryGetMacroblock(macroblockX, macroblockY, sliceId, out MacroblockState state) ||
+            state.IsPcm)
+            return 0;
+
+        int neighbourBlockIndex = ((blockY & 1) * 2) + (blockX & 1);
+        return (state.CodedBlockPatternLuma & (1u << neighbourBlockIndex)) == 0 ? 1 : 0;
+    }
+
+    private int GetChromaCbpNeighbourCondition(
+        int macroblockX, int macroblockY, int sliceId, bool secondBin)
+    {
+        if (!TryGetMacroblock(macroblockX, macroblockY, sliceId, out MacroblockState state))
+            return 0;
+        if (state.IsPcm)
+            return 1;
+
+        return secondBin
+            ? state.CodedBlockPatternChroma == 2 ? 1 : 0
+            : state.CodedBlockPatternChroma != 0 ? 1 : 0;
+    }
+
+    private int GetSpatialNeighbour(
+        int x, int y, int sliceId, Func<MacroblockState, int> selector)
+    {
+        return TryGetMacroblock(x, y, sliceId, out MacroblockState state)
+            ? selector(state)
+            : 0;
+    }
+
+    private bool TryGetMacroblock(
+        int x, int y, int sliceId, out MacroblockState state)
+    {
+        if (x >= 0 && y >= 0 &&
+            _macroblocks.TryGetValue((x, y), out state) &&
+            state.SliceId == sliceId)
+            return true;
+
+        state = default;
+        return false;
+    }
+
+    private static void ValidatePosition(int x, int y, int sliceId)
+    {
+        if (x < 0)
+            throw new ArgumentOutOfRangeException(nameof(x));
+        if (y < 0)
+            throw new ArgumentOutOfRangeException(nameof(y));
+        if (sliceId < 0)
+            throw new ArgumentOutOfRangeException(nameof(sliceId));
+    }
+
+    private readonly record struct MacroblockState(
+        uint Address,
+        int SliceId,
+        bool IsIntraNxN,
+        bool IsIntra16x16,
+        bool IsPcm,
+        uint CodedBlockPatternLuma,
+        uint CodedBlockPatternChroma,
+        uint? IntraChromaPredictionMode,
+        int? MacroblockQpDelta,
+        bool TransformSize8x8Flag);
+}

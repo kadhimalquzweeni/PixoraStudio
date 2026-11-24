@@ -48,6 +48,8 @@ public sealed class AacSpectralTupleDecoderTests
 
     [Theory]
     [InlineData(5, 0, -4, -4)]
+    [InlineData(5, 44, 4, 0)]
+    [InlineData(5, 45, -4, 1)]
     [InlineData(5, 40, 0, 0)]
     [InlineData(5, 80, 4, 4)]
     [InlineData(6, 40, 0, 0)]
@@ -66,6 +68,8 @@ public sealed class AacSpectralTupleDecoderTests
 
     [Theory]
     [InlineData(7, 0, 0, 0)]
+    [InlineData(7, 1, 1, 0)]
+    [InlineData(7, 8, 0, 1)]
     [InlineData(7, 63, 7, 7)]
     [InlineData(8, 63, 7, 7)]
     [InlineData(9, 168, 12, 12)]
@@ -82,6 +86,50 @@ public sealed class AacSpectralTupleDecoderTests
             index);
 
         Assert.Equal([a, b], result);
+    }
+
+
+    [Theory]
+    [InlineData(5, 0, -4, -4)]
+    [InlineData(5, 8, 4, -4)]
+    [InlineData(5, 9, -4, -3)]
+    [InlineData(6, 80, 4, 4)]
+    [InlineData(7, 1, 1, 0)]
+    [InlineData(8, 8, 0, 1)]
+    [InlineData(9, 13, 0, 1)]
+    [InlineData(10, 168, 12, 12)]
+    [InlineData(11, 17, 0, 1)]
+    public void DecodeTupleFromIndex_ShouldFollowNormativePairIndexOrdering(
+        int codebook,
+        int index,
+        int first,
+        int second)
+    {
+        int[] result = _decoder.DecodeTupleFromIndex(codebook, index);
+
+        Assert.Equal([first, second], result);
+    }
+
+    [Theory]
+    [InlineData(5, 9, -4)]
+    [InlineData(6, 9, -4)]
+    [InlineData(7, 8, 0)]
+    [InlineData(8, 8, 0)]
+    [InlineData(9, 13, 0)]
+    [InlineData(10, 13, 0)]
+    [InlineData(11, 17, 0)]
+    public void DecodeTupleFromIndex_ShouldExhaustivelyFollowNormativePairOrdering(
+        int codebook,
+        int radix,
+        int offset)
+    {
+        for (int index = 0; index < radix * radix; index++)
+        {
+            int[] result = _decoder.DecodeTupleFromIndex(codebook, index);
+
+            Assert.Equal(index % radix + offset, result[0]);
+            Assert.Equal(index / radix + offset, result[1]);
+        }
     }
 
     [Fact]
@@ -158,6 +206,8 @@ public sealed class AacSpectralTupleDecoderTests
     [Fact]
     public void DecodeTuple_ShouldDecodeMaximumEscapeMagnitude()
     {
+        // Codebook 11, index 16 decodes to (16, 0), so the
+        // sign and escape sequence apply to the first coefficient.
         // Escape length 12:
         // eight unary ones, terminator zero, twelve value bits.
         string bits = "1" + "111111110" + "111111111111";
@@ -170,6 +220,22 @@ public sealed class AacSpectralTupleDecoderTests
             16);
 
         Assert.Equal([-8191, 0], result);
+    }
+
+    [Fact]
+    public void DecodeTuple_ShouldReadAllSignBitsBeforeCodebook11EscapeSequences()
+    {
+        // Codebook 11, index 288 produces (16, 16).
+        // Both sign bits precede both escape sequences:
+        //   sign bits:       1, 0       => negative, positive
+        //   first escape:    0 0011    => magnitude 19
+        //   second escape:   1 0 00001 => magnitude 33
+        AacBitReader reader = CreateReader("10000111000001");
+
+        int[] result = _decoder.DecodeTuple(reader, 11, 288);
+
+        Assert.Equal([-19, 33], result);
+        Assert.Equal(14, reader.PositionBits);
     }
 
     [Fact]

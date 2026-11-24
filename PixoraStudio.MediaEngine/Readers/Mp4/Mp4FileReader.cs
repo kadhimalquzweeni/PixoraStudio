@@ -12,7 +12,7 @@ public sealed class Mp4FileReader
 {
     private readonly Mp4Reader _boxReader = new();
     private readonly Mp4TrackReader _trackReader = new();
-    private readonly Mp4SampleTableReader _sampleTableReader = new();
+    private readonly Mp4TrackSampleTableReader _sampleTableReader = new();
     private readonly Mp4TrackSampleLocationReader _sampleLocationReader = new();
     private readonly Mp4MediaDataReader _mediaDataReader = new();
 

@@ -7,7 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         ShowActivated="False"
-        Topmost="True">
+        Topmost="False">
 
     <Grid Background="Transparent">
 
@@ -18,41 +18,42 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Command="{Binding PlayPauseCommand}"
-                Content="▶"
-                FontSize="30"
-                FontWeight="Bold"
-                Foreground="White"
-                Background="#CC252526"
-                BorderBrush="#66FFFFFF"
-                BorderThickness="1"
-                Cursor="Hand"
                 Visibility="Collapsed">
 
-            <Button.Template>
-                <ControlTemplate TargetType="Button">
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="50">
-                        <ContentPresenter HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"/>
-                    </Border>
-                </ControlTemplate>
-            </Button.Template>
-
             <Button.Style>
-                <Style TargetType="Button">
+                <Style TargetType="{x:Type Button}"
+                       BasedOn="{StaticResource OverlayCircleButtonStyle}">
                     <Setter Property="Opacity" Value="0.9"/>
-
+                    <Setter Property="Content">
+                        <Setter.Value>
+                            <Path Data="{StaticResource PlayIconGeometry}"
+                                  Width="28"
+                                  Height="28"
+                                  Stretch="Uniform"
+                                  Stroke="White"
+                                  StrokeThickness="2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Fill="Transparent"/>
+                        </Setter.Value>
+                    </Setter>
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsPlaying}"
-                                     Value="True">
-                            <Setter Property="Content" Value="Ⅱ"/>
-                        </DataTrigger>
-
-                        <DataTrigger Binding="{Binding IsPlaying}"
-                                     Value="False">
-                            <Setter Property="Content" Value="▶"/>
+                        <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                            <Setter Property="Content">
+                                <Setter.Value>
+                                    <Path Data="{StaticResource PauseIconGeometry}"
+                                          Width="25"
+                                          Height="25"
+                                          Stretch="Uniform"
+                                          Stroke="White"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent"/>
+                                </Setter.Value>
+                            </Setter>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -66,16 +67,23 @@
                 HorizontalAlignment="Right"
                 VerticalAlignment="Top"
                 Margin="12"
-                Content="⛶"
-                FontSize="25"
-                Foreground="White"
-                Background="#CC252526"
-                BorderBrush="#66FFFFFF"
-                BorderThickness="1"
-                Cursor="Hand"
                 ToolTip="Enter Fullscreen"
                 Click="FullscreenButton_Click"
-                Visibility="Collapsed"/>
+                Style="{StaticResource OverlayCornerButtonStyle}"
+                Visibility="Collapsed">
+            <Button.Content>
+                <Path Data="{StaticResource MaximizeIconGeometry}"
+                      Width="20"
+                      Height="20"
+                      Stretch="Uniform"
+                      Stroke="White"
+                      StrokeThickness="2"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round"
+                      Fill="Transparent"/>
+            </Button.Content>
+        </Button>
 
         <!-- Fullscreen Playback Control Bar -->
         <Border x:Name="FullscreenControls"
@@ -102,13 +110,14 @@
                                Margin="0,0,12,0"/>
 
                     <Slider x:Name="PlaybackSlider"
+                            ValueChanged="PlaybackSlider_ValueChanged"
+                            PreviewMouseLeftButtonUp="PlaybackSlider_PreviewMouseLeftButtonUp"
                             Grid.Column="1"
                             Minimum="0"
                             Maximum="{Binding TotalMilliseconds}"
                             Value="{Binding PlaybackPosition, Mode=TwoWay}"
                             IsMoveToPointEnabled="True"
-                            VerticalAlignment="Center"
-                            ValueChanged="PlaybackSlider_ValueChanged"/>
+                            VerticalAlignment="Center"/>
 
                     <TextBlock Grid.Column="2"
                                Text="{Binding VideoDuration}"
@@ -132,16 +141,29 @@
                                VerticalAlignment="Center"
                                Margin="0,0,12,0"/>
 
-                    <TextBlock Grid.Column="1"
-                               Text="🔊"
-                               Foreground="White"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"/>
+                    <Viewbox Grid.Column="1"
+                             Width="20"
+                             Height="20"
+                             Margin="0,0,8,0"
+                             VerticalAlignment="Center">
+                        <Path Style="{StaticResource VolumeLevelIconStyle}"
+                              Width="24"
+                              Height="24"
+                              Stretch="Uniform"
+                              Stroke="White"
+                              StrokeThickness="2"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Fill="Transparent"/>
+                    </Viewbox>
 
                     <Slider x:Name="VolumeSlider"
+                            PreviewMouseLeftButtonUp="FullscreenVolumeSlider_PreviewMouseLeftButtonUp"
                             Grid.Column="2"
                             Minimum="0"
                             Maximum="100"
+                            IsMoveToPointEnabled="True"
                             Value="{Binding Volume, Mode=TwoWay}"
                             VerticalAlignment="Center"
                             ValueChanged="FullscreenVolumeSlider_ValueChanged"/>

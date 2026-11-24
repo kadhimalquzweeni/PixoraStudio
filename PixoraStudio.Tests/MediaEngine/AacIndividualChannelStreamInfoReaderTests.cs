@@ -100,6 +100,26 @@ public sealed class AacIndividualChannelStreamInfoReaderTests
         Assert.Equal(expectedGroupCount, result.WindowGroupCount);
     }
 
+
+    [Theory]
+    [InlineData(0b111_1111, "8")]
+    [InlineData(0b000_0000, "1,1,1,1,1,1,1,1")]
+    [InlineData(0b101_0101, "2,2,2,2")]
+    [InlineData(0b010_1010, "1,2,2,2,1")]
+    public void Read_ShouldExposeShortWindowGroupLengths(
+        int grouping,
+        string expectedLengths)
+    {
+        var result = _reader.Read(CreateShortWindowStream(
+            windowShape: 0,
+            maxScaleFactorBands: 10,
+            grouping: grouping));
+
+        int[] expected = expectedLengths.Split(',').Select(int.Parse).ToArray();
+        Assert.Equal(expected, result.WindowGroupLengths);
+        Assert.Equal(expected.Length, result.WindowGroupCount);
+    }
+
     [Fact]
     public void Read_ShouldRejectNonZeroReservedBit()
     {
