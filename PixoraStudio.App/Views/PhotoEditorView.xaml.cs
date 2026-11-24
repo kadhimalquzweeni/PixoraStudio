@@ -434,6 +434,8 @@ public partial class PhotoEditorView : UserControl
             return;
 
         vm.SelectLayer(layer);
+        _layerListDragSource = layer;
+        _layerListDragStart = e.GetPosition(this);
         DrawLayerSelection();
         e.Handled = true;
     }
