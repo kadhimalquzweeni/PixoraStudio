@@ -345,11 +345,16 @@
                                 Background="#087FC4" Foreground="White" FontSize="20" Width="34" Height="30"
                                 Padding="0" Margin="12,0,0,0" ToolTip="Add a layer"/>
                     </DockPanel>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding AdditionalLayers}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#30343B" BorderThickness="1" CornerRadius="5" Padding="7" Margin="0,0,0,7"
+                                    <Border Width="72" Height="72" Background="#30343B" BorderThickness="1" CornerRadius="5" Margin="2"
                                             MouseLeftButtonDown="LayerItem_MouseLeftButtonDown"
                                             PreviewMouseMove="LayerItem_PreviewMouseMove"
                                             DragOver="LayerItem_DragOver" Drop="LayerItem_Drop"
@@ -365,49 +370,76 @@
                                             </Style>
                                         </Border.Style>
                                         <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="48"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Background="#25282E" CornerRadius="3" Width="44" Height="44">
+                                            <Border Background="{StaticResource TransparencyCheckerboard}" CornerRadius="4">
                                                 <Image Source="{Binding Thumbnail}" Stretch="Uniform" Margin="2"/>
                                             </Border>
-                                            <StackPanel Grid.Column="1" Margin="8,0,4,0" VerticalAlignment="Center">
-                                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" FontSize="10" Padding="2"
-                                                         Background="#25282E" Foreground="#E5E7EB" BorderThickness="0"
-                                                         ToolTip="Rename layer"/>
-                                                <WrapPanel Margin="0,3,0,0">
-                                                    <CheckBox Content="Visible" IsChecked="{Binding IsVisible}"
-                                                              Foreground="#AEB4BF" FontSize="9" Margin="0,0,8,0"/>
-                                                    <CheckBox Content="Locked" IsChecked="{Binding IsLocked}"
-                                                              Foreground="#AEB4BF" FontSize="9"/>
-                                                </WrapPanel>
-                                                <DockPanel Margin="0,4,0,0">
-                                                    <TextBlock Text="Opacity" Foreground="#AEB4BF" FontSize="9" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="{Binding Opacity, StringFormat={}{0:P0}}" Foreground="#AEB4BF"
-                                                               FontSize="9" HorizontalAlignment="Right"/>
-                                                </DockPanel>
-                                                <Slider Minimum="0" Maximum="1" Value="{Binding Opacity, UpdateSourceTrigger=PropertyChanged}"
-                                                        Height="14" Margin="0,0,2,0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
-                                                <Button Content="⧉" Width="25" Height="25" Padding="0" ToolTip="Duplicate layer"
-                                                        Command="{Binding DataContext.DuplicateLayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button Content="×" Width="25" Height="25" Padding="0" Margin="0,4,0,0"
-                                                    ToolTip="Remove layer"
-                                                    Command="{Binding DataContext.RemoveLayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}"/>
-                                            </StackPanel>
+                                            <Border Background="#D917191E" VerticalAlignment="Bottom" Padding="3,2" IsHitTestVisible="False">
+                                                <TextBlock Text="{Binding Name}" Foreground="#F0F1F4" FontSize="9"
+                                                           TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                           TextWrapping="Wrap" MaxHeight="24"/>
+                                            </Border>
+                                            <Button x:Name="LayerOptionsButton" Content="…" Width="22" Height="20" Padding="0"
+                                                    Margin="0,3,3,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                    Background="#CC17191E" Foreground="White" BorderBrush="#555963"
+                                                    ToolTip="Layer settings" Click="LayerProperties_Click"/>
+                                            <Popup IsOpen="{Binding IsPropertiesOpen, Mode=TwoWay}"
+                                                   Placement="Left"
+                                                   PlacementTarget="{Binding ElementName=LayerOptionsButton}"
+                                                   StaysOpen="False"
+                                                   AllowsTransparency="True"
+                                                   DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                                <Border Width="260" Background="#252629" BorderBrush="#454954"
+                                                        BorderThickness="1" CornerRadius="8" Padding="12">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                                                            <TextBlock Text="Layer settings" FontSize="14" FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center"/>
+                                                            <Button Content="×" Width="26" Height="26" Padding="0"
+                                                                    DockPanel.Dock="Right" Background="Transparent"
+                                                                    BorderThickness="0" Foreground="#AEB2BE"
+                                                                    Click="CloseLayerProperties_Click"/>
+                                                        </DockPanel>
+                                                        <StackPanel Grid.Row="1">
+                                                            <TextBlock Text="Name" FontSize="11" Foreground="#AEB4BF"/>
+                                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                                                     Margin="0,3,0,12"/>
+                                                            <DockPanel>
+                                                                <TextBlock Text="Opacity" FontSize="11" Foreground="#AEB4BF"/>
+                                                                <TextBlock Text="{Binding Opacity, StringFormat={}{0:P0}}"
+                                                                           FontSize="11" Foreground="#D4D6DE"
+                                                                           DockPanel.Dock="Right"/>
+                                                            </DockPanel>
+                                                            <Slider Minimum="0" Maximum="1"
+                                                                    Value="{Binding Opacity, UpdateSourceTrigger=PropertyChanged}"
+                                                                    Margin="0,2,0,12"/>
+                                                            <UniformGrid Columns="2" Margin="0,0,0,12">
+                                                                <ToggleButton Content="Locked" IsChecked="{Binding IsLocked}"
+                                                                              Margin="0,0,4,0" Padding="8,8"/>
+                                                                <ToggleButton Content="Visible" IsChecked="{Binding IsVisible}"
+                                                                              Margin="4,0,0,0" Padding="8,8"/>
+                                                            </UniformGrid>
+                                                        </StackPanel>
+                                                        <UniformGrid Grid.Row="2" Columns="2">
+                                                            <Button Content="Duplicate" Click="DuplicateLayerFromPopup_Click"
+                                                                    Margin="0,0,4,0"/>
+                                                            <Button Content="Remove" Click="RemoveLayerFromPopup_Click"
+                                                                    Margin="4,0,0,0"/>
+                                                        </UniformGrid>
+                                                    </Grid>
+                                                </Border>
+                                            </Popup>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    
-                                    </Grid>
+                </Grid>
             </Border>
         </Grid>
 
