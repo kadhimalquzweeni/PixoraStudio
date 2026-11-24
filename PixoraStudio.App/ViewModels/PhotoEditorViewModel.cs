@@ -815,21 +815,22 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 }
             }
 
-            if (!pastedImage && Clipboard.ContainsImage())
+            if (!pastedImage)
             {
                 var source = Clipboard.GetImage();
-                if (source is null) return;
+                if (source is not null)
+                {
+                    using var stream = new MemoryStream();
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(source));
+                    encoder.Save(stream);
+                    stream.Position = 0;
 
-                using var stream = new MemoryStream();
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(source));
-                encoder.Save(stream);
-                stream.Position = 0;
-
-                var bitmap = SKBitmap.Decode(stream)
-                    ?? throw new InvalidOperationException("The clipboard image could not be decoded.");
-                AddPastedImageLayer("Pasted Image", bitmap);
-                pastedImage = true;
+                    var bitmap = SKBitmap.Decode(stream)
+                        ?? throw new InvalidOperationException("The clipboard image could not be decoded.");
+                    AddPastedImageLayer("Pasted Image", bitmap);
+                    pastedImage = true;
+                }
             }
 
             if (!pastedImage) return;
