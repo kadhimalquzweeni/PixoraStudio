@@ -175,6 +175,10 @@
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
+                        <TextBlock x:Name="TransparencyHint"
+                                   Text="This image has transparency. Choose PNG or WebP to keep it."
+                                   Foreground="#8BC5FF" FontSize="11" TextWrapping="Wrap"
+                                   Margin="5,2,5,4" Visibility="Collapsed"/>
 
                         <Border Background="#2D2D2D" BorderBrush="#3A3A3A" BorderThickness="1"
                                 CornerRadius="6" Padding="12" Margin="3,8,3,4">
