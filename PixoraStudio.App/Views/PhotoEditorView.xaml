@@ -59,6 +59,39 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="CutoutOption" TargetType="RadioButton">
+            <Setter Property="Background" Value="#343740"/>
+            <Setter Property="Foreground" Value="#D4D6DE"/>
+            <Setter Property="BorderBrush" Value="#454954"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="7,7"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#00A0CA"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#00A0CA"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#6B7180"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="TabControl">
             <Setter Property="Template">
                 <Setter.Value>
@@ -117,15 +150,14 @@
                         <Separator Width="34" Margin="4,8"/>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Arrange" Tag="0" Click="Tool_Click"><controls:SvgIcon IconName="mouse-pointer-2" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                         <Button Style="{StaticResource ToolButton}" ToolTip="Crop" Tag="2" Click="Tool_Click"><controls:SvgIcon IconName="crop" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Transform" Tag="1" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Resize" Tag="3" Click="Tool_Click"><controls:SvgIcon IconName="maximize" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Adjustments" Tag="4" Click="Tool_Click"><controls:SvgIcon IconName="sliders-horizontal" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Filters" Tag="5" Click="Tool_Click"><controls:SvgIcon IconName="contrast" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Effects" Tag="6" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Retouch" Tag="7" Click="Tool_Click"><controls:SvgIcon IconName="eraser" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Text" Tag="8" Click="Tool_Click"><controls:SvgIcon IconName="type" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Shapes" Tag="9" Click="Tool_Click"><controls:SvgIcon IconName="shapes" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
-                        <Button Style="{StaticResource ToolButton}" ToolTip="Draw" Tag="10" Click="Tool_Click"><controls:SvgIcon IconName="paintbrush" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Cutout" Tag="3" Click="Tool_Click"><controls:SvgIcon IconName="scissors" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Adjustments" Tag="5" Click="Tool_Click"><controls:SvgIcon IconName="sliders-horizontal" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Filters" Tag="6" Click="Tool_Click"><controls:SvgIcon IconName="contrast" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Effects" Tag="7" Click="Tool_Click"><controls:SvgIcon IconName="wand-sparkles" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Retouch" Tag="8" Click="Tool_Click"><controls:SvgIcon IconName="eraser" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Text" Tag="9" Click="Tool_Click"><controls:SvgIcon IconName="type" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Shapes" Tag="10" Click="Tool_Click"><controls:SvgIcon IconName="shapes" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Draw" Tag="11" Click="Tool_Click"><controls:SvgIcon IconName="paintbrush" Width="23" Height="23" Stroke="#C5C5C5"/></Button>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -169,6 +201,11 @@
                                     Background="Transparent" ClipToBounds="False"
                                     MouseLeftButtonDown="LayerOverlay_MouseLeftButtonDown" MouseMove="LayerOverlay_MouseMove"
                                     MouseLeftButtonUp="LayerOverlay_MouseLeftButtonUp"/>
+                                <Canvas x:Name="CutoutOverlay" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                    Background="Transparent" Visibility="Collapsed"
+                                    MouseLeftButtonDown="CutoutOverlay_MouseLeftButtonDown"
+                                    MouseMove="CutoutOverlay_MouseMove"
+                                    MouseLeftButtonUp="CutoutOverlay_MouseLeftButtonUp"/>
                                 <Border BorderBrush="#8BC5FF" BorderThickness="1"
                                         IsHitTestVisible="False"/>
                             </Grid>
@@ -418,6 +455,119 @@
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Cutout">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Cutout" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                        <TextBlock Text="Select a layer to access its cutout tools."
+                                                   Style="{StaticResource NoSelectedLayerHint}"
+                                                   Foreground="#AEB2BE" TextWrapping="Wrap" Margin="2,4,2,12"/>
+                                        <StackPanel Style="{StaticResource SelectedLayerRequiredPanel}">
+                                            <Button Content="▣  AI Cutout" IsEnabled="False"
+                                                    ToolTip="AI cutout requires an AI service connection."
+                                                    Background="Transparent" BorderBrush="#AEB2BE"
+                                                    BorderThickness="1" Padding="12,9" Margin="2,8"/>
+
+                                            <Border Background="#25272C" BorderBrush="#35383F" BorderThickness="1"
+                                                    CornerRadius="8" Padding="10" Margin="0,2,0,10">
+                                                <StackPanel>
+                                                    <TextBlock Text="Tool" FontWeight="SemiBold" Margin="2,0,2,6"/>
+                                                    <UniformGrid Columns="4">
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
+                                                                     Tag="Tool|Select" Content="▧" ToolTip="Shape selection"
+                                                                     Checked="CutoutOption_Checked" IsChecked="True"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
+                                                                     Tag="Tool|Magic" Content="✣" ToolTip="Magic wand"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
+                                                                     Tag="Tool|Brush" Content="✎" ToolTip="Brush selection"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutTools"
+                                                                     Tag="Tool|Lasso" Content="◯" ToolTip="Lasso selection"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                    </UniformGrid>
+                                                    <TextBlock Text="Mode" FontWeight="SemiBold" Margin="2,8,2,4"/>
+                                                    <UniformGrid Columns="2">
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutMode"
+                                                                     Tag="Mode|Keep" Content="KEEP"
+                                                                     Checked="CutoutOption_Checked" IsChecked="True"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutMode"
+                                                                     Tag="Mode|Remove" Content="REMOVE"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                    </UniformGrid>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Background="#25272C" BorderBrush="#35383F" BorderThickness="1"
+                                                    CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <TextBlock Text="Shape" FontWeight="SemiBold" Margin="2,0,2,6"/>
+                                                    <UniformGrid Columns="3">
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Rectangle" Content="□" ToolTip="Rectangle"
+                                                                     Checked="CutoutOption_Checked" IsChecked="True"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Ellipse" Content="○" ToolTip="Ellipse"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Triangle" Content="△" ToolTip="Triangle"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Star" Content="☆" ToolTip="Star"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Heart" Content="♡" ToolTip="Heart"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutShape"
+                                                                     Tag="Shape|Line" Content="╱" ToolTip="Line"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                    </UniformGrid>
+                                                    <TextBlock Text="Softness" FontWeight="SemiBold" Margin="2,10,2,4"/>
+                                                    <UniformGrid Columns="3">
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
+                                                                     Tag="Softness|None" Content="NONE"
+                                                                     Checked="CutoutOption_Checked" IsChecked="True"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
+                                                                     Tag="Softness|Light" Content="LIGHT"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                        <RadioButton Style="{StaticResource CutoutOption}" GroupName="CutoutSoftness"
+                                                                     Tag="Softness|Medium" Content="MEDIUM"
+                                                                     Checked="CutoutOption_Checked"/>
+                                                    </UniformGrid>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Background="#25272C" BorderBrush="#35383F" BorderThickness="1"
+                                                    CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <DockPanel Margin="2,0,2,8">
+                                                        <TextBlock Text="Hint removed" FontWeight="SemiBold"/>
+                                                        <CheckBox IsChecked="{Binding CutoutHintRemoved}"
+                                                                  Checked="CutoutHintRemoved_Changed"
+                                                                  Unchecked="CutoutHintRemoved_Changed"
+                                                                  HorizontalAlignment="Right" DockPanel.Dock="Right"/>
+                                                    </DockPanel>
+                                                    <Button Content="Invert cutout" Click="InvertCutout_Click"
+                                                            IsEnabled="{Binding HasCutoutSelection}"
+                                                            Background="Transparent" BorderBrush="#AEB2BE"
+                                                            BorderThickness="1" Padding="10,7"/>
+                                                    <Button Content="Reset cutout" Click="ResetCutout_Click"
+                                                            IsEnabled="{Binding HasCutoutSelection}"
+                                                            Background="Transparent" BorderBrush="#AEB2BE"
+                                                            BorderThickness="1" Padding="10,7"/>
+                                                    <Button Content="Apply cutout" Click="ApplyCutout_Click"
+                                                            IsEnabled="{Binding HasCutoutSelection}"
+                                                            Background="Transparent" BorderBrush="#AEB2BE"
+                                                            BorderThickness="1" Padding="10,7"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                        <Button Content="Close" Click="CloseCutout_Click"
+                                                Background="Transparent" BorderBrush="#AEB2BE"
+                                                BorderThickness="1" Padding="10,7" Margin="2,6,2,0"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
