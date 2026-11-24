@@ -30,6 +30,10 @@ public partial class PhotoEditorView : UserControl
     private Rect _layerBoundsAtDragStart;
     private DragMode _layerDragMode;
     private bool _isLayerDragging;
+    private const int DrawToolIndex = 10;
+    private bool _isDrawingStroke;
+    private readonly List<SKPoint> _drawStrokePoints = [];
+    private Polyline? _drawStrokePreview;
     private const double MinimumLayerOverlayWorkspacePadding = 512;
     private double _layerOverlayWorkspacePadding = MinimumLayerOverlayWorkspacePadding;
     private Point _layerListDragStart;
@@ -273,6 +277,7 @@ public partial class PhotoEditorView : UserControl
             return;
 
         ToolSettingsTabs.SelectedIndex = selectedTool;
+        LayerOverlay.Cursor = selectedTool == DrawToolIndex ? Cursors.Pen : Cursors.Arrow;
         ToolSettingsColumn.Width = new GridLength(280);
         ToolSettingsBorder.Visibility = Visibility.Visible;
     }
@@ -584,6 +589,20 @@ public partial class PhotoEditorView : UserControl
         return false;
     }
 
+    private void PickBrushColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } viewModel)
+            return;
+
+        var picker = new ColorPickerDialogWindow(viewModel.BrushColor);
+        if (Window.GetWindow(this) is { } owner)
+            picker.Owner = owner;
+
+        if (picker.ShowDialog() == true)
+            viewModel.BrushColor = picker.SelectedColor;
+        e.Handled = true;
+    }
+
     private void PickFillColor_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel?.SelectedLayer is not { } layer)
@@ -770,6 +789,47 @@ public partial class PhotoEditorView : UserControl
         e.Handled = true;
     }
 
+    private void BeginBrushStroke(PhotoEditorViewModel viewModel, Point overlayPoint, MouseButtonEventArgs e)
+    {
+        double x = overlayPoint.X - _layerOverlayWorkspacePadding;
+        double y = overlayPoint.Y - _layerOverlayWorkspacePadding;
+        if (x < 0 || y < 0 || x > viewModel.ImageWidth || y > viewModel.ImageHeight)
+            return;
+
+        _drawStrokePoints.Clear();
+        _drawStrokePoints.Add(new SKPoint((float)x, (float)y));
+        var previewPoint = new Point(
+            x + _layerOverlayWorkspacePadding,
+            y + _layerOverlayWorkspacePadding);
+        _drawStrokePreview = new Polyline
+        {
+            Stroke = (Brush)new BrushConverter().ConvertFromString(viewModel.BrushColor)!,
+            StrokeThickness = Math.Clamp(viewModel.BrushSize, 1d, 100d),
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+            IsHitTestVisible = false
+        };
+        _drawStrokePreview.Points.Add(previewPoint);
+        _drawStrokePreview.Points.Add(previewPoint);
+        LayerOverlay.Children.Add(_drawStrokePreview);
+        _isDrawingStroke = true;
+        LayerOverlay.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void CancelBrushStroke()
+    {
+        if (!_isDrawingStroke)
+            return;
+
+        _isDrawingStroke = false;
+        LayerOverlay.ReleaseMouseCapture();
+        _drawStrokePoints.Clear();
+        _drawStrokePreview = null;
+        DrawLayerSelection();
+    }
+
     private void LayerOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (ViewModel is not { IsImageLoaded: true } vm || CropOverlay.Visibility == Visibility.Visible) return;
@@ -777,6 +837,12 @@ public partial class PhotoEditorView : UserControl
         var point = new Point(
             overlayPoint.X - _layerOverlayWorkspacePadding,
             overlayPoint.Y - _layerOverlayWorkspacePadding);
+        if (ToolSettingsTabs.SelectedIndex == DrawToolIndex)
+        {
+            BeginBrushStroke(vm, overlayPoint, e);
+            return;
+        }
+
         _layerDragMode = DragMode.None;
         var selected = vm.SelectedLayer;
         if (selected is not null && selected.IsVisible)
@@ -819,6 +885,27 @@ public partial class PhotoEditorView : UserControl
 
     private void LayerOverlay_MouseMove(object sender, MouseEventArgs e)
     {
+        if (_isDrawingStroke)
+        {
+            if (ViewModel is not { IsImageLoaded: true } drawingViewModel)
+            {
+                CancelBrushStroke();
+                return;
+            }
+
+            var overlayPoint = e.GetPosition(LayerOverlay);
+            float x = (float)Math.Clamp(
+                overlayPoint.X - _layerOverlayWorkspacePadding, 0d, drawingViewModel.ImageWidth);
+            float y = (float)Math.Clamp(
+                overlayPoint.Y - _layerOverlayWorkspacePadding, 0d, drawingViewModel.ImageHeight);
+            _drawStrokePoints.Add(new SKPoint(x, y));
+            _drawStrokePreview?.Points.Add(new Point(
+                x + _layerOverlayWorkspacePadding,
+                y + _layerOverlayWorkspacePadding));
+            e.Handled = true;
+            return;
+        }
+
         if (!_isLayerDragging || ViewModel?.SelectedLayer is not { } layer) return;
         var overlayPoint = e.GetPosition(LayerOverlay);
         var point = new Point(
@@ -914,6 +1001,20 @@ public partial class PhotoEditorView : UserControl
 
     private void LayerOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (_isDrawingStroke)
+        {
+            _isDrawingStroke = false;
+            LayerOverlay.ReleaseMouseCapture();
+            var points = _drawStrokePoints.ToArray();
+            _drawStrokePoints.Clear();
+            _drawStrokePreview = null;
+            ViewModel?.AddBrushStroke(points);
+            UpdateLayerOverlayWorkspace();
+            DrawLayerSelection();
+            e.Handled = true;
+            return;
+        }
+
         if (!_isLayerDragging) return;
         _isLayerDragging = false;
         LayerOverlay.ReleaseMouseCapture();
