@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using PixoraStudio.Core.Interfaces;
 
 namespace PixoraStudio.App.Views;
 
@@ -29,6 +30,10 @@ public partial class SaveOptionsDialogWindow : Window
 
     public SaveImageFormat SelectedFormat => _selectedFormat;
     public bool UsePixoraAiUpscaling => _canUsePixoraAi && PixoraAiUpscaleCheckBox.IsChecked == true;
+    public AiUpscaleModel SelectedPixoraAiModel =>
+        PixoraAiModelComboBox.SelectedItem is ComboBoxItem { Tag: AiUpscaleModel model }
+            ? model
+            : AiUpscaleModel.Photo;
     public int OutputWidth => int.Parse(WidthTextBox.Text);
     public int OutputHeight => int.Parse(HeightTextBox.Text);
     public int Quality => (int)Math.Round(QualitySlider.Value);
@@ -46,14 +51,21 @@ public partial class SaveOptionsDialogWindow : Window
     ];
 
     public SaveOptionsDialogWindow(BitmapSource preview, int width, int height,
-        string initialFolder, string initialName, bool hasTransparency, bool canUsePixoraAi = false)
+        string initialFolder, string initialName, bool hasTransparency,
+        bool canUsePhotoModel = false, bool canUseSpriteModel = false)
     {
         InitializeComponent();
         _hasTransparency = hasTransparency;
-        _canUsePixoraAi = canUsePixoraAi;
-        PixoraAiUpscaleCheckBox.IsEnabled = canUsePixoraAi;
-        PixoraAiUpscaleHint.Text = canUsePixoraAi
-            ? "Runs locally using your Pixora model. 4x results are limited to 32 megapixels."
+        _canUsePixoraAi = canUsePhotoModel || canUseSpriteModel;
+        if (canUsePhotoModel)
+            PixoraAiModelComboBox.Items.Add(new ComboBoxItem { Content = "Photo model", Tag = AiUpscaleModel.Photo });
+        if (canUseSpriteModel)
+            PixoraAiModelComboBox.Items.Add(new ComboBoxItem { Content = "Sprite / emoji model", Tag = AiUpscaleModel.Sprite });
+        if (PixoraAiModelComboBox.Items.Count > 0)
+            PixoraAiModelComboBox.SelectedIndex = 0;
+        PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi;
+        PixoraAiUpscaleHint.Text = _canUsePixoraAi
+            ? "Runs locally with the selected model. 4x results are limited to 32 megapixels."
             : "Train a local Pixora model first to enable AI upscaling.";
         if (_hasTransparency)
             _selectedFormat = SaveImageFormat.Png;
@@ -130,6 +142,14 @@ public partial class SaveOptionsDialogWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         FileExtensionText.Text = GetExtension(_selectedFormat);
+        UpdateAiModelSelectorState();
+    }
+
+    private void UpdateAiModelSelectorState()
+    {
+        PixoraAiModelComboBox.IsEnabled =
+            _canUsePixoraAi && PixoraAiUpscaleCheckBox.IsEnabled &&
+            PixoraAiUpscaleCheckBox.IsChecked == true;
     }
 
     private static void SetCardState(Border card, bool isSelected)
@@ -178,6 +198,7 @@ public partial class SaveOptionsDialogWindow : Window
             !int.TryParse(preset, out int multiplier))
         {
             PixoraAiUpscaleCheckBox.IsChecked = false;
+            UpdateAiModelSelectorState();
             UpdatePreviewDescription();
             return;
         }
@@ -186,11 +207,13 @@ public partial class SaveOptionsDialogWindow : Window
         {
             CustomScaleRadioButton.IsChecked = true;
             PixoraAiUpscaleCheckBox.IsChecked = false;
+            UpdateAiModelSelectorState();
             return;
         }
 
         if (multiplier != 4)
             PixoraAiUpscaleCheckBox.IsChecked = false;
+        UpdateAiModelSelectorState();
         _isUpdatingDimensions = true;
         WidthTextBox.Text = (_sourceWidth * multiplier).ToString();
         HeightTextBox.Text = (_sourceHeight * multiplier).ToString();
@@ -205,11 +228,15 @@ public partial class SaveOptionsDialogWindow : Window
     private void PixoraAiUpscale_Click(object sender, RoutedEventArgs e)
     {
         if (!_canUsePixoraAi || PixoraAiUpscaleCheckBox.IsChecked != true)
+        {
+            UpdateAiModelSelectorState();
             return;
+        }
 
         if (!FitsOutputLimit(4))
         {
             PixoraAiUpscaleCheckBox.IsChecked = false;
+            UpdateAiModelSelectorState();
             ShowValidation("Pixora AI's 4x output would exceed the 16,384 pixel dimension limit.");
             return;
         }
@@ -219,6 +246,7 @@ public partial class SaveOptionsDialogWindow : Window
         WidthTextBox.Text = (_sourceWidth * 4).ToString();
         HeightTextBox.Text = (_sourceHeight * 4).ToString();
         _isUpdatingDimensions = false;
+        UpdateAiModelSelectorState();
         UpdatePreviewDescription();
     }
 
@@ -229,6 +257,7 @@ public partial class SaveOptionsDialogWindow : Window
 
         CustomScaleRadioButton.IsChecked = true;
         PixoraAiUpscaleCheckBox.IsChecked = false;
+        UpdateAiModelSelectorState();
         UpdatePreviewDescription();
     }
 

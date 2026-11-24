@@ -41,10 +41,10 @@ class HighResolutionPatches(Dataset):
     def __len__(self) -> int:
         return max(1000, len(self.paths) * 100)
 
-    def __getitem__(self, index: int) -> torch.Tensor:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         path = self.paths[index % len(self.paths)]
         with Image.open(path) as opened:
-            image = ImageOps.exif_transpose(opened).convert("RGB")
+            image = ImageOps.exif_transpose(opened).convert("RGBA")
             width, height = image.size
             left = random.randint(0, width - self.hr_size)
             top = random.randint(0, height - self.hr_size)
@@ -59,15 +59,30 @@ class HighResolutionPatches(Dataset):
         if turns:
             array = np.rot90(array, turns)
         array = np.ascontiguousarray(array.transpose(2, 0, 1))
-        return torch.from_numpy(array)
+        rgb = torch.from_numpy(array[:3])
+        alpha = torch.from_numpy(array[3:4])
+        return rgb, alpha
 
 
-def edge_loss(prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+def alpha_aware_loss(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    alpha: torch.Tensor,
+) -> torch.Tensor:
+    """Train RGB detail where it is visible, while retaining smooth sprite edges."""
+    rgb_weight = alpha.expand_as(target)
+    rgb_loss = ((prediction - target).abs() * rgb_weight).sum() / rgb_weight.sum().clamp_min(1.0)
+
     dx_prediction = prediction[:, :, :, 1:] - prediction[:, :, :, :-1]
     dx_target = target[:, :, :, 1:] - target[:, :, :, :-1]
+    dx_weight = torch.maximum(alpha[:, :, :, 1:], alpha[:, :, :, :-1]).expand_as(dx_target)
+    dx_loss = ((dx_prediction - dx_target).abs() * dx_weight).sum() / dx_weight.sum().clamp_min(1.0)
+
     dy_prediction = prediction[:, :, 1:, :] - prediction[:, :, :-1, :]
     dy_target = target[:, :, 1:, :] - target[:, :, :-1, :]
-    return F.l1_loss(dx_prediction, dx_target) + F.l1_loss(dy_prediction, dy_target)
+    dy_weight = torch.maximum(alpha[:, :, 1:, :], alpha[:, :, :-1, :]).expand_as(dy_target)
+    dy_loss = ((dy_prediction - dy_target).abs() * dy_weight).sum() / dy_weight.sum().clamp_min(1.0)
+    return rgb_loss + 0.05 * (dx_loss + dy_loss)
 
 
 def choose_device(requested: str) -> torch.device:
@@ -80,11 +95,12 @@ def choose_device(requested: str) -> torch.device:
     return torch.device("cpu")
 
 
-def default_model_path() -> Path:
+def default_model_path(model_kind: str) -> Path:
     local_app_data = os.environ.get("LOCALAPPDATA")
     if not local_app_data:
         local_app_data = str(Path.home() / "AppData" / "Local")
-    return Path(local_app_data) / "PixoraStudio" / "Models" / "pixora_sr_x4.onnx"
+    filename = "pixora_sr_sprite_x4.onnx" if model_kind == "sprite" else "pixora_sr_x4.onnx"
+    return Path(local_app_data) / "PixoraStudio" / "Models" / filename
 
 
 def export_model(model: PixoraSR, target: Path, device: torch.device) -> None:
@@ -116,13 +132,15 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--steps-per-epoch", type=int, default=500)
     parser.add_argument("--patch-size", type=int, default=64,
-                        help="Low-resolution crop size; the matching high-resolution crop is 4x larger.")
+                        help="Low-resolution crop size; the matching high-resolution crop is 4x larger. Use 32 for 128px sprite targets.")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--workers", type=int, default=0,
                         help="Data-loader workers. Zero is the Windows-safe default.")
     parser.add_argument("--learning-rate", type=float, default=0.0002)
     parser.add_argument("--device", default="auto",
                         help="auto, cpu, cuda, cuda:0, or mps.")
+    parser.add_argument("--model-kind", choices=("photo", "sprite"), default="photo",
+                        help="Select the local output model; sprite writes a separate model file.")
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("checkpoints"))
     parser.add_argument("--resume", type=Path, default=None,
                         help="Optional Pixora checkpoint to continue training.")
@@ -130,8 +148,8 @@ def main() -> None:
                         help="ONNX output path; defaults to the Pixora Studio local model folder.")
     args = parser.parse_args()
 
-    if args.patch_size < 16 or args.epochs < 1 or args.steps_per_epoch < 1 or args.batch_size < 1:
-        parser.error("patch size must be at least 16; epochs, steps, and batch size must be positive")
+    if args.patch_size < 8 or args.epochs < 1 or args.steps_per_epoch < 1 or args.batch_size < 1:
+        parser.error("patch size must be at least 8; epochs, steps, and batch size must be positive")
 
     device = choose_device(args.device)
     print(f"Training PixoraSR from random initialization on {device}.")
@@ -163,11 +181,12 @@ def main() -> None:
         running_loss = 0.0
         for step in range(1, args.steps_per_epoch + 1):
             try:
-                high_resolution = next(iterator)
+                high_resolution, alpha = next(iterator)
             except StopIteration:
                 iterator = iter(loader)
-                high_resolution = next(iterator)
+                high_resolution, alpha = next(iterator)
             high_resolution = high_resolution.to(device, non_blocking=device.type == "cuda")
+            alpha = alpha.to(device, non_blocking=device.type == "cuda")
             low_resolution = F.interpolate(
                 high_resolution,
                 size=(args.patch_size, args.patch_size),
@@ -179,9 +198,7 @@ def main() -> None:
             with torch.autocast(device_type=device.type, dtype=torch.float16,
                                 enabled=device.type == "cuda"):
                 prediction = model(low_resolution)
-                loss = F.l1_loss(prediction, high_resolution) + 0.05 * edge_loss(
-                    prediction, high_resolution
-                )
+                loss = alpha_aware_loss(prediction, high_resolution, alpha)
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -199,7 +216,7 @@ def main() -> None:
             checkpoint_path,
         )
 
-    output_path = args.output or default_model_path()
+    output_path = args.output or default_model_path(args.model_kind)
     export_model(model, output_path, device)
 
 

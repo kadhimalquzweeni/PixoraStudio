@@ -14,33 +14,42 @@ public sealed class PixoraAiUpscalingService : IAiUpscalingService, IDisposable
     private const long MaximumOutputPixels = 32_000_000;
     private readonly object _sessionLock = new();
     private readonly object _runLock = new();
-    private InferenceSession? _session;
-    private bool _usingGpu;
+    private readonly Dictionary<AiUpscaleModel, InferenceSession> _sessions = [];
+    private readonly HashSet<AiUpscaleModel> _gpuModels = [];
     private bool _disposed;
 
-    private static string ModelPath => Path.Combine(
+    private static string ModelPath(AiUpscaleModel model) => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "PixoraStudio", "Models", "pixora_sr_x4.onnx");
+        "PixoraStudio", "Models",
+        model switch
+        {
+            AiUpscaleModel.Photo => "pixora_sr_x4.onnx",
+            AiUpscaleModel.Sprite => "pixora_sr_sprite_x4.onnx",
+            _ => throw new ArgumentOutOfRangeException(nameof(model))
+        });
 
-    public bool IsModelAvailable => File.Exists(ModelPath);
+    public bool IsModelAvailable(AiUpscaleModel model) => File.Exists(ModelPath(model));
 
     public Task<SKBitmap> UpscaleFourTimesAsync(
         SKBitmap source,
+        AiUpscaleModel model,
         IProgress<AiUpscaleProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
-        return Task.Run(() => Upscale(source, progress, cancellationToken), cancellationToken);
+        return Task.Run(() => Upscale(source, model, progress, cancellationToken), cancellationToken);
     }
 
     private SKBitmap Upscale(
         SKBitmap source,
+        AiUpscaleModel model,
         IProgress<AiUpscaleProgress>? progress,
         CancellationToken cancellationToken)
     {
-        if (!IsModelAvailable)
+        string modelPath = ModelPath(model);
+        if (!IsModelAvailable(model))
             throw new FileNotFoundException(
-                "Train Pixora's local upscaler first. The model file was not found.", ModelPath);
+                "Train Pixora's local upscaler first. The selected model file was not found.", modelPath);
 
         int outputWidth = checked(source.Width * Scale);
         int outputHeight = checked(source.Height * Scale);
@@ -49,7 +58,7 @@ public sealed class PixoraAiUpscalingService : IAiUpscalingService, IDisposable
             throw new ArgumentOutOfRangeException(nameof(source),
                 "Pixora AI supports 4x results up to 32 megapixels. Choose a smaller image or use regular resizing.");
 
-        InferenceSession session = GetSession();
+        (InferenceSession session, bool usingGpu) = GetSession(model);
         int columns = (source.Width + CoreTileSize - 1) / CoreTileSize;
         int rows = (source.Height + CoreTileSize - 1) / CoreTileSize;
         int totalTiles = checked(columns * rows);
@@ -71,7 +80,7 @@ public sealed class PixoraAiUpscalingService : IAiUpscalingService, IDisposable
         for (int x = 0; x < source.Width; x++)
             sourceAlpha[y * source.Width + x] = source.GetPixel(x, y).Alpha;
         progress?.Report(new AiUpscaleProgress(
-            _usingGpu ? "Pixora AI is running on the GPU" : "Pixora AI is running on the CPU", 0));
+            usingGpu ? "Pixora AI is running on the GPU" : "Pixora AI is running on the CPU", 0));
 
         for (int coreTop = 0; coreTop < source.Height; coreTop += CoreTileSize)
         for (int coreLeft = 0; coreLeft < source.Width; coreLeft += CoreTileSize)
@@ -154,13 +163,13 @@ public sealed class PixoraAiUpscalingService : IAiUpscalingService, IDisposable
         }
     }
 
-    private InferenceSession GetSession()
+    private (InferenceSession Session, bool UsingGpu) GetSession(AiUpscaleModel model)
     {
         lock (_sessionLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_session is not null)
-                return _session;
+            if (_sessions.TryGetValue(model, out InferenceSession? existing))
+                return (existing, _gpuModels.Contains(model));
 
             try
             {
@@ -171,16 +180,17 @@ public sealed class PixoraAiUpscalingService : IAiUpscalingService, IDisposable
                     GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
                 };
                 options.AppendExecutionProvider_DML(0);
-                _session = new InferenceSession(ModelPath, options);
-                _usingGpu = true;
+                var session = new InferenceSession(ModelPath(model), options);
+                _sessions.Add(model, session);
+                _gpuModels.Add(model);
+                return (session, true);
             }
             catch (Exception)
             {
-                _session = new InferenceSession(ModelPath);
-                _usingGpu = false;
+                var session = new InferenceSession(ModelPath(model));
+                _sessions.Add(model, session);
+                return (session, false);
             }
-
-            return _session;
         }
     }
 
@@ -214,8 +224,10 @@ public sealed class PixoraAiUpscalingService : IAiUpscalingService, IDisposable
             if (_disposed)
                 return;
             _disposed = true;
-            _session?.Dispose();
-            _session = null;
+            foreach (InferenceSession session in _sessions.Values)
+                session.Dispose();
+            _sessions.Clear();
+            _gpuModels.Clear();
         }
     }
 }

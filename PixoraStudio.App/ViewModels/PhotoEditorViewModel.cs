@@ -1724,7 +1724,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         var dialog = new SaveOptionsDialogWindow(
             preview, processedBitmap.Width, processedBitmap.Height,
             initialFolder, $"{baseName}-Edited", HasTransparency(processedBitmap),
-            _aiUpscalingService?.IsModelAvailable == true);
+            _aiUpscalingService?.IsModelAvailable(AiUpscaleModel.Photo) == true,
+            _aiUpscalingService?.IsModelAvailable(AiUpscaleModel.Sprite) == true);
         if (Application.Current?.MainWindow is Window owner)
             dialog.Owner = owner;
         if (dialog.ShowDialog() != true) return;
@@ -1765,7 +1766,8 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 SKBitmap outputBitmap = processedBitmap;
                 if (dialog.UsePixoraAiUpscaling)
                 {
-                    if (_aiUpscalingService is null || !_aiUpscalingService.IsModelAvailable)
+                    if (_aiUpscalingService is null ||
+                        !_aiUpscalingService.IsModelAvailable(dialog.SelectedPixoraAiModel))
                         throw new InvalidOperationException(
                             "Train Pixora's local AI upscaler and restart the app before using this option.");
 
@@ -1779,7 +1781,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                             progressWindow.UpdateProgress(update);
                     });
                     aiUpscaledBitmap = await _aiUpscalingService.UpscaleFourTimesAsync(
-                        processedBitmap, progress);
+                        processedBitmap, dialog.SelectedPixoraAiModel, progress);
                     outputBitmap = aiUpscaledBitmap;
                 }
                 else if (dialog.OutputWidth != processedBitmap.Width ||
