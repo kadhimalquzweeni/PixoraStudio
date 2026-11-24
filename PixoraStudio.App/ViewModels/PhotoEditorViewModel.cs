@@ -338,7 +338,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
 
     private void ApplyTransform(Func<SKBitmap, SKBitmap> transform)
     {
-        if (SelectedLayer is null) return;
+        if (SelectedLayer is null || SelectedLayer.IsLocked) return;
         try
         {
             using var transformed = transform(SelectedLayer.Bitmap);
@@ -705,7 +705,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void CommitAdjustments()
     {
-        if (!IsImageLoaded || SelectedLayer is null) return;
+        if (!IsImageLoaded || SelectedLayer is null || SelectedLayer.IsLocked) return;
         var current = GetCurrentAdjustment();
         if (current.Brightness == _lastCommittedAdjustment.Brightness &&
             current.Contrast == _lastCommittedAdjustment.Contrast &&
