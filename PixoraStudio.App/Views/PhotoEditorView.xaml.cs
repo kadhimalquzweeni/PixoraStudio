@@ -71,6 +71,7 @@ public partial class PhotoEditorView : UserControl
             _observedViewModel.PreviewInvalidated += ViewModel_PreviewInvalidated;
         }
         ObserveSelectedLayer();
+        CloseImageOnlyToolPanel();
         UpdateLayerOverlayWorkspace();
         DrawLayerSelection();
         GpuPreview?.InvalidateVisual();
@@ -94,6 +95,9 @@ public partial class PhotoEditorView : UserControl
 
     private void CloseImageOnlyToolPanel()
     {
+        if (ToolSettingsTabs is null || ToolSettingsBorder is null || ToolSettingsColumn is null)
+            return;
+
         if ((ToolSettingsTabs.SelectedIndex == 4 || ToolSettingsTabs.SelectedIndex == 5) &&
             ViewModel?.SelectedLayer?.IsImageLayer != true)
         {
