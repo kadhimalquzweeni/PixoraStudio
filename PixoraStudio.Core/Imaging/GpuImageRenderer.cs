@@ -11,7 +11,8 @@ public readonly record struct GpuImageLayer(
     int Width,
     int Height,
     bool IsVisible,
-    ImageAdjustment Adjustment);
+    ImageAdjustment Adjustment,
+    float Opacity = 1f);
 
 /// <summary>
 /// Renders and composites image layers through Skia's drawing pipeline. When
@@ -160,7 +161,7 @@ public static class GpuImageRenderer
             {
                 ArgumentNullException.ThrowIfNull(layer.Bitmap);
                 ArgumentNullException.ThrowIfNull(layer.Adjustment);
-                if (!layer.IsVisible || layer.Width <= 0 || layer.Height <= 0)
+                if (!layer.IsVisible || layer.Width <= 0 || layer.Height <= 0 || layer.Opacity <= 0f)
                     continue;
 
                 using var uniforms = new SKRuntimeEffectUniforms(AdjustmentEffect.Value);
@@ -178,6 +179,7 @@ public static class GpuImageRenderer
                 using var paint = new SKPaint
                 {
                     ColorFilter = colorFilter,
+                    Color = new SKColor(255, 255, 255, (byte)Math.Clamp(MathF.Round(layer.Opacity * 255f), 0f, 255f)),
                     IsAntialias = true
                 };
 
