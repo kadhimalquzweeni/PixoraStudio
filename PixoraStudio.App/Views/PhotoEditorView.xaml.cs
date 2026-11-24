@@ -78,11 +78,13 @@ public partial class PhotoEditorView : UserControl
 
         if (e.Key == Key.Delete)
         {
-            if (Keyboard.FocusedElement is TextBoxBase or ComboBox or PasswordBox ||
-                ViewModel?.SelectedLayer is not { } selectedLayer)
+            if (Keyboard.FocusedElement is TextBoxBase or ComboBox or PasswordBox)
                 return;
 
-            ViewModel.RemoveLayerCommand.Execute(selectedLayer);
+            if (ViewModel is not { } vm || vm.SelectedLayer is not { } selectedLayer)
+                return;
+
+            vm.RemoveLayerCommand.Execute(selectedLayer);
             e.Handled = true;
             return;
         }
