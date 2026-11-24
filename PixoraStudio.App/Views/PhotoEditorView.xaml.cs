@@ -71,6 +71,45 @@ public partial class PhotoEditorView : UserControl
         GpuPreview?.InvalidateVisual();
     }
 
+    private void PhotoEditorView_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled)
+            return;
+
+        if (e.Key == Key.Delete)
+        {
+            if (Keyboard.FocusedElement is TextBoxBase or ComboBox or PasswordBox ||
+                ViewModel?.SelectedLayer is not { } selectedLayer)
+                return;
+
+            ViewModel.RemoveLayerCommand.Execute(selectedLayer);
+            e.Handled = true;
+            return;
+        }
+
+        if (Keyboard.FocusedElement is TextBoxBase or ComboBox or PasswordBox ||
+            !Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ||
+            Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+            return;
+
+        switch (e.Key)
+        {
+            case Key.Z:
+            case Key.OemMinus:
+            case Key.Subtract:
+                ViewModel?.ZoomOutCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            case Key.Y:
+            case Key.OemPlus:
+            case Key.Add:
+                ViewModel?.ZoomInCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
+    }
+
     private void PhotoEditorView_Loaded(object sender, RoutedEventArgs e)
     {
         UpdateLayerOverlayWorkspace();
