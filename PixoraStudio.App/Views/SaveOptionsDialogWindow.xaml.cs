@@ -55,8 +55,11 @@ public partial class SaveOptionsDialogWindow : Window
             : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
         if (!Directory.Exists(FolderPathTextBox.Text))
             FolderPathTextBox.Text = Environment.CurrentDirectory;
+        _isUpdatingDimensions = true;
         WidthTextBox.Text = _sourceWidth.ToString();
         HeightTextBox.Text = _sourceHeight.ToString();
+        _isUpdatingDimensions = false;
+        OneXScaleRadioButton.IsChecked = true;
         UpdateFormatSelection();
         UpdatePreviewDescription();
     }
@@ -136,6 +139,33 @@ public partial class SaveOptionsDialogWindow : Window
     {
         if (sender is Button { Tag: string value } && double.TryParse(value, out double quality))
             QualitySlider.Value = quality;
+    }
+
+    private void ScalePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioButton { Tag: string preset } ||
+            !int.TryParse(preset, out int multiplier))
+        {
+            UpdatePreviewDescription();
+            return;
+        }
+
+        double maxSourceDimension = Math.Max(_sourceWidth, _sourceHeight);
+        double scale = Math.Min(multiplier, 16384d / maxSourceDimension);
+        _isUpdatingDimensions = true;
+        WidthTextBox.Text = Math.Max(1, (int)Math.Round(_sourceWidth * scale)).ToString();
+        HeightTextBox.Text = Math.Max(1, (int)Math.Round(_sourceHeight * scale)).ToString();
+        _isUpdatingDimensions = false;
+        UpdatePreviewDescription();
+    }
+
+    private void DimensionsTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isUpdatingDimensions)
+            return;
+
+        CustomScaleRadioButton.IsChecked = true;
+        UpdatePreviewDescription();
     }
 
     private void WidthTextBox_LostFocus(object sender, RoutedEventArgs e)
