@@ -27,6 +27,7 @@ public partial class PhotoLayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isVisible = true;
     [ObservableProperty] private bool isSelected;
     [ObservableProperty] private bool isLocked;
+    [ObservableProperty] private bool isPropertiesOpen;
     private float _opacity = 1f;
     private PhotoLayerContentType _contentType = PhotoLayerContentType.Image;
     private string _textContent = "Your text";
