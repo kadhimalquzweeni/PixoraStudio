@@ -97,13 +97,21 @@ public partial class PhotoEditorView : UserControl
         switch (e.Key)
         {
             case Key.Z:
+                ViewModel?.UndoCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            case Key.Y:
+                ViewModel?.RedoCommand.Execute(null);
+                e.Handled = true;
+                break;
+
             case Key.OemMinus:
             case Key.Subtract:
                 ViewModel?.ZoomOutCommand.Execute(null);
                 e.Handled = true;
                 break;
 
-            case Key.Y:
             case Key.OemPlus:
             case Key.Add:
                 ViewModel?.ZoomInCommand.Execute(null);
