@@ -92,10 +92,15 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool cutoutInverted;
     private byte[]? _cutoutSelectionMask;
 
-    public PhotoEditorViewModel(IImageProcessingService imageService, IAiUpscalingService? aiUpscalingService = null)
+    private readonly IPixelArtUpscalingService? _pixelArtUpscalingService;
+
+    public PhotoEditorViewModel(IImageProcessingService imageService,
+        IAiUpscalingService? aiUpscalingService = null,
+        IPixelArtUpscalingService? pixelArtUpscalingService = null)
     {
         _imageService = imageService;
         _aiUpscalingService = aiUpscalingService;
+        _pixelArtUpscalingService = pixelArtUpscalingService;
     }
 
     public void CreateCanvas(int width, int height, SKColor backgroundColor)
@@ -1783,6 +1788,15 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                     aiUpscaledBitmap = await _aiUpscalingService.UpscaleFourTimesAsync(
                         processedBitmap, dialog.SelectedPixoraAiModel, progress);
                     outputBitmap = aiUpscaledBitmap;
+                }
+                else if (dialog.UsePixelArtUpscaling)
+                {
+                    if (_pixelArtUpscalingService is null)
+                        throw new InvalidOperationException("Pixel-art upscaling is not available.");
+
+                    resizedBitmap = _pixelArtUpscalingService.Upscale(
+                        processedBitmap, dialog.PixelArtScale, dialog.SelectedPixelArtAlgorithm);
+                    outputBitmap = resizedBitmap;
                 }
                 else if (dialog.OutputWidth != processedBitmap.Width ||
                          dialog.OutputHeight != processedBitmap.Height)
