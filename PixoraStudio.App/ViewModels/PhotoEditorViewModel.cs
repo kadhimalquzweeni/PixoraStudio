@@ -647,7 +647,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 entries.Add((rendered, layer.X, layer.Y, layer.Width, layer.Height, true, layer.Opacity));
             }
 
-            using var baseComposite = ImageLayerCompositor.Composite(_canvasBitmap, entries);
+            using var baseComposite = ImageLayerCompositor.CompositeWithOpacity(_canvasBitmap, entries);
             var selectedAdjustment = ShowOriginal ? new ImageAdjustment() : GetCurrentAdjustment();
             using var selectedBitmap = _imageService.ApplyAdjustments(selected.Bitmap, selectedAdjustment);
 
