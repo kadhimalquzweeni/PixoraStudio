@@ -429,6 +429,9 @@ public partial class PhotoEditorView : UserControl
 
     private void LayerItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.OriginalSource is Slider or TextBox or System.Windows.Controls.Primitives.ButtonBase)
+            return;
+
         if (sender is not FrameworkElement { DataContext: PhotoLayerViewModel layer } ||
             ViewModel is not { } vm)
             return;
@@ -442,7 +445,8 @@ public partial class PhotoEditorView : UserControl
 
     private void LayerItem_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (e.LeftButton != MouseButtonState.Pressed ||
+        if (e.OriginalSource is Slider or TextBox or System.Windows.Controls.Primitives.ButtonBase ||
+            e.LeftButton != MouseButtonState.Pressed ||
             sender is not FrameworkElement { DataContext: PhotoLayerViewModel layer })
             return;
 
