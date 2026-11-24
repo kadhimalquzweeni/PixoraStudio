@@ -556,11 +556,12 @@ public partial class PhotoEditorView : UserControl
 
     private void LayerPropertiesPopup_Opened(object? sender, EventArgs e)
     {
-        if (sender is Popup { PlacementTarget.DataContext: PhotoLayerViewModel layer } popup &&
-            popup.Child is FrameworkElement popupContent)
-        {
-            popupContent.DataContext = layer;
-        }
+        if (sender is not Popup popup ||
+            popup.PlacementTarget is not FrameworkElement { DataContext: PhotoLayerViewModel layer } ||
+            popup.Child is not FrameworkElement popupContent)
+            return;
+
+        popupContent.DataContext = layer;
     }
 
     private void LayerProperties_Click(object sender, RoutedEventArgs e)
