@@ -479,7 +479,7 @@ public partial class PhotoEditorView : UserControl
             return;
 
         _cutoutDragCurrent = e.GetPosition(CutoutOverlay);
-        if (ViewModel.CutoutTool is "Brush" or "Lasso")
+        if (ViewModel.CutoutTool == "Brush")
         {
             var localPoint = new Point(_cutoutDragCurrent.X - layer.X, _cutoutDragCurrent.Y - layer.Y);
             var previous = _cutoutStrokePoints[^1];
@@ -505,8 +505,7 @@ public partial class PhotoEditorView : UserControl
             Math.Min(_cutoutDragStart.Y, _cutoutDragCurrent.Y) - layer.Y,
             Math.Abs(_cutoutDragCurrent.X - _cutoutDragStart.X),
             Math.Abs(_cutoutDragCurrent.Y - _cutoutDragStart.Y));
-        if ((viewModel.CutoutTool == "Lasso" && _cutoutStrokePoints.Count < 3) ||
-            (viewModel.CutoutTool == "Brush" && _cutoutStrokePoints.Count == 0) ||
+        if ((viewModel.CutoutTool == "Brush" && _cutoutStrokePoints.Count == 0) ||
             (viewModel.CutoutTool == "Select" && (bounds.Width < 2 || bounds.Height < 2)))
         {
             _cutoutSelectionBounds = Rect.Empty;
@@ -547,18 +546,15 @@ public partial class PhotoEditorView : UserControl
         Rect bounds;
         if (_isCutoutSelecting)
         {
-            if (viewModel.CutoutTool is "Brush" or "Lasso")
+            if (viewModel.CutoutTool == "Brush")
             {
                 var points = new PointCollection(_cutoutStrokePoints.Select(point =>
                     new Point(point.X + layer.X, point.Y + layer.Y)));
                 if (points.Count > 1)
                 {
-                    System.Windows.Shapes.Shape stroke = viewModel.CutoutTool == "Lasso"
-                        ? new Polygon { Points = points, Fill = Brushes.Transparent }
-                        : new Polyline { Points = points };
+                    var stroke = new Polyline { Points = points };
                     stroke.Stroke = viewModel.CutoutMode == "Remove" ? Brushes.OrangeRed : Brushes.DeepSkyBlue;
                     stroke.StrokeThickness = viewModel.CutoutTool == "Brush" ? 32 : 2;
-                    stroke.StrokeDashArray = viewModel.CutoutTool == "Lasso" ? new DoubleCollection { 4, 2 } : null;
                     stroke.IsHitTestVisible = false;
                     CutoutOverlay.Children.Add(stroke);
                 }
