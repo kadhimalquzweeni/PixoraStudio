@@ -139,6 +139,8 @@ public partial class SaveOptionsDialogWindow : Window
             : new SolidColorBrush(Color.FromRgb(8, 8, 8));
 
         bool usesQuality = _selectedFormat is SaveImageFormat.Jpg or SaveImageFormat.WebP;
+        if (usesQuality)
+            QualitySlider.Value = 100;
         QualityPanel.Visibility = usesQuality ? Visibility.Visible : Visibility.Collapsed;
         DimensionsPanel.Visibility = _selectedFormat == SaveImageFormat.Icon
             ? Visibility.Collapsed
