@@ -178,7 +178,7 @@ public partial class PdfConverterViewModel : ObservableObject
         UpdateSelectedPageCount();
     }
 
-    [RelayCommand(CanExecute = nameof(CanConvert))]
+    [RelayCommand(CanExecute = nameof(CanConvertPages))]
     private async Task ConvertAsync()
     {
         if (string.IsNullOrWhiteSpace(FilePath) || string.IsNullOrWhiteSpace(OutputFolder))
@@ -253,6 +253,8 @@ public partial class PdfConverterViewModel : ObservableObject
     private void CancelConversion() => _conversionCancellation?.Cancel();
 
     private bool CanLoadPdf() => !IsBusy;
+
+    private bool CanConvertPages() => CanConvert;
 
     private async Task RefreshPreviewAsync(int pageNumber)
     {
