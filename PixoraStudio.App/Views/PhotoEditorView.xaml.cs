@@ -664,6 +664,7 @@ public partial class PhotoEditorView : UserControl
         // excludes image edges. The user can then drag the handles inward.
         _cropSelection = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
         CropOverlay.Visibility = Visibility.Visible;
+        LayerDragPreviewOverlay.Visibility = Visibility.Collapsed;
         LayerOverlay.Visibility = Visibility.Collapsed;
         DrawCropOverlay();
         UpdateCropCoordinates();
@@ -717,6 +718,7 @@ public partial class PhotoEditorView : UserControl
             return;
 
         CropOverlay.Visibility = Visibility.Collapsed;
+        LayerDragPreviewOverlay.Visibility = Visibility.Visible;
         LayerOverlay.Visibility = Visibility.Visible;
         CropOverlay.Children.Clear();
         _isDragging = false;
