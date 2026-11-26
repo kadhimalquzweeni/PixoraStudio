@@ -12,9 +12,10 @@ public sealed class PdfConverterViewTests
 
         var document = XDocument.Load(path);
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
         Assert.Contains(document.Descendants(presentation + "Slider"),
-            slider => (string?)slider.Attribute("x:Name") == "QualitySlider" &&
+            slider => (string?)slider.Attribute(xaml + "Name") == "QualitySlider" &&
                       (string?)slider.Attribute("Value") == "100");
     }
 
