@@ -264,7 +264,8 @@
                                 </Border>
                                 <Image x:Name="CpuPreviewImage" Source="{Binding PreviewImage}"
                                        Stretch="Fill" Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"/>
-                                <Canvas Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                <Canvas x:Name="LayerDragPreviewOverlay"
+                                        Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
                                         IsHitTestVisible="False">
                                     <Image Source="{Binding LayerDragPreviewImage}"
                                            Opacity="{Binding SelectedLayer.Opacity}"
