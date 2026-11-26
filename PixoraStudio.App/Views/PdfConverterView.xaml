@@ -23,14 +23,7 @@
                            FontSize="13"
                            Margin="0,6,0,0"/>
             </StackPanel>
-            <Button DockPanel.Dock="Right"
-                    Content="＋  Load PDF"
-                    Command="{Binding BrowsePdfCommand}"
-                    Background="#3478D4"
-                    Foreground="White"
-                    Padding="18,10"
-                    MinWidth="130"
-                    VerticalAlignment="Center"/>
+
         </DockPanel>
 
         <Grid Grid.Row="1">
