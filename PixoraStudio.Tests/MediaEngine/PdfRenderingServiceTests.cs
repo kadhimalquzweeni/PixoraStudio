@@ -52,6 +52,31 @@ public sealed class PdfRenderingServiceTests
         }
     }
 
+    [Fact]
+    public void RenderPages_ShouldRenderRequestedPagesInsideOneBatch()
+    {
+        using var pdf = CreatePdf();
+        string path = WriteTemporaryPdf(pdf);
+
+        try
+        {
+            int renderedPages = 0;
+            _service.RenderPages(path, [1], 72, (pageNumber, bitmap) =>
+            {
+                Assert.Equal(1, pageNumber);
+                Assert.Equal(200, bitmap.Width);
+                Assert.Equal(100, bitmap.Height);
+                renderedPages++;
+            });
+
+            Assert.Equal(1, renderedPages);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(2)]

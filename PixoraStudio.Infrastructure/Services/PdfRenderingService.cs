@@ -9,7 +9,7 @@ namespace PixoraStudio.Infrastructure.Services;
 
 /// <summary>
 /// Adapts the PdfPig/Skia renderer to PixoraStudio's existing SKBitmap image pipeline.
-/// Each operation owns its PDF document so callers can safely render pages independently.
+/// Batch rendering keeps one PDF document open for the duration of an export.
 /// </summary>
 public sealed class PdfRenderingService : IPdfRenderingService
 {
@@ -32,20 +32,58 @@ public sealed class PdfRenderingService : IPdfRenderingService
     public SKBitmap RenderPage(string filePath, int pageNumber, int dpi)
     {
         ValidateFilePath(filePath);
-
-        if (dpi is < 72 or > 600)
-            throw new ArgumentOutOfRangeException(nameof(dpi), "PDF render resolution must be between 72 and 600 DPI.");
+        ValidateDpi(dpi);
 
         using var document = PdfDocument.Open(filePath, SkiaRenderingParsingOptions.Instance);
+        ValidatePageNumber(pageNumber, document.NumberOfPages);
+        document.AddSkiaPageFactory();
 
-        if (pageNumber < 1 || pageNumber > document.NumberOfPages)
-            throw new ArgumentOutOfRangeException(nameof(pageNumber),
-                $"Page number must be between 1 and {document.NumberOfPages}.");
+        return document.GetPageAsSKBitmap(pageNumber, dpi / 72f, RGBColor.White);
+    }
+
+    public void RenderPages(
+        string filePath,
+        IReadOnlyCollection<int> pageNumbers,
+        int dpi,
+        Action<int, SKBitmap> pageRendered,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateFilePath(filePath);
+        ArgumentNullException.ThrowIfNull(pageNumbers);
+        ArgumentNullException.ThrowIfNull(pageRendered);
+        ValidateDpi(dpi);
+
+        int[] requestedPages = pageNumbers.Distinct().ToArray();
+        if (requestedPages.Length == 0)
+            throw new ArgumentException("Select at least one PDF page to render.", nameof(pageNumbers));
+
+        using var document = PdfDocument.Open(filePath, SkiaRenderingParsingOptions.Instance);
+        foreach (int pageNumber in requestedPages)
+            ValidatePageNumber(pageNumber, document.NumberOfPages);
 
         document.AddSkiaPageFactory();
         float scale = dpi / 72f;
 
-        return document.GetPageAsSKBitmap(pageNumber, scale, RGBColor.White);
+        foreach (int pageNumber in requestedPages)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var bitmap = document.GetPageAsSKBitmap(pageNumber, scale, RGBColor.White);
+            pageRendered(pageNumber, bitmap);
+        }
+    }
+
+    private static void ValidatePageNumber(int pageNumber, int pageCount)
+    {
+        if (pageNumber < 1 || pageNumber > pageCount)
+            throw new ArgumentOutOfRangeException(nameof(pageNumber),
+                $"Page number must be between 1 and {pageCount}.");
+    }
+
+    private static void ValidateDpi(int dpi)
+    {
+        if (dpi is < 72 or > 600)
+            throw new ArgumentOutOfRangeException(nameof(dpi), "PDF render resolution must be between 72 and 600 DPI.");
     }
 
     private static void ValidateFilePath(string filePath)

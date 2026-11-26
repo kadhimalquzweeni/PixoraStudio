@@ -21,18 +21,21 @@ public partial class MainViewModel : ObservableObject
     public HomeViewModel HomeViewModel { get; }
     public PhotoEditorViewModel PhotoEditorViewModel { get; }
     public VideoEditorViewModel VideoEditorViewModel { get; }
+    public PdfConverterViewModel PdfConverterViewModel { get; }
 
     public MainViewModel(
         IMediaTypeDetector mediaTypeDetector,
         HomeViewModel homeViewModel,
         PhotoEditorViewModel photoEditorViewModel,
-        VideoEditorViewModel videoEditorViewModel)
+        VideoEditorViewModel videoEditorViewModel,
+        PdfConverterViewModel pdfConverterViewModel)
     {
         _mediaTypeDetector = mediaTypeDetector;
 
         HomeViewModel = homeViewModel;
         PhotoEditorViewModel = photoEditorViewModel;
         VideoEditorViewModel = videoEditorViewModel;
+        PdfConverterViewModel = pdfConverterViewModel;
 
         CurrentViewModel = HomeViewModel;
     }
@@ -59,16 +62,24 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenPdfConverter()
+    {
+        CurrentPage = "PDF Converter";
+        CurrentViewModel = PdfConverterViewModel;
+    }
+
+    [RelayCommand]
     private async Task OpenFileAsync()
     {
         var dialog = new OpenFileDialog
         {
             Title = "Open Media",
             Filter =
-                "Supported media|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.gif;*.mp4;*.mov;*.avi;*.mkv;*.webm;*.mp3;*.wav;*.pixora|" +
+                "Supported media|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.gif;*.mp4;*.mov;*.avi;*.mkv;*.webm;*.mp3;*.wav;*.pdf;*.pixora|" +
                 "Images|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.gif|" +
                 "Videos|*.mp4;*.mov;*.avi;*.mkv;*.webm|" +
                 "Audio|*.mp3;*.wav|" +
+                "PDF Documents|*.pdf|" +
                 "Pixora Projects|*.pixora|" +
                 "All files|*.*"
         };
@@ -77,6 +88,13 @@ public partial class MainViewModel : ObservableObject
             return;
 
         string filePath = dialog.FileName;
+
+        if (string.Equals(Path.GetExtension(filePath), ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            if (await PdfConverterViewModel.LoadPdfAsync(filePath))
+                OpenPdfConverter();
+            return;
+        }
 
         MediaType mediaType = _mediaTypeDetector.Detect(filePath);
 
