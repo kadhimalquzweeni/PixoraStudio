@@ -2,7 +2,6 @@ using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Core.Models;
 using SkiaSharp;
 using UglyToad.PdfPig;
-using UglyToad.PdfPig.Graphics.Colors;
 using UglyToad.PdfPig.Rendering.Skia;
 
 namespace PixoraStudio.Infrastructure.Services;
@@ -31,14 +30,9 @@ public sealed class PdfRenderingService : IPdfRenderingService
 
     public SKBitmap RenderPage(string filePath, int pageNumber, int dpi)
     {
-        ValidateFilePath(filePath);
-        ValidateDpi(dpi);
-
-        using var document = PdfDocument.Open(filePath, SkiaRenderingParsingOptions.Instance);
-        ValidatePageNumber(pageNumber, document.NumberOfPages);
-        document.AddSkiaPageFactory();
-
-        return document.GetPageAsSKBitmap(pageNumber, dpi / 72f, RGBColor.White);
+        SKBitmap? result = null;
+        RenderPages(filePath, [pageNumber], dpi, (_, bitmap) => result = bitmap.Copy());
+        return result ?? throw new InvalidOperationException("The PDF page could not be rendered.");
     }
 
     public void RenderPages(
@@ -63,12 +57,24 @@ public sealed class PdfRenderingService : IPdfRenderingService
 
         document.AddSkiaPageFactory();
         float scale = dpi / 72f;
+        SKMatrix scaleMatrix = SKMatrix.CreateScale(scale, scale);
 
         foreach (int pageNumber in requestedPages)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var bitmap = document.GetPageAsSKBitmap(pageNumber, scale, RGBColor.White);
+            using var picture = document.GetPageAsSKPicture(pageNumber, cancellationToken);
+            var pageSize = document.GetPageSize(pageNumber);
+            int width = Math.Max(1, (int)Math.Ceiling(pageSize.Width * scale));
+            int height = Math.Max(1, (int)Math.Ceiling(pageSize.Height * scale));
+
+            using var bitmap = new SKBitmap(width, height);
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                canvas.Clear(SKColors.White);
+                canvas.DrawPicture(picture, in scaleMatrix);
+            }
+
             pageRendered(pageNumber, bitmap);
         }
     }
