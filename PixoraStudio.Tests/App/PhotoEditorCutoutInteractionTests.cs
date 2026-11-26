@@ -55,6 +55,36 @@ public sealed class PhotoEditorCutoutInteractionTests
     }
 
     [Fact]
+    public void CropMode_ShouldHideAndRestoreLayerResizePreview()
+    {
+        var xamlPath = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml");
+        var codeBehindPath = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
+        Assert.True(File.Exists(xamlPath), $"Expected photo editor view at {xamlPath}");
+        Assert.True(File.Exists(codeBehindPath), $"Expected photo editor code-behind at {codeBehindPath}");
+
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var document = XDocument.Load(xamlPath);
+        var previewOverlay = document.Descendants(presentation + "Canvas")
+            .Single(canvas => (string?)canvas.Attribute(xaml + "Name") == "LayerDragPreviewOverlay");
+        Assert.Contains(previewOverlay.Descendants(presentation + "Image"),
+            image => (string?)image.Attribute("Source") == "{Binding LayerDragPreviewImage}");
+
+        var source = File.ReadAllText(codeBehindPath);
+        int beginCrop = source.IndexOf("private void BeginCropMode()", StringComparison.Ordinal);
+        int endCrop = source.IndexOf("private void ApplyCrop_Click", beginCrop, StringComparison.Ordinal);
+        int beginEnd = source.IndexOf("private void EndCropMode()", StringComparison.Ordinal);
+        int endEnd = source.IndexOf("private void CropOverlay_MouseLeftButtonDown", beginEnd, StringComparison.Ordinal);
+        Assert.True(beginCrop >= 0 && endCrop > beginCrop, "Expected crop initialization method.");
+        Assert.True(beginEnd >= 0 && endEnd > beginEnd, "Expected crop exit method.");
+
+        Assert.Contains("LayerDragPreviewOverlay.Visibility = Visibility.Collapsed;",
+            source[beginCrop..endCrop]);
+        Assert.Contains("LayerDragPreviewOverlay.Visibility = Visibility.Visible;",
+            source[beginEnd..endEnd]);
+    }
+
+    [Fact]
     public void LayerResize_ShouldAllowFreeEdgeResizingAndSnapToCanvas()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
