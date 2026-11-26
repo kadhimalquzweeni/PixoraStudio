@@ -55,6 +55,27 @@ public sealed class PhotoEditorCutoutInteractionTests
     }
 
     [Fact]
+    public void LayerResize_ShouldAllowFreeEdgeResizingAndSnapToCanvas()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
+        Assert.True(File.Exists(path), $"Expected photo editor code-behind at {path}");
+
+        var source = File.ReadAllText(path);
+        int begin = source.IndexOf("private void LayerOverlay_MouseMove", StringComparison.Ordinal);
+        int end = source.IndexOf("private static bool TryFindResizeSnap", begin, StringComparison.Ordinal);
+        Assert.True(begin >= 0 && end > begin, "Expected layer resize interaction method.");
+
+        string method = source[begin..end];
+        Assert.Contains("if (_layerDragMode is DragMode.TopLeft or DragMode.TopRight or DragMode.BottomLeft or DragMode.BottomRight)", method);
+        Assert.DoesNotContain("else if (_layerDragMode is DragMode.Left or DragMode.Right)", method);
+        Assert.DoesNotContain("else if (_layerDragMode is DragMode.Top or DragMode.Bottom)", method);
+        Assert.Contains("TryFindResizeSnap", method);
+        Assert.Contains("resizeViewModel.ImageWidth / 2d", method);
+        Assert.Contains("resizeViewModel.ImageHeight / 2d", method);
+    }
+
+
+    [Fact]
     public void PhotoEditorKeyboardHandler_ShouldApplyCutoutOnEnterWhenSelectionExists()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
