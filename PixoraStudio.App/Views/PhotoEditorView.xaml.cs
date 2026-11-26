@@ -721,6 +721,7 @@ public partial class PhotoEditorView : UserControl
         CropOverlay.Children.Clear();
         _isDragging = false;
         CropOverlay.ReleaseMouseCapture();
+        DrawLayerSelection();
     }
 
     private void CropOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1489,6 +1490,16 @@ public partial class PhotoEditorView : UserControl
     private void DrawLayerSelection()
     {
         LayerOverlay.Children.Clear();
+
+        // The crop boundary is the only interactive selection while cropping.
+        // Never recreate the layer-size handles over the crop overlay.
+        if (CropOverlay?.Visibility == Visibility.Visible)
+        {
+            LayerOverlay.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        LayerOverlay.Visibility = Visibility.Visible;
         if (ViewModel?.SelectedLayer is not { IsVisible: true } layer) return;
         var rect = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
         var border = new Rectangle
