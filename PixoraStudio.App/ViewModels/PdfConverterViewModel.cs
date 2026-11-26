@@ -59,7 +59,7 @@ public partial class PdfConverterViewModel : ObservableObject
     public int PageCount => Pages.Count;
     public bool HasDocument => !string.IsNullOrWhiteSpace(FilePath);
     public bool IsJpeg => string.Equals(SelectedFormat, "JPG", StringComparison.OrdinalIgnoreCase);
-    public bool CanConvert => HasDocument && SelectedPageCount > 0 && !IsBusy;
+    public bool CanConvert => HasDocument && SelectedPageCount > 0 && !IsBusy && !string.IsNullOrWhiteSpace(OutputFolder);
 
     public int SelectedPageNumber
     {
@@ -329,12 +329,25 @@ public partial class PdfConverterViewModel : ObservableObject
     partial void OnFilePathChanged(string? value)
     {
         OnPropertyChanged(nameof(HasDocument));
+        OnPropertyChanged(nameof(CanConvert));
         RefreshCommandStates();
     }
 
+    partial void OnOutputFolderChanged(string value)
+    {
+        OnPropertyChanged(nameof(CanConvert));
+        RefreshCommandStates();
+    }
+
+    partial void OnSelectedPageCountChanged(int value) => OnPropertyChanged(nameof(CanConvert));
+
     partial void OnSelectedFormatChanged(string value) => OnPropertyChanged(nameof(IsJpeg));
 
-    partial void OnIsBusyChanged(bool value) => RefreshCommandStates();
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanConvert));
+        RefreshCommandStates();
+    }
 }
 
 public sealed partial class PdfPageSelectionViewModel : ObservableObject

@@ -91,8 +91,8 @@ public partial class MainViewModel : ObservableObject
 
         if (string.Equals(Path.GetExtension(filePath), ".pdf", StringComparison.OrdinalIgnoreCase))
         {
-            if (await PdfConverterViewModel.LoadPdfAsync(filePath))
-                OpenPdfConverter();
+            await PdfConverterViewModel.LoadPdfAsync(filePath);
+            OpenPdfConverter();
             return;
         }
 
