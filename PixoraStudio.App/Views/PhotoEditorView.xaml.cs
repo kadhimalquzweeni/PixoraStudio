@@ -907,10 +907,8 @@ public partial class PhotoEditorView : UserControl
     private void PhotoEditorView_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         var source = e.OriginalSource as DependencyObject;
-        if (CropOverlay?.Visibility == Visibility.Visible &&
-            !IsVisualDescendantOrSelf(source, CropOverlay) &&
-            !IsVisualDescendantOrSelf(source, ToolSettingsBorder))
-            EndCropMode();
+        // Clicking outside the canvas must not exit crop mode: the crop panel
+        // remains active until the user switches tools, closes it, or applies/cancels.
         if (CutoutOverlay?.Visibility == Visibility.Visible &&
             !IsVisualDescendantOrSelf(source, CutoutOverlay) &&
             !IsVisualDescendantOrSelf(source, ToolSettingsBorder))
