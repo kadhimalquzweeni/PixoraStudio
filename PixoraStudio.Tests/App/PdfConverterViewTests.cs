@@ -19,8 +19,11 @@ public sealed class PdfConverterViewTests
             combo => (string?)combo.Attribute("ItemsSource") == "{Binding FormatOptions}");
         Assert.Contains(document.Descendants(presentation + "ComboBox"),
             combo => (string?)combo.Attribute("ItemsSource") == "{Binding DpiOptions}");
+        Assert.Contains(document.Descendants(presentation + "TextBlock"),
+            label => (string?)label.Attribute("Text") == "{Binding OutputDimensionsLabel}");
         Assert.Contains(document.Descendants(presentation + "Slider"),
-            slider => (string?)slider.Attribute("Value") == "{Binding JpegQuality}");
+            slider => (string?)slider.Attribute("Value") == "{Binding JpegQuality}" &&
+                      slider.Parent?.Attribute("Visibility")?.Value.Contains("IsJpeg") == true);
         Assert.Contains(document.Descendants(presentation + "Button"),
             button => (string?)button.Attribute("Command") == "{Binding ConvertCommand}");
     }
