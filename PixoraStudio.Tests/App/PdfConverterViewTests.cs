@@ -5,6 +5,20 @@ namespace PixoraStudio.Tests.App;
 public sealed class PdfConverterViewTests
 {
     [Fact]
+    public void SaveOptionsDialog_ShouldDefaultImageQualityTo100Percent()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "SaveOptionsDialogWindow.xaml");
+        Assert.True(File.Exists(path), $"Expected save options view at {path}");
+
+        var document = XDocument.Load(path);
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+        Assert.Contains(document.Descendants(presentation + "Slider"),
+            slider => (string?)slider.Attribute("x:Name") == "QualitySlider" &&
+                      (string?)slider.Attribute("Value") == "100");
+    }
+
+    [Fact]
     public void PdfConverterView_ShouldExposePageSelectionAndExportSettings()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "PdfConverterView.xaml");
@@ -24,6 +38,8 @@ public sealed class PdfConverterViewTests
         Assert.Contains(document.Descendants(presentation + "Slider"),
             slider => (string?)slider.Attribute("Value") == "{Binding JpegQuality}" &&
                       slider.Parent?.Attribute("Visibility")?.Value.Contains("IsJpeg") == true);
+        Assert.Contains(document.Descendants(presentation + "ComboBox"),
+            combo => (string?)combo.Attribute("SelectedItem") == "{Binding SelectedDpi}");
         Assert.Contains(document.Descendants(presentation + "Button"),
             button => (string?)button.Attribute("Command") == "{Binding ConvertCommand}");
     }
