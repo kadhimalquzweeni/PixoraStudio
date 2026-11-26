@@ -65,10 +65,10 @@ public sealed class PdfRenderingService : IPdfRenderingService
 
             using var picture = document.GetPageAsSKPicture(pageNumber, cancellationToken);
             var pageSize = document.GetPageSize(pageNumber);
-            int width = Math.Max(1, (int)Math.Ceiling(pageSize.Width * scale));
-            int height = Math.Max(1, (int)Math.Ceiling(pageSize.Height * scale));
+            PdfPixelDimensions dimensions = PdfOutputDimensions.FromPoints(
+                pageSize.Width, pageSize.Height, dpi);
 
-            using var bitmap = new SKBitmap(width, height);
+            using var bitmap = new SKBitmap(dimensions.Width, dimensions.Height);
             using (var canvas = new SKCanvas(bitmap))
             {
                 canvas.Clear(SKColors.White);
