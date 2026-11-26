@@ -178,14 +178,14 @@
                                     <DockPanel>
                                         <TextBlock Text="Quality" FontWeight="SemiBold"/>
                                         <TextBlock x:Name="QualityValueText" DockPanel.Dock="Right"
-                                                   Text="90%" Foreground="#E8E8E8"/>
+                                                   Text="100%" Foreground="#E8E8E8"/>
                                     </DockPanel>
-                                    <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" Value="90"
+                                    <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" Value="100"
                                             Margin="0,8,0,8" ValueChanged="QualitySlider_ValueChanged"/>
                                     <UniformGrid Columns="3">
                                         <Button Content="LOW" Tag="35" Margin="2" Click="QualityPreset_Click"/>
                                         <Button Content="MED" Tag="65" Margin="2" Click="QualityPreset_Click"/>
-                                        <Button Content="HIGH" Tag="90" Margin="2" Click="QualityPreset_Click"/>
+                                        <Button Content="HIGH" Tag="100" Margin="2" Click="QualityPreset_Click"/>
                                     </UniformGrid>
                                 </StackPanel>
 
