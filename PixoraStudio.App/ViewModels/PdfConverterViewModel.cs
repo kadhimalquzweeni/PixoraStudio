@@ -208,7 +208,7 @@ public partial class PdfConverterViewModel : ObservableObject
         int dpi = SelectedDpi;
         int quality = JpegQuality;
         string output = OutputFolder;
-        var progressReporter = new Progress<double>(value => Progress = value);
+        IProgress<double> progressReporter = new Progress<double>(value => Progress = value);
 
         try
         {
