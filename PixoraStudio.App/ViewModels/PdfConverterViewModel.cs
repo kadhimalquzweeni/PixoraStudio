@@ -59,6 +59,19 @@ public partial class PdfConverterViewModel : ObservableObject
     public int PageCount => Pages.Count;
     public bool HasDocument => !string.IsNullOrWhiteSpace(FilePath);
     public bool IsJpeg => string.Equals(SelectedFormat, "JPG", StringComparison.OrdinalIgnoreCase);
+    public string OutputDimensionsLabel
+    {
+        get
+        {
+            PdfPageSelectionViewModel? page = Pages.FirstOrDefault(item => item.PageNumber == SelectedPageNumber);
+            if (page is null)
+                return "Output dimensions will appear here";
+
+            PdfPixelDimensions dimensions = PdfOutputDimensions.FromPoints(
+                page.WidthPoints, page.HeightPoints, SelectedDpi);
+            return $"{dimensions.Width:N0} × {dimensions.Height:N0} px";
+        }
+    }
     public bool CanConvert => HasDocument && SelectedPageCount > 0 && !IsBusy && !string.IsNullOrWhiteSpace(OutputFolder);
 
     public int SelectedPageNumber
@@ -66,8 +79,12 @@ public partial class PdfConverterViewModel : ObservableObject
         get => _selectedPageNumber;
         set
         {
-            if (SetProperty(ref _selectedPageNumber, value) && value > 0 && HasDocument)
-                _ = RefreshPreviewAsync(value);
+            if (SetProperty(ref _selectedPageNumber, value))
+            {
+                OnPropertyChanged(nameof(OutputDimensionsLabel));
+                if (value > 0 && HasDocument)
+                    _ = RefreshPreviewAsync(value);
+            }
         }
     }
 
@@ -123,6 +140,7 @@ public partial class PdfConverterViewModel : ObservableObject
             }
 
             OnPropertyChanged(nameof(PageCount));
+            OnPropertyChanged(nameof(OutputDimensionsLabel));
             UpdateSelectedPageCount();
 
             _selectedPageNumber = Pages.Count > 0 ? 1 : 0;
@@ -340,6 +358,8 @@ public partial class PdfConverterViewModel : ObservableObject
     }
 
     partial void OnSelectedPageCountChanged(int value) => OnPropertyChanged(nameof(CanConvert));
+
+    partial void OnSelectedDpiChanged(int value) => OnPropertyChanged(nameof(OutputDimensionsLabel));
 
     partial void OnSelectedFormatChanged(string value) => OnPropertyChanged(nameof(IsJpeg));
 
