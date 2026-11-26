@@ -361,7 +361,12 @@ public partial class PdfConverterViewModel : ObservableObject
 
     partial void OnSelectedDpiChanged(int value) => OnPropertyChanged(nameof(OutputDimensionsLabel));
 
-    partial void OnSelectedFormatChanged(string value) => OnPropertyChanged(nameof(IsJpeg));
+    partial void OnSelectedFormatChanged(string value)
+    {
+        if (IsJpeg)
+            JpegQuality = 100;
+        OnPropertyChanged(nameof(IsJpeg));
+    }
 
     partial void OnIsBusyChanged(bool value)
     {
