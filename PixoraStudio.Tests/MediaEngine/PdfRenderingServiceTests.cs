@@ -154,7 +154,7 @@ public sealed class PdfRenderingServiceTests
         foreach (string pdfObject in objects)
         {
             offsets.Add(stream.Position);
-            WriteAscii(stream, $"{offsets.Count} 0 obj\n{pdfObject}\nendobj\n");
+            WriteAscii(stream, $"{offsets.Count - 1} 0 obj\n{pdfObject}\nendobj\n");
         }
 
         long xrefOffset = stream.Position;

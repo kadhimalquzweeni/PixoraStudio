@@ -57,9 +57,9 @@ public sealed class PixoraThemeResourceTests
 
         Assert.NotNull(checkBoxTemplate);
         Assert.NotNull(checkBoxTemplate!.Descendants(presentation + "Path")
-            .FirstOrDefault(path => (string?)path.Attribute("Name") == "CheckMark"));
+            .FirstOrDefault(path => (string?)path.Attribute(xaml + "Name") == "CheckMark"));
         Assert.NotNull(checkBoxTemplate.Descendants(presentation + "Path")
-            .FirstOrDefault(path => (string?)path.Attribute("Name") == "IndeterminateMark"));
+            .FirstOrDefault(path => (string?)path.Attribute(xaml + "Name") == "IndeterminateMark"));
 
         Assert.NotNull(document.Descendants(presentation + "Style")
             .FirstOrDefault(style => (string?)style.Attribute("TargetType") == "{x:Type Slider}")
