@@ -168,12 +168,15 @@
                         <StackPanel Grid.Column="1" Margin="0,0,10,0">
                             <TextBlock Text="RESOLUTION" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
                             <ComboBox Width="110" ItemsSource="{Binding DpiOptions}" SelectedItem="{Binding SelectedDpi}"/>
+                            <TextBlock Text="{Binding OutputDimensionsLabel}"
+                                       Foreground="#A0A3AD" FontSize="10" Margin="0,5,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Margin="0,0,10,0" Visibility="{Binding IsJpeg, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock Text="JPEG QUALITY" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
                             <TextBlock Text="{Binding JpegQuality, StringFormat={}{0}%}" Foreground="White" FontSize="13"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="3" Margin="0,0,10,0">
+                        <StackPanel Grid.Column="3" Margin="0,0,10,0"
+                                    Visibility="{Binding IsJpeg, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock Text="QUALITY" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
                             <Slider Minimum="1" Maximum="100" Value="{Binding JpegQuality}" Width="100"/>
                         </StackPanel>
