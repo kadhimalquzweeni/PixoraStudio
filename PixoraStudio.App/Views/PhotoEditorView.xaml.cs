@@ -1462,8 +1462,10 @@ public partial class PhotoEditorView : UserControl
         }
 
         layer.SetBounds((int)Math.Round(x),
+            (int)Math.Round(y),
             Math.Max(MinimumLayerSize, (int)Math.Round(width)),
-            Math.Max(MinimumLayerSize, (int)Math.Round(height)));
+            Math.Max(MinimumLayerSize, (int)Math.Round(height)),
+            ignoreLock: false);
         _layerSelection = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
         UpdateLayerOverlayWorkspace();
         DrawLayerSelection();
