@@ -35,7 +35,7 @@ public partial class PdfConverterViewModel : ObservableObject
     private string selectedFormat = "PNG";
 
     [ObservableProperty]
-    private int jpegQuality = 92;
+    private int jpegQuality = 100;
 
     [ObservableProperty]
     private BitmapSource? previewImage;
