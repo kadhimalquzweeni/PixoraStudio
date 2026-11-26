@@ -660,13 +660,9 @@ public partial class PhotoEditorView : UserControl
             layer.Width < 1 || layer.Height < 1)
             return;
 
-        var insetX = Math.Max(1, layer.Width * 0.1);
-        var insetY = Math.Max(1, layer.Height * 0.1);
-        _cropSelection = new Rect(layer.X + insetX, layer.Y + insetY,
-            Math.Max(MinimumCropSize, layer.Width - insetX * 2),
-            Math.Max(MinimumCropSize, layer.Height - insetY * 2));
-        _cropSelection.Intersect(new Rect(layer.X, layer.Y, layer.Width, layer.Height));
-        _cropSelection = ApplySelectedAspectRatio(_cropSelection, vm);
+        // Start with the entire selected layer so the initial crop never
+        // excludes image edges. The user can then drag the handles inward.
+        _cropSelection = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
         CropOverlay.Visibility = Visibility.Visible;
         LayerOverlay.Visibility = Visibility.Collapsed;
         DrawCropOverlay();
