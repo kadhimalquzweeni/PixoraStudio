@@ -85,6 +85,22 @@ public sealed class PhotoEditorCutoutInteractionTests
     }
 
     [Fact]
+    public void ClickingOutsideCanvas_ShouldNotExitCropModeOrRestoreResizePreview()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
+        Assert.True(File.Exists(path), $"Expected photo editor code-behind at {path}");
+
+        var source = File.ReadAllText(path);
+        int begin = source.IndexOf("private void PhotoEditorView_PreviewMouseDown", StringComparison.Ordinal);
+        int end = source.IndexOf("private void ", begin + 1, StringComparison.Ordinal);
+        Assert.True(begin >= 0 && end > begin, "Expected preview mouse-down handler.");
+
+        string handler = source[begin..end];
+        Assert.DoesNotContain("EndCropMode();", handler);
+        Assert.Contains("LayerDragPreviewOverlay.Visibility = Visibility.Collapsed;", source);
+    }
+
+    [Fact]
     public void LayerResize_ShouldAllowFreeEdgeResizingAndSnapToCanvas()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
