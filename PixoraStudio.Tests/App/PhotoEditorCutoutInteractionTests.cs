@@ -21,6 +21,23 @@ public sealed class PhotoEditorCutoutInteractionTests
     }
 
     [Fact]
+    public void BeginCropMode_ShouldInitializeSelectionToEntireSelectedLayer()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
+        Assert.True(File.Exists(path), $"Expected photo editor code-behind at {path}");
+
+        var source = File.ReadAllText(path);
+        int begin = source.IndexOf("private void BeginCropMode()", StringComparison.Ordinal);
+        int end = source.IndexOf("private void ApplyCrop_Click", begin, StringComparison.Ordinal);
+        Assert.True(begin >= 0 && end > begin, "Expected crop mode initialization method.");
+
+        string method = source[begin..end];
+        Assert.Contains("_cropSelection = new Rect(layer.X, layer.Y, layer.Width, layer.Height);", method);
+        Assert.DoesNotContain("insetX", method);
+        Assert.DoesNotContain("insetY", method);
+    }
+
+    [Fact]
     public void PhotoEditorKeyboardHandler_ShouldApplyCutoutOnEnterWhenSelectionExists()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
