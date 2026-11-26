@@ -1387,21 +1387,81 @@ public partial class PhotoEditorView : UserControl
                     if (_layerDragMode is DragMode.TopLeft or DragMode.BottomLeft) x = bounds.Right - width;
                 }
             }
-            else if (_layerDragMode is DragMode.Left or DragMode.Right)
-            {
-                height = width / ratio;
-                y = bounds.Top + (bounds.Height - height) / 2d;
-            }
-            else if (_layerDragMode is DragMode.Top or DragMode.Bottom)
-            {
-                width = height * ratio;
-                x = bounds.Left + (bounds.Width - width) / 2d;
-            }
+            // Edge handles resize freely along one axis. Only corner handles
+            // preserve the layer's original aspect ratio.
             width = Math.Max(MinimumLayerSize, width);
             height = Math.Max(MinimumLayerSize, height);
+
+            if (ViewModel is { IsSnappingEnabled: true } resizeViewModel)
+            {
+                var zoom = Math.Max(0.01, resizeViewModel.Zoom);
+                var threshold = 8d / zoom;
+                var xTargets = new[] { 0d, resizeViewModel.ImageWidth / 2d, (double)resizeViewModel.ImageWidth };
+                var yTargets = new[] { 0d, resizeViewModel.ImageHeight / 2d, (double)resizeViewModel.ImageHeight };
+                bool movesLeft = _layerDragMode is DragMode.Left or DragMode.TopLeft or DragMode.BottomLeft;
+                bool movesRight = _layerDragMode is DragMode.Right or DragMode.TopRight or DragMode.BottomRight;
+                bool movesTop = _layerDragMode is DragMode.Top or DragMode.TopLeft or DragMode.TopRight;
+                bool movesBottom = _layerDragMode is DragMode.Bottom or DragMode.BottomLeft or DragMode.BottomRight;
+                bool isCorner = movesLeft && (movesTop || movesBottom) ||
+                                movesRight && (movesTop || movesBottom);
+
+                double? snappedX = null;
+                double? snappedY = null;
+                double xGuide = 0, yGuide = 0, xDistance = double.MaxValue, yDistance = double.MaxValue;
+                if (movesLeft && TryFindResizeSnap(x, xTargets, threshold, out var leftSnap, out xGuide, out xDistance))
+                    snappedX = leftSnap;
+                else if (movesRight && TryFindResizeSnap(x + width, xTargets, threshold, out var rightSnap, out xGuide, out xDistance))
+                    snappedX = rightSnap;
+
+                if (movesTop && TryFindResizeSnap(y, yTargets, threshold, out var topSnap, out yGuide, out yDistance))
+                    snappedY = topSnap;
+                else if (movesBottom && TryFindResizeSnap(y + height, yTargets, threshold, out var bottomSnap, out yGuide, out yDistance))
+                    snappedY = bottomSnap;
+
+                if (isCorner && (snappedX.HasValue || snappedY.HasValue))
+                {
+                    // Snap the closest moving edge, then derive the other
+                    // dimension from the original ratio.
+                    if (snappedX.HasValue && (!snappedY.HasValue || xDistance <= yDistance))
+                    {
+                        width = Math.Max(MinimumLayerSize, movesLeft ? bounds.Right - snappedX.Value : snappedX.Value - bounds.Left);
+                        height = width / ratio;
+                        x = movesLeft ? bounds.Right - width : bounds.Left;
+                        y = movesTop ? bounds.Bottom - height : bounds.Top;
+                        snappedY = null;
+                    }
+                    else if (snappedY.HasValue)
+                    {
+                        height = Math.Max(MinimumLayerSize, movesTop ? bounds.Bottom - snappedY.Value : snappedY.Value - bounds.Top);
+                        width = height * ratio;
+                        y = movesTop ? bounds.Bottom - height : bounds.Top;
+                        x = movesLeft ? bounds.Right - width : bounds.Left;
+                        snappedX = null;
+                    }
+                }
+                else
+                {
+                    if (snappedX.HasValue)
+                    {
+                        if (movesLeft) { x = snappedX.Value; width = bounds.Right - x; }
+                        else width = snappedX.Value - x;
+                    }
+                    if (snappedY.HasValue)
+                    {
+                        if (movesTop) { y = snappedY.Value; height = bounds.Bottom - y; }
+                        else height = snappedY.Value - y;
+                    }
+                }
+
+                DrawSnapGuides(snappedX.HasValue ? xGuide : null, snappedY.HasValue ? yGuide : null);
+            }
+            else
+            {
+                SnapGuideOverlay.Children.Clear();
+            }
         }
 
-        layer.SetBounds((int)Math.Round(x), (int)Math.Round(y),
+        layer.SetBounds((int)Math.Round(x),
             Math.Max(MinimumLayerSize, (int)Math.Round(width)),
             Math.Max(MinimumLayerSize, (int)Math.Round(height)));
         _layerSelection = new Rect(layer.X, layer.Y, layer.Width, layer.Height);
@@ -1409,6 +1469,27 @@ public partial class PhotoEditorView : UserControl
         DrawLayerSelection();
         ViewModel?.SetLayerDragPreviewBounds(layer.X, layer.Y, layer.Width, layer.Height);
         e.Handled = true;
+    }
+
+    private static bool TryFindResizeSnap(
+        double edge, IReadOnlyList<double> targets, double threshold,
+        out double snappedEdge, out double guide, out double distance)
+    {
+        snappedEdge = edge;
+        guide = 0;
+        distance = double.MaxValue;
+        foreach (var target in targets)
+        {
+            var candidateDistance = Math.Abs(target - edge);
+            if (candidateDistance > threshold || candidateDistance >= distance)
+                continue;
+
+            snappedEdge = target;
+            guide = target;
+            distance = candidateDistance;
+        }
+
+        return distance < double.MaxValue;
     }
 
     private void LayerOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
