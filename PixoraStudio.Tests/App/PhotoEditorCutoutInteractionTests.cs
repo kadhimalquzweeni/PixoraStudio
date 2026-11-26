@@ -38,6 +38,23 @@ public sealed class PhotoEditorCutoutInteractionTests
     }
 
     [Fact]
+    public void DrawLayerSelection_ShouldHideLayerHandlesWhileCropOverlayIsVisible()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
+        Assert.True(File.Exists(path), $"Expected photo editor code-behind at {path}");
+
+        var source = File.ReadAllText(path);
+        int begin = source.IndexOf("private void DrawLayerSelection()", StringComparison.Ordinal);
+        int end = source.IndexOf("private void LayerProperty_GotKeyboardFocus", begin, StringComparison.Ordinal);
+        Assert.True(begin >= 0 && end > begin, "Expected layer selection drawing method.");
+
+        string method = source[begin..end];
+        Assert.Contains("CropOverlay?.Visibility == Visibility.Visible", method);
+        Assert.Contains("LayerOverlay.Visibility = Visibility.Collapsed;", method);
+        Assert.Contains("LayerOverlay.Children.Clear();", method);
+    }
+
+    [Fact]
     public void PhotoEditorKeyboardHandler_ShouldApplyCutoutOnEnterWhenSelectionExists()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "PhotoEditorView.xaml.cs");
