@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
-using System.IO;\nusing System.Text.Json;
+using System.IO;
+using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixoraStudio.App.Services;
@@ -8,7 +9,9 @@ namespace PixoraStudio.App.ViewModels;
 
 public partial class MediaDownloaderViewModel : ObservableObject
 {
-    private readonly DownloadQueueService _queueService;\n    private readonly MediaPlatformExtractorRegistry _extractorRegistry;\n    private Uri? _resolvedDownloadUri;
+    private readonly DownloadQueueService _queueService;
+    private readonly MediaPlatformExtractorRegistry _extractorRegistry;
+    private Uri? _resolvedDownloadUri;
 
     private static readonly (string Platform, string[] Domains)[] SupportedPlatforms =
     [
@@ -20,9 +23,12 @@ public partial class MediaDownloaderViewModel : ObservableObject
         ("Reddit", ["reddit.com", "redd.it"]),
     ];
 
-    public MediaDownloaderViewModel(DownloadQueueService queueService)
+    public MediaDownloaderViewModel(
+        DownloadQueueService queueService,
+        MediaPlatformExtractorRegistry extractorRegistry)
     {
         _queueService = queueService;
+        _extractorRegistry = extractorRegistry;
         _queueService.Items.CollectionChanged += OnQueueItemsChanged;
         _queueService.PropertyChanged += (_, _) => OnPropertyChanged(nameof(IsQueueProcessing));
         UpdateQueueCount();
@@ -62,6 +68,7 @@ public partial class MediaDownloaderViewModel : ObservableObject
 
     partial void OnUrlChanged(string value)
     {
+        _resolvedDownloadUri = null;
         IsLinkRecognised = false;
         DetectedPlatform = "No link checked";
         StatusMessage = string.IsNullOrWhiteSpace(value)
@@ -71,14 +78,14 @@ public partial class MediaDownloaderViewModel : ObservableObject
     }
 
     private bool CanAddToQueue() =>
-        IsLinkRecognised &&
-        Uri.TryCreate(Url.Trim(), UriKind.Absolute, out var uri) &&
-        DirectMediaFormats.IsSupportedExtension(Path.GetExtension(uri.AbsolutePath));
+        IsLinkRecognised && _resolvedDownloadUri is not null;
 
     [RelayCommand]
-    private void CheckLink()
+    private async Task CheckLink()
     {
         IsLinkRecognised = false;
+        _resolvedDownloadUri = null;
+
         if (!Uri.TryCreate(Url?.Trim(), UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
@@ -91,15 +98,47 @@ public partial class MediaDownloaderViewModel : ObservableObject
         var host = uri.Host.Trim().ToLowerInvariant();
         foreach (var platform in SupportedPlatforms)
         {
-            if (platform.Domains.Any(domain =>
+            if (!platform.Domains.Any(domain =>
                     host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
                     host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            DetectedPlatform = platform.Platform;
+            var extractor = _extractorRegistry.Find(uri);
+            if (extractor is null)
             {
-                DetectedPlatform = platform.Platform;
-                StatusMessage = $"{platform.Platform} page links are recognised, but their custom extractor has not been implemented yet. Try a direct video file URL for now.";
+                StatusMessage = $"{platform.Platform} is recognised, but its extractor has not been implemented yet.";
                 AddToQueueCommand.NotifyCanExecuteChanged();
                 return;
             }
+
+            StatusMessage = $"Checking public {platform.Platform} media details…";
+            try
+            {
+                var extracted = await extractor.ExtractAsync(uri, CancellationToken.None);
+                if (extracted is null)
+                {
+                    StatusMessage = "No supported public video stream was found. The post may not contain a downloadable video.";
+                    AddToQueueCommand.NotifyCanExecuteChanged();
+                    return;
+                }
+
+                _resolvedDownloadUri = extracted.DownloadUri;
+                IsLinkRecognised = DirectMediaFormats.IsSupportedExtension(
+                    Path.GetExtension(extracted.DownloadUri.AbsolutePath));
+                DetectedPlatform = extracted.Platform;
+                StatusMessage = IsLinkRecognised
+                    ? $"Found “{extracted.Title}”. Ready to add to the queue."
+                    : "The extracted media format is not supported yet.";
+            }
+            catch (Exception exception) when (
+                exception is HttpRequestException or InvalidDataException or UnauthorizedAccessException or JsonException)
+            {
+                StatusMessage = $"Could not inspect this post: {exception.Message}";
+            }
+
+            AddToQueueCommand.NotifyCanExecuteChanged();
+            return;
         }
 
         var extension = Path.GetExtension(uri.AbsolutePath);
@@ -107,6 +146,7 @@ public partial class MediaDownloaderViewModel : ObservableObject
         {
             DetectedPlatform = "Direct video file";
             IsLinkRecognised = true;
+            _resolvedDownloadUri = uri;
             StatusMessage = "Direct video file recognised. Ready to add to the queue.";
         }
         else if (extension.Equals(".m3u8", StringComparison.OrdinalIgnoreCase) ||
@@ -127,7 +167,8 @@ public partial class MediaDownloaderViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanAddToQueue))]
     private void AddToQueue()
     {
-        if (!Uri.TryCreate(Url.Trim(), UriKind.Absolute, out var source))
+        var source = _resolvedDownloadUri;
+        if (source is null)
             return;
 
         try
@@ -135,7 +176,7 @@ public partial class MediaDownloaderViewModel : ObservableObject
             var existing = QueueItems.FirstOrDefault(item =>
                 item.Source == source &&
                 string.Equals(item.OutputDirectory, OutputFolder, StringComparison.OrdinalIgnoreCase) &&
-                item.Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading);
+                item.Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading or DownloadQueueItemStatus.Paused);
 
             var item = _queueService.Add(source, OutputFolder);
             StatusMessage = ReferenceEquals(existing, item)
@@ -172,7 +213,12 @@ public partial class MediaDownloaderViewModel : ObservableObject
     private void ClearCompleted() => _queueService.ClearCompleted();
 
     [RelayCommand]
-    private void ClearLink()\n    {\n        _resolvedDownloadUri = null;\n        Url = string.Empty;\n        AddToQueueCommand.NotifyCanExecuteChanged();\n    }
+    private void ClearLink()
+    {
+        _resolvedDownloadUri = null;
+        Url = string.Empty;
+        AddToQueueCommand.NotifyCanExecuteChanged();
+    }
 
     private void OnQueueItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateQueueCount();
 
