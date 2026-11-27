@@ -125,7 +125,10 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
                 var isAppend = existingLength > 0 &&
                                response.StatusCode == HttpStatusCode.PartialContent &&
                                response.Content.Headers.ContentRange?.From == existingLength &&
-                               HasMatchingValidator(response, metadata!);
+                               response.Content.Headers.ContentRange?.Length is not null &&
+                               (metadata!.ExpectedLength is null ||
+                                response.Content.Headers.ContentRange.Length == metadata.ExpectedLength) &&
+                               HasMatchingValidator(response, metadata);
 
                 if (existingLength > 0 && !isAppend)
                 {
