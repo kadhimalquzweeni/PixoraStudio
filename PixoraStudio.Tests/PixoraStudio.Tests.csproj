@@ -29,7 +29,7 @@
     <None Include="../PixoraStudio.App/Views/PhotoEditorView.xaml" Link="PhotoEditorView.xaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PixoraStudio.App/Views/PhotoEditorView.xaml.cs" Link="PhotoEditorView.xaml.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PixoraStudio.App/Views/PdfConverterView.xaml" Link="PdfConverterView.xaml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../PixoraStudio.App/Views/SaveOptionsDialogWindow.xaml" Link="SaveOptionsDialogWindow.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PixoraStudio.App/Views/SaveOptionsDialogWindow.xaml" Link="SaveOptionsDialogWindow.xaml" CopyToOutputDirectory="PreserveNewest" />\n    <None Include="../PixoraStudio.App/MainWindow.xaml" Link="MainWindow.xaml" CopyToOutputDirectory="PreserveNewest" />\n    <None Include="../PixoraStudio.App/Views/MediaDownloaderView.xaml" Link="MediaDownloaderView.xaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
