@@ -126,7 +126,7 @@
                                                                Foreground="#AEB8C8" FontSize="11"/>
                                                 </Grid>
                                                 <ProgressBar Minimum="0" Maximum="100"
-                                                             Value="{Binding Progress}"
+                                                             Value="{Binding ProgressValue}"
                                                              IsIndeterminate="{Binding IsProgressIndeterminate}"
                                                              Height="5" Margin="0,7,0,0"/>
                                                 <TextBlock Text="{Binding ErrorMessage}"
