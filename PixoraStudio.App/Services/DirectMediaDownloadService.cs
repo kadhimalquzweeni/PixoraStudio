@@ -117,8 +117,8 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         if (string.IsNullOrWhiteSpace(safe) || safe is "." or "..")
             safe = "download" + extension;
 
-        if (!Path.HasExtension(safe))
-            safe += extension;
+        if (!Path.GetExtension(safe).Equals(extension, StringComparison.OrdinalIgnoreCase))
+            safe = Path.ChangeExtension(safe, extension);
 
         return safe;
     }
