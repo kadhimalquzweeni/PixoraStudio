@@ -8,7 +8,7 @@ namespace PixoraStudio.App.ViewModels;
 
 public partial class MediaDownloaderViewModel : ObservableObject
 {
-    private readonly DownloadQueueService _queueService;
+    private readonly DownloadQueueService _queueService;\n    private readonly MediaPlatformExtractorRegistry _extractorRegistry;\n    private Uri? _resolvedDownloadUri;
 
     private static readonly (string Platform, string[] Domains)[] SupportedPlatforms =
     [
@@ -172,7 +172,7 @@ public partial class MediaDownloaderViewModel : ObservableObject
     private void ClearCompleted() => _queueService.ClearCompleted();
 
     [RelayCommand]
-    private void ClearLink() => Url = string.Empty;
+    private void ClearLink()\n    {\n        _resolvedDownloadUri = null;\n        Url = string.Empty;\n        AddToQueueCommand.NotifyCanExecuteChanged();\n    }
 
     private void OnQueueItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateQueueCount();
 
