@@ -59,6 +59,24 @@ public sealed class DownloadQueueServiceTests
     }
 
     [Fact]
+    public async Task PauseAndResume_QueuedItemCanBeResumed()
+    {
+        var downloader = new FakeDownloadService();
+        var queue = new DownloadQueueService(downloader);
+        var item = queue.Add(new Uri("https://media.example/video.mp4"), "downloads");
+
+        queue.Pause(item);
+        Assert.Equal(DownloadQueueItemStatus.Paused, item.Status);
+        Assert.True(item.CanResume);
+
+        queue.Resume(item);
+        await queue.StartAsync();
+
+        Assert.Equal(DownloadQueueItemStatus.Completed, item.Status);
+        Assert.Single(downloader.DownloadedSources);
+    }
+
+    [Fact]
     public async Task Cancel_CancelsQueuedItemWithoutStartingIt()
     {
         var downloader = new FakeDownloadService();
