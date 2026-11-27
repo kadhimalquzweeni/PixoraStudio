@@ -29,7 +29,7 @@ public partial class App : Application
         services.AddSingleton<HomeViewModel>();
         services.AddSingleton<PhotoEditorViewModel>();
         services.AddSingleton<VideoEditorViewModel>();
-        services.AddSingleton<PdfConverterViewModel>();
+        services.AddSingleton<PdfConverterViewModel>();\n        services.AddSingleton<MediaDownloaderViewModel>();
         services.AddSingleton<IImageProcessingService, ImageProcessingService>();
         services.AddSingleton<IPdfRenderingService, PdfRenderingService>();
         services.AddSingleton<IPixelArtUpscalingService, PixelArtUpscalingService>();
