@@ -22,7 +22,7 @@ public partial class MainViewModel : ObservableObject
     public HomeViewModel HomeViewModel { get; }
     public PhotoEditorViewModel PhotoEditorViewModel { get; }
     public VideoEditorViewModel VideoEditorViewModel { get; }
-    public PdfConverterViewModel PdfConverterViewModel { get; }
+    public PdfConverterViewModel PdfConverterViewModel { get; }\n    public MediaDownloaderViewModel MediaDownloaderViewModel { get; }
 
     public MainViewModel(
         IMediaTypeDetector mediaTypeDetector,
@@ -36,7 +36,7 @@ public partial class MainViewModel : ObservableObject
         HomeViewModel = homeViewModel;
         PhotoEditorViewModel = photoEditorViewModel;
         VideoEditorViewModel = videoEditorViewModel;
-        PdfConverterViewModel = pdfConverterViewModel;
+        PdfConverterViewModel = pdfConverterViewModel;\n        MediaDownloaderViewModel = mediaDownloaderViewModel;
 
         CurrentViewModel = HomeViewModel;
     }
