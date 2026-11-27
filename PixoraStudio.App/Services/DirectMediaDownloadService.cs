@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Http.Headers;
 
 namespace PixoraStudio.App.Services;
@@ -14,6 +13,7 @@ public interface IDirectMediaDownloadService
 
 public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectMediaDownloadService
 {
+    private const int BufferSize = 81920;
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mp4", ".webm", ".mov", ".mkv"
@@ -26,6 +26,8 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
+
         if (source.Scheme is not ("http" or "https"))
             throw new ArgumentException("Only HTTP and HTTPS URLs are supported.", nameof(source));
 
@@ -42,15 +44,7 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             cancellationToken);
 
         response.EnsureSuccessStatusCode();
-
-        var mediaType = response.Content.Headers.ContentType?.MediaType;
-        if (mediaType is not null &&
-            (mediaType.Equals("text/html", StringComparison.OrdinalIgnoreCase) ||
-             mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase) ||
-             mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)))
-        {
-            throw new InvalidDataException("The URL returned a web page or text response, not a video file.");
-        }
+        ValidateContentType(response.Content.Headers.ContentType?.MediaType);
 
         var fileName = GetSafeFileName(response.Content.Headers.ContentDisposition, source, extension);
         var destinationPath = GetUniquePath(outputDirectory, fileName);
@@ -64,28 +58,29 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
                 FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.None,
-                81920,
+                BufferSize,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-            var buffer = new byte[81920];
-            long totalRead = 0;
-            var totalLength = response.Content.Headers.ContentLength;
-            int bytesRead;
+            var buffer = new byte[BufferSize];
+            var headerLength = await ReadHeaderAsync(input, buffer, cancellationToken);
+            if (!HasSupportedContainerHeader(buffer.AsSpan(0, headerLength), extension))
+                throw new InvalidDataException("The response does not contain a valid MP4, WebM, MOV or MKV file.");
 
+            await output.WriteAsync(buffer.AsMemory(0, headerLength), cancellationToken);
+            long totalRead = headerLength;
+            var totalLength = response.Content.Headers.ContentLength;
+            ReportProgress(progress, totalRead, totalLength);
+
+            int bytesRead;
             while ((bytesRead = await input.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
                 totalRead += bytesRead;
-
-                if (totalLength is > 0)
-                    progress?.Report(Math.Clamp((double)totalRead / totalLength.Value * 100d, 0d, 100d));
+                ReportProgress(progress, totalRead, totalLength);
             }
 
             await output.FlushAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-
-            if (totalRead == 0)
-                throw new InvalidDataException("The server returned an empty file.");
 
             if (totalLength is > 0 && totalRead != totalLength.Value)
                 throw new InvalidDataException("The download ended before the complete file was received.");
@@ -99,6 +94,62 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             if (File.Exists(temporaryPath))
                 File.Delete(temporaryPath);
         }
+    }
+
+    private static async Task<int> ReadHeaderAsync(
+        Stream input,
+        byte[] buffer,
+        CancellationToken cancellationToken)
+    {
+        var totalRead = 0;
+        while (totalRead < 12)
+        {
+            var read = await input.ReadAsync(buffer.AsMemory(totalRead, 12 - totalRead), cancellationToken);
+            if (read == 0)
+                break;
+
+            totalRead += read;
+        }
+
+        return totalRead;
+    }
+
+    private static bool HasSupportedContainerHeader(ReadOnlySpan<byte> header, string extension)
+    {
+        if (extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".mov", StringComparison.OrdinalIgnoreCase))
+        {
+            return header.Length >= 8 && header.Slice(4, 4).SequenceEqual("ftyp"u8);
+        }
+
+        if (extension.Equals(".webm", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".mkv", StringComparison.OrdinalIgnoreCase))
+        {
+            return header.Length >= 4 && header[..4].SequenceEqual(new byte[] { 0x1A, 0x45, 0xDF, 0xA3 });
+        }
+
+        return false;
+    }
+
+    private static void ValidateContentType(string? mediaType)
+    {
+        if (string.IsNullOrWhiteSpace(mediaType) ||
+            mediaType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
+            mediaType.Equals("application/mp4", StringComparison.OrdinalIgnoreCase) ||
+            mediaType.Equals("application/webm", StringComparison.OrdinalIgnoreCase) ||
+            mediaType.Equals("application/x-matroska", StringComparison.OrdinalIgnoreCase) ||
+            mediaType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        throw new InvalidDataException("The URL returned a web page or unsupported response type, not a video file.");
+    }
+
+    private static void ReportProgress(IProgress<double>? progress, long totalRead, long? totalLength)
+    {
+        if (totalLength is > 0)
+            progress?.Report(Math.Clamp((double)totalRead / totalLength.Value * 100d, 0d, 100d));
     }
 
     private static string GetSafeFileName(
