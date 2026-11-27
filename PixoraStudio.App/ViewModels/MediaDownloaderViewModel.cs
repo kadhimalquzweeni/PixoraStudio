@@ -150,6 +150,12 @@ public partial class MediaDownloaderViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void PauseQueueItem(DownloadQueueItem item) => _queueService.Pause(item);
+
+    [RelayCommand]
+    private void ResumeQueueItem(DownloadQueueItem item) => _queueService.Resume(item);
+
+    [RelayCommand]
     private void CancelQueueItem(DownloadQueueItem item) => _queueService.Cancel(item);
 
     [RelayCommand]
