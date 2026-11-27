@@ -2,6 +2,7 @@
 using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Infrastructure.Services;
 using PixoraStudio.App.ViewModels;
+using PixoraStudio.App.Services;
 using PixoraStudio.App.Views;
 using System.Windows;
 using LibVLCSharp.Shared;
@@ -30,6 +31,8 @@ public partial class App : Application
         services.AddSingleton<PhotoEditorViewModel>();
         services.AddSingleton<VideoEditorViewModel>();
         services.AddSingleton<PdfConverterViewModel>();
+        services.AddSingleton<HttpClient>();
+        services.AddSingleton<IDirectMediaDownloadService, DirectMediaDownloadService>();
         services.AddSingleton<MediaDownloaderViewModel>();
         services.AddSingleton<IImageProcessingService, ImageProcessingService>();
         services.AddSingleton<IPdfRenderingService, PdfRenderingService>();
