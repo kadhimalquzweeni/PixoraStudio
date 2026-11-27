@@ -1,5 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using PixoraStudio.App.Services;
 
 namespace PixoraStudio.Tests.App;
@@ -140,6 +143,53 @@ public sealed class DirectMediaDownloadServiceTests
         Assert.Empty(Directory.GetFiles(directory.Path));
     }
 
+
+    [Fact]
+    public async Task DownloadResumableAsync_UsesRangeAndIfRangeForValidatedPartialFile()
+    {
+        using var directory = new TemporaryDirectory();
+        var source = new Uri("https://media.example/video.mp4");
+        var partialKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source.AbsoluteUri)));
+        var partialPath = System.IO.Path.Combine(directory.Path, $".pixora-{partialKey}.part");
+        var destinationPath = System.IO.Path.Combine(directory.Path, "video.mp4");
+        await File.WriteAllBytesAsync(partialPath, VideoBytes[..8]);
+        await File.WriteAllTextAsync(partialPath + ".json", JsonSerializer.Serialize(new
+        {
+            Source = source.AbsoluteUri,
+            DestinationPath = destinationPath,
+            FileName = "video.mp4",
+            ETag = "\\"v1\\"",
+            LastModifiedUtc = (DateTime?)null,
+            ExpectedLength = (long?)VideoBytes.Length
+        }));
+
+        long? requestedOffset = null;
+        string? ifRangeTag = null;
+        var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+        {
+            Content = new ByteArrayContent(VideoBytes[8..])
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        response.Content.Headers.ContentRange = new ContentRangeHeaderValue(8, VideoBytes.Length - 1, VideoBytes.Length);
+        response.Headers.ETag = new EntityTagHeaderValue("\\"v1\\"");
+        using var client = new HttpClient(new RecordingHandler(request =>
+        {
+            requestedOffset = request.Headers.Range?.Ranges.Single().From;
+            ifRangeTag = request.Headers.IfRange?.EntityTag?.Tag;
+            return response;
+        }));
+        var service = new DirectMediaDownloadService(client);
+
+        var result = await service.DownloadResumableAsync(
+            source, directory.Path, null, new DownloadControl(), CancellationToken.None);
+
+        Assert.False(result.IsPaused);
+        Assert.Equal(8, requestedOffset);
+        Assert.Equal("\\"v1\\"", ifRangeTag);
+        Assert.Equal(destinationPath, result.OutputPath);
+        Assert.Equal(VideoBytes, await File.ReadAllBytesAsync(destinationPath));
+        Assert.False(File.Exists(partialPath + ".json"));
+    }
 
     [Fact]
     public async Task DownloadAsync_ReportsIndeterminateProgressWhenLengthIsUnknown()
