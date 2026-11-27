@@ -8,6 +8,7 @@ public enum DownloadQueueItemStatus
 {
     Queued,
     Downloading,
+    Paused,
     Completed,
     Failed,
     Cancelled
@@ -41,6 +42,8 @@ public sealed class DownloadQueueItem : ObservableObject
             {
                 OnPropertyChanged(nameof(StatusText));
                 OnPropertyChanged(nameof(CanCancel));
+                OnPropertyChanged(nameof(CanPause));
+                OnPropertyChanged(nameof(CanResume));
                 OnPropertyChanged(nameof(CanRetry));
                 OnPropertyChanged(nameof(CanRemove));
                 OnPropertyChanged(nameof(IsProgressIndeterminate));
@@ -80,6 +83,7 @@ public sealed class DownloadQueueItem : ObservableObject
     {
         DownloadQueueItemStatus.Queued => "Queued",
         DownloadQueueItemStatus.Downloading => "Downloading",
+        DownloadQueueItemStatus.Paused => "Paused",
         DownloadQueueItemStatus.Completed => "Completed",
         DownloadQueueItemStatus.Failed => "Failed",
         DownloadQueueItemStatus.Cancelled => "Cancelled",
@@ -88,11 +92,14 @@ public sealed class DownloadQueueItem : ObservableObject
 
     public string ProgressText => double.IsNaN(Progress) ? "Downloading..." : $"{Progress:0}%";
     public bool IsProgressIndeterminate => Status == DownloadQueueItemStatus.Downloading && double.IsNaN(Progress);
-    public bool CanCancel => Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading;
+    public bool CanCancel => Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading or DownloadQueueItemStatus.Paused;
+    public bool CanPause => Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading;
+    public bool CanResume => Status == DownloadQueueItemStatus.Paused;
     public bool CanRetry => Status is DownloadQueueItemStatus.Failed or DownloadQueueItemStatus.Cancelled;
     public bool CanRemove => Status != DownloadQueueItemStatus.Downloading;
 
     internal CancellationTokenSource? Cancellation { get; set; }
+    internal DownloadControl? Control { get; set; }
 }
 
 public sealed class DownloadQueueService(IDirectMediaDownloadService downloadService) : ObservableObject
@@ -122,7 +129,7 @@ public sealed class DownloadQueueService(IDirectMediaDownloadService downloadSer
         var existing = Items.FirstOrDefault(item =>
             item.Source == source &&
             string.Equals(item.OutputDirectory, outputDirectory, StringComparison.OrdinalIgnoreCase) &&
-            item.Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading);
+            item.Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading or DownloadQueueItemStatus.Paused);
 
         if (existing is not null)
             return existing;
@@ -141,6 +148,32 @@ public sealed class DownloadQueueService(IDirectMediaDownloadService downloadSer
         return _processingTask;
     }
 
+    public void Pause(DownloadQueueItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!Items.Contains(item))
+            return;
+
+        if (item.Status == DownloadQueueItemStatus.Queued)
+        {
+            item.Status = DownloadQueueItemStatus.Paused;
+            return;
+        }
+
+        if (item.Status == DownloadQueueItemStatus.Downloading)
+            item.Control?.RequestPause();
+    }
+
+    public void Resume(DownloadQueueItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!Items.Contains(item) || item.Status != DownloadQueueItemStatus.Paused)
+            return;
+
+        item.Status = DownloadQueueItemStatus.Queued;
+        _ = StartAsync();
+    }
+
     public void Cancel(DownloadQueueItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -148,9 +181,18 @@ public sealed class DownloadQueueService(IDirectMediaDownloadService downloadSer
             return;
 
         if (item.Status == DownloadQueueItemStatus.Queued)
+        {
             item.Status = DownloadQueueItemStatus.Cancelled;
+        }
+        else if (item.Status == DownloadQueueItemStatus.Paused)
+        {
+            downloadService.DiscardPartial(item.Source, item.OutputDirectory);
+            item.Status = DownloadQueueItemStatus.Cancelled;
+        }
         else if (item.Status == DownloadQueueItemStatus.Downloading)
+        {
             item.Cancellation?.Cancel();
+        }
     }
 
     public bool Retry(DownloadQueueItem item)
@@ -186,7 +228,9 @@ public sealed class DownloadQueueService(IDirectMediaDownloadService downloadSer
             while (Items.FirstOrDefault(item => item.Status == DownloadQueueItemStatus.Queued) is { } item)
             {
                 using var cancellation = new CancellationTokenSource();
+                using var control = new DownloadControl();
                 item.Cancellation = cancellation;
+                item.Control = control;
                 item.Status = DownloadQueueItemStatus.Downloading;
                 item.Progress = 0;
                 item.ErrorMessage = null;
@@ -194,13 +238,23 @@ public sealed class DownloadQueueService(IDirectMediaDownloadService downloadSer
                 try
                 {
                     var progress = new Progress<double>(value => item.Progress = value);
-                    item.OutputPath = await downloadService.DownloadAsync(
+                    var result = await downloadService.DownloadResumableAsync(
                         item.Source,
                         item.OutputDirectory,
                         progress,
+                        control,
                         cancellation.Token);
-                    item.Progress = 100;
-                    item.Status = DownloadQueueItemStatus.Completed;
+
+                    if (result.IsPaused)
+                    {
+                        item.Status = DownloadQueueItemStatus.Paused;
+                    }
+                    else
+                    {
+                        item.OutputPath = result.OutputPath;
+                        item.Progress = 100;
+                        item.Status = DownloadQueueItemStatus.Completed;
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -214,6 +268,7 @@ public sealed class DownloadQueueService(IDirectMediaDownloadService downloadSer
                 finally
                 {
                     item.Cancellation = null;
+                    item.Control = null;
                 }
             }
         }
