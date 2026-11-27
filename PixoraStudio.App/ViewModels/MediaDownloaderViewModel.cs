@@ -6,8 +6,10 @@ using PixoraStudio.App.Services;
 
 namespace PixoraStudio.App.ViewModels;
 
-public partial class MediaDownloaderViewModel(DownloadQueueService queueService) : ObservableObject
+public partial class MediaDownloaderViewModel : ObservableObject
 {
+    private readonly DownloadQueueService _queueService;
+
     private static readonly (string Platform, string[] Domains)[] SupportedPlatforms =
     [
         ("YouTube", ["youtube.com", "youtu.be", "youtube-nocookie.com"]),
@@ -17,6 +19,14 @@ public partial class MediaDownloaderViewModel(DownloadQueueService queueService)
         ("X", ["x.com", "twitter.com"]),
         ("Reddit", ["reddit.com", "redd.it"]),
     ];
+
+    public MediaDownloaderViewModel(DownloadQueueService queueService)
+    {
+        _queueService = queueService;
+        _queueService.Items.CollectionChanged += OnQueueItemsChanged;
+        _queueService.PropertyChanged += (_, _) => OnPropertyChanged(nameof(IsQueueProcessing));
+        UpdateQueueCount();
+    }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddToQueueCommand))]
@@ -47,15 +57,8 @@ public partial class MediaDownloaderViewModel(DownloadQueueService queueService)
 
     public string[] FormatOptions { get; } = ["Video with audio", "Video only", "Audio only"];
     public string[] QualityOptions { get; } = ["Best available", "2160p (4K)", "1440p", "1080p", "720p", "480p", "360p"];
-    public System.Collections.ObjectModel.ObservableCollection<DownloadQueueItem> QueueItems => queueService.Items;
-    public bool IsQueueProcessing => queueService.IsProcessing;
-
-    public MediaDownloaderViewModel : this(queueService)
-    {
-        queueService.Items.CollectionChanged += OnQueueItemsChanged;
-        queueService.PropertyChanged += (_, _) => OnPropertyChanged(nameof(IsQueueProcessing));
-        UpdateQueueCount();
-    }
+    public System.Collections.ObjectModel.ObservableCollection<DownloadQueueItem> QueueItems => _queueService.Items;
+    public bool IsQueueProcessing => _queueService.IsProcessing;
 
     partial void OnUrlChanged(string value)
     {
@@ -134,11 +137,11 @@ public partial class MediaDownloaderViewModel(DownloadQueueService queueService)
                 string.Equals(item.OutputDirectory, OutputFolder, StringComparison.OrdinalIgnoreCase) &&
                 item.Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading);
 
-            var item = queueService.Add(source, OutputFolder);
+            var item = _queueService.Add(source, OutputFolder);
             StatusMessage = ReferenceEquals(existing, item)
                 ? "This link is already in the download queue."
                 : "Added to the queue. Download will start automatically.";
-            _ = queueService.StartAsync();
+            _ = _queueService.StartAsync();
         }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException or UnauthorizedAccessException)
         {
@@ -147,26 +150,23 @@ public partial class MediaDownloaderViewModel(DownloadQueueService queueService)
     }
 
     [RelayCommand]
-    private void CancelQueueItem(DownloadQueueItem item) => queueService.Cancel(item);
+    private void CancelQueueItem(DownloadQueueItem item) => _queueService.Cancel(item);
 
     [RelayCommand]
     private void RetryQueueItem(DownloadQueueItem item)
     {
-        if (queueService.Retry(item))
-            _ = queueService.StartAsync();
+        if (_queueService.Retry(item))
+            _ = _queueService.StartAsync();
     }
 
     [RelayCommand]
-    private void RemoveQueueItem(DownloadQueueItem item) => queueService.Remove(item);
+    private void RemoveQueueItem(DownloadQueueItem item) => _queueService.Remove(item);
 
     [RelayCommand]
-    private void ClearCompleted() => queueService.ClearCompleted();
+    private void ClearCompleted() => _queueService.ClearCompleted();
 
     [RelayCommand]
-    private void ClearLink()
-    {
-        Url = string.Empty;
-    }
+    private void ClearLink() => Url = string.Empty;
 
     private void OnQueueItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateQueueCount();
 
