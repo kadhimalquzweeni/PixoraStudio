@@ -122,12 +122,13 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             var response = await SendDownloadRequestAsync(source, existingLength, metadata, token);
             using (response)
             {
+                var contentRange = response.Content.Headers.ContentRange;
                 var isAppend = existingLength > 0 &&
+                               metadata is not null &&
                                response.StatusCode == HttpStatusCode.PartialContent &&
-                               response.Content.Headers.ContentRange?.From == existingLength &&
-                               response.Content.Headers.ContentRange?.Length is not null &&
-                               (metadata!.ExpectedLength is null ||
-                                response.Content.Headers.ContentRange.Length == metadata.ExpectedLength) &&
+                               contentRange?.From == existingLength &&
+                               contentRange?.Length is not null &&
+                               (metadata.ExpectedLength is null || contentRange.Length == metadata.ExpectedLength) &&
                                HasMatchingValidator(response, metadata);
 
                 if (existingLength > 0 && !isAppend)
