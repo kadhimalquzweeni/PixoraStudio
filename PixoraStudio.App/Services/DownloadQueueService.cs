@@ -47,6 +47,8 @@ public sealed class DownloadQueueItem : ObservableObject
         }
     }
 
+    public double ProgressValue => double.IsNaN(Progress) ? 0 : Progress;
+
     public double Progress
     {
         get => _progress;
