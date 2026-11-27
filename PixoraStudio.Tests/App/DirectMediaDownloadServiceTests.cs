@@ -140,6 +140,30 @@ public sealed class DirectMediaDownloadServiceTests
         Assert.Empty(Directory.GetFiles(directory.Path));
     }
 
+
+    [Fact]
+    public async Task DownloadAsync_ReportsIndeterminateProgressWhenLengthIsUnknown()
+    {
+        using var directory = new TemporaryDirectory();
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new UnknownLengthContent(VideoBytes)
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        using var client = CreateClient(response);
+        var service = new DirectMediaDownloadService(client);
+        var progressValues = new List<double>();
+
+        await service.DownloadAsync(
+            new Uri("https://media.example/video.mp4"),
+            directory.Path,
+            new InlineProgress<double>(progressValues.Add),
+            CancellationToken.None);
+
+        Assert.Contains(progressValues, double.IsNaN);
+        Assert.Equal(100d, progressValues[^1]);
+    }
+
     private static readonly byte[] VideoBytes =
     [
         0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70,
@@ -172,6 +196,22 @@ public sealed class DirectMediaDownloadServiceTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(responseFactory(request));
         }
+    }
+
+
+    private sealed class UnknownLengthContent(byte[] bytes) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) =>
+            stream.WriteAsync(bytes).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+
+        protected override Task<Stream> CreateContentReadStreamAsync() =>
+            Task.FromResult<Stream>(new MemoryStream(bytes));
     }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
