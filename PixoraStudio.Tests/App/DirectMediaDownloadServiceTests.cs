@@ -192,6 +192,68 @@ public sealed class DirectMediaDownloadServiceTests
     }
 
     [Fact]
+    public async Task DownloadResumableAsync_PausePreservesPartialFileAndResumeCompletesIt()
+    {
+        using var directory = new TemporaryDirectory();
+        var source = new Uri("https://media.example/video.mp4");
+        var requestCount = 0;
+        long? resumedOffset = null;
+        var firstResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new PauseAfterHeaderStream(VideoBytes))
+        };
+        firstResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        firstResponse.Content.Headers.ContentLength = VideoBytes.Length;
+        firstResponse.Headers.ETag = new EntityTagHeaderValue("\"v1\"");
+
+        using var client = new HttpClient(new RecordingHandler(request =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+                return firstResponse;
+
+            resumedOffset = request.Headers.Range?.Ranges.Single().From;
+            var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+            {
+                Content = new ByteArrayContent(VideoBytes[12..])
+            };
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(12, VideoBytes.Length - 1, VideoBytes.Length);
+            response.Headers.ETag = new EntityTagHeaderValue("\"v1\"");
+            return response;
+        }));
+        var service = new DirectMediaDownloadService(client);
+        var partialKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source.AbsoluteUri)));
+        var partialPath = System.IO.Path.Combine(directory.Path, $".pixora-{partialKey}.part");
+
+        using (var pauseControl = new DownloadControl())
+        {
+            var paused = await service.DownloadResumableAsync(
+                source,
+                directory.Path,
+                new InlineProgress<double>(_ => pauseControl.RequestPause()),
+                pauseControl,
+                CancellationToken.None);
+
+            Assert.True(paused.IsPaused);
+            Assert.True(File.Exists(partialPath));
+            Assert.Equal(12, new FileInfo(partialPath).Length);
+            Assert.True(File.Exists(partialPath + ".json"));
+        }
+
+        using var resumeControl = new DownloadControl();
+        var completed = await service.DownloadResumableAsync(
+            source, directory.Path, null, resumeControl, CancellationToken.None);
+
+        Assert.False(completed.IsPaused);
+        Assert.Equal(2, requestCount);
+        Assert.Equal(12, resumedOffset);
+        Assert.Equal(VideoBytes, await File.ReadAllBytesAsync(completed.OutputPath!));
+        Assert.False(File.Exists(partialPath));
+        Assert.False(File.Exists(partialPath + ".json"));
+    }
+
+    [Fact]
     public async Task DownloadAsync_ReportsIndeterminateProgressWhenLengthIsUnknown()
     {
         using var directory = new TemporaryDirectory();
@@ -262,6 +324,49 @@ public sealed class DirectMediaDownloadServiceTests
 
         protected override Task<Stream> CreateContentReadStreamAsync() =>
             Task.FromResult<Stream>(new MemoryStream(bytes));
+    }
+
+    private sealed class PauseAfterHeaderStream(byte[] bytes) : Stream
+    {
+        private int _position;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => bytes.Length;
+        public override long Position
+        {
+            get => _position;
+            set => throw new NotSupportedException();
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_position >= 12)
+                return ValueTask.FromCanceled<int>(cancellationToken);
+
+            var count = Math.Min(12 - _position, buffer.Length);
+            bytes.AsMemory(_position, count).CopyTo(buffer);
+            _position += count;
+            return ValueTask.FromResult(count);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (_position >= 12)
+                return 0;
+
+            var read = Math.Min(12 - _position, count);
+            bytes.AsSpan(_position, read).CopyTo(buffer.AsSpan(offset, read));
+            _position += read;
+            return read;
+        }
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
