@@ -90,7 +90,9 @@ public sealed class DownloadQueueItem : ObservableObject
         _ => "Unknown"
     };
 
-    public string ProgressText => double.IsNaN(Progress) ? "Downloading..." : $"{Progress:0}%";
+    public string ProgressText => double.IsNaN(Progress)
+        ? Status == DownloadQueueItemStatus.Paused ? "Paused" : "Downloading..."
+        : $"{Progress:0}%";
     public bool IsProgressIndeterminate => Status == DownloadQueueItemStatus.Downloading && double.IsNaN(Progress);
     public bool CanCancel => Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading or DownloadQueueItemStatus.Paused;
     public bool CanPause => Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading;
