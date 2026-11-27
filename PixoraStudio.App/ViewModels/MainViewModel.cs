@@ -1,4 +1,3 @@
-﻿
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -22,21 +21,24 @@ public partial class MainViewModel : ObservableObject
     public HomeViewModel HomeViewModel { get; }
     public PhotoEditorViewModel PhotoEditorViewModel { get; }
     public VideoEditorViewModel VideoEditorViewModel { get; }
-    public PdfConverterViewModel PdfConverterViewModel { get; }\n    public MediaDownloaderViewModel MediaDownloaderViewModel { get; }
+    public PdfConverterViewModel PdfConverterViewModel { get; }
+    public MediaDownloaderViewModel MediaDownloaderViewModel { get; }
 
     public MainViewModel(
         IMediaTypeDetector mediaTypeDetector,
         HomeViewModel homeViewModel,
         PhotoEditorViewModel photoEditorViewModel,
         VideoEditorViewModel videoEditorViewModel,
-        PdfConverterViewModel pdfConverterViewModel)
+        PdfConverterViewModel pdfConverterViewModel,
+        MediaDownloaderViewModel mediaDownloaderViewModel)
     {
         _mediaTypeDetector = mediaTypeDetector;
 
         HomeViewModel = homeViewModel;
         PhotoEditorViewModel = photoEditorViewModel;
         VideoEditorViewModel = videoEditorViewModel;
-        PdfConverterViewModel = pdfConverterViewModel;\n        MediaDownloaderViewModel = mediaDownloaderViewModel;
+        PdfConverterViewModel = pdfConverterViewModel;
+        MediaDownloaderViewModel = mediaDownloaderViewModel;
 
         CurrentViewModel = HomeViewModel;
     }
@@ -67,6 +69,13 @@ public partial class MainViewModel : ObservableObject
     {
         CurrentPage = "PDF Converter";
         CurrentViewModel = PdfConverterViewModel;
+    }
+
+    [RelayCommand]
+    private void OpenMediaDownloader()
+    {
+        CurrentPage = "Media Downloader";
+        CurrentViewModel = MediaDownloaderViewModel;
     }
 
     [RelayCommand]
