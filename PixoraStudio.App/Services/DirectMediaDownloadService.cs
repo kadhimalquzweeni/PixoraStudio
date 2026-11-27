@@ -16,6 +16,8 @@ public interface IDirectMediaDownloadService
         IProgress<double>? progress,
         CancellationToken cancellationToken);
 
+    void DiscardPartial(Uri source, string outputDirectory) { }
+
     async Task<DownloadResult> DownloadResumableAsync(
         Uri source,
         string outputDirectory,
@@ -28,7 +30,7 @@ public interface IDirectMediaDownloadService
     }
 }
 
-public sealed class DownloadControl
+public sealed class DownloadControl : IDisposable
 {
     private readonly CancellationTokenSource _pauseCancellation = new();
     private int _pauseRequested;
@@ -41,6 +43,8 @@ public sealed class DownloadControl
         if (Interlocked.Exchange(ref _pauseRequested, 1) == 0)
             _pauseCancellation.Cancel();
     }
+
+    public void Dispose() => _pauseCancellation.Dispose();
 }
 
 public sealed record DownloadResult(bool IsPaused, string? OutputPath)
@@ -66,6 +70,13 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             new DownloadControl(),
             cancellationToken);
         return result.OutputPath ?? throw new OperationCanceledException(cancellationToken);
+    }
+
+    public void DiscardPartial(Uri source, string outputDirectory)
+    {
+        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source.AbsoluteUri)));
+        var partialPath = Path.Combine(outputDirectory, $".pixora-{key}.part");
+        DeletePartialFiles(partialPath, partialPath + ".json");
     }
 
     public async Task<DownloadResult> DownloadResumableAsync(
