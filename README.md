@@ -15,6 +15,8 @@ Pixora Studio brings photo editing, video editing and PDF-to-image conversion to
 - **Drawing** — paint directly onto the canvas with an adjustable brush size and colour.
 - **Editing workflow** — preview the original image, zoom and fit the canvas, and use undo and redo.
 - **Image export** — save edited images with format-specific export options.
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/35bdbcc4-4ec9-4c3d-8da3-021b81cdf215" />
+<img width="900" height="700" alt="image" src="https://github.com/user-attachments/assets/4b361248-6c1f-4765-bae7-d7bd2088feac" />
 
 ## Video Editor
 
@@ -22,6 +24,8 @@ Pixora Studio brings photo editing, video editing and PDF-to-image conversion to
 - **Playback controls** — seek through a video, view its current time and duration, and adjust or mute audio.
 - **Trim timeline** — select a section of a video using the timeline handles and preview the selected duration.
 - **Trimmed video export** — export the selected section and monitor export progress.
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/552af267-0033-4bca-b15c-85a8429340e7" />
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/5f65ae5f-7212-4084-88dc-7e4fdc9c9ed3" />
 
 ## PDF Converter
 
@@ -30,6 +34,7 @@ Pixora Studio brings photo editing, video editing and PDF-to-image conversion to
 - **Render resolution** — choose 72, 150, 300 or 600 DPI and see the resulting pixel dimensions.
 - **JPEG quality** — control JPG output quality independently of lossless PNG output.
 - **Batch conversion** — export multiple selected pages with progress reporting and cancellation.
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/546d4f4b-ab13-4cef-a0b6-70f5c3e0a012" />
 
 ---
 
