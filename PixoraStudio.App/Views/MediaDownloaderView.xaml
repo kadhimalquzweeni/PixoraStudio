@@ -9,7 +9,7 @@
                            FontSize="28"
                            FontWeight="Bold"
                            Foreground="White"/>
-                <TextBlock Text="Queue direct video downloads and let PixoraStudio process them one at a time."
+                <TextBlock Text="Resolve supported public media links and queue downloads through PixoraStudio’s native transfer engine."
                            FontSize="14"
                            Foreground="#A0A3AD"
                            Margin="0,8,0,28"/>
@@ -180,10 +180,10 @@
                     <StackPanel>
                         <TextBlock Text="CURRENT SUPPORT" Foreground="#8BC5FF"
                                    FontSize="11" FontWeight="Bold"/>
-                        <TextBlock Text="Direct MP4  ·  WebM  ·  MOV  ·  MKV links"
+                        <TextBlock Text="Direct MP4  ·  WebM  ·  MOV  ·  MKV links  ·  Public Reddit videos"
                                    Foreground="#D4D6DE" TextWrapping="Wrap"
                                    Margin="0,7,0,0" FontSize="13"/>
-                        <TextBlock Text="Downloads will be limited to media you have permission to save. DRM, paywalls and access restrictions will not be bypassed."
+                        <TextBlock Text="Reddit extraction is limited to publicly accessible video posts. Downloads require permission; DRM, logins, paywalls and access restrictions are never bypassed."
                                    Foreground="#8D96A5" TextWrapping="Wrap"
                                    Margin="0,8,0,0" FontSize="11"/>
                     </StackPanel>
