@@ -4,6 +4,7 @@ using PixoraStudio.Infrastructure.Services;
 using PixoraStudio.App.ViewModels;
 using PixoraStudio.App.Services;
 using PixoraStudio.App.Views;
+using System.Net.Http;
 using System.Windows;
 using LibVLCSharp.Shared;
 
