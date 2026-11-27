@@ -142,6 +142,24 @@ public class ImageProcessingService : IImageProcessingService
         return result;
     }
 
+    public byte[] EncodeImage(SKBitmap source, SKEncodedImageFormat format, int quality = 100)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        if (quality is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(quality), "Image quality must be between 1 and 100.");
+
+        if (format is not (SKEncodedImageFormat.Png or SKEncodedImageFormat.Jpeg))
+            throw new ArgumentOutOfRangeException(nameof(format), "Only PNG and JPEG image encoding is supported.");
+
+        using var image = SKImage.FromBitmap(source);
+        using var encoded = image.Encode(format, quality);
+        if (encoded is null)
+            throw new InvalidOperationException($"Could not encode the image as {format}.");
+
+        return encoded.ToArray();
+    }
+
     /// <summary>Encodes a multi-resolution Windows icon. Each image is stored as a PNG payload.</summary>
     public byte[] EncodeIcon(SKBitmap source, IReadOnlyCollection<int> sizes)
     {

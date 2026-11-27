@@ -12,16 +12,7 @@
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#E8E8E8"/>
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#202020"/>
-            <Setter Property="Foreground" Value="#F1F1F1"/>
-            <Setter Property="BorderBrush" Value="#414141"/>
-            <Setter Property="CaretBrush" Value="White"/>
-            <Setter Property="Padding" Value="9,7"/>
-            <Setter Property="Margin" Value="0,5,0,0"/>
-        </Style>
-        <Style TargetType="Button">
+        </Style><Style TargetType="Button">
             <Setter Property="Background" Value="#383838"/>
             <Setter Property="Foreground" Value="#E6E6E6"/>
             <Setter Property="BorderBrush" Value="#484848"/>
@@ -187,25 +178,20 @@
                                     <DockPanel>
                                         <TextBlock Text="Quality" FontWeight="SemiBold"/>
                                         <TextBlock x:Name="QualityValueText" DockPanel.Dock="Right"
-                                                   Text="90%" Foreground="#E8E8E8"/>
+                                                   Text="100%" Foreground="#E8E8E8"/>
                                     </DockPanel>
-                                    <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" Value="90"
+                                    <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" Value="100"
                                             Margin="0,8,0,8" ValueChanged="QualitySlider_ValueChanged"/>
                                     <UniformGrid Columns="3">
                                         <Button Content="LOW" Tag="35" Margin="2" Click="QualityPreset_Click"/>
                                         <Button Content="MED" Tag="65" Margin="2" Click="QualityPreset_Click"/>
-                                        <Button Content="HIGH" Tag="90" Margin="2" Click="QualityPreset_Click"/>
+                                        <Button Content="HIGH" Tag="100" Margin="2" Click="QualityPreset_Click"/>
                                     </UniformGrid>
                                 </StackPanel>
 
                                 <StackPanel x:Name="DimensionsPanel" Margin="0,10,0,0">
-                                    <DockPanel Margin="0,0,0,5">
-                                        <TextBlock Text="Output size" FontWeight="SemiBold"/>
-                                        <CheckBox x:Name="LockAspectRatioCheckBox" Content="Lock proportions"
-                                                  IsChecked="True" Foreground="#D4D4D4"
-                                                  HorizontalAlignment="Right"/>
-                                    </DockPanel>
-                                    <UniformGrid Columns="4" Margin="0,0,0,6">
+                                    <TextBlock Text="Output size" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                    <UniformGrid Columns="3" Margin="0,0,0,6">
                                         <RadioButton x:Name="OneXScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="1×" Tag="1"
@@ -218,22 +204,45 @@
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="4×" Tag="4"
                                                      Click="ScalePreset_Click"/>
+                                        <RadioButton x:Name="EightXScaleRadioButton"
+                                                     Style="{StaticResource ScalePresetOption}"
+                                                     GroupName="OutputScalePreset" Content="8×" Tag="8"
+                                                     Click="ScalePreset_Click"/>
+                                        <RadioButton x:Name="SixteenXScaleRadioButton"
+                                                     Style="{StaticResource ScalePresetOption}"
+                                                     GroupName="OutputScalePreset" Content="16×" Tag="16"
+                                                     Click="ScalePreset_Click"/>
                                         <RadioButton x:Name="CustomScaleRadioButton"
                                                      Style="{StaticResource ScalePresetOption}"
                                                      GroupName="OutputScalePreset" Content="Custom" Tag="Custom"
                                                      Click="ScalePreset_Click"/>
                                     </UniformGrid>
+                                    <CheckBox x:Name="PixelArtUpscaleCheckBox"
+                                              Content="Use pixel-art upscaling"
+                                              Foreground="#D4D4D4" Margin="2,8,2,2"
+                                              Click="PixelArtUpscale_Click"/>
+                                    <ComboBox x:Name="PixelArtAlgorithmComboBox"
+                                              IsEnabled="False" Height="32" Margin="2,4,2,4"
+                                              Padding="8,4" Foreground="#D4D4D4"
+                                              Background="#343434" BorderBrush="#4A4A4A"
+                                              SelectionChanged="PixelArtAlgorithm_SelectionChanged">
+                                        <ComboBoxItem Content="Nearest Neighbour (1×–16×)" Tag="NearestNeighbour" IsSelected="True"/>
+                                        <ComboBoxItem Content="Scale2x (2×, 4×, 8×, 16×)" Tag="Scale2x"/>
+                                        <ComboBoxItem Content="Scale3x (3×, 9×)" Tag="Scale3x"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="PixelArtUpscaleHint"
+                                               Text="Keeps hard pixel edges and transparency without AI."
+                                               Foreground="#9C9C9C" FontSize="11"
+                                               TextWrapping="Wrap" Margin="3,0,3,4"/>
                                     <UniformGrid Columns="2">
                                         <StackPanel Margin="0,0,8,0">
                                             <TextBlock Text="Width (px)" Foreground="#C9C9C9"/>
                                             <TextBox x:Name="WidthTextBox" Text="1"
-                                                     LostFocus="WidthTextBox_LostFocus"
                                                      TextChanged="DimensionsTextBox_TextChanged"/>
                                         </StackPanel>
                                         <StackPanel Margin="8,0,0,0">
                                             <TextBlock Text="Height (px)" Foreground="#C9C9C9"/>
                                             <TextBox x:Name="HeightTextBox" Text="1"
-                                                     LostFocus="HeightTextBox_LostFocus"
                                                      TextChanged="DimensionsTextBox_TextChanged"/>
                                         </StackPanel>
                                     </UniformGrid>
@@ -243,14 +252,7 @@
                                               Foreground="#D4D4D4"
                                               Margin="2,10,2,2"
                                               Click="PixoraAiUpscale_Click"/>
-                                    <ComboBox x:Name="PixoraAiModelComboBox"
-                                              IsEnabled="False"
-                                              Height="32"
-                                              Margin="2,4,2,4"
-                                              Padding="8,4"
-                                              Foreground="#D4D4D4"
-                                              Background="#343434"
-                                              BorderBrush="#4A4A4A"/>
+
                                     <TextBlock x:Name="PixoraAiUpscaleHint"
                                                Text="Train a local Pixora model first."
                                                Foreground="#9C9C9C"

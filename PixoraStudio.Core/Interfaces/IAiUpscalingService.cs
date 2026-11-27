@@ -4,18 +4,12 @@ namespace PixoraStudio.Core.Interfaces;
 
 public sealed record AiUpscaleProgress(string Message, double ProgressPercentage);
 
-public enum AiUpscaleModel
-{
-    Photo,
-    Sprite
-}
-
+/// <summary>Provides Pixora's optional photo-focused 4x AI upscaler.</summary>
 public interface IAiUpscalingService
 {
-    bool IsModelAvailable(AiUpscaleModel model);
+    bool IsModelAvailable();
     Task<SKBitmap> UpscaleFourTimesAsync(
         SKBitmap source,
-        AiUpscaleModel model,
         IProgress<AiUpscaleProgress>? progress = null,
         CancellationToken cancellationToken = default);
 }

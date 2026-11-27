@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PixoraStudio.Core.Interfaces;
+using PixoraStudio.Core.Models;
 
 namespace PixoraStudio.App.Views;
 
@@ -21,7 +22,6 @@ public partial class SaveOptionsDialogWindow : Window
 {
     private readonly int _sourceWidth;
     private readonly int _sourceHeight;
-    private readonly double _aspectRatio;
     private readonly bool _hasTransparency;
     private readonly bool _canUsePixoraAi;
     private bool _isUpdatingDimensions;
@@ -30,10 +30,13 @@ public partial class SaveOptionsDialogWindow : Window
 
     public SaveImageFormat SelectedFormat => _selectedFormat;
     public bool UsePixoraAiUpscaling => _canUsePixoraAi && PixoraAiUpscaleCheckBox.IsChecked == true;
-    public AiUpscaleModel SelectedPixoraAiModel =>
-        PixoraAiModelComboBox.SelectedItem is ComboBoxItem { Tag: AiUpscaleModel model }
-            ? model
-            : AiUpscaleModel.Photo;
+    public bool UsePixelArtUpscaling => PixelArtUpscaleCheckBox.IsChecked == true;
+    public PixelArtUpscalingAlgorithm SelectedPixelArtAlgorithm =>
+        PixelArtAlgorithmComboBox.SelectedItem is ComboBoxItem { Tag: string tag } &&
+        Enum.TryParse(tag, out PixelArtUpscalingAlgorithm algorithm)
+            ? algorithm
+            : PixelArtUpscalingAlgorithm.NearestNeighbour;
+    public int PixelArtScale => OutputWidth / _sourceWidth;
     public int OutputWidth => int.Parse(WidthTextBox.Text);
     public int OutputHeight => int.Parse(HeightTextBox.Text);
     public int Quality => (int)Math.Round(QualitySlider.Value);
@@ -52,26 +55,19 @@ public partial class SaveOptionsDialogWindow : Window
 
     public SaveOptionsDialogWindow(BitmapSource preview, int width, int height,
         string initialFolder, string initialName, bool hasTransparency,
-        bool canUsePhotoModel = false, bool canUseSpriteModel = false)
+        bool canUsePhotoModel = false)
     {
         InitializeComponent();
         _hasTransparency = hasTransparency;
-        _canUsePixoraAi = canUsePhotoModel || canUseSpriteModel;
-        if (canUsePhotoModel)
-            PixoraAiModelComboBox.Items.Add(new ComboBoxItem { Content = "Photo model", Tag = AiUpscaleModel.Photo });
-        if (canUseSpriteModel)
-            PixoraAiModelComboBox.Items.Add(new ComboBoxItem { Content = "Sprite / emoji model", Tag = AiUpscaleModel.Sprite });
-        if (PixoraAiModelComboBox.Items.Count > 0)
-            PixoraAiModelComboBox.SelectedIndex = 0;
+        _canUsePixoraAi = canUsePhotoModel;
         PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi;
         PixoraAiUpscaleHint.Text = _canUsePixoraAi
-            ? "Runs locally with the selected model. 4x results are limited to 32 megapixels."
-            : "Train a local Pixora model first to enable AI upscaling.";
+            ? "Enhances photographs using Pixora's locally trained photo model. 4× results are limited to 32 megapixels."
+            : "Train Pixora's photo model to enable AI upscaling.";
         if (_hasTransparency)
             _selectedFormat = SaveImageFormat.Png;
         _sourceWidth = Math.Max(1, width);
         _sourceHeight = Math.Max(1, height);
-        _aspectRatio = (double)_sourceWidth / _sourceHeight;
 
         PreviewImage.Source = preview;
         FileNameTextBox.Text = initialName;
@@ -84,9 +80,11 @@ public partial class SaveOptionsDialogWindow : Window
         WidthTextBox.Text = _sourceWidth.ToString();
         HeightTextBox.Text = _sourceHeight.ToString();
         _isUpdatingDimensions = false;
-        OneXScaleRadioButton.IsEnabled = FitsOutputLimit(1);
-        TwoXScaleRadioButton.IsEnabled = FitsOutputLimit(2);
-        FourXScaleRadioButton.IsEnabled = FitsOutputLimit(4);
+        foreach (RadioButton preset in ScalePresetRadioButtons)
+        {
+            int multiplier = int.Parse((string)preset.Tag);
+            preset.IsEnabled = FitsOutputLimit(multiplier);
+        }
         if (OneXScaleRadioButton.IsEnabled)
             OneXScaleRadioButton.IsChecked = true;
         else
@@ -123,9 +121,16 @@ public partial class SaveOptionsDialogWindow : Window
         SetCardState(IconCard, _selectedFormat == SaveImageFormat.Icon);
         JpgCard.IsEnabled = !_hasTransparency;
         BmpCard.IsEnabled = !_hasTransparency;
-        PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi && _selectedFormat != SaveImageFormat.Icon;
+        PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi && _selectedFormat != SaveImageFormat.Icon &&
+            PixelArtUpscaleCheckBox.IsChecked != true;
+        PixelArtUpscaleCheckBox.IsEnabled = _selectedFormat != SaveImageFormat.Icon &&
+            PixoraAiUpscaleCheckBox.IsChecked != true;
         if (_selectedFormat == SaveImageFormat.Icon)
+        {
             PixoraAiUpscaleCheckBox.IsChecked = false;
+            PixelArtUpscaleCheckBox.IsChecked = false;
+        }
+        UpdatePixelArtSelectorState();
         JpgCard.Opacity = _hasTransparency ? 0.45 : 1;
         BmpCard.Opacity = _hasTransparency ? 0.45 : 1;
         TransparencyHint.Visibility = _hasTransparency ? Visibility.Visible : Visibility.Collapsed;
@@ -134,6 +139,8 @@ public partial class SaveOptionsDialogWindow : Window
             : new SolidColorBrush(Color.FromRgb(8, 8, 8));
 
         bool usesQuality = _selectedFormat is SaveImageFormat.Jpg or SaveImageFormat.WebP;
+        if (usesQuality)
+            QualitySlider.Value = 100;
         QualityPanel.Visibility = usesQuality ? Visibility.Visible : Visibility.Collapsed;
         DimensionsPanel.Visibility = _selectedFormat == SaveImageFormat.Icon
             ? Visibility.Collapsed
@@ -142,15 +149,19 @@ public partial class SaveOptionsDialogWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         FileExtensionText.Text = GetExtension(_selectedFormat);
-        UpdateAiModelSelectorState();
     }
 
-    private void UpdateAiModelSelectorState()
+    private void UpdatePixelArtSelectorState()
     {
-        PixoraAiModelComboBox.IsEnabled =
-            _canUsePixoraAi && PixoraAiUpscaleCheckBox.IsEnabled &&
-            PixoraAiUpscaleCheckBox.IsChecked == true;
+        PixelArtAlgorithmComboBox.IsEnabled =
+            PixelArtUpscaleCheckBox.IsEnabled && PixelArtUpscaleCheckBox.IsChecked == true;
     }
+
+    private RadioButton[] ScalePresetRadioButtons =>
+    [
+        OneXScaleRadioButton, TwoXScaleRadioButton, FourXScaleRadioButton,
+        EightXScaleRadioButton, SixteenXScaleRadioButton
+    ];
 
     private static void SetCardState(Border card, bool isSelected)
     {
@@ -198,7 +209,6 @@ public partial class SaveOptionsDialogWindow : Window
             !int.TryParse(preset, out int multiplier))
         {
             PixoraAiUpscaleCheckBox.IsChecked = false;
-            UpdateAiModelSelectorState();
             UpdatePreviewDescription();
             return;
         }
@@ -207,13 +217,12 @@ public partial class SaveOptionsDialogWindow : Window
         {
             CustomScaleRadioButton.IsChecked = true;
             PixoraAiUpscaleCheckBox.IsChecked = false;
-            UpdateAiModelSelectorState();
-            return;
+                return;
         }
 
         if (multiplier != 4)
             PixoraAiUpscaleCheckBox.IsChecked = false;
-        UpdateAiModelSelectorState();
+        UpdatePixelArtSelectorState();
         _isUpdatingDimensions = true;
         WidthTextBox.Text = (_sourceWidth * multiplier).ToString();
         HeightTextBox.Text = (_sourceHeight * multiplier).ToString();
@@ -229,25 +238,48 @@ public partial class SaveOptionsDialogWindow : Window
     {
         if (!_canUsePixoraAi || PixoraAiUpscaleCheckBox.IsChecked != true)
         {
-            UpdateAiModelSelectorState();
+            PixelArtUpscaleCheckBox.IsEnabled = _selectedFormat != SaveImageFormat.Icon;
+            UpdatePixelArtSelectorState();
             return;
         }
 
         if (!FitsOutputLimit(4))
         {
             PixoraAiUpscaleCheckBox.IsChecked = false;
-            UpdateAiModelSelectorState();
             ShowValidation("Pixora AI's 4x output would exceed the 16,384 pixel dimension limit.");
             return;
         }
 
+        PixelArtUpscaleCheckBox.IsChecked = false;
+        PixelArtUpscaleCheckBox.IsEnabled = false;
+        UpdatePixelArtSelectorState();
         FourXScaleRadioButton.IsChecked = true;
         _isUpdatingDimensions = true;
         WidthTextBox.Text = (_sourceWidth * 4).ToString();
         HeightTextBox.Text = (_sourceHeight * 4).ToString();
         _isUpdatingDimensions = false;
-        UpdateAiModelSelectorState();
         UpdatePreviewDescription();
+    }
+
+    private void PixelArtUpscale_Click(object sender, RoutedEventArgs e)
+    {
+        if (PixelArtUpscaleCheckBox.IsChecked == true)
+        {
+            PixoraAiUpscaleCheckBox.IsChecked = false;
+            PixoraAiUpscaleCheckBox.IsEnabled = false;
+        }
+        else
+        {
+            PixoraAiUpscaleCheckBox.IsEnabled = _canUsePixoraAi && _selectedFormat != SaveImageFormat.Icon;
+        }
+
+        UpdatePixelArtSelectorState();
+    }
+
+    private void PixelArtAlgorithm_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitialized)
+            UpdatePreviewDescription();
     }
 
     private void DimensionsTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -257,31 +289,31 @@ public partial class SaveOptionsDialogWindow : Window
 
         CustomScaleRadioButton.IsChecked = true;
         PixoraAiUpscaleCheckBox.IsChecked = false;
-        UpdateAiModelSelectorState();
-        UpdatePreviewDescription();
-    }
+        UpdatePixelArtSelectorState();
 
-    private void WidthTextBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_isUpdatingDimensions || LockAspectRatioCheckBox.IsChecked != true ||
-            !int.TryParse(WidthTextBox.Text, out int width) || width <= 0)
-            return;
+        // Keep the original image proportions while the user edits either dimension.
+        // Updating on every valid edit keeps the fields connected without waiting for focus loss.
+        TextBox? editedDimension = sender as TextBox;
+        if (editedDimension is not null &&
+            int.TryParse(editedDimension.Text, out int editedValue) &&
+            editedValue > 0)
+        {
+            _isUpdatingDimensions = true;
+            try
+            {
+                (int width, int height) = ReferenceEquals(editedDimension, WidthTextBox)
+                    ? AspectRatioDimensions.FromWidth(_sourceWidth, _sourceHeight, editedValue)
+                    : AspectRatioDimensions.FromHeight(_sourceWidth, _sourceHeight, editedValue);
 
-        _isUpdatingDimensions = true;
-        HeightTextBox.Text = Math.Max(1, (int)Math.Round(width / _aspectRatio)).ToString();
-        _isUpdatingDimensions = false;
-        UpdatePreviewDescription();
-    }
+                WidthTextBox.Text = width.ToString();
+                HeightTextBox.Text = height.ToString();
+            }
+            finally
+            {
+                _isUpdatingDimensions = false;
+            }
+        }
 
-    private void HeightTextBox_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (_isUpdatingDimensions || LockAspectRatioCheckBox.IsChecked != true ||
-            !int.TryParse(HeightTextBox.Text, out int height) || height <= 0)
-            return;
-
-        _isUpdatingDimensions = true;
-        WidthTextBox.Text = Math.Max(1, (int)Math.Round(height * _aspectRatio)).ToString();
-        _isUpdatingDimensions = false;
         UpdatePreviewDescription();
     }
 
@@ -329,6 +361,35 @@ public partial class SaveOptionsDialogWindow : Window
         {
             ShowValidation("Width and height must be between 1 and 16,384 pixels.");
             return;
+        }
+
+        if (UsePixelArtUpscaling && _selectedFormat != SaveImageFormat.Icon)
+        {
+            if (!int.TryParse(WidthTextBox.Text, out int pixelWidth) ||
+                !int.TryParse(HeightTextBox.Text, out int pixelHeight) ||
+                pixelWidth % _sourceWidth != 0 || pixelHeight % _sourceHeight != 0 ||
+                pixelWidth / _sourceWidth != pixelHeight / _sourceHeight ||
+                pixelWidth / _sourceWidth is < 1 or > 16)
+            {
+                ShowValidation("Pixel-art upscaling requires the same integer scale from 1× to 16× in both dimensions. Use Custom sizing or choose a scale preset.");
+                return;
+            }
+
+            int scale = pixelWidth / _sourceWidth;
+            bool supported = SelectedPixelArtAlgorithm switch
+            {
+                PixelArtUpscalingAlgorithm.NearestNeighbour => true,
+                PixelArtUpscalingAlgorithm.Scale2x => scale is 2 or 4 or 8 or 16,
+                PixelArtUpscalingAlgorithm.Scale3x => scale is 3 or 9,
+                _ => false
+            };
+            if (!supported)
+            {
+                ShowValidation(SelectedPixelArtAlgorithm == PixelArtUpscalingAlgorithm.Scale2x
+                    ? "Scale2x supports 2×, 4×, 8× and 16×. Choose a supported scale or use Nearest Neighbour."
+                    : "Scale3x supports 3× and 9×. Choose a supported scale or use Nearest Neighbour.");
+                return;
+            }
         }
 
         FileNameTextBox.Text = name;

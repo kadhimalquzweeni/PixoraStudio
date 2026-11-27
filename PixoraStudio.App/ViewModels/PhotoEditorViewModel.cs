@@ -92,10 +92,15 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool cutoutInverted;
     private byte[]? _cutoutSelectionMask;
 
-    public PhotoEditorViewModel(IImageProcessingService imageService, IAiUpscalingService? aiUpscalingService = null)
+    private readonly IPixelArtUpscalingService? _pixelArtUpscalingService;
+
+    public PhotoEditorViewModel(IImageProcessingService imageService,
+        IAiUpscalingService? aiUpscalingService = null,
+        IPixelArtUpscalingService? pixelArtUpscalingService = null)
     {
         _imageService = imageService;
         _aiUpscalingService = aiUpscalingService;
+        _pixelArtUpscalingService = pixelArtUpscalingService;
     }
 
     public void CreateCanvas(int width, int height, SKColor backgroundColor)
@@ -1724,8 +1729,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
         var dialog = new SaveOptionsDialogWindow(
             preview, processedBitmap.Width, processedBitmap.Height,
             initialFolder, $"{baseName}-Edited", HasTransparency(processedBitmap),
-            _aiUpscalingService?.IsModelAvailable(AiUpscaleModel.Photo) == true,
-            _aiUpscalingService?.IsModelAvailable(AiUpscaleModel.Sprite) == true);
+            _aiUpscalingService?.IsModelAvailable() == true);
         if (Application.Current?.MainWindow is Window owner)
             dialog.Owner = owner;
         if (dialog.ShowDialog() != true) return;
@@ -1767,7 +1771,7 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                 if (dialog.UsePixoraAiUpscaling)
                 {
                     if (_aiUpscalingService is null ||
-                        !_aiUpscalingService.IsModelAvailable(dialog.SelectedPixoraAiModel))
+                        !_aiUpscalingService.IsModelAvailable())
                         throw new InvalidOperationException(
                             "Train Pixora's local AI upscaler and restart the app before using this option.");
 
@@ -1781,8 +1785,17 @@ public partial class PhotoEditorViewModel : ObservableObject, IDisposable
                             progressWindow.UpdateProgress(update);
                     });
                     aiUpscaledBitmap = await _aiUpscalingService.UpscaleFourTimesAsync(
-                        processedBitmap, dialog.SelectedPixoraAiModel, progress);
+                        processedBitmap, progress);
                     outputBitmap = aiUpscaledBitmap;
+                }
+                else if (dialog.UsePixelArtUpscaling)
+                {
+                    if (_pixelArtUpscalingService is null)
+                        throw new InvalidOperationException("Pixel-art upscaling is not available.");
+
+                    resizedBitmap = _pixelArtUpscalingService.Upscale(
+                        processedBitmap, dialog.PixelArtScale, dialog.SelectedPixelArtAlgorithm);
+                    outputBitmap = resizedBitmap;
                 }
                 else if (dialog.OutputWidth != processedBitmap.Width ||
                          dialog.OutputHeight != processedBitmap.Height)

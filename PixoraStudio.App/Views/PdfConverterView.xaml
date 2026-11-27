@@ -1,0 +1,286 @@
+<UserControl x:Class="PixoraStudio.App.Views.PdfConverterView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </UserControl.Resources>
+
+    <Grid Background="#17191E" Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel>
+                <TextBlock Text="PDF Converter"
+                           Foreground="White"
+                           FontSize="27"
+                           FontWeight="Bold"/>
+                <TextBlock Text="Render PDF pages into high-quality PNG or JPG images."
+                           Foreground="#A0A3AD"
+                           FontSize="13"
+                           Margin="0,6,0,0"/>
+            </StackPanel>
+
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Background="#20232B"
+                    BorderBrush="#30343D"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="16"
+                    Margin="0,0,16,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="SOURCE DOCUMENT"
+                                   Foreground="#8F98A8"
+                                   FontSize="11"
+                                   FontWeight="Bold"/>
+                        <TextBlock Text="{Binding DocumentName}"
+                                   Foreground="White"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   Margin="0,8,0,3"/>
+                        <TextBlock Text="{Binding PageCount, StringFormat={}{0} page(s)}"
+                                   Foreground="#A0A3AD"
+                                   FontSize="12"/>
+                    </StackPanel>
+
+                    <DockPanel Grid.Row="1" Margin="0,20,0,10">
+                        <TextBlock Text="PAGES"
+                                   Foreground="#8F98A8"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Button Content="All"
+                                    Command="{Binding SelectAllPagesCommand}"
+                                    Padding="8,4"
+                                    Margin="0,0,6,0"
+                                    FontSize="11"/>
+                            <Button Content="None"
+                                    Command="{Binding DeselectAllPagesCommand}"
+                                    Padding="8,4"
+                                    FontSize="11"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <TextBlock Grid.Row="2"
+                               Text="{Binding SelectedPageCount, StringFormat={}{0} selected}"
+                               Foreground="#A0A3AD"
+                               FontSize="11"
+                               Margin="0,0,0,8"/>
+
+                    <ListBox Grid.Row="3"
+                             ItemsSource="{Binding Pages}"
+                             SelectedValuePath="PageNumber"
+                             SelectedValue="{Binding SelectedPageNumber, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="8"/>
+                                <Setter Property="Margin" Value="0,0,0,5"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Background" Value="#252932"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="BorderBrush" Value="#30343D"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#303D52"/>
+                                        <Setter Property="BorderBrush" Value="#3478D4"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,10,0"/>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding PageNumber, StringFormat=Page {0}}"
+                                                   Foreground="White"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding DimensionsLabel}"
+                                                   Foreground="#9299A6"
+                                                   FontSize="10"
+                                                   Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="#20232B"
+                        BorderBrush="#30343D"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="16"
+                        Margin="0,0,0,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="130"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="110"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="FORMAT" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <ComboBox Width="100" ItemsSource="{Binding FormatOptions}" SelectedItem="{Binding SelectedFormat}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                            <TextBlock Text="RESOLUTION" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <ComboBox Width="110" ItemsSource="{Binding DpiOptions}" SelectedItem="{Binding SelectedDpi}"/>
+                            <TextBlock Text="{Binding OutputDimensionsLabel}"
+                                       Foreground="#A0A3AD" FontSize="10" Margin="0,5,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="0,0,10,0" Visibility="{Binding IsJpeg, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="JPEG QUALITY" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <TextBlock Text="{Binding JpegQuality, StringFormat={}{0}%}" Foreground="White" FontSize="13"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Margin="0,0,10,0"
+                                    Visibility="{Binding IsJpeg, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="QUALITY" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <Slider Minimum="1" Maximum="100" Value="{Binding JpegQuality}" Width="100"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="OUTPUT FOLDER" Foreground="#8F98A8" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <DockPanel>
+                                <Button Content="Browse"
+                                        Command="{Binding BrowseOutputFolderCommand}"
+                                        DockPanel.Dock="Right"
+                                        Padding="10,5"
+                                        Margin="8,0,0,0"/>
+                                <TextBox Text="{Binding OutputFolder, UpdateSourceTrigger=PropertyChanged}"
+                                         VerticalContentAlignment="Center"
+                                         MinWidth="120"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1"
+                        Background="#20232B"
+                        BorderBrush="#30343D"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="{Binding SelectedPageNumber, StringFormat=PAGE PREVIEW · PAGE {0}}"
+                                   Foreground="#8F98A8"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Margin="0,0,0,12"/>
+                        <Border Grid.Row="1"
+                                Background="#17191E"
+                                CornerRadius="8"
+                                Padding="12">
+                            <Grid>
+                                <TextBlock Text="Select a PDF to preview its pages."
+                                           Foreground="#777F8D"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PreviewImage}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <Image Source="{Binding PreviewImage}"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="2"
+                        Background="#20232B"
+                        BorderBrush="#30343D"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="16"
+                        Margin="0,14,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                       Foreground="#D7DAE2"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"/>
+                            <ProgressBar Value="{Binding Progress}"
+                                         Maximum="100"
+                                         Height="5"
+                                         Margin="0,9,20,0"/>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="Cancel"
+                                Command="{Binding CancelConversionCommand}"
+                                Margin="0,0,8,0"
+                                Padding="14,8"
+                                Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <Button Grid.Column="2"
+                                Content="Convert Pages"
+                                Command="{Binding ConvertCommand}"
+                                Background="#3478D4"
+                                Foreground="White"
+                                Padding="18,9"
+                                MinWidth="130"
+                                IsEnabled="{Binding CanConvert}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

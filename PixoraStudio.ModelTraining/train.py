@@ -69,7 +69,7 @@ def alpha_aware_loss(
     target: torch.Tensor,
     alpha: torch.Tensor,
 ) -> torch.Tensor:
-    """Train RGB detail where it is visible, while retaining smooth sprite edges."""
+    """Train RGB detail where it is visible, while retaining smooth transparent edges."""
     rgb_weight = alpha.expand_as(target)
     rgb_loss = ((prediction - target).abs() * rgb_weight).sum() / rgb_weight.sum().clamp_min(1.0)
 
@@ -95,12 +95,11 @@ def choose_device(requested: str) -> torch.device:
     return torch.device("cpu")
 
 
-def default_model_path(model_kind: str) -> Path:
+def default_model_path() -> Path:
     local_app_data = os.environ.get("LOCALAPPDATA")
     if not local_app_data:
         local_app_data = str(Path.home() / "AppData" / "Local")
-    filename = "pixora_sr_sprite_x4.onnx" if model_kind == "sprite" else "pixora_sr_x4.onnx"
-    return Path(local_app_data) / "PixoraStudio" / "Models" / filename
+    return Path(local_app_data) / "PixoraStudio" / "Models" / "pixora_sr_x4.onnx"
 
 
 def export_model(model: PixoraSR, target: Path, device: torch.device) -> None:
@@ -132,15 +131,13 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--steps-per-epoch", type=int, default=500)
     parser.add_argument("--patch-size", type=int, default=64,
-                        help="Low-resolution crop size; the matching high-resolution crop is 4x larger. Use 32 for 128px sprite targets.")
+                        help="Low-resolution crop size; the matching high-resolution crop is 4x larger.")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--workers", type=int, default=0,
                         help="Data-loader workers. Zero is the Windows-safe default.")
     parser.add_argument("--learning-rate", type=float, default=0.0002)
     parser.add_argument("--device", default="auto",
                         help="auto, cpu, cuda, cuda:0, or mps.")
-    parser.add_argument("--model-kind", choices=("photo", "sprite"), default="photo",
-                        help="Select the local output model; sprite writes a separate model file.")
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("checkpoints"))
     parser.add_argument("--resume", type=Path, default=None,
                         help="Optional Pixora checkpoint to continue training.")
@@ -216,7 +213,7 @@ def main() -> None:
             checkpoint_path,
         )
 
-    output_path = args.output or default_model_path(args.model_kind)
+    output_path = args.output or default_model_path()
     export_model(model, output_path, device)
 
 
