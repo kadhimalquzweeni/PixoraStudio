@@ -63,11 +63,12 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
+        using var control = new DownloadControl();
         var result = await DownloadResumableAsync(
             source,
             outputDirectory,
             progress,
-            new DownloadControl(),
+            control,
             cancellationToken);
         return result.OutputPath ?? throw new OperationCanceledException(cancellationToken);
     }
@@ -101,7 +102,7 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         var partialKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source.AbsoluteUri)));
         var partialPath = Path.Combine(outputDirectory, $".pixora-{partialKey}.part");
         var metadataPath = partialPath + ".json";
-        var metadata = await ReadResumeMetadataAsync(metadataPath, source, partialPath, outputDirectory, cancellationToken);
+        var metadata = await ReadResumeMetadataAsync(metadataPath, source, outputDirectory, cancellationToken);
         var existingLength = metadata is not null && File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
 
         if (metadata is null || existingLength == 0)
@@ -137,13 +138,13 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
                     restartResponse.EnsureSuccessStatusCode();
                     return await WriteResponseAsync(
                         restartResponse, source, extension, partialPath, metadataPath,
-                        outputDirectory, null, 0, progress, control, cancellationToken, token);
+                        outputDirectory, null, 0, progress, cancellationToken, token);
                 }
 
                 response.EnsureSuccessStatusCode();
                 return await WriteResponseAsync(
                     response, source, extension, partialPath, metadataPath,
-                    outputDirectory, metadata, existingLength, progress, control, cancellationToken, token);
+                    outputDirectory, metadata, existingLength, progress, cancellationToken, token);
             }
         }
         catch (OperationCanceledException) when (
@@ -194,7 +195,6 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         ResumeMetadata? existingMetadata,
         long offset,
         IProgress<double>? progress,
-        DownloadControl control,
         CancellationToken cancellationToken,
         CancellationToken transferToken)
     {
@@ -272,7 +272,6 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
     private static async Task<ResumeMetadata?> ReadResumeMetadataAsync(
         string metadataPath,
         Uri source,
-        string partialPath,
         string outputDirectory,
         CancellationToken cancellationToken)
     {
