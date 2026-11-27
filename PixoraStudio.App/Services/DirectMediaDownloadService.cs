@@ -50,39 +50,42 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
 
         try
         {
-            await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using var output = new FileStream(
+            var totalLength = response.Content.Headers.ContentLength;
+            long totalRead;
+            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var output = new FileStream(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.None,
                 BufferSize,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-            var buffer = new byte[BufferSize];
-            var headerLength = await ReadHeaderAsync(input, buffer, cancellationToken);
-            if (!DirectMediaFormats.HasValidContainerHeader(buffer.AsSpan(0, headerLength), extension))
-                throw new InvalidDataException("The response does not contain a valid MP4, WebM, MOV or MKV file.");
-
-            await output.WriteAsync(buffer.AsMemory(0, headerLength), cancellationToken);
-            long totalRead = headerLength;
-            var totalLength = response.Content.Headers.ContentLength;
-            ReportProgress(progress, totalRead, totalLength);
-
-            int bytesRead;
-            while ((bytesRead = await input.ReadAsync(buffer, cancellationToken)) > 0)
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
-                await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                totalRead += bytesRead;
+                var buffer = new byte[BufferSize];
+                var headerLength = await ReadHeaderAsync(input, buffer, cancellationToken);
+                if (!DirectMediaFormats.HasValidContainerHeader(buffer.AsSpan(0, headerLength), extension))
+                    throw new InvalidDataException("The response does not contain a valid MP4, WebM, MOV or MKV file.");
+
+                await output.WriteAsync(buffer.AsMemory(0, headerLength), cancellationToken);
+                totalRead = headerLength;
                 ReportProgress(progress, totalRead, totalLength);
+
+                int bytesRead;
+                while ((bytesRead = await input.ReadAsync(buffer, cancellationToken)) > 0)
+                {
+                    await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                    totalRead += bytesRead;
+                    ReportProgress(progress, totalRead, totalLength);
+                }
+
+                await output.FlushAsync(cancellationToken);
             }
 
-            await output.FlushAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-
             if (totalLength is > 0 && totalRead != totalLength.Value)
                 throw new InvalidDataException("The download ended before the complete file was received.");
 
+            // Both streams are disposed before the atomic rename, which is required on Windows.
             File.Move(temporaryPath, destinationPath);
             progress?.Report(100d);
             return destinationPath;
