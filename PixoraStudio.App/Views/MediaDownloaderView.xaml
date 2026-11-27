@@ -62,7 +62,7 @@
                                     Command="{Binding CancelDownloadCommand}"
                                     IsEnabled="{Binding IsDownloading}"
                                     Margin="8,0,0,0" Padding="16,9" MinHeight="38"/>
-                            <TextBlock Grid.Column="2" Text="{Binding DownloadProgress, StringFormat={}{0:0}%}"
+                            <TextBlock Grid.Column="2" Text="{Binding ProgressDisplayText}"
                                        Foreground="#AEB8C8" VerticalAlignment="Center"
                                        HorizontalAlignment="Right"/>
                         </Grid>
