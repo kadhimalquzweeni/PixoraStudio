@@ -28,7 +28,7 @@ public sealed class MediaDownloaderViewTests
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
         Assert.Contains(document.Descendants(presentation + "TextBox"),
-            textBox => ((string?)textBox.Attribute("Text"))?.Contains("{Binding Url}") == true);
+            textBox => ((string?)textBox.Attribute("Text"))?.StartsWith("{Binding Url,", StringComparison.Ordinal) == true);
         Assert.Contains(document.Descendants(presentation + "Button"),
             button => (string?)button.Attribute("Command") == "{Binding CheckLinkCommand}");
         Assert.Contains(document.Descendants(presentation + "ComboBox"),
