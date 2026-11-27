@@ -26,7 +26,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-<Compile Include="../PixoraStudio.App/Services/DirectMediaDownloadService.cs" Link="App/Services/DirectMediaDownloadService.cs" />
+<Compile Include="../PixoraStudio.App/Services/DirectMediaDownloadService.cs" Link="App/Services/DirectMediaDownloadService.cs" />\n    <Compile Include="../PixoraStudio.App/Services/MediaPlatformExtractor.cs" Link="App/Services/MediaPlatformExtractor.cs" />
     <Compile Include="../PixoraStudio.App/Services/DownloadQueueService.cs" Link="App/Services/DownloadQueueService.cs" />
     <None Include="../PixoraStudio.App/App.xaml" Link="App.xaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PixoraStudio.App/Views/PhotoEditorView.xaml" Link="PhotoEditorView.xaml" CopyToOutputDirectory="PreserveNewest" />
