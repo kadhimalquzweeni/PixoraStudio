@@ -41,6 +41,7 @@ public sealed class DownloadQueueItem : ObservableObject
             if (SetProperty(ref _status, value))
             {
                 OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(ProgressText));
                 OnPropertyChanged(nameof(CanCancel));
                 OnPropertyChanged(nameof(CanPause));
                 OnPropertyChanged(nameof(CanResume));
