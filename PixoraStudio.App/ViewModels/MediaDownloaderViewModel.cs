@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -5,7 +6,7 @@ using PixoraStudio.App.Services;
 
 namespace PixoraStudio.App.ViewModels;
 
-public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downloadService) : ObservableObject
+public partial class MediaDownloaderViewModel(DownloadQueueService queueService) : ObservableObject
 {
     private static readonly (string Platform, string[] Domains)[] SupportedPlatforms =
     [
@@ -18,7 +19,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
     ];
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddToQueueCommand))]
     private string url = string.Empty;
 
     [ObservableProperty]
@@ -39,35 +40,35 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
     private string detectedPlatform = "No link checked";
 
     [ObservableProperty]
-    private string? downloadedFilePath;
-
-    [ObservableProperty]
-    private double downloadProgress;
-
-    [ObservableProperty]
     private bool isLinkRecognised;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(CancelDownloadCommand))]
-    private bool isDownloading;
+    private string queueCountText = "0 downloads";
 
     public string[] FormatOptions { get; } = ["Video with audio", "Video only", "Audio only"];
     public string[] QualityOptions { get; } = ["Best available", "2160p (4K)", "1440p", "1080p", "720p", "480p", "360p"];
+    public System.Collections.ObjectModel.ObservableCollection<DownloadQueueItem> QueueItems => queueService.Items;
+    public bool IsQueueProcessing => queueService.IsProcessing;
 
-    private CancellationTokenSource? _downloadCancellation;
+    public MediaDownloaderViewModel : this(queueService)
+    {
+        queueService.Items.CollectionChanged += OnQueueItemsChanged;
+        queueService.PropertyChanged += (_, _) => OnPropertyChanged(nameof(IsQueueProcessing));
+        UpdateQueueCount();
+    }
 
     partial void OnUrlChanged(string value)
     {
         IsLinkRecognised = false;
         DetectedPlatform = "No link checked";
-        DownloadedFilePath = null;
         StatusMessage = string.IsNullOrWhiteSpace(value)
             ? "Paste a direct video file link to get started."
             : "Check the link to identify its source.";
+        AddToQueueCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanDownload() =>
-        IsLinkRecognised && !IsDownloading &&
+    private bool CanAddToQueue() =>
+        IsLinkRecognised &&
         Uri.TryCreate(Url.Trim(), UriKind.Absolute, out var uri) &&
         DirectMediaFormats.IsSupportedExtension(Path.GetExtension(uri.AbsolutePath));
 
@@ -75,13 +76,12 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
     private void CheckLink()
     {
         IsLinkRecognised = false;
-        DownloadedFilePath = null;
         if (!Uri.TryCreate(Url?.Trim(), UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
             DetectedPlatform = "Invalid link";
             StatusMessage = "Enter a valid http or https video URL.";
-            DownloadCommand.NotifyCanExecuteChanged();
+            AddToQueueCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -94,7 +94,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
             {
                 DetectedPlatform = platform.Platform;
                 StatusMessage = $"{platform.Platform} page links are recognised, but their custom extractor has not been implemented yet. Try a direct video file URL for now.";
-                DownloadCommand.NotifyCanExecuteChanged();
+                AddToQueueCommand.NotifyCanExecuteChanged();
                 return;
             }
         }
@@ -104,7 +104,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
         {
             DetectedPlatform = "Direct video file";
             IsLinkRecognised = true;
-            StatusMessage = "Direct video file recognised. Ready to download.";
+            StatusMessage = "Direct video file recognised. Ready to add to the queue.";
         }
         else if (extension.Equals(".m3u8", StringComparison.OrdinalIgnoreCase) ||
                  extension.Equals(".mpd", StringComparison.OrdinalIgnoreCase))
@@ -118,61 +118,61 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
             StatusMessage = "This URL is not a supported direct video file.";
         }
 
-        DownloadCommand.NotifyCanExecuteChanged();
+        AddToQueueCommand.NotifyCanExecuteChanged();
     }
 
-    [RelayCommand(CanExecute = nameof(CanDownload))]
-    private async Task DownloadAsync()
+    [RelayCommand(CanExecute = nameof(CanAddToQueue))]
+    private void AddToQueue()
     {
         if (!Uri.TryCreate(Url.Trim(), UriKind.Absolute, out var source))
             return;
 
-        IsDownloading = true;
-        DownloadProgress = 0;
-        DownloadedFilePath = null;
-        StatusMessage = "Connecting to the video source...";
-        _downloadCancellation = new CancellationTokenSource();
-        DownloadCommand.NotifyCanExecuteChanged();
-
-        var progress = new Progress<double>(value =>\n        {\n            if (double.IsNaN(value))\n            {\n                ProgressDisplayText = "Downloading...";\n                return;\n            }\n\n            DownloadProgress = value;\n            ProgressDisplayText = $"{value:0}%";\n        });
         try
         {
-            var path = await downloadService.DownloadAsync(
-                source, OutputFolder, progress, _downloadCancellation.Token);
-            DownloadedFilePath = path;
-            StatusMessage = $"Download complete: {Path.GetFileName(path)}";
+            var existing = QueueItems.FirstOrDefault(item =>
+                item.Source == source &&
+                string.Equals(item.OutputDirectory, OutputFolder, StringComparison.OrdinalIgnoreCase) &&
+                item.Status is DownloadQueueItemStatus.Queued or DownloadQueueItemStatus.Downloading);
+
+            var item = queueService.Add(source, OutputFolder);
+            StatusMessage = ReferenceEquals(existing, item)
+                ? "This link is already in the download queue."
+                : "Added to the queue. Download will start automatically.";
+            _ = queueService.StartAsync();
         }
-        catch (OperationCanceledException)
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or UnauthorizedAccessException)
         {
-            StatusMessage = "Download cancelled.";
-        }
-        catch (HttpRequestException exception)
-        {
-            StatusMessage = $"Download failed: {exception.Message}";
-        }
-        catch (Exception exception) when (exception is IOException or NotSupportedException or UnauthorizedAccessException)
-        {
-            StatusMessage = $"Download failed: {exception.Message}";
-        }
-        finally
-        {
-            _downloadCancellation.Dispose();
-            _downloadCancellation = null;
-            IsDownloading = false;
-            DownloadCommand.NotifyCanExecuteChanged();
+            StatusMessage = $"Could not queue download: {exception.Message}";
         }
     }
 
-    private bool CanCancelDownload() => IsDownloading;
+    [RelayCommand]
+    private void CancelQueueItem(DownloadQueueItem item) => queueService.Cancel(item);
 
-    [RelayCommand(CanExecute = nameof(CanCancelDownload))]
-    private void CancelDownload() => _downloadCancellation?.Cancel();
+    [RelayCommand]
+    private void RetryQueueItem(DownloadQueueItem item)
+    {
+        if (queueService.Retry(item))
+            _ = queueService.StartAsync();
+    }
+
+    [RelayCommand]
+    private void RemoveQueueItem(DownloadQueueItem item) => queueService.Remove(item);
+
+    [RelayCommand]
+    private void ClearCompleted() => queueService.ClearCompleted();
 
     [RelayCommand]
     private void ClearLink()
     {
         Url = string.Empty;
-        DownloadProgress = 0;
-        DownloadedFilePath = null;
+    }
+
+    private void OnQueueItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateQueueCount();
+
+    private void UpdateQueueCount()
+    {
+        var count = QueueItems.Count;
+        QueueCountText = count == 1 ? "1 download" : $"{count} downloads";
     }
 }
