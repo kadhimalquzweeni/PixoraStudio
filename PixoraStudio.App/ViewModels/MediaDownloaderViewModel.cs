@@ -168,7 +168,9 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
         }
     }
 
-    [RelayCommand(CanExecute = nameof(IsDownloading))]
+    private bool CanCancelDownload() => IsDownloading;
+
+    [RelayCommand(CanExecute = nameof(CanCancelDownload))]
     private void CancelDownload() => _downloadCancellation?.Cancel();
 
     [RelayCommand]
