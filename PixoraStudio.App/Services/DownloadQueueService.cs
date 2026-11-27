@@ -57,6 +57,7 @@ public sealed class DownloadQueueItem : ObservableObject
             if (SetProperty(ref _progress, value))
             {
                 OnPropertyChanged(nameof(ProgressText));
+                OnPropertyChanged(nameof(ProgressValue));
                 OnPropertyChanged(nameof(IsProgressIndeterminate));
             }
         }
