@@ -14,10 +14,6 @@ public interface IDirectMediaDownloadService
 public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectMediaDownloadService
 {
     private const int BufferSize = 81920;
-    private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp4", ".webm", ".mov", ".mkv"
-    };
 
     public async Task<string> DownloadAsync(
         Uri source,
@@ -32,7 +28,7 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             throw new ArgumentException("Only HTTP and HTTPS URLs are supported.", nameof(source));
 
         var extension = Path.GetExtension(source.AbsolutePath);
-        if (!SupportedExtensions.Contains(extension))
+        if (!DirectMediaFormats.IsSupportedExtension(extension))
             throw new NotSupportedException("This is not a supported direct video file. HLS and DASH streams are not supported yet.");
 
         Directory.CreateDirectory(outputDirectory);
@@ -63,7 +59,7 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
 
             var buffer = new byte[BufferSize];
             var headerLength = await ReadHeaderAsync(input, buffer, cancellationToken);
-            if (!HasSupportedContainerHeader(buffer.AsSpan(0, headerLength), extension))
+            if (!DirectMediaFormats.HasValidContainerHeader(buffer.AsSpan(0, headerLength), extension))
                 throw new InvalidDataException("The response does not contain a valid MP4, WebM, MOV or MKV file.");
 
             await output.WriteAsync(buffer.AsMemory(0, headerLength), cancellationToken);
@@ -112,23 +108,6 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         }
 
         return totalRead;
-    }
-
-    private static bool HasSupportedContainerHeader(ReadOnlySpan<byte> header, string extension)
-    {
-        if (extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".mov", StringComparison.OrdinalIgnoreCase))
-        {
-            return header.Length >= 8 && header.Slice(4, 4).SequenceEqual("ftyp"u8);
-        }
-
-        if (extension.Equals(".webm", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".mkv", StringComparison.OrdinalIgnoreCase))
-        {
-            return header.Length >= 4 && header[..4].SequenceEqual(new byte[] { 0x1A, 0x45, 0xDF, 0xA3 });
-        }
-
-        return false;
     }
 
     private static void ValidateContentType(string? mediaType)
@@ -193,5 +172,33 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             if (!File.Exists(path))
                 return path;
         }
+    }
+}
+
+public static class DirectMediaFormats
+{
+    private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp4", ".webm", ".mov", ".mkv"
+    };
+
+    public static bool IsSupportedExtension(string? extension) =>
+        !string.IsNullOrWhiteSpace(extension) && SupportedExtensions.Contains(extension);
+
+    public static bool HasValidContainerHeader(ReadOnlySpan<byte> header, string extension)
+    {
+        if (extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".mov", StringComparison.OrdinalIgnoreCase))
+        {
+            return header.Length >= 8 && header.Slice(4, 4).SequenceEqual("ftyp"u8);
+        }
+
+        if (extension.Equals(".webm", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".mkv", StringComparison.OrdinalIgnoreCase))
+        {
+            return header.Length >= 4 && header[..4].SequenceEqual(new byte[] { 0x1A, 0x45, 0xDF, 0xA3 });
+        }
+
+        return false;
     }
 }
