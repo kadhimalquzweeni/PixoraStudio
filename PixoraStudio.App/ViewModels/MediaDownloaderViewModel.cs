@@ -83,10 +83,11 @@ public partial class MediaDownloaderViewModel : ObservableObject
     [RelayCommand]
     private async Task CheckLink()
     {
+        var checkedUrl = Url?.Trim() ?? string.Empty;
         IsLinkRecognised = false;
         _resolvedDownloadUri = null;
 
-        if (!Uri.TryCreate(Url?.Trim(), UriKind.Absolute, out var uri) ||
+        if (!Uri.TryCreate(checkedUrl, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
             DetectedPlatform = "Invalid link";
@@ -116,6 +117,8 @@ public partial class MediaDownloaderViewModel : ObservableObject
             try
             {
                 var extracted = await extractor.ExtractAsync(uri, CancellationToken.None);
+                if (!string.Equals(Url?.Trim(), checkedUrl, StringComparison.Ordinal))
+                    return;
                 if (extracted is null)
                 {
                     StatusMessage = "No supported public video stream was found. The post may not contain a downloadable video.";
@@ -134,6 +137,8 @@ public partial class MediaDownloaderViewModel : ObservableObject
             catch (Exception exception) when (
                 exception is HttpRequestException or InvalidDataException or UnauthorizedAccessException or JsonException)
             {
+                if (!string.Equals(Url?.Trim(), checkedUrl, StringComparison.Ordinal))
+                    return;
                 StatusMessage = $"Could not inspect this post: {exception.Message}";
             }
 
