@@ -150,6 +150,8 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
     {
         if (totalLength is > 0)
             progress?.Report(Math.Clamp((double)totalRead / totalLength.Value * 100d, 0d, 100d));
+        else
+            progress?.Report(double.NaN);
     }
 
     private static string GetSafeFileName(
