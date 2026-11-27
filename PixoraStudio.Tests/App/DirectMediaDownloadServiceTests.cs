@@ -158,7 +158,7 @@ public sealed class DirectMediaDownloadServiceTests
             Source = source.AbsoluteUri,
             DestinationPath = destinationPath,
             FileName = "video.mp4",
-            ETag = "\\"v1\\"",
+            ETag = "\"v1\"",
             LastModifiedUtc = (DateTime?)null,
             ExpectedLength = (long?)VideoBytes.Length
         }));
@@ -171,7 +171,7 @@ public sealed class DirectMediaDownloadServiceTests
         };
         response.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         response.Content.Headers.ContentRange = new ContentRangeHeaderValue(8, VideoBytes.Length - 1, VideoBytes.Length);
-        response.Headers.ETag = new EntityTagHeaderValue("\\"v1\\"");
+            ETag = "\"v1\"",
         using var client = new HttpClient(new RecordingHandler(request =>
         {
             requestedOffset = request.Headers.Range?.Ranges.Single().From;
@@ -185,7 +185,7 @@ public sealed class DirectMediaDownloadServiceTests
 
         Assert.False(result.IsPaused);
         Assert.Equal(8, requestedOffset);
-        Assert.Equal("\\"v1\\"", ifRangeTag);
+        Assert.Equal("\"v1\"", ifRangeTag);
         Assert.Equal(destinationPath, result.OutputPath);
         Assert.Equal(VideoBytes, await File.ReadAllBytesAsync(destinationPath));
         Assert.False(File.Exists(partialPath + ".json"));
