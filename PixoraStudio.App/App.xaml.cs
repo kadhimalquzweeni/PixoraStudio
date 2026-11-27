@@ -33,7 +33,7 @@ public partial class App : Application
         services.AddSingleton<VideoEditorViewModel>();
         services.AddSingleton<PdfConverterViewModel>();
         services.AddSingleton(new HttpClient { Timeout = Timeout.InfiniteTimeSpan });
-        services.AddSingleton<IDirectMediaDownloadService, DirectMediaDownloadService>();
+        services.AddSingleton<IDirectMediaDownloadService, DirectMediaDownloadService>();\n        services.AddSingleton<IMediaPlatformExtractor, RedditMediaPlatformExtractor>();\n        services.AddSingleton<MediaPlatformExtractorRegistry>();
         services.AddSingleton<DownloadQueueService>();
         services.AddSingleton<MediaDownloaderViewModel>();
         services.AddSingleton<IImageProcessingService, ImageProcessingService>();
