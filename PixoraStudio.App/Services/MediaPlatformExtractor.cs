@@ -64,7 +64,8 @@ public sealed class RedditMediaPlatformExtractor(HttpClient httpClient) : IMedia
         if (post is null)
             return null;
 
-        var title = post.Value.TryGetProperty("title", out var titleElement)
+        var title = post.Value.TryGetProperty("title", out var titleElement) &&
+                    titleElement.ValueKind == JsonValueKind.String
             ? titleElement.GetString()
             : null;
         var videoUri = FindFallbackVideoUri(post.Value);
@@ -100,11 +101,9 @@ public sealed class RedditMediaPlatformExtractor(HttpClient httpClient) : IMedia
                     return found;
             }
         }
-
-        if (root.ValueKind == JsonValueKind.Object)
+        else if (root.ValueKind == JsonValueKind.Object)
         {
-            if (root.TryGetProperty("reddit_video", out _) &&
-                FindFallbackVideoUri(root) is not null)
+            if (FindFallbackVideoUri(root) is not null)
                 return root;
 
             foreach (var property in root.EnumerateObject())
@@ -126,8 +125,11 @@ public sealed class RedditMediaPlatformExtractor(HttpClient httpClient) : IMedia
         foreach (var key in new[] { "secure_media", "media" })
         {
             if (!post.TryGetProperty(key, out var media) ||
+                media.ValueKind != JsonValueKind.Object ||
                 !media.TryGetProperty("reddit_video", out var video) ||
-                !video.TryGetProperty("fallback_url", out var fallback))
+                video.ValueKind != JsonValueKind.Object ||
+                !video.TryGetProperty("fallback_url", out var fallback) ||
+                fallback.ValueKind != JsonValueKind.String)
                 continue;
 
             var value = fallback.GetString();
