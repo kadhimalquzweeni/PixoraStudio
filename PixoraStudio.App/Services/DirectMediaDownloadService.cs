@@ -87,6 +87,9 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             if (totalRead == 0)
                 throw new InvalidDataException("The server returned an empty file.");
 
+            if (totalLength is > 0 && totalRead != totalLength.Value)
+                throw new InvalidDataException("The download ended before the complete file was received.");
+
             File.Move(temporaryPath, destinationPath);
             progress?.Report(100d);
             return destinationPath;
