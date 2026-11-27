@@ -33,6 +33,7 @@ public partial class App : Application
         services.AddSingleton<PdfConverterViewModel>();
         services.AddSingleton(new HttpClient { Timeout = Timeout.InfiniteTimeSpan });
         services.AddSingleton<IDirectMediaDownloadService, DirectMediaDownloadService>();
+        services.AddSingleton<DownloadQueueService>();
         services.AddSingleton<MediaDownloaderViewModel>();
         services.AddSingleton<IImageProcessingService, ImageProcessingService>();
         services.AddSingleton<IPdfRenderingService, PdfRenderingService>();
