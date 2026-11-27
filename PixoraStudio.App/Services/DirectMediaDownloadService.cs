@@ -216,6 +216,17 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         await File.WriteAllTextAsync(metadataPath, JsonSerializer.Serialize(metadata), transferToken);
 
         var totalRead = offset;
+        var buffer = new byte[BufferSize];
+        if (offset > 0)
+        {
+            await using var headerStream = new FileStream(
+                partialPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                12, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var headerLength = await ReadHeaderAsync(headerStream, buffer, transferToken);
+            if (!DirectMediaFormats.HasValidContainerHeader(buffer.AsSpan(0, headerLength), extension))
+                throw new InvalidDataException("The saved partial file has an invalid media header.");
+        }
+
         await using (var input = await response.Content.ReadAsStreamAsync(transferToken))
         await using (var output = new FileStream(
             partialPath,
@@ -225,7 +236,6 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             BufferSize,
             FileOptions.Asynchronous | FileOptions.SequentialScan))
         {
-            var buffer = new byte[BufferSize];
             if (offset == 0)
             {
                 var headerLength = await ReadHeaderAsync(input, buffer, transferToken);
@@ -234,15 +244,6 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
 
                 await output.WriteAsync(buffer.AsMemory(0, headerLength), transferToken);
                 totalRead += headerLength;
-            }
-            else
-            {
-                await using var headerStream = new FileStream(
-                    partialPath, FileMode.Open, FileAccess.Read, FileShare.Read,
-                    12, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                var headerLength = await ReadHeaderAsync(headerStream, buffer, transferToken);
-                if (!DirectMediaFormats.HasValidContainerHeader(buffer.AsSpan(0, headerLength), extension))
-                    throw new InvalidDataException("The saved partial file has an invalid media header.");
             }
 
             ReportProgress(progress, totalRead, expectedLength);
@@ -285,7 +286,7 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
             if (metadata is null ||
                 !string.Equals(metadata.Source, source.AbsoluteUri, StringComparison.Ordinal) ||
                 !string.Equals(Path.GetDirectoryName(metadata.DestinationPath), outputDirectory, StringComparison.OrdinalIgnoreCase) ||
-                (string.IsNullOrWhiteSpace(metadata.ETag) && metadata.LastModifiedUtc is null))
+                (!CanSafelyResume(metadata)))
             {
                 return null;
             }
@@ -298,9 +299,13 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         }
     }
 
+    private static bool CanSafelyResume(ResumeMetadata metadata) =>
+        (EntityTagHeaderValue.TryParse(metadata.ETag, out var etag) && !etag.IsWeak) ||
+        metadata.LastModifiedUtc is not null;
+
     private static bool HasMatchingValidator(HttpResponseMessage response, ResumeMetadata metadata)
     {
-        if (!string.IsNullOrWhiteSpace(metadata.ETag))
+        if (EntityTagHeaderValue.TryParse(metadata.ETag, out var etag) && !etag.IsWeak)
             return string.Equals(response.Headers.ETag?.ToString(), metadata.ETag, StringComparison.Ordinal);
 
         return metadata.LastModifiedUtc is { } expected &&
