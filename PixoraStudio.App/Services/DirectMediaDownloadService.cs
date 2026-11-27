@@ -102,7 +102,7 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
         var partialKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source.AbsoluteUri)));
         var partialPath = Path.Combine(outputDirectory, $".pixora-{partialKey}.part");
         var metadataPath = partialPath + ".json";
-        var metadata = await ReadResumeMetadataAsync(metadataPath, source, outputDirectory, cancellationToken);
+        var metadata = await ReadResumeMetadataAsync(metadataPath, source, partialPath, outputDirectory, cancellationToken);
         var existingLength = metadata is not null && File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
 
         if (metadata is null || existingLength == 0)
@@ -272,6 +272,7 @@ public sealed class DirectMediaDownloadService(HttpClient httpClient) : IDirectM
     private static async Task<ResumeMetadata?> ReadResumeMetadataAsync(
         string metadataPath,
         Uri source,
+        string partialPath,
         string outputDirectory,
         CancellationToken cancellationToken)
     {
