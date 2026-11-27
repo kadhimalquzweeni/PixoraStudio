@@ -1,5 +1,5 @@
 using System.Collections.Specialized;
-using System.IO;
+using System.IO;\nusing System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixoraStudio.App.Services;
