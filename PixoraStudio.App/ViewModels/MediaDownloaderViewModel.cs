@@ -17,11 +17,6 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
         ("Reddit", ["reddit.com", "redd.it"]),
     ];
 
-    private static readonly HashSet<string> DirectVideoExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp4", ".webm", ".mov", ".mkv"
-    };
-
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
     private string url = string.Empty;
@@ -74,7 +69,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
     private bool CanDownload() =>
         IsLinkRecognised && !IsDownloading &&
         Uri.TryCreate(Url.Trim(), UriKind.Absolute, out var uri) &&
-        DirectVideoExtensions.Contains(Path.GetExtension(uri.AbsolutePath));
+        DirectMediaFormats.IsSupportedExtension(Path.GetExtension(uri.AbsolutePath));
 
     [RelayCommand]
     private void CheckLink()
@@ -105,7 +100,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
         }
 
         var extension = Path.GetExtension(uri.AbsolutePath);
-        if (DirectVideoExtensions.Contains(extension))
+        if (DirectMediaFormats.IsSupportedExtension(extension))
         {
             DetectedPlatform = "Direct video file";
             IsLinkRecognised = true;
