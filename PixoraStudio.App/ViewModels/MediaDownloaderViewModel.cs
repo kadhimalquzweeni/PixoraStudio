@@ -139,7 +139,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
         _downloadCancellation = new CancellationTokenSource();
         DownloadCommand.NotifyCanExecuteChanged();
 
-        var progress = new Progress<double>(value => DownloadProgress = value);
+        var progress = new Progress<double>(value =>\n        {\n            if (double.IsNaN(value))\n            {\n                ProgressDisplayText = "Downloading...";\n                return;\n            }\n\n            DownloadProgress = value;\n            ProgressDisplayText = $"{value:0}%";\n        });
         try
         {
             var path = await downloadService.DownloadAsync(
