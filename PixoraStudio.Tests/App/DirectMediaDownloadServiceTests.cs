@@ -171,7 +171,7 @@ public sealed class DirectMediaDownloadServiceTests
         };
         response.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         response.Content.Headers.ContentRange = new ContentRangeHeaderValue(8, VideoBytes.Length - 1, VideoBytes.Length);
-            ETag = "\"v1\"",
+        response.Headers.ETag = new EntityTagHeaderValue("\"v1\"");
         using var client = new HttpClient(new RecordingHandler(request =>
         {
             requestedOffset = request.Headers.Range?.Ranges.Single().From;
