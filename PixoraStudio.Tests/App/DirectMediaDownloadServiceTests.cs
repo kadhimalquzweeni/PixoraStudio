@@ -1,0 +1,196 @@
+using System.Net;
+using System.Net.Http.Headers;
+using PixoraStudio.App.Services;
+
+namespace PixoraStudio.Tests.App;
+
+public sealed class DirectMediaDownloadServiceTests
+{
+    [Fact]
+    public async Task DownloadAsync_WritesVideoAndReportsCompletion()
+    {
+        using var directory = new TemporaryDirectory();
+        using var client = CreateClient(CreateVideoResponse());
+        var service = new DirectMediaDownloadService(client);
+        var progressValues = new List<double>();
+
+        var path = await service.DownloadAsync(
+            new Uri("https://media.example/video.mp4"),
+            directory.Path,
+            new InlineProgress<double>(progressValues.Add),
+            CancellationToken.None);
+
+        Assert.True(File.Exists(path));
+        Assert.Equal("video.mp4", System.IO.Path.GetFileName(path));
+        Assert.Equal(VideoBytes, await File.ReadAllBytesAsync(path));
+        Assert.Equal(100d, progressValues[^1]);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_UsesUniqueFileNameWhenFileAlreadyExists()
+    {
+        using var directory = new TemporaryDirectory();
+        await File.WriteAllTextAsync(System.IO.Path.Combine(directory.Path, "video.mp4"), "existing");
+        using var client = CreateClient(CreateVideoResponse());
+        var service = new DirectMediaDownloadService(client);
+
+        var path = await service.DownloadAsync(
+            new Uri("https://media.example/video.mp4"),
+            directory.Path,
+            null,
+            CancellationToken.None);
+
+        Assert.Equal("video (2).mp4", System.IO.Path.GetFileName(path));
+        Assert.Equal("existing", await File.ReadAllTextAsync(System.IO.Path.Combine(directory.Path, "video.mp4")));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_RejectsHtmlResponses()
+    {
+        using var directory = new TemporaryDirectory();
+        using var client = CreateClient(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("<html>not a video</html>")
+        });
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+        var service = new DirectMediaDownloadService(client);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => service.DownloadAsync(
+            new Uri("https://media.example/video.mp4"),
+            directory.Path,
+            null,
+            CancellationToken.None));
+
+        Assert.Empty(Directory.GetFiles(directory.Path));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_RejectsInvalidContainerHeader()
+    {
+        using var directory = new TemporaryDirectory();
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent("not a video file"u8.ToArray())
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        using var client = CreateClient(response);
+        var service = new DirectMediaDownloadService(client);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => service.DownloadAsync(
+            new Uri("https://media.example/video.mp4"),
+            directory.Path,
+            null,
+            CancellationToken.None));
+
+        Assert.Empty(Directory.GetFiles(directory.Path));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_RejectsEmptyResponse()
+    {
+        using var directory = new TemporaryDirectory();
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent([])
+        };
+        using var client = CreateClient(response);
+        var service = new DirectMediaDownloadService(client);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => service.DownloadAsync(
+            new Uri("https://media.example/video.mp4"),
+            directory.Path,
+            null,
+            CancellationToken.None));
+
+        Assert.Empty(Directory.GetFiles(directory.Path));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_RejectsUnsupportedExtensionsBeforeRequest()
+    {
+        using var directory = new TemporaryDirectory();
+        var handler = new RecordingHandler(_ => throw new InvalidOperationException("Request should not be sent."));
+        using var client = new HttpClient(handler);
+        var service = new DirectMediaDownloadService(client);
+
+        await Assert.ThrowsAsync<NotSupportedException>(() => service.DownloadAsync(
+            new Uri("https://media.example/stream.m3u8"),
+            directory.Path,
+            null,
+            CancellationToken.None));
+
+        Assert.False(handler.RequestReceived);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_CancellationDoesNotLeavePartialFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        using var client = CreateClient(CreateVideoResponse());
+        var service = new DirectMediaDownloadService(client);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.DownloadAsync(
+            new Uri("https://media.example/video.mp4"),
+            directory.Path,
+            null,
+            cancellation.Token));
+
+        Assert.Empty(Directory.GetFiles(directory.Path));
+    }
+
+    private static readonly byte[] VideoBytes =
+    [
+        0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70,
+        0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x00, 0x00
+    ];
+
+    private static HttpResponseMessage CreateVideoResponse()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(VideoBytes)
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        return response;
+    }
+
+    private static HttpClient CreateClient(HttpResponseMessage response) =>
+        new(new RecordingHandler(_ => response));
+
+    private sealed class RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory)
+        : HttpMessageHandler
+    {
+        public bool RequestReceived { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestReceived = true;
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(responseFactory(request));
+        }
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public string Path { get; } = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            "PixoraStudio-DownloaderTests-" + Guid.NewGuid().ToString("N"));
+
+        public TemporaryDirectory() => Directory.CreateDirectory(Path);
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+                Directory.Delete(Path, recursive: true);
+        }
+    }
+}
