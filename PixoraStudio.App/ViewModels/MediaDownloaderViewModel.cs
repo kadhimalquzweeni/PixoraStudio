@@ -53,6 +53,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
     private bool isLinkRecognised;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CancelDownloadCommand))]
     private bool isDownloading;
 
     public string[] FormatOptions { get; } = ["Video with audio", "Video only", "Audio only"];
@@ -154,7 +155,7 @@ public partial class MediaDownloaderViewModel(IDirectMediaDownloadService downlo
         {
             StatusMessage = $"Download failed: {exception.Message}";
         }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or NotSupportedException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or NotSupportedException or UnauthorizedAccessException)
         {
             StatusMessage = $"Download failed: {exception.Message}";
         }
