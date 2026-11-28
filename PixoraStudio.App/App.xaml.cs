@@ -1,8 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using PixoraStudio.Core.Interfaces;
 using PixoraStudio.Infrastructure.Services;
 using PixoraStudio.App.ViewModels;
+using PixoraStudio.App.Services;
 using PixoraStudio.App.Views;
+using System.Net.Http;
 using System.Windows;
 using LibVLCSharp.Shared;
 
@@ -30,6 +32,12 @@ public partial class App : Application
         services.AddSingleton<PhotoEditorViewModel>();
         services.AddSingleton<VideoEditorViewModel>();
         services.AddSingleton<PdfConverterViewModel>();
+        services.AddSingleton(new HttpClient { Timeout = Timeout.InfiniteTimeSpan });
+        services.AddSingleton<IDirectMediaDownloadService, DirectMediaDownloadService>();
+        services.AddSingleton<IMediaPlatformExtractor, RedditMediaPlatformExtractor>();
+        services.AddSingleton<MediaPlatformExtractorRegistry>();
+        services.AddSingleton<DownloadQueueService>();
+        services.AddSingleton<MediaDownloaderViewModel>();
         services.AddSingleton<IImageProcessingService, ImageProcessingService>();
         services.AddSingleton<IPdfRenderingService, PdfRenderingService>();
         services.AddSingleton<IPixelArtUpscalingService, PixelArtUpscalingService>();
